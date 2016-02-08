@@ -2,7 +2,7 @@ READ THIS FIRST
 ===============
 
 For directions about how to contribute to the toolkit, please see CONTRIBUTING.rst in the repository
-(also visible nicely formatted at http://github.com/IntelPNI/toolkit/CONTRIBUTING.rst)
+(also visible nicely formatted at https://github.com/IntelPNI/toolkit/blob/master/CONTRIBUTING.rst)
 
 The material below is directed at end users. This "READ THIS FIRST" section will be removed before our first release.
 
