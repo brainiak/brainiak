@@ -16,6 +16,13 @@ We try to make the C++ libraries usable outside of Python as well, so that they 
 project, or accessed from other languages. However this is a secondary goal, our primary goal is to produce a solid,
 highly usable, very high performance toolkit for Python.
 
+How to Contribute
+=================
+
+We use `Pull Requests (PR's)`_ to make improvements to the repository. Please see the linked documentation for
+information about how to create your own fork of the project, and generate pull requests to submit your code for inclusion
+in the project.
+
 Supported Configurations
 ========================
 
@@ -40,9 +47,10 @@ Standards
 
 * Python code should follow PEP-8_
 * C++ code should follow the `Google C++ standards`_
+* All user-visible / public APIs should have technical documentation that explains what the code does, what its
+  parameters mean, and what its return values can be, at a minimum.
+* All code should have repeatable automated unit tests, and most code should have integration tests as well.
 
-.. _PEP-8: https://www.python.org/dev/peps/pep-0008/
-.. _Google C++ standards:https://google.github.io/styleguide/cppguide.html
 
 Folder Layout
 =============
@@ -56,3 +64,6 @@ Try to give subpackages a short, but still-as-meaningful-as-possible name.
 
 For example, toolkit/topofactor might be a name for the folder for topological factor analysis work.
 
+.. _PEP-8: https://www.python.org/dev/peps/pep-0008/
+.. _Google C++ standards:https://google.github.io/styleguide/cppguide.html
+.. _Pull Requests (PR's):https://help.github.com/categories/collaborating-on-projects-using-pull-requests/
