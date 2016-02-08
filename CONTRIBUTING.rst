@@ -32,8 +32,8 @@ only supported compiler. The toolkit runs on Linux, may run on MacOS X, and prob
 The Intel Math Kernel Library (MKL) is required, as is MPI. Either OpenMPI or Intel MPI should work.
 The Intel Data Analytics Acceleration Library is also required.
 
-The Intel C/C++ compiler is available for free to open source contributors here: https://registrationcenter.intel.com/en/forms/?licensetype=2&programID=opensource&productid=2302
-MKL and DAAL are both available to everyone under free community license at this URL: https://registrationcenter.intel.com/en/forms/?productid=2558&licensetype=2
+* The Intel C/C++ compiler is available for free to open source contributors here: https://registrationcenter.intel.com/en/forms/?licensetype=2&programID=opensource&productid=2302
+* MKL and DAAL are both available to everyone under free community license at this URL: https://registrationcenter.intel.com/en/forms/?productid=2558&licensetype=2
 
 Tools
 =====
