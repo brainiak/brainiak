@@ -75,7 +75,10 @@ Standards
   values can be, at a minimum.
 * All code should have repeatable automated unit tests, and most code should
   have integration tests as well.
-
+* Where possible, transformations and classifiers should be made compatible
+  with Scikit-learn Pipelines by implementing fit, transform and 
+  fit_transform methods as described in the Scikit-learn documentation
+  (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
 
 Folder Layout
 =============
