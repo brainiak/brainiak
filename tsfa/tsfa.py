@@ -17,7 +17,8 @@ import sys
 import os
 import time
 from scipy import stats
-from tfa import initTfa, fitTfa
+from tfa import init_centers_widths, fitTfa
+
 
 
 def tsfa(movie_data, R, options, args):
@@ -67,7 +68,7 @@ def tsfa(movie_data, R, options, args):
         S = S + W[m].T.dot(X[m])
         
         #initialize tfa
-        centers[m],widths[m] = initTfa(R[m], K)
+        centers[m],widths[m] = init_centers_widths(R[m], K)
         
     S = S/float(nsubjs)
 
@@ -84,7 +85,7 @@ def tsfa(movie_data, R, options, args):
             W[m] = Um.dot(Vm)  # W = UV^T
             
             if args.tfaEmbedded:   
-                W[m],F[m],Z[m] = fitTfa(miter,args.tfaWeight,args.threshold,args.tfaMethod, args.tfaLoss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m])
+                W[m],F[m],Z[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m],True)
 
         S = np.zeros((nfeature, nTR))
         for m in range(nsubjs):
@@ -96,7 +97,7 @@ def tsfa(movie_data, R, options, args):
     if not args.tfaEmbedded: 
         start_time = time.time()
         for m in range(nsubjs): 
-            W[m],F[m],Z[m] = fitTfa(miter,args.tfaWeight,args.threshold,args.tfaMethod, args.tfaLoss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m])
+            W[m],F[m],Z[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m],True)
         print("total fitTfa took %s seconds ---" % (time.time() - start_time))
         sys.stdout.flush()
   
