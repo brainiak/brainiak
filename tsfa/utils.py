@@ -18,7 +18,7 @@ def from_sym_2_tri(symm):
    tri = symm[inds]
    return tri   
    
-def fast_inverse(a):    
+def fast_inv(a):    
     identity = np.identity(a.shape[1],dtype=a.dtype)    
     inva = np.linalg.solve(a,identity)
     return inva    

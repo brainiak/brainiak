@@ -27,17 +27,17 @@ def tsfa(movie_data, R, options, args):
     for m in xrange(nsubjs):
         X[m] = stats.zscore(X[m].T, axis=0, ddof=1).T
 
-    W = []
+    T = []
     centers = []
     widths = []
     F = []
-    Z = []
+    W = []
     for m in xrange(nsubjs):
         nvoxel = X[m].shape[0]
         dim = R[m].shape[1]
-        W.append(np.zeros(shape=(nvoxel, nfeature)))
+        T.append(np.zeros(shape=(nvoxel, nfeature)))
         F.append(np.zeros(shape=(nvoxel, K)))
-        Z.append(np.zeros(shape=(K, nfeature)))
+        W.append(np.zeros(shape=(K, nfeature)))
         centers.append(np.zeros((K, dim)))
         widths.append(np.zeros((K, 1)))
     
@@ -50,7 +50,7 @@ def tsfa(movie_data, R, options, args):
         # initialize with random orthogonal matrix
         A = np.mat(np.random.random((nvoxel, nfeature)))
         Q, R_qr = np.linalg.qr(A)
-        W[m] = Q
+        T[m] = Q
         S = S + W[m].T.dot(X[m])
         
         #initialize tfa
@@ -68,14 +68,14 @@ def tsfa(movie_data, R, options, args):
             np.fill_diagonal(pert, 1)
             Um, sm, Vm = np.linalg.svd(Am+0.001*pert, full_matrices=False)
 
-            W[m] = Um.dot(Vm)  # W = UV^T
+            T[m] = Um.dot(Vm)  # W = UV^T
             
             if args.tfaEmbedded:   
-                W[m],F[m],Z[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m],True)
+                T[m],F[m],W[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,T[m],R[m],centers[m],widths[m],True)
 
         S = np.zeros((nfeature, nTR))
         for m in range(nsubjs):
-            S = S + W[m].T.dot(X[m])
+            S = S + T[m].T.dot(X[m])
         S = S/float(nsubjs)  
         print '\n'   
         
@@ -83,27 +83,27 @@ def tsfa(movie_data, R, options, args):
     if not args.tfaEmbedded: 
         start_time = time.time()
         for m in range(nsubjs): 
-            W[m],F[m],Z[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,W[m],R[m],centers[m],widths[m],True)
+            T[m],F[m],W[m] = tsfa_fit_tfa(miter,args.tfa_weight,args.threshold,args.tfa_method, args.tfa_loss,args.UW,args.LW, X[m],S,T[m],R[m],centers[m],widths[m],True)
         print("total fitTfa took %s seconds ---" % (time.time() - start_time))
         sys.stdout.flush()
   
-    print 'tsfa cost ',obj_func(X, W, S,nsubjs)
+    print 'tsfa cost ',obj_func(X, T, S,nsubjs)
 
-    return W,S
+    return T,F,W,S
 
 
-def obj_func(X, W, S, nsubjs):
+def obj_func(X, T, S, nsubjs):
     obj_val_tmp = 0
     for m in range(nsubjs):
-        obj_val_tmp += np.linalg.norm(X[m] - W[m].dot(S), 'fro')**2    
+        obj_val_tmp += np.linalg.norm(X[m] - T[m].dot(S), 'fro')**2    
     return obj_val_tmp 
 
 def align(movie_data, R, options, args, lrh):
     print 'SRM start\n',
     sys.stdout.flush()
     # assume data is zscored   
-    W, S = tsfa(movie_data, R, options, args)    
+    T,F,W,S = tsfa(movie_data, R, options, args)    
     print 'SRM end\n'
 
-    return W, S    
+    return T,F,W,S    
     
