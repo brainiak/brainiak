@@ -1,3 +1,5 @@
+<<<<<<< HEAD
+=======
 #!/usr/bin/env python
 
 # Inference code for non-probabilistic Shared Response Model with varying number of voxels across subjects
@@ -12,6 +14,7 @@
 
 # By Cameron PH Chen @ Princeton
 
+>>>>>>> dc0a1e7ff8110e6f2bc513bc94dc48abbec9c997
 import numpy as np
 import sys
 import os

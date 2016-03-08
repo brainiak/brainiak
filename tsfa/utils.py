@@ -6,8 +6,11 @@ import pip
 """
 convert an upper/lower triangular matrix in 1D to a full 2D symmetric matrix
 """
+<<<<<<< HEAD
+=======
 
 
+>>>>>>> dc0a1e7ff8110e6f2bc513bc94dc48abbec9c997
 def from_tri_2_sym(tri,K):
    symm = np.zeros((K,K))
    inds = np.triu_indices_from(symm)   
