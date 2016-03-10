@@ -8,9 +8,7 @@ convert an upper/lower triangular matrix in 1D to a full 2D symmetric matrix
 """
 def from_tri_2_sym(tri,dim):
    symm = np.zeros((dim,dim))
-   inds = np.triu_indices_from(symm)   
-   symm[inds] = tri   
-   symm[(inds[1], inds[0])] = tri
+   symm[np.triu_indices(dim)] = tri
    return symm
 
 def from_sym_2_tri(symm):

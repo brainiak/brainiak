@@ -66,17 +66,26 @@ def map_update_posterior(global_prior,gather_posterior,K,nsubjs,dim,map_offset,c
         common=1.0/(prior_widths_mean_var[k] + scaled) 
         observation_mean = np.mean(next_widths)
         tmp = common*scaled
-        global_posterior[map_offset[1]+k] = prior_widths_mean_var[k]*common*observation_mean + tmp*prior_widths[k]
+        global_posterior[map_offset[1]+k] = prior_widths_mean_var[k]*common*observation_mean + tmp*prior_widths[k]        
         global_posterior[map_offset[3]+k] = prior_widths_mean_var[k]*tmp
-        
+  
     return global_posterior
 
 def converged(prior, posterior,K,dim,threshold):    
-    posterior_2d = posterior.reshape(K,dim+1)
-    cost=distance.cdist(prior.reshape(K,dim+1),posterior_2d,'euclidean')
+    prior_centers = prior[0:K*dim].reshape((K,dim))    
+    posterior_centers = posterior[0:K*dim].reshape((K,dim))
+    posterior_widths = posterior[K*dim:].reshape((K,1)) 
+    #linear assignment on centers 
+    cost=distance.cdist(prior_centers,posterior_centers,'euclidean')
     _,col_ind=linear_sum_assignment(cost)
-    sorted_posterior=posterior_2d[col_ind].ravel()
-    if mean_squared_error(prior, sorted_posterior, multioutput='uniform_average') > threshold:
+    posterior[0:K*dim]=posterior_centers[col_ind].reshape(K*dim)
+    posterior[K*dim:]=posterior_widths[col_ind].reshape(K)
+    print 'sorted_posterior\n',np.hstack((posterior[0:K*dim].reshape((K,dim)), 
+                                          posterior[K*dim:].reshape((K,1))
+                                          ))
+    mse = mean_squared_error(prior, posterior, multioutput='uniform_average')
+    print "mse is ",mse
+    if mse > threshold:
         return False
     else:
         return True
@@ -84,15 +93,10 @@ def converged(prior, posterior,K,dim,threshold):
 def get_global_prior(R,K,dim,cov_vec_size):
     global_prior = np.zeros(K*(dim+2*cov_vec_size+3))
     centers,widths = init_centers_widths(R, K)
-    center_cov= 1.0/math.pow(K,2/3.0)*np.cov(R.T)
-    center_cov_inv = fast_inv(center_cov)
+    center_cov= 1.0/math.pow(K,2/3.0)*np.cov(R.T)    
     center_cov_all = np.tile(from_sym_2_tri(center_cov),K)
-    center_cov_inv_all = np.tile(from_sym_2_tri(center_cov_inv),K)
-    width_var = np.nanmax(np.std(R,axis=0))   
-    width_var = math.pow(width_var,2)
-    width_var_inv = 1.0/width_var
+    width_var = math.pow(np.nanmax(np.std(R,axis=0)),2)
     width_var_all = np.tile(width_var,K)
-    width_var_inv_all = np.tile(width_var_inv,K)
     map_offset,global_prior_size = get_map_offset(K,dim,cov_vec_size,True)
     #center mean mean
     global_prior[0:map_offset[1]] = centers.ravel()  
@@ -144,15 +148,14 @@ def init_centers_widths(R, K):
 def get_factors(R,centers,widths):
    K=centers.shape[0]
    F=np.zeros((R.shape[0],K))  
-   re_widths=1.0/widths 
    for k in np.arange(K):
-       F[:,k] = np.exp(-1.0*np.sum(np.power(R[:,0]-centers[k,0],2)+
+       F[:,k] = np.exp(-1.0/widths[k]*np.sum(np.power(R[:,0]-centers[k,0],2)+
                        np.power(R[:,1]-centers[k,1],2) +
-                       np.power(R[:,2]-centers[k,2],2))*re_widths[k]) 
+                       np.power(R[:,2]-centers[k,2],2))) 
                          
    return F
 
-#W: K*Te
+#W: K*T
 def get_weights(data,F, weight_method):
    beta = np.var(data)
    K = F.shape[1]
@@ -179,21 +182,23 @@ def get_bounds(R,K,upper_ratio,lower_ratio):
     upper = np.zeros((1,dim + 1))
     upper[0,0:dim] = np.nanmax(R, axis=0)
     upper[0,dim] = upper_ratio*diameter    
-    final_upper = np.repeat(upper,K,axis=0) 
-    return (final_lower.reshape((K*(dim+1))),final_upper.reshape((K*(dim+1))))
+    final_upper = np.repeat(upper,K,axis=0)
+    bounds =  (final_lower.reshape((K*(dim+1))),final_upper.reshape((K*(dim+1))))
+    return bounds
 
 def residual(estimate,K,dim,R, X,W,global_centers,global_widths,
              global_center_mean_cov,global_width_mean_var,sample_scaling,data_sigma):
-    data = estimate.reshape((K,dim+1))
-    centers = np.zeros((K,dim))
-    widths = np.zeros((K,1))
-    centers = data[:,0:dim]
-    widths[:,0] = data[:,dim]
+    centers = estimate[0:K*dim].reshape((K,dim))
+    widths = estimate[K*dim:].reshape((K,1))
     F = get_factors(R,centers,widths)    
-    err = data_sigma*(X - F.dot(W))
+    err = data_sigma*np.fabs(X - F.dot(W))
     #least_squares requires return value to be at most 1D array
     recon = X.size
-    finalErr = np.zeros(recon+2*K)
+    finalErr = np.zeros(err.size)
+    finalErr[:] = err.ravel()    
+    return np.sum(err,axis=0)    
+"""    
+    finalErr = np.zeros(recon+2*K)    
     finalErr[0:recon] = err.ravel()
     #center error        
     for k in np.arange(K):
@@ -206,13 +211,10 @@ def residual(estimate,K,dim,R, X,W,global_centers,global_widths,
         diff = widths[k]-global_widths[k]
         finalErr[base + k] = math.sqrt(0.5*sample_scaling*(1.0/global_width_mean_var[k])*math.pow(diff,2))            
     return finalErr
-   
+"""   
 def residual_recon(estimate,K,dim,R, X,W,data_sigma):
-    data = estimate.reshape((K,dim+1))
-    centers = np.zeros((K,dim))
-    widths = np.zeros((K,1))
-    centers = data[:,0:dim]
-    widths[:,0] = data[:,dim]
+    centers = estimate[0:K*dim].reshape((K,dim))
+    widths = estimate[K*dim:].reshape((K,1))
     F = get_factors(R,centers,widths)
     err = data_sigma*(X - F.dot(W))
     #least_squares requires return value to be at most 1D array
@@ -224,24 +226,17 @@ def get_centers_widths(R,X,W,init_centers,init_widths,args,global_centers,global
                        global_center_mean_cov,global_width_mean_var):
    K = init_centers.shape[0]
    dim = init_centers.shape[1]
-   init_estimate = np.concatenate((init_centers,init_widths),axis=1) 
+   init_estimate = np.concatenate((init_centers,init_widths),axis=1)    
    data_sigma = 1.0/math.sqrt(2.0)*np.std(X)
    #least_squares only accept x in 1D format 
    init_data = init_estimate.ravel()
-   tmp = np.hstack((init_centers,init_widths))   
    final_estimate = least_squares(residual,init_data,
                                   args=(K,dim,R,X,W,global_centers,global_widths,
                                   global_center_mean_cov,global_width_mean_var,args.sample_scaling,data_sigma), 
-                                  method=args.nlss_method, loss=args.nlss_loss, bounds=args.center_width_bounds) 
-                               
-   #print 'tfa cost ',final_estimate.cost
-   sys.stdout.flush()
-   result = final_estimate.x.reshape((K,dim+1))
-   centers = np.zeros((K,dim))
-   widths = np.zeros((K,1))
-   centers = result[:,0:dim]
-   widths[:,0] = result[:,dim]
-   return centers,widths,final_estimate.x,final_estimate.cost    
+                                  method=args.nlss_method, loss=args.nlss_loss, bounds=args.center_width_bounds,
+                                  verbose=2) 
+   print 'nlss status ',final_estimate.status,final_estimate.success
+   return final_estimate.x,final_estimate.cost    
 
    
 def fit_tfa(local_prior,global_prior,map_offset,data,R,args):
@@ -277,12 +272,14 @@ def fit_tfa_inner(local_prior,global_centers,global_widths,global_center_mean_co
     curr_data = data[voxel_indices]
     curr_data = curr_data[:,trs_indices].copy()
     curr_R = R[voxel_indices].copy()
-    centers = local_prior[0:args.K*dim].reshape(args.K,dim)
-    widths = local_prior[args.K*dim:].reshape(args.K,1)    
+    centers = local_prior[0:args.K*dim].copy().reshape(args.K,dim)
+    widths = local_prior[args.K*dim:].copy().reshape(args.K,1)    
     F = get_factors(curr_R,centers,widths)
     W = get_weights(curr_data,F, args.weight_method)   
-    _,_,local_posterior,_ = get_centers_widths(curr_R,curr_data,W,centers,widths,args,global_centers,global_widths,
-                                          global_center_mean_cov,global_width_mean_var)    
+    local_posterior,tfa_cost = get_centers_widths(curr_R,curr_data,W,centers,widths,args,global_centers,global_widths,
+                                          global_center_mean_cov,global_width_mean_var)  
+    print 'tfa cost ',tfa_cost
+    sys.stdout.flush()  
     return local_posterior
     
  

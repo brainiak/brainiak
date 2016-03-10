@@ -76,8 +76,7 @@ def get_subject_info(nlocal_subjs,data,R,args):
         max_sample_voxel[idx] = min(args.max_voxel,int(args.voxel_ratio*nvoxel))
         max_sample_tr[idx] = min(args.max_tr,int(args.tr_ratio*ntr))  
         sample_scaling[idx] = float(nvoxel*ntr)/float(max_sample_voxel[idx]*max_sample_tr[idx]) 
-        center_width_bounds.append(get_bounds(R[idx],args.K,args.upper_ratio,args.lower_ratio))
-        print    center_width_bounds[idx][0],center_width_bounds[idx][1]  
+        center_width_bounds.append(get_bounds(R[idx],args.K,args.upper_ratio,args.lower_ratio))          
     return max_sample_tr, max_sample_voxel,sample_scaling,center_width_bounds 
 
 def fit_htfa(data,R,args):
@@ -112,6 +111,7 @@ def fit_htfa(data,R,args):
         map_offset = get_map_offset(K,dim,cov_vec_size,False)
         gather_posterior = None 
     
+    init_global_prior=global_prior[0:posterior_size].copy()
     m = 0 
     outer_converged = np.array([0])         
     while m < args.max_outer_iter and not outer_converged[0]:
@@ -132,11 +132,10 @@ def fit_htfa(data,R,args):
        #root updates update global_posterior
        if rank == 0:
            global_posterior = map_update_posterior(global_prior,gather_posterior,K,nsubjs,dim,map_offset,cov_vec_size)
-           if converged(global_posterior[0:posterior_size],global_prior[0:posterior_size],K,dim,args.threshold):
+           if converged(global_prior[0:posterior_size],global_posterior[0:posterior_size],K,dim,args.threshold):
                outer_converged[0] = 1
            else:
-               global_prior = global_posterior
-               
+               global_prior = global_posterior             
        comm.Bcast(outer_converged,root=0)       
        m += 1
     
@@ -146,4 +145,6 @@ def fit_htfa(data,R,args):
         final_centers = global_posterior[0:map_offset[1]].reshape(K,dim)
         final_widths = global_posterior[map_offset[1]:map_offset[2]].reshape(K,1)  
         np.set_printoptions(suppress=True)   
-        print 'final_global_template\n',np.hstack((final_centers,1.0/final_widths))
+        print 'final_global_template\n',np.hstack((final_centers,final_widths))
+    
+    return init_global_prior,global_posterior[0:posterior_size]

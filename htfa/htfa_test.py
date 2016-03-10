@@ -5,6 +5,7 @@ import nibabel
 from nilearn.input_data import NiftiMasker
 import scipy.io
 import time
+from tfa import converged
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -21,7 +22,7 @@ max_outer_iter=10
 max_inner_iter=10
 threshold=0.01
 nlss_method = 'dogbox' # ['trf','dogbox'] for bounded optimization
-nlss_loss = 'soft_l1' #['linear','soft_l1','huber','cauchy','arctan']
+nlss_loss = 'cauchy' #['linear','soft_l1','huber','cauchy','arctan']
 weight_method = 'rr' #['ols','rr']
 upper_ratio = 1.8
 lower_ratio = 0.1
@@ -31,7 +32,7 @@ max_voxel = 5000
 max_tr = 500
 from_array = False
 from_mat = True
-nsubjs = 4
+nsubjs = 1
 
 if from_array:
     data = []
@@ -72,10 +73,27 @@ args=HtfaArgs(K, nsubjs,max_outer_iter,max_inner_iter,threshold,
 if rank == 0:
    start_time = time.time() 
                 
-fit_htfa(my_data,my_R,args)
+init_global_prior,global_posterior=fit_htfa(my_data,my_R,args)
 
 if rank == 0:
-   print("htfa exe time: %s seconds" % (time.time() - start_time))
+   print("htfa exe time: %s seconds" % (time.time() - start_time))   
+   prefix='/home/hadoop/TFA/tests/synth/'
+   template=scipy.io.loadmat(prefix + 'template.mat')
+   centers=template['template_centers']
+   widths=template['template_widths'] 
+   np.set_printoptions(suppress=True)   
+   print 'expected_global_template\n',np.hstack((centers,widths))
+   expected=np.hstack((centers.reshape(K*dim),widths.reshape(K)))
+   print 'recon on template\n'
+   
+   print 'recon on initial global prior\n'
+   
+   print 'recon on global posterior\n'
+   
+   print 'mse between initial global prior and template\n'
+   converged(expected, init_global_prior,K,dim,threshold)
+   print 'mse between global_posterior and template\n'
+   converged(expected, global_posterior,K,dim,threshold)
 
 """
 from tfa import get_factors
