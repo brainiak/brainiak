@@ -1,7 +1,7 @@
 from mpi4py import MPI
 import numpy as np
 from utils import from_tri_2_sym, from_sym_2_tri, fast_inv
-from tfa import TfaArgs,get_global_prior,converged,get_map_offset,fit_tfa,map_update_posterior
+from tfa import TfaArgs,get_global_prior,converged,get_map_offset,fit_tfa,map_update_posterior,get_bounds
 
 
 """
@@ -65,17 +65,20 @@ def get_gather_offset(nsubjs,size,posterior_size):
     tuple_offset = tuple(map(tuple, gather_offset))
     return tuple_size[0],tuple_offset[0]
 
-def get_sample_info(nlocal_subjs, data,args):  
+def get_subject_info(nlocal_subjs,data,R,args):  
     max_sample_tr = np.zeros(nlocal_subjs).astype(int)
     max_sample_voxel = np.zeros(nlocal_subjs).astype(int)
     sample_scaling = np.zeros(nlocal_subjs)
+    center_width_bounds = []
     for idx in np.arange(nlocal_subjs):                
         nvoxel = data[idx].shape[0]
         ntr = data[idx].shape[1]        
         max_sample_voxel[idx] = min(args.max_voxel,int(args.voxel_ratio*nvoxel))
         max_sample_tr[idx] = min(args.max_tr,int(args.tr_ratio*ntr))  
-        sample_scaling[idx] = float(nvoxel*ntr)/float(max_sample_voxel[idx]*max_sample_tr[idx])      
-    return max_sample_tr, max_sample_voxel,sample_scaling 
+        sample_scaling[idx] = float(nvoxel*ntr)/float(max_sample_voxel[idx]*max_sample_tr[idx]) 
+        center_width_bounds.append(get_bounds(R[idx],args.K,args.upper_ratio,args.lower_ratio))
+        print    center_width_bounds[idx][0],center_width_bounds[idx][1]  
+    return max_sample_tr, max_sample_voxel,sample_scaling,center_width_bounds 
 
 def fit_htfa(data,R,args):
     comm = MPI.COMM_WORLD
@@ -93,9 +96,10 @@ def fit_htfa(data,R,args):
     posterior_size = K*(dim+1) 
     #map data to processes
     gather_size,gather_offset = get_gather_offset(nsubjs,size,posterior_size)    
-    max_sample_tr, max_sample_voxel,sample_scaling = get_sample_info(nlocal_subjs,data,args)
+    max_sample_tr, max_sample_voxel,sample_scaling,center_width_bounds = get_subject_info(nlocal_subjs,data,R,args)
     nlocal_subjs = len(data)    
     local_posterior = np.zeros(nlocal_subjs*posterior_size)
+    local_prior = np.zeros(nlocal_subjs*posterior_size)
         
     if rank == 0:
         idx = np.random.choice(nlocal_subjs,1)
@@ -115,17 +119,18 @@ def fit_htfa(data,R,args):
        comm.Bcast(global_prior[0:prior_bcast_size], root=0) 
        #each node loop over its data
        for s,subj_data in enumerate(data):
-           local_prior = global_prior[0:posterior_size].copy()            
+           local_prior[s*posterior_size:(s+1)*posterior_size] = global_prior[0:posterior_size].copy()            
            tfa_args=TfaArgs(args.max_inner_iter,args.threshold,args.K,
                             args.nlss_method,args.nlss_loss,args.weight_method,
                             args.upper_ratio,args.lower_ratio,max_sample_tr[s],
-                            max_sample_voxel[s],sample_scaling[s]) 
-           local_posterior[s*posterior_size:(s+1)*posterior_size] = fit_tfa(local_prior,global_prior[0:prior_bcast_size],map_offset,
+                            max_sample_voxel[s],sample_scaling[s],center_width_bounds[s]) 
+           local_posterior[s*posterior_size:(s+1)*posterior_size] = fit_tfa(local_prior[s*posterior_size:(s+1)*posterior_size],
+                                                                            global_prior[0:prior_bcast_size],map_offset,
                                                                             subj_data,R[s],tfa_args)
                
        comm.Gatherv(local_posterior,[gather_posterior,gather_size,gather_offset, MPI.DOUBLE])
        #root updates update global_posterior
-       if rank == 0:        
+       if rank == 0:
            global_posterior = map_update_posterior(global_prior,gather_posterior,K,nsubjs,dim,map_offset,cov_vec_size)
            if converged(global_posterior[0:posterior_size],global_prior[0:posterior_size],K,dim,args.threshold):
                outer_converged[0] = 1
@@ -135,7 +140,10 @@ def fit_htfa(data,R,args):
        comm.Bcast(outer_converged,root=0)       
        m += 1
     
+    #update weight matrix for each subject  
+    
     if rank == 0:
         final_centers = global_posterior[0:map_offset[1]].reshape(K,dim)
-        final_widths = global_posterior[map_offset[1]:map_offset[2]].reshape(K,1)     
-        print 'final_estimation',np.hstack((final_centers,1.0/final_widths))
+        final_widths = global_posterior[map_offset[1]:map_offset[2]].reshape(K,1)  
+        np.set_printoptions(suppress=True)   
+        print 'final_global_template\n',np.hstack((final_centers,1.0/final_widths))

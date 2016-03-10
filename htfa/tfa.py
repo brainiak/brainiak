@@ -9,10 +9,11 @@ import numpy as np
 import time
 import sys
 import math
+import time
 
 class TfaArgs(object):
     def __init__(self,max_iter,threshold,K,nlss_method,nlss_loss,weight_method,
-                 upper_ratio,lower_ratio,max_sample_tr,max_sample_voxel,sample_scaling):            
+                 upper_ratio,lower_ratio,max_sample_tr,max_sample_voxel,sample_scaling, bounds):            
         self.miter = max_iter
         self.threshold = threshold
         self.K= K
@@ -23,7 +24,8 @@ class TfaArgs(object):
         self.lower_ratio = lower_ratio
         self.max_sample_tr = max_sample_tr
         self.max_sample_voxel = max_sample_voxel
-        self.sample_scaling = sample_scaling  
+        self.sample_scaling = sample_scaling 
+        self.center_width_bounds = bounds 
 
 def map_update(prior_mean,prior_cov,global_cov,new_observation,nsubjs,dim):
     scaled = global_cov/float(nsubjs)    
@@ -45,12 +47,12 @@ def map_update_posterior(global_prior,gather_posterior,K,nsubjs,dim,map_offset,c
     posterior_size = center_size + K
     for k in np.arange(K):   
         next_centers = np.zeros((dim, nsubjs))
-        next_widths = np.zeros(nsubjs)
-        for s in np.arange(nsubjs):
-            center_start = s*posterior_size
-            width_start = center_start + center_size
-            next_centers[:,s] = gather_posterior[center_start+s*dim:center_start+(s+1)*dim]
-            next_widths[s] = gather_posterior[width_start+s]        
+        next_widths = np.zeros(nsubjs)        
+        for s in np.arange(nsubjs):   
+            center_start = s*posterior_size         
+            width_start = center_start + center_size            
+            next_centers[:,s] = gather_posterior[center_start+k*dim:center_start+(k+1)*dim].copy()
+            next_widths[s] = gather_posterior[width_start+k].copy()        
         
         #centers    
         posterior_mean,posterior_cov = map_update(prior_centers[k].T.copy(), from_tri_2_sym(prior_centers_mean_cov[k],dim),
@@ -132,19 +134,25 @@ def init_centers_widths(R, K):
     kmeans.fit(R)
     centers = kmeans.cluster_centers_
     #range of values in each column
-    widths = (1.0/get_diameter(R))*np.ones((K,1)) 
-    print 'init_estimation',np.hstack((centers,1.0/widths)) 
+    widths = get_diameter(R)*np.ones((K,1)) 
+    np.set_printoptions(suppress=True) 
+    print 'init_global_template\n',np.hstack((centers,widths)) 
     return centers,widths    
 
 #centers: K*3, widths: K*1
 #F: V*K
 def get_factors(R,centers,widths):
-   dist = distance.cdist(R,centers,'euclidean')
-   F = (np.exp(-dist.T*widths)).T.copy()
-   F = stats.zscore(F,axis=1, ddof=1)   
+   K=centers.shape[0]
+   F=np.zeros((R.shape[0],K))  
+   re_widths=1.0/widths 
+   for k in np.arange(K):
+       F[:,k] = np.exp(-1.0*np.sum(np.power(R[:,0]-centers[k,0],2)+
+                       np.power(R[:,1]-centers[k,1],2) +
+                       np.power(R[:,2]-centers[k,2],2))*re_widths[k]) 
+                         
    return F
 
-#W: K*T
+#W: K*Te
 def get_weights(data,F, weight_method):
    beta = np.var(data)
    K = F.shape[1]
@@ -166,11 +174,11 @@ def get_bounds(R,K,upper_ratio,lower_ratio):
     diameter = get_diameter(R)
     lower = np.zeros((1,dim + 1))
     lower[0,0:dim] = np.nanmin(R, axis=0)
-    lower[0,dim] = 1.0/(upper_ratio*diameter)
+    lower[0,dim] = lower_ratio*diameter
     final_lower = np.repeat(lower,K,axis=0)   
     upper = np.zeros((1,dim + 1))
     upper[0,0:dim] = np.nanmax(R, axis=0)
-    upper[0,dim] = 1.0/(lower_ratio*diameter)    
+    upper[0,dim] = upper_ratio*diameter    
     final_upper = np.repeat(upper,K,axis=0) 
     return (final_lower.reshape((K*(dim+1))),final_upper.reshape((K*(dim+1))))
 
@@ -212,21 +220,21 @@ def residual_recon(estimate,K,dim,R, X,W,data_sigma):
     finalErr[:] = err.ravel()    
     return finalErr
     
-def get_centers_widths(R,X,W,init_centers,init_widths,tfa_args,global_centers,global_widths,
+def get_centers_widths(R,X,W,init_centers,init_widths,args,global_centers,global_widths,
                        global_center_mean_cov,global_width_mean_var):
    K = init_centers.shape[0]
    dim = init_centers.shape[1]
-   init_estimate = np.concatenate((init_centers,init_widths),axis=1)
-   bounds =get_bounds(R,K,tfa_args.upper_ratio,tfa_args.lower_ratio) 
+   init_estimate = np.concatenate((init_centers,init_widths),axis=1) 
    data_sigma = 1.0/math.sqrt(2.0)*np.std(X)
    #least_squares only accept x in 1D format 
    init_data = init_estimate.ravel()
+   tmp = np.hstack((init_centers,init_widths))   
    final_estimate = least_squares(residual,init_data,
                                   args=(K,dim,R,X,W,global_centers,global_widths,
-                                  global_center_mean_cov,global_width_mean_var,tfa_args.sample_scaling,data_sigma), 
-                                  method=tfa_args.nlss_method, loss=tfa_args.nlss_loss, bounds=bounds) 
+                                  global_center_mean_cov,global_width_mean_var,args.sample_scaling,data_sigma), 
+                                  method=args.nlss_method, loss=args.nlss_loss, bounds=args.center_width_bounds) 
                                
-   print 'tfa cost ',final_estimate.cost
+   #print 'tfa cost ',final_estimate.cost
    sys.stdout.flush()
    result = final_estimate.x.reshape((K,dim+1))
    centers = np.zeros((K,dim))
