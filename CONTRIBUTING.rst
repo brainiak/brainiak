@@ -67,7 +67,11 @@ goes wrong.
 Standards
 =========
 
-* Python code should follow PEP-8 (https://www.python.org/dev/peps/pep-0008/)
+* Python code should follow the SciKit-Learn coding standards
+  (http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines)
+  with the exception that we target Python 3 only.
+* Python docstrings should be formatted according to the NumPy docstring
+  standard (https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt)
 * C++ code should follow the Google C++ standards
   (https://google.github.io/styleguide/cppguide.html)
 * All user-visible / public APIs should have technical documentation that
