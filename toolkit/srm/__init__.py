@@ -1,1 +1,2 @@
-__all__ = ["srm", "srm_det"]
+from srm import SRM
+__all__ = ["SRM"]
