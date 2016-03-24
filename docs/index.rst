@@ -11,7 +11,11 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+.. automodule:: toolkit
+   :members:
 
+.. automodule:: toolkit.srm
+   :members:
 
 Indices and tables
 ==================
