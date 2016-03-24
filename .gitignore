@@ -4,3 +4,5 @@
 *.so
 *.lib
 *.o
+dist
+toolkit.egg-info
