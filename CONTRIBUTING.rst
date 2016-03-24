@@ -43,7 +43,7 @@ Supported Configurations
 The toolkit provides greatest performance benefits when compiled with the Intel
 C/C++ compiler, icc, though it will compile with both gcc and icc.
 
-The toolkit runs on Linux, MacOS X, and not on Windows.
+The toolkit is currently supported on Linux, and MacOS X.
 
 The Intel Math Kernel Library (MKL) is required, as is MPI. We use MPICH for
 compiling. The Intel Data Analytics Acceleration Library is also
