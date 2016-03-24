@@ -73,7 +73,7 @@ class SRM(BaseEstimator):
     Given multi-subject data, factorize it as a shared response S among all subjects and an orthogonal transform W
     per subject:
 
-    .. math:: X_i \sim W_i * S ,  \~\~ for \~\~ all \~\~ i=1\dots N
+    .. math:: X_i \sim W_i * S ,~for~all~i=1\dots N
 
     Parameters
     ----------
