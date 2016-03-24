@@ -4,6 +4,7 @@ This implementation is based on the work:
 .. [1] "A Reduced-Dimension fMRI Shared Response Model"
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
    Advances in Neural Information Processing Systems (NIPS), 2015.
+   http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
 """
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek (Intel Labs), 2015
