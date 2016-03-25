@@ -150,19 +150,20 @@ class SRM(BaseEstimator):
             print('Running Probabilistic SRM')
 
         # Check the number of subjects
-        assert len(X) > 1, "There are not enough subjects ({0:d}) to train the model." \
-            .format(len(X))
+        if len(X) < 1:
+            raise ValueError("There are not enough subjects ({0:d}) to train the model.".format(len(X)))
 
         # Check for input data sizes
-        assert X[0].shape[1] >= self.features, "There are not enough samples to train the model with {0:d} features." \
-            .format(self.features)
+        if X[0].shape[1] < self.features:
+            raise ValueError("There are not enough samples to train the model with {0:d} features.".format(self.features))
 
         # Check if all subjects have same number of TRs
         number_trs = X[0].shape[1]
         number_subjects = len(X)
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
-            assert X[subject].shape[1] == number_trs, "Different number of samples between subjects."
+            if X[subject].shape[1] != number_trs:
+                raise ValueError("Different number of samples between subjects.")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
