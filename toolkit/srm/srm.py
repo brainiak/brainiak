@@ -15,16 +15,11 @@ from sklearn.base import BaseEstimator
 from sklearn.utils import assert_all_finite
 
 
-def init_w_transforms(method, data, features):
-    """Initializes the mappings (Wi) for the SRM.
+def init_w_transforms(data, features):
+    """Initializes the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Parameters
     ----------
-
-    method : {1, 2}
-        Method for initializing the mapping transforms:
-        1 - Orthogonal random matrix per subject
-        2 - Submatrix of the Identity matrix
 
     data : list of 2D arrays, element i has shape=[voxels_i, samples]
         Each element in the list contains the fMRI data of one subject.
@@ -37,7 +32,7 @@ def init_w_transforms(method, data, features):
     -------
 
     w : list of array, element i has shape=[voxels_i, features]
-        The initialized orthogonal transforms (mappings) :math:`W_i` for each subject, using `method`.
+        The initialized orthogonal transforms (mappings) :math:`W_i` for each subject.
 
     voxels : list of int
         A list with the number of voxels per subject.
@@ -45,25 +40,19 @@ def init_w_transforms(method, data, features):
 
     .. note::
     This function assumes that the numpy random number generator was initialized.
+    Not thread safe.
 
     """
     w = []
     subjects = len(data)
     voxels = np.zeros(subjects)
 
-    if method == 1:
-        # Set Wi to a random orthogonal voxels by features matrix
-        for subject in range(subjects):
-            voxels = data[subject].shape[0]
-            rnd_matrix = np.mat(np.random.random((voxels, features)))
-            q, r = np.linalg.qr(rnd_matrix)
-            w.append(q)
-    else:
-        # Set Wi to a subset of columns of the identity matrix of size voxels by features
-        for subject in range(subjects):
-            voxels = data[subject].shape[0]
-            identity = np.identity(voxels)
-            w.append(identity[:, :features])
+    # Set Wi to a random orthogonal voxels by features matrix
+    for subject in range(subjects):
+        voxels = data[subject].shape[0]
+        rnd_matrix = np.mat(np.random.random((voxels, features)))
+        q, r = np.linalg.qr(rnd_matrix)
+        w.append(q)
 
     return w, voxels
 
@@ -298,7 +287,7 @@ class SRM(BaseEstimator):
 
         # Initialization step: initialize the outputs with initial values, voxels with the number of voxels in each
         # subject, and trace_xtx with the ||X_i||_F^2 of each subject.
-        w, voxels = init_w_transforms(1, data, self.features)
+        w, voxels = init_w_transforms(data, self.features)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
