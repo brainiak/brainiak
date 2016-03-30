@@ -45,12 +45,12 @@ def test_can_instantiate():
     try:
         s.fit(X)
     except ValueError:
-        assert True, ""
+        assert True, "Problem running SRM."
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
-        assert s.w_.shape[0] == voxels, "Invalid computation of SRM! (wrong # voxels in W)"
-        assert s.w_.shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
+        assert s.w_[subject].shape[0] == voxels, "Invalid computation of SRM! (wrong # voxels in W)"
+        assert s.w_[subject].shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
 
