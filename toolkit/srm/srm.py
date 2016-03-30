@@ -49,8 +49,8 @@ def init_w_transforms(data, features):
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
-        voxels = data[subject].shape[0]
-        rnd_matrix = np.mat(np.random.random((voxels, features)))
+        voxels[subject] = data[subject].shape[0]
+        rnd_matrix = np.mat(np.random.random((voxels[subject], features)))
         q, r = np.linalg.qr(rnd_matrix)
         w.append(q)
 
@@ -150,7 +150,7 @@ class SRM(BaseEstimator):
             print('Running Probabilistic SRM')
 
         # Check the number of subjects
-        if len(X) < 1:
+        if len(X) <= 1:
             raise ValueError("There are not enough subjects ({0:d}) to train the model.".format(len(X)))
 
         # Check for input data sizes
