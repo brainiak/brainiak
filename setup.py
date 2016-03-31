@@ -2,6 +2,9 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import sys
 import os.path
+
+assert sys.version_info >= (3,4), "Please use Python version 3.4 or higher, lower versions are not supported"
+
 ext_modules = [
 ]
 
