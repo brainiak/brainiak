@@ -76,7 +76,7 @@ accuracy = np.zeros((subjects))
 cm = [None] * subjects
 for subject in range(subjects):
     # Concatenate the subjects' data for training into one matrix
-    train_subjects = range(subjects)
+    train_subjects = list(range(subjects))
     train_subjects.remove(subject)
     TRs = image_data_shared[0].shape[1]
     train_data = np.zeros((image_data_shared[0].shape[0], len(train_labels)))
