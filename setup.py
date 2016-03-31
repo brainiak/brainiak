@@ -31,6 +31,7 @@ class BuildExt(build_ext):
 setup(
     name='toolkit',
     version='0.0.1',
+    install_requires = ['numpy', 'scikit-learn'],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
     url='https://github.com/IntelPNI/toolkit',
