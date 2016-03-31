@@ -17,6 +17,12 @@ functional Magnetic Resonance Imaging (fMRI) analysis.
 
 The package was originally created by a collaboration between Intel and the Princeton Neuroscience Institute (PNI).
 
+Requirements
+============
+
+The toolkit requires Linux or MacOS X, and Python version 3.4 or higher.
+
+
 Install
 =======
 
