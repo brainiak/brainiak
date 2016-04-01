@@ -28,6 +28,27 @@ Install
 
 The toolkit will be available on PyPy once the name has been finalized, but for the moment it must be installed from source.
 
+Install from GitHub
+-------------------
+
+To install directly from GitHub, do:
+
+    pip install git+https://github.com/intelpni/toolkit.git
+
+(note that you'll have to enter your username and password since this is
+still a private repository).
+
+Or if you have ssh keys installed, you can do:
+
+    pip install git+ssh://github.com/intelpni/toolkit.git
+
+and you won't have to enter username or password.
+
+Install from source clone
+-------------------------
+
+If you'd prefer to install from a local copy of the source, follow these steps:
+
 To check out the source, do:
 
     git clone https://github.com/intelpni/toolkit
