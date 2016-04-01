@@ -6,3 +6,4 @@
 *.o
 dist
 toolkit.egg-info
+examples/data
