@@ -5,6 +5,11 @@ This implementation is based on the work:
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
    Advances in Neural Information Processing Systems (NIPS), 2015.
    http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
+
+.. [2] "Scaling Up Machine Learning Algorithms For Multi-Subject Neuroimaging Analysis"
+   Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu, Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge, and Kenneth A. Norman
+   2016.
+
 """
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek (Intel Labs), 2015
@@ -63,7 +68,7 @@ class SRM(BaseEstimator):
     Given multi-subject data, factorize it as a shared response S among all subjects and an orthogonal transform W
     per subject:
 
-    .. math:: X_i \sim W_i * S ,~for~all~i=1\dots N
+    .. math:: X_i \\approx W_i S ,~for~all~i=1\dots N
 
     Parameters
     ----------
@@ -97,7 +102,7 @@ class SRM(BaseEstimator):
         The voxel means over the samples for each subject.
 
     rho2_ : array, shape=[subjects]
-        The estimated noise variance :math:`\rho_i^2` for each subject
+        The estimated noise variance :math:`\\rho_i^2` for each subject
 
 
     .. note::
@@ -108,9 +113,9 @@ class SRM(BaseEstimator):
     in [1]_. The implementation follows the optimizations published in [2]_.
     This is a single node version.
 
-    The run-time complexity is O(I (V T K + K^3)) and the memory complexity is O(V T)
+    The run-time complexity is :math:`O(I (V T K + K^3))` and the memory complexity is :math:`O(V T)`
     with I - the number of iterations, V - the sum of voxels from all subjects, T - the number of samples, and
-    K - the number of features (typically, V >> T >> K).
+    K - the number of features (typically, :math:`V \\gg T \\gg K`).
 
 
     See also
@@ -192,7 +197,7 @@ class SRM(BaseEstimator):
             Voxel means over samples, per subject.
 
         rho2 : array, shape=[subjects]
-            Noise variance rho^2 per subject.
+            Noise variance :math:`\\rho^2` per subject.
 
         trace_xtx : array, shape=[subjects]
             The squared Frobenius norm of the demeaned data in `x`.
@@ -228,10 +233,10 @@ class SRM(BaseEstimator):
             Cholesky factorization of the matrix Sigma_S
 
         trace_xt_invsigma2_x : float
-            Trace of sum_i (||X_i||_F^2/rho_i^2)
+            Trace of :math:`\\sum_i (||X_i||_F^2/\\rho_i^2)`
 
         inv_sigma_s_rhos : array, shape=[features, features]
-            Inverse of (Sigma_S + sum_i(1/rho_i^2) * I)
+            Inverse of :math:`(\\Sigma_S + \\sum_i(1/\\rho_i^2) * I)`
 
         wt_invpsi_x : array, shape=[features, samples]
 
@@ -266,16 +271,16 @@ class SRM(BaseEstimator):
         -------
 
         sigma_s : array, shape=[features, features]
-            The covariance :math:`\Sigma_s` of the shared response Normal distribution.
+            The covariance :math:`\\Sigma_s` of the shared response Normal distribution.
 
         w : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
         mu : list of array, element i has shape=[voxels_i]
-            The voxel means :math:`\mu_i` over the samples for each subject.
+            The voxel means :math:`\\mu_i` over the samples for each subject.
 
         rho2 : array, shape=[subjects]
-            The estimated noise variance :math:`\rho_i^2` for each subject
+            The estimated noise variance :math:`\\rho_i^2` for each subject
 
         s : array, shape=[features, samples]
             The shared response.
