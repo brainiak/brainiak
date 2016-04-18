@@ -50,7 +50,7 @@ def init_w_transforms(data, features):
     """
     w = []
     subjects = len(data)
-    voxels = np.zeros(subjects)
+    voxels = np.empty(subjects, dtype=int)
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
