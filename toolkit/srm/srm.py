@@ -123,17 +123,6 @@ class SRM(BaseEstimator):
 
     """
 
-    n_iter = 10
-    features = 50
-    rand_seed = 0
-    verbose = False
-
-    w_ = []
-    s_ = None
-    sigma_s_ = None
-    mu_ = []
-    rho2_ = None
-
     def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
         self.n_iter = n_iter
         self.features = features
