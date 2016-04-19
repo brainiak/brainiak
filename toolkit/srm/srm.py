@@ -50,7 +50,7 @@ def _init_w_transforms(data, features):
     """
     w = []
     subjects = len(data)
-    voxels = np.zeros(subjects)
+    voxels = np.empty(subjects, dtype=int)
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
@@ -122,17 +122,6 @@ class SRM(BaseEstimator):
     --------
 
     """
-
-    n_iter = 10
-    features = 50
-    rand_seed = 0
-    verbose = False
-
-    w_ = []
-    s_ = None
-    sigma_s_ = None
-    mu_ = []
-    rho2_ = None
 
     def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
         self.n_iter = n_iter
@@ -334,7 +323,7 @@ class SRM(BaseEstimator):
             # M-step
 
             # Update Sigma_s and compute its trace
-            sigma_s = inv_sigma_s_rhos + shared_response.dot(shared_response.T) / float(samples)
+            sigma_s = inv_sigma_s_rhos + shared_response.dot(shared_response.T) / samples
             trace_sigma_s = samples * np.trace(sigma_s)
 
             # Update each subject's mapping transform W_i and error variance rho_i^2
@@ -349,7 +338,7 @@ class SRM(BaseEstimator):
                 rho2[subject] = trace_xtx[subject]
                 rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
                 rho2[subject] += trace_sigma_s
-                rho2[subject] /= float(samples * voxels[subject])
+                rho2[subject] /= samples * voxels[subject]
 
             if self.verbose:
                 # Calculate and print the current log-likelihood for checking convergence
