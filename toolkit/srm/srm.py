@@ -20,7 +20,7 @@ from sklearn.base import BaseEstimator
 from sklearn.utils import assert_all_finite
 
 
-def init_w_transforms(data, features):
+def _init_w_transforms(data, features):
     """Initializes the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Parameters
@@ -293,7 +293,7 @@ class SRM(BaseEstimator):
 
         # Initialization step: initialize the outputs with initial values, voxels with the number of voxels in each
         # subject, and trace_xtx with the ||X_i||_F^2 of each subject.
-        w, voxels = init_w_transforms(data, self.features)
+        w, voxels = _init_w_transforms(data, self.features)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
