@@ -9,4 +9,5 @@ toolkit.egg-info
 examples/data
 *.swp
 *.eggs
+.cache
 .coverage
