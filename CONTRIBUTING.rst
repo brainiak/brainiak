@@ -87,18 +87,17 @@ Standards
 Testing
 =======
 
-"Unit tests" are small tests that execute very quickly, seconds or less. They
-are the the first line of defense against software errors, and you should
-include some whenever you add code to the toolkit. We use a tool called "nose"
-to run tests, http://pythontesting.net/framework/nose/nose-introduction/ is a
-good introduction. You should put your tests in a .py file in the test folder,
+Unit tests are small tests that execute very quickly, seconds or less. They
+are the first line of defense against software errors, and you must
+include some whenever you add code to the toolkit. We use a tool called "pytest"
+to run tests; look at http://pytest.org/latest/contents.html for its documentation. You should put your tests in a ``test_*.py`` file in the test folder,
 following the structure of the toolkit folder. So for example, if you have your
-code in ./toolkit/srm/srm.py you should have tests in ./test/srm.py, or if you
+code in ``./toolkit/srm/srm.py`` you should have tests in ``./test/test_srm.py``, or if you
 have enough tests that you want to divide them up into separate files, the
-individual modules would be put in the ./test/srm folder.
+individual modules would be put in the ``./test/srm`` folder.
 
-You can run ./run-tests.sh to run all the unit tests, or you can use the
-nosetests command to run your tests only, at a more granular level.
+You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
+``py.test <your-test-file.py>`` command to run your tests only, at a more granular level.
 
 Folder Layout
 =============
