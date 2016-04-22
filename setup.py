@@ -1,12 +1,12 @@
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, find_packages
 from setuptools.command.build_ext import build_ext
 import sys
 import os.path
 
-assert sys.version_info >= (3,4), "Please use Python version 3.4 or higher, lower versions are not supported"
-
-ext_modules = [
-]
+assert sys.version_info >= (3, 4), (
+    "Please use Python version 3.4 or higher,"
+    "lower versions are not supported"
+)
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -14,10 +14,10 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
-        'msvc': ['/EHsc'],
         'unix': ['-std=c++11'],
     }
 
@@ -31,25 +31,22 @@ class BuildExt(build_ext):
             ext.extra_compile_args = opts
         build_ext.build_extensions(self)
 
+needs_pytest = {'pytest'}.isdisjoint(sys.argv)
+pytest_runner = ['pytest-runner'] if needs_pytest else []
+
 setup(
     name='toolkit',
     version='0.0.1',
-    install_requires = ['numpy', 'scikit-learn'],
+    setup_requires=pytest_runner,
+    install_requires=['numpy', 'scikit-learn'],
+    tests_require=['pytest'],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
     url='https://github.com/IntelPNI/toolkit',
     description='Scalable algorithms for advanced fMRI analysis',
-    license = 'Apache 2',
+    license='Apache 2',
     keywords='neuroscience, algorithm, fMRI, distributed, scalable',
     long_description=long_description,
-    ext_modules=ext_modules,
-    # install_requires=['pybind11'],
     cmdclass={'build_ext': BuildExt},
-    # py_modules = ['phat'],
-    packages = find_packages(exclude = ['doc', 'test'])
- )
-
-
-
-
-
+    packages=find_packages(exclude=['doc', 'test']),
+)

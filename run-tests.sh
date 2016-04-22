@@ -1,1 +1,3 @@
-find test -name '*.py' | xargs nosetests
+#!/bin/sh
+
+py.test --cov=toolkit
