@@ -96,8 +96,14 @@ code in ``./toolkit/srm/srm.py`` you should have tests in ``./test/test_srm.py``
 have enough tests that you want to divide them up into separate files, the
 individual modules would be put in the ``./test/srm`` folder.
 
+You must install the package before running the tests. Note that you can also install the package in editable mode using the ``-e`` flag of ``pip install``.
+
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
 ``py.test <your-test-file.py>`` command to run your tests only, at a more granular level.
+
+Next to the test results, you will also see a code coverage report. New code should have at least 90% coverage.
+
+Note that you can only obtain test coverage data when the package is installed in editable mode or the test command is called from the ``test`` directory. If the package is installed normally and the test command is called from the project root directory, the coverage program will fail to report the coverage of the installed code, because it will look for the code in the current directory, which is not executed.
 
 Folder Layout
 =============
