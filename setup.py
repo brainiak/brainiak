@@ -4,7 +4,7 @@ import sys
 import os.path
 
 assert sys.version_info >= (3, 4), (
-    "Please use Python version 3.4 or higher,"
+    "Please use Python version 3.4 or higher, "
     "lower versions are not supported"
 )
 
@@ -38,8 +38,15 @@ setup(
     name='toolkit',
     version='0.0.1',
     setup_requires=pytest_runner,
-    install_requires=['numpy', 'scikit-learn'],
-    tests_require=['pytest'],
+    install_requires=[
+        'numpy',
+        'scikit-learn',
+        'scipy',
+    ],
+    tests_require=[
+        'pytest',
+        'pytest-cov',
+    ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
     url='https://github.com/IntelPNI/toolkit',
