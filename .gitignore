@@ -9,6 +9,7 @@
 .cache
 .coverage
 dist
+docs/*.rst
 examples/data
 .idea
 junit-*.xml
