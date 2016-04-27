@@ -1,6 +1,6 @@
 def test_can_instantiate():
-    import toolkit.srm
-    s = toolkit.srm.SRM()
+    import toolkit.srm.srm
+    s = toolkit.srm.srm.SRM()
     assert s, "Invalid SRM instance!"
 
     import numpy as np
@@ -10,7 +10,7 @@ def test_can_instantiate():
     subjects = 2
     features = 3
 
-    s = toolkit.srm.SRM(verbose=True,n_iter=5,features=features)
+    s = toolkit.srm.srm.SRM(verbose=True,n_iter=5,features=features)
     assert s, "Invalid SRM instance!"
 
 

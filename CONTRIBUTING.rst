@@ -35,7 +35,11 @@ We use Pull Requests (PR's)
 (https://help.github.com/categories/collaborating-on-projects-using-pull-requests/)
 to make improvements to the repository. Please see the linked documentation for
 information about how to create your own fork of the project, and generate pull
-requests to submit your code for inclusion in the project.
+requests to submit your code for inclusion in the project. All pull requests
+will be automatically tested with ``run-checks.sh`` and ``run-tests.sh``,
+described below, so make sure you run them yourself before submitting your
+code. Furthermore, the HTML documentation will be built, so make sure you can
+build it yourself.
 
 Supported Configurations
 ========================
@@ -76,13 +80,16 @@ Standards
   (https://google.github.io/styleguide/cppguide.html)
 * All user-visible / public APIs should have technical documentation that
   explains what the code does, what its parameters mean, and what its return
-  values can be, at a minimum.
+  values can be, at a minimum. Run ``make`` in the ``docs`` directory to make
+  sure you can build the documentation; this requires ``sphinx_rtd_theme``.
 * All code should have repeatable automated unit tests, and most code should
   have integration tests as well.
 * Where possible, transformations and classifiers should be made compatible
   with Scikit-learn Pipelines by implementing fit, transform and 
   fit_transform methods as described in the Scikit-learn documentation
   (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
+* Use ``run-checks.sh`` to check your code before submitting a pull request. It
+  requires ``flake8``.
 
 Testing
 =======
