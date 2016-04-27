@@ -97,20 +97,30 @@ Testing
 Unit tests are small tests that execute very quickly, seconds or less. They
 are the first line of defense against software errors, and you must
 include some whenever you add code to the toolkit. We use a tool called "pytest"
-to run tests; look at http://pytest.org/latest/contents.html for its documentation. You should put your tests in a ``test_*.py`` file in the test folder,
-following the structure of the toolkit folder. So for example, if you have your
-code in ``./toolkit/srm/srm.py`` you should have tests in ``./test/test_srm.py``, or if you
-have enough tests that you want to divide them up into separate files, the
+to run tests; look at http://pytest.org/latest/contents.html for its
+documentation; you must also install ``pytest-cov``. You should put your tests
+in a ``test_*.py`` file in the test folder, following the structure of the
+toolkit folder. So for example, if you have your code in
+``./toolkit/srm/srm.py`` you should have tests in ``./test/test_srm.py``, or if
+you have enough tests that you want to divide them up into separate files, the
 individual modules would be put in the ``./test/srm`` folder.
 
-You must install the package before running the tests. Note that you can also install the package in editable mode using the ``-e`` flag of ``pip install``.
+You must install the package before running the tests. Note that you can also
+install the package in editable mode using the ``-e`` flag of ``pip install``.
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
-``py.test <your-test-file.py>`` command to run your tests only, at a more granular level.
+``py.test <your-test-file.py>`` command to run your tests only, at a more
+granular level.
 
-Next to the test results, you will also see a code coverage report. New code should have at least 90% coverage.
+Next to the test results, you will also see a code coverage report. New code
+should have at least 90% coverage.
 
-Note that you can only obtain test coverage data when the package is installed in editable mode or the test command is called from the ``test`` directory. If the package is installed normally and the test command is called from the project root directory, the coverage program will fail to report the coverage of the installed code, because it will look for the code in the current directory, which is not executed.
+Note that you can only obtain test coverage data when the package is installed
+in editable mode or the test command is called from the ``test`` directory. If
+the package is installed normally and the test command is called from the
+project root directory, the coverage program will fail to report the coverage
+of the installed code, because it will look for the code in the current
+directory, which is not executed.
 
 Folder Layout
 =============
