@@ -17,9 +17,9 @@ for subject in range(subjects):
     movie_data[subject] = stats.zscore(movie_data[subject],axis=1,ddof=1)
 
 # Run SRM with the movie data
-import toolkit.srm
-help(toolkit.srm.SRM)
-srm = toolkit.srm.SRM(n_iter=10, features=50, verbose=True)
+import toolkit.functional_alignment.srm
+help(toolkit.functional_alignment.srm.SRM)
+srm = toolkit.functional_alignment.srm.SRM(n_iter=10, features=50, verbose=True)
 srm.fit(movie_data)
 
 # We define a function to present the output of the experiment.
