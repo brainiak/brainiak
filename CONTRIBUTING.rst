@@ -101,9 +101,8 @@ to run tests; look at http://pytest.org/latest/contents.html for its
 documentation; you must also install ``pytest-cov``. You should put your tests
 in a ``test_*.py`` file in the test folder, following the structure of the
 toolkit folder. So for example, if you have your code in
-``./toolkit/srm/srm.py`` you should have tests in ``./test/test_srm.py``, or if
-you have enough tests that you want to divide them up into separate files, the
-individual modules would be put in the ``./test/srm`` folder.
+``toolkit/functional_alignment/srm.py`` you should have tests in
+``tests/functional_alignment/test_srm.py``.
 
 You must install the package before running the tests. Note that you can also
 install the package in editable mode using the ``-e`` flag of ``pip install``.
