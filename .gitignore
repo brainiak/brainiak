@@ -8,9 +8,12 @@
 
 .cache
 .coverage
+coverage.xml
 dist
 docs/*.rst
 examples/data
+htmlcov
 .idea
+.ipynb_checkpoints
 junit-*.xml
 toolkit.egg-info
