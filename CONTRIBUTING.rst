@@ -68,6 +68,10 @@ to use whatever you like to develop, but bear in mind that if you use the same
 tools as the rest of the group, more people will be able to help if something
 goes wrong.
 
+The development requirements are listed in ``requirements-dev.txt``. You can install them with::
+
+  pip install -r requirements-dev.txt
+
 Standards
 =========
 

@@ -31,21 +31,13 @@ class BuildExt(build_ext):
             ext.extra_compile_args = opts
         build_ext.build_extensions(self)
 
-needs_pytest = {'pytest'}.isdisjoint(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
-
 setup(
     name='toolkit',
     version='0.0.1',
-    setup_requires=pytest_runner,
     install_requires=[
         'numpy',
         'scikit-learn',
         'scipy',
-    ],
-    tests_require=[
-        'pytest',
-        'pytest-cov',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
