@@ -1,3 +1,7 @@
-#!/bin/sh
+#!/bin/bash
+
+set -e
+set -o pipefail
 
 flake8 --ignore=W503 --max-complexity=10 toolkit
+rst-lint *.rst | { grep -v "is clean.$" || true; }
