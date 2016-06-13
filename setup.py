@@ -32,7 +32,7 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 setup(
-    name='toolkit',
+    name='brainiak',
     version='0.0.1',
     install_requires=[
         'numpy',
@@ -41,7 +41,7 @@ setup(
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
-    url='https://github.com/IntelPNI/toolkit',
+    url='https://github.com/IntelPNI/brainiak',
     description='Scalable algorithms for advanced fMRI analysis',
     license='Apache 2',
     keywords='neuroscience, algorithm, fMRI, distributed, scalable',

@@ -1,4 +1,4 @@
-"""TODO: top level package documentation for Intel-PNI toolkit goes here."""
+"""TODO Brain Imaging Analysis Kit"""
 
 import sys
 

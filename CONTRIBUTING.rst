@@ -13,7 +13,7 @@ in mind:
 
 * We do not intend to duplicate existing functionality, either in the C++ side,
   or the Python side. For example, we do not provide any tools for parsing Nifti
-  files, even though our toolkit heavily depends on them. Nibabel already has
+  files, even though BrainIAK heavily depends on them. Nibabel already has
   perfectly good tools for this.
 
 * We try to make the C++ libraries usable outside of Python as well, so that
@@ -44,13 +44,13 @@ build it yourself.
 Supported Configurations
 ========================
 
-The toolkit provides greatest performance benefits when compiled with the Intel
+BrainIAK provides greatest performance benefits when compiled with the Intel
 C/C++ compiler, icc, though it will compile with both gcc and icc.
 
-The toolkit is currently supported on Linux, and MacOS X.
+We currently support Linux and MacOS X.
 
 The Intel Math Kernel Library (MKL) is required, as is MPI. We use MPICH for
-compiling. The Intel Data Analytics Acceleration Library is also
+compiling. The Intel Data Analytics Acceleration Library (DAAL) is also
 required.
 
 * MKL and DAAL are both available to everyone under free community license at
@@ -100,12 +100,12 @@ Testing
 
 Unit tests are small tests that execute very quickly, seconds or less. They
 are the first line of defense against software errors, and you must
-include some whenever you add code to the toolkit. We use a tool called "pytest"
+include some whenever you add code to BrainIAK. We use a tool called "pytest"
 to run tests; look at http://pytest.org/latest/contents.html for its
 documentation; you must also install ``pytest-cov``. You should put your tests
 in a ``test_*.py`` file in the test folder, following the structure of the
-toolkit folder. So for example, if you have your code in
-``toolkit/functional_alignment/srm.py`` you should have tests in
+``brainiak` folder. So for example, if you have your code in
+``brainiak/functional_alignment/srm.py`` you should have tests in
 ``tests/functional_alignment/test_srm.py``.
 
 You must install the package before running the tests. Note that you can also
@@ -128,15 +128,14 @@ directory, which is not executed.
 Folder Layout
 =============
 
-Since the toolkit is primarily published as a Python package, it is largely
+Since BrainIAK is primarily published as a Python package, it is largely
 organized according to the guidelines for Python package distribution:
 http://python-packaging-user-guide.readthedocs.org/en/latest/distributing/
 
-Python code goes in the "toolkit" folder, usually with a subfolder for each
+Python code goes in the ``brainiak`` folder, usually with a subfolder for each
 major research initiative or algorithm.
 
 Try to give subpackages a short, but still-as-meaningful-as-possible name.
 
-For example, toolkit/topofactor might be a name for the folder for topological
-factor analysis work.
-
+For example, ``brainiak/topofactor`` might be a name for the folder for
+topological factor analysis work.

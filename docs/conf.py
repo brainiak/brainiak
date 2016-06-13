@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'toolkit'
+project = 'brainiak'
 copyright = '2016, Princeton Neuroscience Institute and Intel Corporation'
 author = 'Princeton Neuroscience Institute and Intel Corporation'
 
@@ -209,7 +209,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'toolkitdoc'
+htmlhelp_basename = 'brainiakdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -231,7 +231,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'toolkit.tex', 'toolkit Documentation',
+  (master_doc, 'brainiak.tex', 'BrainIAK Documentation',
    'Princeton Neuroscience Institute and Intel Corporation', 'manual'),
 ]
 
@@ -261,7 +261,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'toolkit', 'toolkit Documentation',
+    (master_doc, 'brainiak', 'BrainIAK Documentation',
      [author], 1)
 ]
 
@@ -275,8 +275,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'toolkit', 'toolkit Documentation',
-   author, 'toolkit', 'Intel-PNI Neuroscience Toolkit for Python.',
+  (master_doc, 'brainiak', 'BrainIAK Documentation',
+   author, 'brainiak', 'Brain Imaging Analysis Kit.',
    'Miscellaneous'),
 ]
 
