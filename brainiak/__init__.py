@@ -1,4 +1,4 @@
-"""TODO: top level package documentation for Intel-PNI toolkit goes here."""
+"""TODO: add top level package documentation for BrainIAK"""
 
 import sys
 

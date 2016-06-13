@@ -1,3 +1,3 @@
 #!/bin/sh
 
-py.test --cov=toolkit
+py.test --cov=brainiak

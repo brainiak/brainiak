@@ -6,6 +6,7 @@
 *.lib
 *.o
 
+brainiak.egg-info
 .cache
 .coverage
 coverage.xml
@@ -16,4 +17,3 @@ htmlcov
 .idea
 .ipynb_checkpoints
 junit-*.xml
-toolkit.egg-info

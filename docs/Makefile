@@ -91,9 +91,9 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/toolkit.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/brainiak.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/toolkit.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/brainiak.qhc"
 
 applehelp:
 	$(SPHINXBUILD) -b applehelp $(ALLSPHINXOPTS) $(BUILDDIR)/applehelp
@@ -108,8 +108,8 @@ devhelp:
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/toolkit"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/toolkit"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/brainiak"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/brainiak"
 	@echo "# devhelp"
 
 epub:
@@ -196,4 +196,4 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 apidoc:
-	sphinx-apidoc -f -M -o . ../toolkit
+	sphinx-apidoc -f -M -o . ../brainiak
