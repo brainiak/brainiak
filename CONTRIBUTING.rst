@@ -13,7 +13,7 @@ in mind:
 
 * We do not intend to duplicate existing functionality, either in the C++ side,
   or the Python side. For example, we do not provide any tools for parsing Nifti
-  files, even though our toolkit heavily depends on them. Nibabel already has
+  files, even though BrainIAK heavily depends on them. Nibabel already has
   perfectly good tools for this.
 
 * We try to make the C++ libraries usable outside of Python as well, so that
@@ -35,18 +35,22 @@ We use Pull Requests (PR's)
 (https://help.github.com/categories/collaborating-on-projects-using-pull-requests/)
 to make improvements to the repository. Please see the linked documentation for
 information about how to create your own fork of the project, and generate pull
-requests to submit your code for inclusion in the project.
+requests to submit your code for inclusion in the project. All pull requests
+will be automatically tested with ``run-checks.sh`` and ``run-tests.sh``,
+described below, so make sure you run them yourself before submitting your
+code. Furthermore, the HTML documentation will be built, so make sure you can
+build it yourself.
 
 Supported Configurations
 ========================
 
-The toolkit provides greatest performance benefits when compiled with the Intel
+BrainIAK provides greatest performance benefits when compiled with the Intel
 C/C++ compiler, icc, though it will compile with both gcc and icc.
 
-The toolkit is currently supported on Linux, and MacOS X.
+We currently support Linux and MacOS X.
 
 The Intel Math Kernel Library (MKL) is required, as is MPI. We use MPICH for
-compiling. The Intel Data Analytics Acceleration Library is also
+compiling. The Intel Data Analytics Acceleration Library (DAAL) is also
 required.
 
 * MKL and DAAL are both available to everyone under free community license at
@@ -64,6 +68,10 @@ to use whatever you like to develop, but bear in mind that if you use the same
 tools as the rest of the group, more people will be able to help if something
 goes wrong.
 
+The development requirements are listed in ``requirements-dev.txt``. You can install them with::
+
+  pip install -r requirements-dev.txt
+
 Standards
 =========
 
@@ -76,42 +84,58 @@ Standards
   (https://google.github.io/styleguide/cppguide.html)
 * All user-visible / public APIs should have technical documentation that
   explains what the code does, what its parameters mean, and what its return
-  values can be, at a minimum.
+  values can be, at a minimum. Run ``make`` in the ``docs`` directory to make
+  sure you can build the documentation; this requires ``sphinx_rtd_theme``.
 * All code should have repeatable automated unit tests, and most code should
   have integration tests as well.
 * Where possible, transformations and classifiers should be made compatible
   with Scikit-learn Pipelines by implementing fit, transform and 
   fit_transform methods as described in the Scikit-learn documentation
   (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
+* Use ``run-checks.sh`` to check your code before submitting a pull request. It
+  requires ``flake8``.
 
 Testing
 =======
 
-"Unit tests" are small tests that execute very quickly, seconds or less. They
-are the the first line of defense against software errors, and you should
-include some whenever you add code to the toolkit. We use a tool called "nose"
-to run tests, http://pythontesting.net/framework/nose/nose-introduction/ is a
-good introduction. You should put your tests in a .py file in the test folder,
-following the structure of the toolkit folder. So for example, if you have your
-code in ./toolkit/srm/srm.py you should have tests in ./test/srm.py, or if you
-have enough tests that you want to divide them up into separate files, the
-individual modules would be put in the ./test/srm folder.
+Unit tests are small tests that execute very quickly, seconds or less. They
+are the first line of defense against software errors, and you must
+include some whenever you add code to BrainIAK. We use a tool called "pytest"
+to run tests; look at http://pytest.org/latest/contents.html for its
+documentation; you must also install ``pytest-cov``. You should put your tests
+in a ``test_*.py`` file in the test folder, following the structure of the
+``brainiak` folder. So for example, if you have your code in
+``brainiak/functional_alignment/srm.py`` you should have tests in
+``tests/functional_alignment/test_srm.py``.
 
-You can run ./run-tests.sh to run all the unit tests, or you can use the
-nosetests command to run your tests only, at a more granular level.
+You must install the package before running the tests. Note that you can also
+install the package in editable mode using the ``-e`` flag of ``pip install``.
+
+You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
+``py.test <your-test-file.py>`` command to run your tests only, at a more
+granular level.
+
+Next to the test results, you will also see a code coverage report. New code
+should have at least 90% coverage.
+
+Note that you can only obtain test coverage data when the package is installed
+in editable mode or the test command is called from the ``test`` directory. If
+the package is installed normally and the test command is called from the
+project root directory, the coverage program will fail to report the coverage
+of the installed code, because it will look for the code in the current
+directory, which is not executed.
 
 Folder Layout
 =============
 
-Since the toolkit is primarily published as a Python package, it is largely
+Since BrainIAK is primarily published as a Python package, it is largely
 organized according to the guidelines for Python package distribution:
 http://python-packaging-user-guide.readthedocs.org/en/latest/distributing/
 
-Python code goes in the "toolkit" folder, usually with a subfolder for each
+Python code goes in the ``brainiak`` folder, usually with a subfolder for each
 major research initiative or algorithm.
 
 Try to give subpackages a short, but still-as-meaningful-as-possible name.
 
-For example, toolkit/topofactor might be a name for the folder for topological
-factor analysis work.
-
+For example, ``brainiak/topofactor`` might be a name for the folder for
+topological factor analysis work.

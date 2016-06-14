@@ -1,0 +1,7 @@
+flake8
+notebook
+pytest
+pytest-cov
+restructuredtext-lint
+sphinx
+sphinx_rtd_theme

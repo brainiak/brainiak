@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'toolkit'
+project = 'brainiak'
 copyright = '2016, Princeton Neuroscience Institute and Intel Corporation'
 author = 'Princeton Neuroscience Institute and Intel Corporation'
 
@@ -117,7 +117,7 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -209,7 +209,7 @@ html_static_path = ['_static']
 #html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'toolkitdoc'
+htmlhelp_basename = 'brainiakdoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -231,7 +231,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'toolkit.tex', 'toolkit Documentation',
+  (master_doc, 'brainiak.tex', 'BrainIAK Documentation',
    'Princeton Neuroscience Institute and Intel Corporation', 'manual'),
 ]
 
@@ -261,7 +261,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'toolkit', 'toolkit Documentation',
+    (master_doc, 'brainiak', 'BrainIAK Documentation',
      [author], 1)
 ]
 
@@ -275,8 +275,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'toolkit', 'toolkit Documentation',
-   author, 'toolkit', 'One line description of project.',
+  (master_doc, 'brainiak', 'BrainIAK Documentation',
+   author, 'brainiak', 'Brain Imaging Analysis Kit.',
    'Miscellaneous'),
 ]
 
