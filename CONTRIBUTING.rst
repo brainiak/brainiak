@@ -36,10 +36,51 @@ We use Pull Requests (PR's)
 to make improvements to the repository. Please see the linked documentation for
 information about how to create your own fork of the project, and generate pull
 requests to submit your code for inclusion in the project. All pull requests
-will be automatically tested with ``run-checks.sh`` and ``run-tests.sh``,
-described below, so make sure you run them yourself before submitting your
-code. Furthermore, the HTML documentation will be built, so make sure you can
-build it yourself.
+will be automatically tested as described below, so make sure you test them yourself before submitting them:
+
+  # optional, but highly recommended: create a virtualenv to isolate tests
+
+  virtualenv ../brainiak_pr_venv
+
+  source ../brainiak_pr_venv/bin/activate
+
+
+  # install developer dependencies
+
+  pip install -r requirements-dev.txt
+
+
+  # static analysis
+
+  ./run-checks.sh
+
+
+  # install brainiak
+
+  pip install -e .
+
+
+  # run tests
+
+  ./run-tests.sh
+
+
+  # build documentation
+
+  cd docs
+
+  make
+
+  cd -
+
+
+  # optional: remove virtualenv
+
+  deactivate
+
+  rm -r ../brainiak_pr_venv
+
+
 
 Supported Configurations
 ========================
