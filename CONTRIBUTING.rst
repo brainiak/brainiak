@@ -47,7 +47,7 @@ will be automatically tested as described below, so make sure you test them your
 
   # install developer dependencies
 
-  pip install -r requirements-dev.txt
+  pip install -U -r requirements-dev.txt
 
 
   # static analysis
@@ -57,7 +57,7 @@ will be automatically tested as described below, so make sure you test them your
 
   # install brainiak in editable mode (required for testing)
 
-  pip install -e .
+  pip install -U -e .
 
 
   # run tests
@@ -113,7 +113,7 @@ goes wrong.
 
 The development requirements are listed in ``requirements-dev.txt``. You can install them with::
 
-  pip install -r requirements-dev.txt
+  pip install -U -r requirements-dev.txt
 
 Standards
 =========

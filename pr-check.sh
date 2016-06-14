@@ -85,7 +85,7 @@ $activate_venv $venv || {
 }
 
 # install developer dependencies
-pip install -r requirements-dev.txt || \
+pip install -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip failed to install requirements"
 
 # static analysis
@@ -93,7 +93,7 @@ pip install -r requirements-dev.txt || \
     exit_with_error_and_venv "run-checks failed"
 
 # install brainiak in editable mode (required for testing)
-pip install -e . || \
+pip install -U -e . || \
     exit_with_error_and_venv "pip failed to install BrainIAK"
 
 # run tests
