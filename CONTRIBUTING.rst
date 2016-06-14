@@ -80,6 +80,8 @@ will be automatically tested as described below, so make sure you test them your
 
   rm -r ../brainiak_pr_venv
 
+Alternatively, you can run ``pr-check.sh``, which does all of the above and
+supports ``conda`` in addition to ``virtualenv``.
 
 
 Supported Configurations
