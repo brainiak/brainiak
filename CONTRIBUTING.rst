@@ -55,7 +55,7 @@ will be automatically tested as described below, so make sure you test them your
   ./run-checks.sh
 
 
-  # install brainiak
+  # install brainiak in editable mode (required for testing)
 
   pip install -e .
 
@@ -149,8 +149,8 @@ in a ``test_*.py`` file in the test folder, following the structure of the
 ``brainiak/functional_alignment/srm.py`` you should have tests in
 ``tests/functional_alignment/test_srm.py``.
 
-You must install the package before running the tests. Note that you can also
-install the package in editable mode using the ``-e`` flag of ``pip install``.
+You must install the package in editable mode using the ``-e`` flag of ``pip
+install`` before running the tests.
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
 ``py.test <your-test-file.py>`` command to run your tests only, at a more
