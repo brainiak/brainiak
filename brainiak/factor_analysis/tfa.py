@@ -25,7 +25,7 @@ from scipy.spatial import distance
 from ..utils.utils import from_tri_2_sym, from_sym_2_tri
 import numpy as np
 import math
-#import tfa_extension
+# import tfa_extension
 import gc
 
 __all__ = [
