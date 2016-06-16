@@ -25,7 +25,7 @@ from scipy.spatial import distance
 from ..utils.utils import from_tri_2_sym, from_sym_2_tri
 import numpy as np
 import math
-# import tfa_extension
+import tfa_extension
 import gc
 
 __all__ = [
@@ -636,7 +636,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         recon = X.size
         other_err = 0 if global_centers is None else (2 * self.K)
         final_err = np.zeros(recon + other_err)
-
+        """
         F = self._get_factors(unique_R, inds, centers, widths)
         final_err[0:recon] = (data_sigma * (X - F.dot(W))).ravel()
         """
@@ -653,7 +653,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         sigma = np.zeros((1,))
         sigma[0] = data_sigma
         tfa_extension.recon(final_err[0:recon], X, F, W, sigma)
-        """
 
         if other_err > 0:
             # center error
@@ -738,6 +737,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         recon = X.size
         other_err = 0 if global_centers is None else self.K
         final_err = np.zeros(recon + other_err)
+        """
         F = self._get_factors(unique_R, inds, centers, widths)
         final_err[0:recon] = (data_sigma * (X - F.dot(W))).ravel()
         """
@@ -754,7 +754,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         sigma = np.zeros((1,))
         sigma[0] = data_sigma
         tfa_extension.recon(final_err[0:recon], X, F, W, sigma)
-        """
         if other_err > 0:
             # center error
             for k in np.arange(self.K):
@@ -829,6 +828,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         recon = X.size
         other_err = 0 if global_widths is None else self.K
         final_err = np.zeros(recon + other_err)
+        """
         F = self._get_factors(unique_R, inds, centers, widths)
         final_err[0:recon] = (data_sigma * (X - F.dot(W))).ravel()
         """
@@ -846,7 +846,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         sigma = np.zeros((1,))
         sigma[0] = data_sigma
         tfa_extension.recon(final_err[0:recon], X, F, W, sigma)
-        """
         if other_err > 0:
             # width error
             final_err[recon:] = np.sqrt(self.sample_scaling *
@@ -1251,6 +1250,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         widths = self.local_prior[self.K * self.n_dim:].reshape(self.K, 1)
         unique_R, inds = self._get_unique_R(curr_R)
         F = np.zeros((len(inds[0]), self.K))
+        """
         F = self._get_factors(unique_R, inds, centers, widths)
         """
         tfa_extension.factor(
@@ -1263,7 +1263,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
             inds[0],
             inds[1],
             inds[2])
-        """
         W = self._get_weights(curr_data, F)
         if self.two_step:
             local_centers, center_cost = self._get_centers(
