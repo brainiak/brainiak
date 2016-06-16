@@ -12,7 +12,7 @@ def test_two_step():
 
     n_voxel = 100
     n_tr = 20
-    K = 10 
+    K = 5 
     max_iter = 5
     max_num_voxel = n_voxel
     max_num_tr = n_tr
@@ -46,7 +46,7 @@ def test_two_step():
     except ValueError:
         print("Catched exception #3: Input data should be 2D array")
 
-    K = 10
+    K = 5
     tfa.set_K(K)
     tfa.set_R(R)
     prior = tfa.local_prior
