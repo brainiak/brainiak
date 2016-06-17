@@ -1,17 +1,16 @@
 """Topographical Factor Analysis (TFA)
 
 This implementation is based on the work:
-.. [1] "Topographic factor analysis: a bayesian model for inferring brain
-        networks from neural data"
-   J. R. Manning, R. Ranganath, K. A. Norman, and D. M. Blei
-   PLoS One, vol. 9, no. 5, p. e94914,2014
 
-.. [2] "Scaling Up Multi-Subject Neuroimaging Factor Analysis"
+.. [Manning2014] "Topographic factor analysis: a bayesian model for inferring
+   brain networks from neural data", J. R. Manning, R. Ranganath, K. A. Norman,
+   and D. M. Blei.PLoS One, vol. 9, no. 5, 2014.
+
+.. [AndersonM2016] "Scaling Up Multi-Subject Neuroimaging Factor Analysis"
    Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu,
    Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning,
    Peter J. Ramadge, andself.Kenneth A. Norman
    2016.
-
 """
 
 # Authors: Xia Zhu (Intel Labs), Jeremy Manning (Dartmouth College) 2015~2016
@@ -40,8 +39,6 @@ class TFA(BaseEstimator):
     Given a subject data, factorize it as a spatial factor F and
     a weight matrix W.
 
-    .. math:: X \\approx FW
-
     Parameters
     ----------
 
@@ -62,7 +59,7 @@ class TFA(BaseEstimator):
        Number of factors to compute
 
     nlss_method : {'trf', 'dogbox', 'lm'}, default: 'trf'
-       Non-Linear least sqaure (NLSS) algorithm used by scipy.least_suqares to
+       Non-Linear Least Square (NLSS) algorithm used by scipy.least_suqares to
        perform minimization. More information at
 http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
@@ -111,10 +108,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
 
     verbose : boolean, default: False
        Verbose mode flag.
-
-
-    --------
-
     """
 
     def __init__(
@@ -304,7 +297,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         max_diff = np.max(np.fabs(diff))
         if self.verbose:
             _, mse = self._mse_converged()
-            diff_ratio = np.sum(diff**2) / np.sum(self.local_posterior**2)
+            diff_ratio = np.sum(diff ** 2) / np.sum(self.local_posterior ** 2)
             print(
                 'tfa prior posterior max diff %f mse %f diff_ratio %f' %
                 ((max_diff, mse, diff_ratio)))
@@ -454,7 +447,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
             unique_dist = []
             # first build up unique dist table
             for d in np.arange(n_dim):
-                unique_dist.append((unique_R[d] - centers[k, d])**2)
+                unique_dist.append((unique_R[d] - centers[k, d]) ** 2)
             # RBF calculation based on looking up the unique table
             F[:, k] = np.exp(-
                              1.0 /
@@ -673,7 +666,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
             final_err[base:] = np.sqrt(self.sample_scaling *
                                        (global_width_mean_var_reci *
                                         (widths -
-                                         global_widths)**2).ravel())
+                                         global_widths) ** 2).ravel())
 
         return final_err
 
@@ -851,7 +844,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
             final_err[recon:] = np.sqrt(self.sample_scaling *
                                         (global_width_mean_var_reci *
                                          (widths -
-                                          global_widths)**2).ravel())
+                                          global_widths) ** 2).ravel())
         return final_err
 
     def _get_centers_widths(

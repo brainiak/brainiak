@@ -1,23 +1,21 @@
 """Hierarchical Topographical Factor Analysis (HTFA)
 
-This implementation is based on the work:
-.. [1] "Topographic factor analysis: a bayesian model for inferring brain
-        networks from neural data"
-   J. R. Manning, R. Ranganath, K. A. Norman, and D. M. Blei
-   PLoS One, vol. 9, no. 5, p. e94914,2014
+This implementation is based on the following publications:
 
-.. [2] "Hierarchical topographic factor analysis"
-   J. R. Manning, R. Ranganath, W. Keung, N. B. Turk-Browne, J. D.Cohen,
-   K. A. Norman, and D. M. Blei
-   Pattern Recognition in Neuroimaging, 2014 International Workshop on,
-   June 2014
+.. [Manning2014-1] "Topographic factor analysis: a bayesian model for
+   inferring brain networks from neural data", J. R. Manning,
+   R. Ranganath, K. A. Norman, and D. M. Blei. PLoS One, vol. 9, no. 5,
+   2014.
 
-.. [3] "Scaling Up Multi-Subject Neuroimaging Factor Analysis"
+.. [Manning2014-2] "Hierarchical topographic factor analysis", Jeremy. R.
+   Manning, R. Ranganath, W. Keung, N. B. Turk-Browne, J. D.Cohen,
+   K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
+   2014 International Workshop on, June 2014.
+
+.. [AndersonMJ2016] "Scaling Up Multi-Subject Neuroimaging Factor Analysis",
    Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu,
    Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning,
-   Peter J. Ramadge, and Kenneth A. Norman
-   2016.
-
+   Peter J. Ramadge, and Kenneth A. Norman. 2016
 """
 
 # Authors: Xia Zhu (Intel Labs), Jeremy Manning (Dartmouth College) 2015~2016
@@ -46,7 +44,6 @@ class HTFA(TFA):
     a weight matrix W per subject.
     Also estimate global template across subjects:
 
-m sklearn.base import BaseEstimator
     .. math:: X_i \\approx F_i W_i ,~for~all~i=1\dots N
 
     Parameters
@@ -129,12 +126,6 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         Verbose mode flag.
 
 
-    .. note::
-    The number of voxels and the number of samples may be different
-    between subjects.
-
-    --------
-
     """
 
     def __init__(self, R, K, n_subj=1, max_outer_iter=10, max_inner_iter=10,
@@ -196,7 +187,7 @@ http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_
         max_diff = np.max(np.fabs(diff))
         if self.verbose:
             _, mse = self._mse_converged()
-            diff_ratio = np.sum(diff**2) / np.sum(posterior**2)
+            diff_ratio = np.sum(diff ** 2) / np.sum(posterior ** 2)
             print(
                 'htfa prior posterior max diff %f mse %f diff_ratio %f' %
                 ((max_diff, mse, diff_ratio)))
