@@ -61,28 +61,28 @@ class TFA(BaseEstimator):
     nlss_method : {'trf', 'dogbox', 'lm'}, default: 'trf'
        Non-Linear Least Square (NLSS) algorithm used by scipy.least_suqares to
        perform minimization. More information at
-http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     nlss_loss: str or callable, default: 'linear'
        Loss function used by scipy.least_squares.
        More information at
-http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     jac : {'2-point', '3-point', 'cs', callable}, default: '2-point'
        Method of computing the Jacobian matrix.
        More information at
-http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     x_scale : float or array_like or 'jac', default: 1.0
        Characteristic scale of each variable for scipy.least_suqares.
        More information at
-http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     tr_solver: {None, 'exact', 'lsmr'}, default: None
        Method for solving trust-region subproblems, relevant only for 'trf'
        and 'dogbox' methods.
        More information at
-http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     weight_method : {'rr','ols'}, default: 'rr'
        Method for estimating weight matrix W given X and F.

@@ -9,21 +9,20 @@ Some utility functions that can be used by different algorithms
 def from_tri_2_sym(tri, dim):
     """
     Parameters
-      ----------
+    ----------
 
-      tri: 1D array
-          Contains elements of upper triangular matrix
+    tri: 1D array
+        Contains elements of upper triangular matrix
 
-      dim : int
-          The dimension of target matrix.
+    dim : int
+        The dimension of target matrix.
 
 
-      Returns
-      -------
+    Returns
+    -------
 
-      symm : 2D array
-          Symmetric matrix in shape=[dim, dim]
-
+    symm : 2D array
+        Symmetric matrix in shape=[dim, dim]
     """
     symm = np.zeros((dim, dim))
     symm[np.triu_indices(dim)] = tri
@@ -33,17 +32,17 @@ def from_tri_2_sym(tri, dim):
 def from_sym_2_tri(symm):
     """
     Parameters
-      ----------
+    ----------
 
-      symm : 2D array
-            Symmetric matrix
+    symm : 2D array
+          Symmetric matrix
 
 
-      Returns
-      -------
+    Returns
+    -------
 
-      tri: 1D array
-            Contains elements of upper triangular matrix
+    tri: 1D array
+          Contains elements of upper triangular matrix
     """
 
     inds = np.triu_indices_from(symm)
@@ -54,16 +53,16 @@ def from_sym_2_tri(symm):
 def fast_inv(a):
     """
     Parameters
-      ----------
+    ----------
 
-      a : 2D array
+    a : 2D array
 
 
-      Returns
-      -------
+    Returns
+    -------
 
-      inva: 2D array
-           inverse of input matrix a
+    inva: 2D array
+         inverse of input matrix a
     """
 
     identity = np.identity(a.shape[1], dtype=a.dtype)
