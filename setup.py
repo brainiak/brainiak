@@ -1,4 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import os
 import sys
@@ -120,5 +120,6 @@ setup(
     long_description=long_description,
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
+    packages=find_packages(exclude=['doc', 'test']),
     zip_safe=False,
 )
