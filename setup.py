@@ -1,9 +1,21 @@
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
+import os
 import sys
 import setuptools
 
 __version__ = '0.0.1'
+
+assert sys.version_info >= (3, 4), (
+    "Please use Python version 3.4 or higher, "
+    "lower versions are not supported"
+)
+
+here = os.path.abspath(os.path.dirname(__file__))
+
+# Get the long description from the README file
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
 
 
 class get_pybind_include(object):
@@ -69,7 +81,7 @@ class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
         'msvc': ['/EHsc'],
-        'unix': [],
+        'unix': ['-std=c++11'],
     }
 
     if sys.platform == 'darwin':
@@ -105,7 +117,7 @@ setup(
     description='Scalable algorithms for advanced fMRI analysis',
     license='Apache 2',
     keywords='neuroscience, algorithm, fMRI, distributed, scalable',
-    long_description='',
+    long_description=long_description,
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     zip_safe=False,
