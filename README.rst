@@ -21,8 +21,51 @@ To reduce verbosity, we refer to the Brain Imaging Analysis Kit as ``BrainIAK``.
 Requirements
 ============
 
-BrainIAK requires Linux or MacOS X, and Python version 3.4 or higher.
+BrainIAK runs on Linux or MacOS, and Python version 3.4 or higher. Most of its
+dependencies will be installed automatically. However, a few need to be
+installed manually.
 
+Linux
+-----
+
+Install the following packages (Ubuntu 14.04 is used for the examples)::
+
+    apt install build-essential cmake libgomp1 mpich python3-pip
+
+Install up-to-date versions of ``pip`` and ``virtualenv``::
+
+    # note that the command installed by apt is pip3, not pip
+    pip3 install --user -U pip virtualenv
+
+Note the ``--user`` flag, which instructs ``pip`` to not overwrite system
+files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
+the updated ``pip``, e.g., by adding the following line to ``$HOME/.profile``
+and launching a new login shell (e.g., logout or execute ``bash -l``)::
+
+    PATH="$HOME/.local/bin:$PATH"
+
+MacOS
+-----
+
+Install the Xcode Command Line Tools::
+
+    xcode-select --install
+
+Install ``brew`` from https://brew.sh. Then install the following::
+
+    brew install clang-omp cmake mpich python3
+
+You must instruct programs to use ``clang-omp``. One way to do this, which
+works for most programs, is setting the ``CC`` environment variable. You can
+add the following lines to ``$HOME/.profile`` (for them to take effect, you
+must logout or launch a new login shell, e.g., ``bash -l``)::
+
+    CC=clang-omp
+    CXX=clang-omp++
+
+Install up-to-date versions of ``pip`` and ``virtualenv``::
+
+    pip install -U pip virtualenv
 
 Install
 =======
