@@ -122,7 +122,10 @@ Standards
   (http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines)
   with the exception that we target Python 3 only.
 * Python docstrings should be formatted according to the NumPy docstring
-  standard (https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt)
+  standard as implemented by the `Sphinx Napoleon extension`_ (see also the
+  `Sphinx NumPy example`_). In particular, note that type annotations must
+  follow `PEP 484`_. Please also read the `NumPy documentation guide`_, but
+  note that we consider Sphinx authoritative.
 * C++ code should follow the Google C++ standards
   (https://google.github.io/styleguide/cppguide.html)
 * All user-visible / public APIs should have technical documentation that
@@ -137,6 +140,15 @@ Standards
   (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
 * Use ``run-checks.sh`` to check your code before submitting a pull request. It
   requires ``flake8``.
+
+.. _Sphinx Napoleon extension:
+   http://www.sphinx-doc.org/en/stable/ext/napoleon.html
+.. _Sphinx NumPy example:
+   http://www.sphinx-doc.org/en/stable/ext/example_numpy.html
+.. _PEP 484:
+   https://www.python.org/dev/peps/pep-0484/
+.. _NumPy documentation guide:
+   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
 
 Testing
 =======
