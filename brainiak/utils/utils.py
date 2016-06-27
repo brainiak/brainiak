@@ -1,5 +1,5 @@
 import numpy as np
-
+import logging
 
 """
 Some utility functions that can be used by different algorithms
@@ -7,7 +7,10 @@ Some utility functions that can be used by different algorithms
 
 
 def from_tri_2_sym(tri, dim):
-    """
+    """convert a upper triangular matrix in 1D format
+       to 2D symmetric matrix
+
+
     Parameters
     ----------
 
@@ -30,7 +33,10 @@ def from_tri_2_sym(tri, dim):
 
 
 def from_sym_2_tri(symm):
-    """
+    """convert a 2D symmetric matrix to a upper 
+       triangular matrix in 1D format 
+
+
     Parameters
     ----------
 
@@ -51,7 +57,7 @@ def from_sym_2_tri(symm):
 
 
 def fast_inv(a):
-    """
+    """to invert a 2D matrix
     Parameters
     ----------
 
@@ -63,8 +69,21 @@ def fast_inv(a):
 
     inva: 2D array
          inverse of input matrix a
+
+
+    Raises
+    -------
+
+    LinAlgError 
+        If a is singular or not square
     """
 
     identity = np.identity(a.shape[1], dtype=a.dtype)
-    inva = np.linalg.solve(a, identity)
-    return inva
+    inva = None
+    try:
+        inva = np.linalg.solve(a, identity)
+        return inva
+    except np.linalg.linalg.LinAlgError:
+        logging.exception('Error from np.linalg.solve')
+        raise
+
