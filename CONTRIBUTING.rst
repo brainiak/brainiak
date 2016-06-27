@@ -138,6 +138,12 @@ Standards
   with Scikit-learn Pipelines by implementing fit, transform and 
   fit_transform methods as described in the Scikit-learn documentation
   (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
+* Use ``logging`` to record debug messages with a logger obtained using::
+
+    logging.getLogger(__name__)
+
+  Use ``warnings`` to show warning messages to users. Do not use ``print``. See
+  the `Python Logging Tutorial`_ for details.
 * Use ``run-checks.sh`` to check your code before submitting a pull request. It
   requires ``flake8``.
 
@@ -149,6 +155,8 @@ Standards
    https://www.python.org/dev/peps/pep-0484/
 .. _NumPy documentation guide:
    https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+.. _Python Logging Tutorial:
+   https://docs.python.org/3/howto/logging.html
 
 Testing
 =======
