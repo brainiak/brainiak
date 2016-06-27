@@ -132,22 +132,22 @@ def test_can_run():
             my_data.append(X[idx])
 
     if rank == 0:
-        global_prior, global_posterior, _, _, _ = htfa.fit(my_data)
+        htfa.fit(my_data)
         assert True, "Root successfully running HTFA"
-        assert global_prior.shape[
+        assert htfa.global_prior.shape[
             0] == htfa.prior_bcast_size,\
             "Invalid result of HTFA! (wrong # element in global_prior)"
-        assert global_posterior.shape[
-            0] == htfa.prior_size,\
+        assert htfa.global_posterior.shape[
+            0] == htfa.prior_bcast_size,\
             "Invalid result of HTFA! (wrong # element in global_posterior)"
 
     else:
-        local_weights, local_posterior = htfa.fit(my_data)
+        htfa.fit(my_data)
         assert True, "worker successfully running HTFA"
-        print(local_weights.shape)
-        assert local_weights.shape[
+        print(htfa.local_weights.shape)
+        assert htfa.local_weights.shape[
             0] == n_tr * K,\
             "Invalid result of HTFA! (wrong # element in local_weights)"
-        assert local_posterior.shape[
+        assert htfa.local_posterior.shape[
             0] == htfa.prior_size,\
             "Invalid result of HTFA! (wrong # element in local_posterior)"

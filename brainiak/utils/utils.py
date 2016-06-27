@@ -33,8 +33,8 @@ def from_tri_2_sym(tri, dim):
 
 
 def from_sym_2_tri(symm):
-    """convert a 2D symmetric matrix to a upper 
-       triangular matrix in 1D format 
+    """convert a 2D symmetric matrix to an upper
+       triangular matrix in 1D format
 
 
     Parameters
@@ -74,7 +74,7 @@ def fast_inv(a):
     Raises
     -------
 
-    LinAlgError 
+    LinAlgError
         If a is singular or not square
     """
 
@@ -86,4 +86,3 @@ def fast_inv(a):
     except np.linalg.linalg.LinAlgError:
         logging.exception('Error from np.linalg.solve')
         raise
-

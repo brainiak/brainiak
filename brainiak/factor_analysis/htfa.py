@@ -27,7 +27,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.spatial import distance
 import time
 import os
-import sys
+import logging
 from .tfa import TFA
 from ..utils.utils import fast_inv, from_tri_2_sym, from_sym_2_tri
 
@@ -43,17 +43,16 @@ class HTFA(TFA):
     a weight matrix W per subject.
     Also estimate global template across subjects:
 
-    .. math:: X_i \\approx F_i W_i ,~for~all~i=1\dots N
 
     Parameters
     ----------
 
     R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-        Each element in the list contains the coordinate matrix
+        Each element in the list contains the voxel coordinate matrix
         of fMRI data of one subject.
 
     K : int, default: 50
-          Number of factors to compute.
+        Number of factors to compute.
 
     max_outer_iter : int, default: 10
         Number of outer iterations to run the algorithm.
@@ -65,61 +64,61 @@ class HTFA(TFA):
         Number of subjects in dataset.
 
     threshold : float, default: 1.0
-       Tolerance for terminate the parameter estimation
+        Tolerance for terminate the parameter estimation
 
     nlss_method : {'trf', 'dogbox', 'lm'}, default: 'trf'
-       Non-Linear Least Square (NLSS) algorithm used by scipy.least_suqares to
-       perform minimization. More information at
-       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+        Non-Linear Least Square (NLSS) algorithm used by scipy.least_suqares to
+        perform minimization. More information at
+        http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     nlss_loss: str or callable, default: 'linear'
-       Loss function used by scipy.least_squares.
-       More information at
-       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+        Loss function used by scipy.least_squares.
+        More information at
+        http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     jac : {'2-point', '3-point', 'cs', callable}, default: '2-point'
-       Method of computing the Jacobian matrix.
-       More information at
-       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+        Method of computing the Jacobian matrix.
+        More information at
+        http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     x_scale : float or array_like or 'jac', default: 1.0
-       Characteristic scale of each variable for scipy.least_suqares.
-       More information at
-       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+        Characteristic scale of each variable for scipy.least_suqares.
+        More information at
+        http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     tr_solver: {None, 'exact', 'lsmr'}, default: None
-       Method for solving trust-region subproblems, relevant only for 'trf'
-       and 'dogbox' methods.
-       More information at
-       http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
+        Method for solving trust-region subproblems, relevant only for 'trf'
+        and 'dogbox' methods.
+        More information at
+        http://docs.scipy.org/doc/scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html
 
     weight_method : {'rr','ols'}, default: 'rr'
-       Method for estimating weight matrix W given X and F.
-       'rr' means ridge regression, 'ols' means ordinary least square.
+        Method for estimating weight matrix W given X and F.
+        'rr' means ridge regression, 'ols' means ordinary least square.
 
     upper_ratio : float, default: 1.8
-       The upper bound of the ratio between factor's width and brain diameter.
+        The upper bound of the ratio between factor's width and brain diameter.
 
     lower_ratio : float, default: 0.02
-       The lower bound of the ratio between factor's width and brain diameter.
+        The lower bound of the ratio between factor's width and brain diameter.
 
     voxel_ratio : float, default: 0.25
-       The percentage of voxels to sample in each inner iteration.
+        The percentage of voxels to sample in each inner iteration.
 
     tr_ratio : float, default: 0.1
-       The percentage of trs to sample in each inner iteration.
+        The percentage of trs to sample in each inner iteration.
 
     max_voxel : int, default: 5000
-       The maximum number of voxels to sample in each inner iteration.
+        The maximum number of voxels to sample in each inner iteration.
 
     max_tr : int, default: 500
-       The maximum number of trs to sample in each inner iteration.
+        The maximum number of trs to sample in each inner iteration.
 
     output_path : str, default: None
-       The directory to save results.
+        The directory to save results.
 
     output_prefix : list of str, default: None
-       The prefix to use for each subject when saving results
+        The prefix to use for each subject when saving results
 
     verbose : boolean, default: False
         Verbose mode flag.
@@ -185,7 +184,7 @@ class HTFA(TFA):
         if self.verbose:
             _, mse = self._mse_converged()
             diff_ratio = np.sum(diff ** 2) / np.sum(posterior ** 2)
-            print(
+            logging.info(
                 'htfa prior posterior max diff %f mse %f diff_ratio %f' %
                 ((max_diff, mse, diff_ratio)))
 
@@ -255,7 +254,11 @@ class HTFA(TFA):
 
         """
         scaled = global_cov / float(self.n_subj)
-        common = fast_inv(prior_cov + scaled)
+        try:
+            common = fast_inv(prior_cov + scaled)
+        except np.linalg.linalg.LinAlgError:
+            logging.exception('Error from fast_inv')
+            raise
         observation_mean = np.mean(new_observation, axis=1)
         posterior_mean = prior_cov.dot(
             common.dot(observation_mean)) + scaled.dot(common.dot(prior_mean))
@@ -624,7 +627,7 @@ class HTFA(TFA):
             self._assign_posterior()
             is_converged, _ = self._converged()
             if is_converged:
-                print("converged at %d outer iter" % (m))
+                logging.info("converged at %d outer iter" % (m))
                 outer_converged[0] = 1
             else:
                 self.global_prior = self.global_posterior
@@ -764,7 +767,7 @@ class HTFA(TFA):
 
         comm, rank, size = self._get_mpi_info()
         comm.barrier()
-        if rank == 0:
+        if rank == 0 and self.verbose:
             start_time = time.time()
         use_gather = True if self.n_subj % size == 0 else False
         n_local_subj = len(self.R)
@@ -803,7 +806,6 @@ class HTFA(TFA):
             self._get_weight_size(data, n_local_subj)
         local_weights = np.zeros(node_weight_size[0])
 
-        init_global_prior = self.global_prior.copy()
         m = 0
         outer_converged = np.array([0])
         while m < self.max_outer_iter and not outer_converged[0]:
@@ -836,7 +838,7 @@ class HTFA(TFA):
             outer_converged = self._update_global_posterior(
                 rank, m, outer_converged)
             comm.Bcast(outer_converged, root=0)
-            print('+')
+            logging.info('+')
             m += 1
 
         # update weight matrix for each subject
@@ -849,32 +851,15 @@ class HTFA(TFA):
 
         comm.barrier()
         if rank == 0:
-            print("htfa exe time: %s seconds" % (time.time() - start_time))
-            sys.stdout.flush()
-            start_time = time.time()
-
-        self._save_local_posterior_weights(data, local_weight_offset,
-                                           local_weights, n_local_subj,
-                                           local_posterior)
-        comm.barrier()
-        if rank == 0:
-            np.save(
-                self.output_path +
-                '/global_posterior.npy',
-                self.global_posterior[
-                    0:self.prior_size])
-            print("write result time: %s seconds" % (time.time() - start_time))
-            sys.stdout.flush()
-
-        if rank == 0:
-            return init_global_prior, self.global_posterior[
-                0:self.prior_size], self.gather_posterior, local_weights,\
-                subject_map
-        else:
-            return local_weights, local_posterior
+            if self.verbose:
+                logging.info(
+                    "htfa exe time: %s seconds" %
+                    (time.time() - start_time))
+        return self
 
     def fit(self, X, y=None):
         """Compute Hierarchical Topographical Factor Analysis Model
+           [Manning2014-1][Manning2014-2]
 
         Parameters
         ----------
@@ -884,7 +869,7 @@ class HTFA(TFA):
         y : not used
         """
         if self.verbose:
-            print('Start to fit HTFA ')
+            logging.info('Start to fit HTFA ')
 
         # Check data type
         if not isinstance(X, list):
