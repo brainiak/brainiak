@@ -195,10 +195,12 @@ Since BrainIAK is primarily published as a Python package, it is largely
 organized according to the guidelines for Python package distribution:
 http://python-packaging-user-guide.readthedocs.org/en/latest/distributing/
 
-Python code goes in the ``brainiak`` folder, usually with a subfolder for each
-major research initiative or algorithm.
+Python code goes in the ``brainiak`` package, usually with a subpackage for
+each major research initiative. If an algorithm can be implemented in a single
+module, place the module directly in the ``brainiak`` package, do not create a
+subpackage.
 
-Try to give subpackages a short, but still-as-meaningful-as-possible name.
-
-For example, ``brainiak/topofactor`` might be a name for the folder for
-topological factor analysis work.
+Name subpackages and modules using short names describing their functionality,
+e.g., ``tda`` for the subpackage containing topological data analysis work and
+``htfa.py`` for the module implementing hierarchical topographical factor
+analysis.
