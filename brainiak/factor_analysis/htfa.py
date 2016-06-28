@@ -26,7 +26,6 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import mean_squared_error
 from scipy.spatial import distance
 import time
-import os
 import logging
 from .tfa import TFA
 from ..utils.utils import fast_inv, from_tri_2_sym, from_sym_2_tri
@@ -188,7 +187,8 @@ class HTFA(TFA):
             return True, max_diff
 
     def _mse_converged(self):
-        """Check convergence based on mean squared error
+        """Check convergence based on mean squared difference between
+            prior and posterior
 
         Returns
         -------
@@ -236,7 +236,6 @@ class HTFA(TFA):
             New observations on parameters.
 
         Returns
-
         -------
 
         posterior_mean : float or 1D array
@@ -547,8 +546,8 @@ class HTFA(TFA):
         return self
 
     def _assign_posterior(self):
-        """Minimum weight matching between prior and posterior,
-           assign posterior to the right prior.
+        """assign posterior to the right prior based on
+           Hungarian algorithm
 
         Returns
         -------
@@ -593,7 +592,9 @@ class HTFA(TFA):
 
     def _update_global_posterior(
             self, rank, m, outer_converged):
-        """root node update global posterior
+        """root node associates global posterior to global prior based on
+        Hungarian algorithm and check convergence
+
         Parameters
         ----------
 
@@ -695,7 +696,7 @@ class HTFA(TFA):
         ----------
 
         data : list of 2D array. Each in shape [n_voxel, n_tr]
-            Total number of MPI process.
+            The fMRI data from multiple subjects.
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
             Each element in the list contains the voxel coordinate matrix
@@ -777,7 +778,7 @@ class HTFA(TFA):
                 gather_size,
                 gather_offset)
 
-            # root updates update global_posterior
+            # root updates global_posterior
             outer_converged = self._update_global_posterior(
                 rank, m, outer_converged)
             comm.Bcast(outer_converged, root=0)
