@@ -35,13 +35,16 @@ __all__ = [
     "HTFA",
 ]
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 class HTFA(TFA):
     """Hierarchical Topographical Factor Analysis (HTFA)
 
-    Given multi-subject data, factorize it as a spatial factor F and
-    a weight matrix W per subject.
-    Also estimate global template across subjects:
+    Given multi-subject data, factorizes each subject's data as a
+    spatial factor F and a weight matrix W per subject. Also at top
+    level, estimate global template across subjects:
 
 
     Parameters
@@ -55,13 +58,14 @@ class HTFA(TFA):
         Number of factors to compute.
 
     max_outer_iter : int, default: 10
-        Number of outer iterations to run the algorithm.
+        Number of global iterations to run the algorithm.
 
     max_inner_iter : int, default: 10
-        Number of inner iterations to run the algorithm.
+        Number of local iterations to run on each subject within each
+        global interation.
 
     n_subj : int, default: 1
-        Number of subjects in dataset.
+        Total number of subjects in dataset.
 
     threshold : float, default: 1.0
         Tolerance for terminate the parameter estimation
@@ -114,26 +118,26 @@ class HTFA(TFA):
     max_tr : int, default: 500
         The maximum number of trs to sample in each inner iteration.
 
-    output_path : str, default: None
-        The directory to save results.
-
-    output_prefix : list of str, default: None
-        The prefix to use for each subject when saving results
-
     verbose : boolean, default: False
         Verbose mode flag.
+
+
+    Attributes:
+    ----------
+    global_prior_ : 1D array,
+        The global prior on mean and variance of centers and widths.
+
+    global_posterior_ : 1D array,
+        The global posterior on mean and variance of centers and widths.
+
     """
 
-    def __init__(self, R, K, n_subj=1, max_outer_iter=10, max_inner_iter=10,
+    def __init__(self, K, n_subj=1, max_outer_iter=10, max_inner_iter=10,
                  threshold=0.01, nlss_method='trf', nlss_loss='soft_l1',
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
                  voxel_ratio=0.25, tr_ratio=0.1, max_voxel=5000, max_tr=500,
-                 output_path=None, output_prefix=None, verbose=False):
-        # Check data type
-        if not isinstance(R, list):
-            raise TypeError("R should be a list")
-        self.R = R
+                 verbose=False):
         self.K = K
         self.n_subj = n_subj
         self.max_outer_iter = max_outer_iter
@@ -151,17 +155,7 @@ class HTFA(TFA):
         self.tr_ratio = tr_ratio
         self.max_voxel = max_voxel
         self.max_tr = max_tr
-        self.output_path = output_path
-        self.output_prefix = output_prefix
         self.verbose = verbose
-        self.n_dim = self.R[0].shape[1]
-        self.cov_vec_size = np.sum(np.arange(self.n_dim) + 1)
-        # centers,widths
-        self.prior_size = self.K * (self.n_dim + 1)
-        # centers,widths,centerCov,widthVar
-        self.prior_bcast_size =\
-            self.K * (self.n_dim + 2 + self.cov_vec_size)
-        self.get_map_offset()
 
     def _converged(self):
         """Check convergence based on maximum absolute difference
@@ -177,14 +171,14 @@ class HTFA(TFA):
 
         """
 
-        prior = self.global_prior[0:self.prior_size]
-        posterior = self.global_posterior[0:self.prior_size]
+        prior = self.global_prior_[0:self.prior_size]
+        posterior = self.global_posterior_[0:self.prior_size]
         diff = prior - posterior
         max_diff = np.max(np.fabs(diff))
         if self.verbose:
             _, mse = self._mse_converged()
             diff_ratio = np.sum(diff ** 2) / np.sum(posterior ** 2)
-            logging.info(
+            logger.info(
                 'htfa prior posterior max diff %f mse %f diff_ratio %f' %
                 ((max_diff, mse, diff_ratio)))
 
@@ -207,8 +201,8 @@ class HTFA(TFA):
 
         """
 
-        prior = self.global_prior[0:self.prior_size]
-        posterior = self.global_posterior[0:self.prior_size]
+        prior = self.global_prior_[0:self.prior_size]
+        posterior = self.global_posterior_[0:self.prior_size]
         mse = mean_squared_error(prior, posterior,
                                  multioutput='uniform_average')
         if mse > self.threshold:
@@ -274,20 +268,20 @@ class HTFA(TFA):
         self : object
             Returns the instance itself.
         """
-        self.global_posterior = self.global_prior.copy()
-        prior_centers = self.global_prior[
+        self.global_posterior_ = self.global_prior_.copy()
+        prior_centers = self.global_prior_[
             0:self.map_offset[1]].copy().reshape(
             self.K,
             self.n_dim)
-        prior_widths = self.global_prior[
+        prior_widths = self.global_prior_[
             self.map_offset[1]:self.map_offset[2]].copy().reshape(
             self.K,
             1)
-        prior_centers_mean_cov = self.global_prior[
+        prior_centers_mean_cov = self.global_prior_[
             self.map_offset[2]:self.map_offset[3]].copy().reshape(
             self.K, self.cov_vec_size)
         prior_widths_mean_var = \
-            self.global_prior[self.map_offset[3]:].copy().reshape(self.K, 1)
+            self.global_prior_[self.map_offset[3]:].copy().reshape(self.K, 1)
         global_centers_cov = self.global_const[
             0:self.K *
             self.cov_vec_size].copy().reshape(
@@ -317,18 +311,18 @@ class HTFA(TFA):
                 prior_centers[k].T.copy(), from_tri_2_sym(
                     prior_centers_mean_cov[k], self.n_dim), from_tri_2_sym(
                     global_centers_cov[k], self.n_dim), next_centers)
-            self.global_posterior[
+            self.global_posterior_[
                 k *
                 self.n_dim:(
                     k +
                     1) *
                 self.n_dim] = posterior_mean.T
-            self.global_posterior[self.map_offset[2] +
-                                  k *
-                                  self.cov_vec_size:self.map_offset[2] +
-                                  (k +
-                                   1) *
-                                  self.cov_vec_size] = \
+            self.global_posterior_[self.map_offset[2] +
+                                   k *
+                                   self.cov_vec_size:self.map_offset[2] +
+                                   (k +
+                                    1) *
+                                   self.cov_vec_size] = \
                 from_sym_2_tri(posterior_cov)
 
             # widths
@@ -336,10 +330,10 @@ class HTFA(TFA):
             common = 1.0 / (prior_widths_mean_var[k] + scaled)
             observation_mean = np.mean(next_widths)
             tmp = common * scaled
-            self.global_posterior[self.map_offset[1] + k] = \
+            self.global_posterior_[self.map_offset[1] + k] = \
                 prior_widths_mean_var[k] * common * observation_mean +\
                 tmp * prior_widths[k]
-            self.global_posterior[self.map_offset[3] + k] = \
+            self.global_posterior_[self.map_offset[3] + k] = \
                 prior_widths_mean_var[k] * tmp
 
         return self
@@ -435,7 +429,6 @@ class HTFA(TFA):
         data : list of 2D array. Each in shape [n_voxel, n_tr]
             Total number of MPI process.
 
-
         Returns
         -------
 
@@ -445,24 +438,17 @@ class HTFA(TFA):
         max_sample_voxel : 1D array
             Maximum number of voxel to subsample for each subject
 
-        sample_scaling : 1D array
-            Subsampling coefficient for each subject
-
         """
 
         max_sample_tr = np.zeros(n_local_subj).astype(int)
         max_sample_voxel = np.zeros(n_local_subj).astype(int)
-        sample_scaling = np.zeros(n_local_subj)
         for idx in np.arange(n_local_subj):
             nvoxel = data[idx].shape[0]
             ntr = data[idx].shape[1]
             max_sample_voxel[idx] = min(self.max_voxel,
                                         int(self.voxel_ratio * nvoxel))
             max_sample_tr[idx] = min(self.max_tr, int(self.tr_ratio * ntr))
-            sample_scaling[idx] = 0.5 * float(
-                max_sample_voxel[idx] *
-                max_sample_tr[idx]) / float(nvoxel * ntr)
-        return max_sample_tr, max_sample_voxel, sample_scaling
+        return max_sample_tr, max_sample_voxel
 
     def _get_mpi_info(self):
         """get basica MPI info
@@ -486,7 +472,7 @@ class HTFA(TFA):
         size = comm.Get_size()
         return comm, rank, size
 
-    def _init_prior_posterior(self, rank, n_local_subj):
+    def _init_prior_posterior(self, rank, R, n_local_subj):
         """set prior for this subject
 
         Parameters
@@ -494,6 +480,10 @@ class HTFA(TFA):
 
         rank : integer
             The rank of this process
+
+        R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
+            Each element in the list contains the voxel coordinate matrix
+            of fMRI data of one subject.
 
         n_local_subj : integer
             The number of subjects allocated to this process.
@@ -508,14 +498,15 @@ class HTFA(TFA):
 
         if rank == 0:
             idx = np.random.choice(n_local_subj, 1)
-            self.get_global_prior(self.R[idx])
+            self.global_prior_, self.global_const =\
+                self.get_global_prior(R[idx])
             self.gather_posterior = np.zeros(self.n_subj * self.prior_size)
-            self.global_posterior = np.zeros(self.prior_size)
+            self.global_posterior_ = np.zeros(self.prior_size)
         else:
-            self.global_prior = np.zeros(self.prior_bcast_size)
+            self.global_prior_ = np.zeros(self.prior_bcast_size)
             self.global_const = None
             self.gather_posterior = None
-            self.global_posterior = None
+            self.global_posterior_ = None
         return self
 
     def _gather_local_posterior(self, comm, use_gather, local_posterior,
@@ -566,15 +557,15 @@ class HTFA(TFA):
             Returns the instance itself.
         """
 
-        prior_centers = self.global_prior[
+        prior_centers = self.global_prior_[
             0:self.map_offset[1]].reshape(
             self.K,
             self.n_dim)
-        posterior_centers = self.global_posterior[
+        posterior_centers = self.global_posterior_[
             0:self.map_offset[1]].reshape(
             self.K,
             self.n_dim)
-        posterior_widths = self.global_posterior[
+        posterior_widths = self.global_posterior_[
             self.map_offset[1]:self.map_offset[2]] .reshape(
             self.K,
             1)
@@ -582,21 +573,21 @@ class HTFA(TFA):
         cost = distance.cdist(prior_centers, posterior_centers, 'euclidean')
         _, col_ind = linear_sum_assignment(cost)
         # reorder centers/widths based on cost assignment
-        self.global_posterior[
+        self.global_posterior_[
             0:self.map_offset[1]] = posterior_centers[col_ind].ravel()
-        self.global_posterior[self.map_offset[1]:self.map_offset[2]] = \
+        self.global_posterior_[self.map_offset[1]:self.map_offset[2]] = \
             posterior_widths[col_ind].ravel()
-        posterior_centers_mean_cov = self.global_posterior[
+        posterior_centers_mean_cov = self.global_posterior_[
             self.map_offset[2]:self.map_offset[3]].reshape(
             self.K, self.cov_vec_size)
-        posterior_widths_mean_var = self.global_posterior[
+        posterior_widths_mean_var = self.global_posterior_[
             self.map_offset[3]:] .reshape(
             self.K,
             1)
         # reorder cov/var based on cost assignment
-        self.global_posterior[self.map_offset[2]:self.map_offset[3]] = \
+        self.global_posterior_[self.map_offset[2]:self.map_offset[3]] = \
             posterior_centers_mean_cov[col_ind].ravel()
-        self.global_posterior[self.map_offset[3]:] = \
+        self.global_posterior_[self.map_offset[3]:] = \
             posterior_widths_mean_var[col_ind].ravel()
         return self
 
@@ -627,21 +618,25 @@ class HTFA(TFA):
             self._assign_posterior()
             is_converged, _ = self._converged()
             if is_converged:
-                logging.info("converged at %d outer iter" % (m))
+                logger.info("converged at %d outer iter" % (m))
                 outer_converged[0] = 1
             else:
-                self.global_prior = self.global_posterior
+                self.global_prior_ = self.global_posterior_
         return outer_converged
 
-    def _update_weight(self, data, local_posterior,
+    def _update_weight(self, data, R, local_posterior,
                        n_local_subj, local_weights, local_weight_offset):
         """update local weight
 
         Parameters
         ----------
 
-        data : list of 2D array
+        data : list of 2D array, element i has shape=[n_voxel, n_tr]
             Subjects' fMRI data.
+
+        R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
+            Each element in the list contains the voxel coordinate matrix
+            of fMRI data of one subject.
 
         local_posterior : 1D array
             Local posterior of subjects allocated to this process.
@@ -677,84 +672,23 @@ class HTFA(TFA):
                 self.prior_size].copy().reshape(
                 (self.K,
                  1))
-            unique_R, inds = self._get_unique_R(self.R[s])
-            F = self._get_factors(unique_R, inds, centers, widths)
+            unique_R, inds = self._get_unique_R(R[s])
+            F = self.get_factors(unique_R, inds, centers, widths)
             if s == n_local_subj - 1:
                 local_weights[
-                    local_weight_offset[s]:] = self._get_weights(
+                    local_weight_offset[s]:] = self.get_weights(
                     subj_data,
                     F).ravel()
             else:
                 local_weights[
                     local_weight_offset[s]:local_weight_offset[
                         s +
-                        1]] = self._get_weights(
+                        1]] = self.get_weights(
                     subj_data,
                     F).ravel()
         return local_weights
 
-    def _save_local_posterior_weights(self, data, local_weight_offset,
-                                      local_weights, n_local_subj,
-                                      local_posterior):
-        """save local posterior and weights to disk
-         Parameters
-        ----------
-        data : list of 2D array
-            Subjects' fMRI data.
-
-        local_weight_offset : 1D array
-            Offset of each subject's weights on this process.
-
-        local_weights : 1D array
-            Weights of subjects allocated to this process.
-
-        n_local_subj : integer
-            Number of subjects allocated to this process.
-
-        local_posterior : 1D array
-            Local posterior of subjects allocated to this process.
-
-
-        Returns
-        -------
-        self : object
-            Returns the instance itself.
-
-
-        """
-        if not os.path.exists(self.output_path):
-            os.makedirs(self.output_path)
-
-        for s, subj_data in enumerate(data):
-            base = s * self.prior_size
-            np.save(self.output_path +
-                    '/' +
-                    self.output_prefix[s] +
-                    '_posterior.npy', local_posterior[base:base +
-                                                      self.K *
-                                                      (self.n_dim +
-                                                       1)])
-            if s == n_local_subj - 1:
-                np.save(
-                    self.output_path +
-                    '/' +
-                    self.output_prefix[s] +
-                    '_weights.npy',
-                    local_weights[
-                        local_weight_offset[s]:])
-            else:
-                np.save(
-                    self.output_path +
-                    '/' +
-                    self.output_prefix[s] +
-                    '_weights.npy',
-                    local_weights[
-                        local_weight_offset[s]:local_weight_offset[
-                            s +
-                            1]])
-        return
-
-    def _fit_htfa(self, data):
+    def _fit_htfa(self, data, R):
         """HTFA main algorithm
 
         Parameters
@@ -763,6 +697,14 @@ class HTFA(TFA):
         data : list of 2D array. Each in shape [n_voxel, n_tr]
             Total number of MPI process.
 
+        R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
+            Each element in the list contains the voxel coordinate matrix
+            of fMRI data of one subject.
+
+        Returns
+        -------
+        self : object
+            Returns the instance itself.
         """
 
         comm, rank, size = self._get_mpi_info()
@@ -770,16 +712,14 @@ class HTFA(TFA):
         if rank == 0 and self.verbose:
             start_time = time.time()
         use_gather = True if self.n_subj % size == 0 else False
-        n_local_subj = len(self.R)
-        max_sample_tr, max_sample_voxel, sample_scaling =\
+        n_local_subj = len(R)
+        max_sample_tr, max_sample_voxel =\
             self._get_subject_info(n_local_subj, data)
 
         tfa = []
         # init tfa for each subject
         for s, subj_data in enumerate(data):
             tfa.append(TFA(
-                self.R[s],
-                sample_scaling[s],
                 max_iter=self.max_inner_iter,
                 threshold=self.threshold,
                 K=self.K,
@@ -799,7 +739,7 @@ class HTFA(TFA):
             size)
         local_posterior = np.zeros(n_local_subj * self.prior_size)
         local_prior = np.zeros(n_local_subj * self.prior_size)
-        self._init_prior_posterior(rank,
+        self._init_prior_posterior(rank, R,
                                    n_local_subj)
 
         node_weight_size, local_weight_offset =\
@@ -810,15 +750,18 @@ class HTFA(TFA):
         outer_converged = np.array([0])
         while m < self.max_outer_iter and not outer_converged[0]:
             # root broadcast first 4 fields of global_prior to all nodes
-            comm.Bcast(self.global_prior, root=0)
+            comm.Bcast(self.global_prior_, root=0)
             # each node loop over its data
             for s, subj_data in enumerate(data):
                 local_prior[s * self.prior_size:(s + 1) * self.prior_size] =\
-                    self.global_prior[0:self.prior_size].copy()
+                    self.global_prior_[0:self.prior_size].copy()
                 # update tfa with current local prior
-                tfa[s].set_prior(self.global_prior[0:self.prior_size].copy())
+                tfa[s].set_prior(self.global_prior_[0:self.prior_size].copy())
                 tfa[s].set_seed(m * self.max_inner_iter)
-                tfa[s].fit(subj_data, self.global_prior.copy())
+                tfa[s].fit(
+                    subj_data,
+                    R=R[s],
+                    global_prior=self.global_prior_.copy())
                 tfa[s]._assign_posterior()
                 local_posterior[
                     s *
@@ -838,12 +781,13 @@ class HTFA(TFA):
             outer_converged = self._update_global_posterior(
                 rank, m, outer_converged)
             comm.Bcast(outer_converged, root=0)
-            logging.info('+')
+            logger.info('+')
             m += 1
 
         # update weight matrix for each subject
         local_weights = self._update_weight(
             data,
+            R,
             local_posterior,
             n_local_subj,
             local_weights,
@@ -852,12 +796,12 @@ class HTFA(TFA):
         comm.barrier()
         if rank == 0:
             if self.verbose:
-                logging.info(
+                logger.info(
                     "htfa exe time: %s seconds" %
                     (time.time() - start_time))
         return self
 
-    def fit(self, X, y=None):
+    def fit(self, X, R):
         """Compute Hierarchical Topographical Factor Analysis Model
            [Manning2014-1][Manning2014-2]
 
@@ -866,10 +810,17 @@ class HTFA(TFA):
         X :  list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data of one subject.
 
-        y : not used
+        R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
+            Each element in the list contains the voxel coordinate matrix
+            of fMRI data of one subject.
+
+        Returns
+        -------
+        self : object
+            Returns the instance itself.
         """
         if self.verbose:
-            logging.info('Start to fit HTFA ')
+            logger.info("Start to fit HTFA")
 
         # Check data type
         if not isinstance(X, list):
@@ -880,11 +831,29 @@ class HTFA(TFA):
             raise ValueError("Need at leat one subject to train the model.\
                               Got {0:d}".format(len(X)))
 
-        for x in X:
+        for idx, x in enumerate(X):
             if not isinstance(x, np.ndarray):
-                raise TypeError("Each input element should be an array")
+                raise TypeError("Each subject's data should be an array")
             if x.ndim != 2:
-                raise ValueError("Each input element should be 2D array")
+                raise TypeError("Each subject's data should be 2D array")
+            if not isinstance(R[idx], np.ndarray):
+                raise TypeError(
+                    "Each voxel coordinate matrix should be an array")
+            if R[idx].ndim != 2:
+                raise TypeError(
+                    "Each voxel coordinate matrix should be 2D array")
+            if x.shape[0] != R[idx].shape[0]:
+                raise TypeError(
+                    "n_voxel should be the same in X[idx] and R[idx]")
 
         # main algorithm
-        return self._fit_htfa(X)
+        self.n_dim = R[0].shape[1]
+        self.cov_vec_size = np.sum(np.arange(self.n_dim) + 1)
+        # centers,widths
+        self.prior_size = self.K * (self.n_dim + 1)
+        # centers,widths,centerCov,widthVar
+        self.prior_bcast_size =\
+            self.K * (self.n_dim + 2 + self.cov_vec_size)
+        self.get_map_offset()
+        self._fit_htfa(X, R)
+        return self
