@@ -77,7 +77,8 @@ def fast_inv(a):
     LinAlgError
         If a is singular or not square
     """
-
+    if a.ndim != 2:
+        raise TypeError("Input matrix should be 2D array")
     identity = np.identity(a.shape[1], dtype=a.dtype)
     inva = None
     try:
