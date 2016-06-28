@@ -1,9 +1,12 @@
+import pytest
+
 def test_R():
     from brainiak.factor_analysis.htfa import HTFA
     try:
         htfa = HTFA()
     except TypeError:
         print("Catched exception #1: two input arguments needed!")
+
 
 def test_X():
     from brainiak.factor_analysis.htfa import HTFA
@@ -31,69 +34,62 @@ def test_X():
 
     X = np.random.rand(n_voxel, n_tr)
     # Check that does NOT run with wrong data type
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #3: Input data should be a list")
+    assert "Input data should be a list" in str(excinfo.value)
 
     X = []
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(ValueError) as excinfo:
         htfa.fit(X, R=R)
-    except ValueError:
-        print("Catched exception #4: should at least have one subject")
+    assert "Need at leat one subject to train the model" in str(excinfo.value)
 
     X = []
     X.append([1, 2, 3])
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #5: subject data should be an array")
+    assert "data should be an array" in str(excinfo.value)
 
     X = []
     X.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #6: subject data should be 2D array")
+    assert "subject data should be 2D array" in str(excinfo.value)
 
     X = []
     for s in np.arange(n_subj):
         X.append(np.random.rand(n_voxel, n_tr))
     R = np.random.randint(2, high=102, size=(n_voxel, 3))
-    
+
     # Check that does NOT run with wrong data type
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #7: subject coordinate should be a list")
+    assert "Coordinates should be a list" in str(excinfo.value)
 
     R = []
     R.append([1, 2, 3])
     # Check that does NOT run with wrong data type
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #8: subject coordinate should be an array")
+    assert "Each voxel coordinate matrix should be an array" in str(excinfo.value)
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #9: subject coordinate should be 2D array")
+    assert "Each voxel coordinate matrix should be 2D array" in str(excinfo.value)
 
     R = []
     for s in np.arange(n_subj):
-        R.append(np.random.rand(n_voxel-1, 3))
+        R.append(np.random.rand(n_voxel - 1, 3))
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #10: n_voxel should match in data and coordinate") 
+    assert "n_voxel should be the same in X[idx] and R[idx]" in str(excinfo.value)
+
 
 def test_can_run():
     import numpy as np

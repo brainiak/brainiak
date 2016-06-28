@@ -802,6 +802,51 @@ class HTFA(TFA):
                     (time.time() - start_time))
         return self
 
+    def _check_input(self, X, R):
+        """Check whether input data and coordinates in right type
+
+        Parameters
+        ----------
+        X :  list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+        R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
+            Each element in the list contains the voxel coordinate matrix
+            of fMRI data of one subject.
+
+        Returns
+        -------
+        self : object
+            Returns the instance itself.
+        """
+        # Check data type
+        if not isinstance(X, list):
+            raise TypeError("Input data should be a list")
+
+        if not isinstance(R, list):
+            raise TypeError("Coordinates should be a list")
+
+        # Check the number of subjects
+        if len(X) < 1:
+            raise ValueError("Need at leat one subject to train the model.\
+                              Got {0:d}".format(len(X)))
+
+        for idx, x in enumerate(X):
+            if not isinstance(x, np.ndarray):
+                raise TypeError("Each subject data should be an array")
+            if x.ndim != 2:
+                raise TypeError("Each subject data should be 2D array")
+            if not isinstance(R[idx], np.ndarray):
+                raise TypeError(
+                    "Each voxel coordinate matrix should be an array")
+            if R[idx].ndim != 2:
+                raise TypeError(
+                    "Each voxel coordinate matrix should be 2D array")
+            if x.shape[0] != R[idx].shape[0]:
+                raise TypeError(
+                    "n_voxel should be the same in X[idx] and R[idx]")
+        return self
+
     def fit(self, X, R):
         """Compute Hierarchical Topographical Factor Analysis Model
            [Manning2014-1][Manning2014-2]
@@ -820,34 +865,9 @@ class HTFA(TFA):
         self : object
             Returns the instance itself.
         """
+        self._check_input(X, R)
         if self.verbose:
             logger.info("Start to fit HTFA")
-
-        # Check data type
-        if not isinstance(X, list):
-            raise TypeError("Input data should be a list")
-
-        # Check the number of subjects
-        if len(X) < 1:
-            raise ValueError("Need at leat one subject to train the model.\
-                              Got {0:d}".format(len(X)))
-
-        for idx, x in enumerate(X):
-            if not isinstance(x, np.ndarray):
-                raise TypeError("Each subject's data should be an array")
-            if x.ndim != 2:
-                raise TypeError("Each subject's data should be 2D array")
-            if not isinstance(R[idx], np.ndarray):
-                raise TypeError(
-                    "Each voxel coordinate matrix should be an array")
-            if R[idx].ndim != 2:
-                raise TypeError(
-                    "Each voxel coordinate matrix should be 2D array")
-            if x.shape[0] != R[idx].shape[0]:
-                raise TypeError(
-                    "n_voxel should be the same in X[idx] and R[idx]")
-
-        # main algorithm
         self.n_dim = R[0].shape[1]
         self.cov_vec_size = np.sum(np.arange(self.n_dim) + 1)
         # centers,widths

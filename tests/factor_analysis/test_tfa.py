@@ -1,3 +1,5 @@
+import pytest
+
 def test_one_step():
     from brainiak.factor_analysis.tfa import TFA
     import numpy as np
@@ -16,45 +18,39 @@ def test_one_step():
         max_num_voxel=max_num_voxel,
         max_num_tr=max_num_tr)
     assert tfa, "Invalid TFA instance!"
-    
-    R = np.random.randint(2, high=102, size=(n_voxel, 3)) 
+
+    R = np.random.randint(2, high=102, size=(n_voxel, 3))
     X = [1, 2, 3]
     # Check that does NOT run with wrong data type
-    try:
+    with pytest.raises(TypeError) as excinfo:
         tfa.fit(X, R=R)
-        assert True, "Success running TFA with one subject!"
-    except TypeError:
-        print("Catched exception #1: Input data should be an array")
+    assert "Input data should be an array" in str(excinfo.value)
 
     X = np.random.rand(n_voxel)
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         tfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #2: Input data should be 2D array")
+    assert "Input data should be 2D array" in str(excinfo.value)
 
     X = np.random.rand(n_voxel, n_tr)
     R = [1, 2, 3]
     # Check that does NOT run with wrong data type
-    try:
+    with pytest.raises(TypeError) as excinfo:
         tfa.fit(X, R=R)
-        assert True, "Success running TFA with one subject!"
-    except TypeError:
-        print("Catched exception #3: Input data should be an array")
+    assert "coordinate matrix should be an array" in str(excinfo.value)
 
     R = np.random.rand(n_voxel)
     # Check that does NOT run with wrong array dimension
-    try:
+    with pytest.raises(TypeError) as excinfo:
         tfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #4: Input data should be 2D array")
+    assert "coordinate matrix should be 2D array" in str(excinfo.value)
 
-    R = np.random.randint(2, high=102, size=(n_voxel-1, 3))
-    # Check that does NOT run if n_voxel in X and R does not match 
-    try:
+    R = np.random.randint(2, high=102, size=(n_voxel - 1, 3))
+    # Check that does NOT run if n_voxel in X and R does not match
+    with pytest.raises(TypeError) as excinfo:
         tfa.fit(X, R=R)
-    except TypeError:
-        print("Catched exception #5: X and R should have same n_voxel")
+    assert "The number of voxels should be the same in X and R" in str(
+        excinfo.value)
 
     R = np.random.randint(2, high=102, size=(n_voxel, 3))
     tfa.fit(X, R=R)
@@ -63,8 +59,8 @@ def test_one_step():
     assert tfa.local_posterior.shape[
         0] == posterior_size,\
         "Invalid result of TFA! (wrong # element in local_posterior)"
-    
-    weight_method='ols'
+
+    weight_method = 'ols'
     tfa = TFA(
         weight_method=weight_method,
         K=K,
@@ -77,7 +73,6 @@ def test_one_step():
     X = np.random.rand(n_voxel, n_tr)
     tfa.fit(X, R=R)
     assert True, "Success running TFA with one subject!"
-    
 
     global_prior, _ = tfa.get_global_prior(R)
     tfa.set_K(K)
@@ -87,5 +82,3 @@ def test_one_step():
     assert tfa.local_posterior.shape[
         0] == posterior_size,\
         "Invalid result of TFA! (wrong # element in local_posterior)"
-
-
