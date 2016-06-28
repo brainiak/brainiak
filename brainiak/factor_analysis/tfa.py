@@ -34,6 +34,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 class TFA(BaseEstimator):
 
     """Topographical Factor Analysis (TFA)

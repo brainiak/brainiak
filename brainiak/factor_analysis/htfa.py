@@ -36,6 +36,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 class HTFA(TFA):
     """Hierarchical Topographical Factor Analysis (HTFA)
 
