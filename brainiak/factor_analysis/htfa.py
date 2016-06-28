@@ -41,7 +41,7 @@ logger.setLevel(logging.DEBUG)
 class HTFA(TFA):
     """Hierarchical Topographical Factor Analysis (HTFA)
 
-    Given multi-subject data, factorizes each subject's data as a
+    Given multi-subject data, factorizes data from each subject as a
     spatial factor F and a weight matrix W per subject. Also at top
     level, estimate global template across subjects:
 
@@ -121,7 +121,7 @@ class HTFA(TFA):
         Verbose mode flag.
 
 
-    Attributes:
+    Attributes
     ----------
     global_prior_ : 1D array,
         The global prior on mean and variance of centers and widths.
