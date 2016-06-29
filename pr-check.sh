@@ -61,6 +61,7 @@ then
     activate_venv=activate_conda_venv
     deactivate_venv=deactivate_conda_venv
     remove_venv=remove_conda_venv
+    ignore_installed="--ignore-installed"
 elif [ $(which virtualenv) ]
 then
     create_venv=create_virtualenv_venv
@@ -85,7 +86,7 @@ $activate_venv $venv || {
 }
 
 # install developer dependencies
-pip install -U -r requirements-dev.txt || \
+pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip failed to install requirements"
 
 # static analysis
@@ -93,7 +94,7 @@ pip install -U -r requirements-dev.txt || \
     exit_with_error_and_venv "run-checks failed"
 
 # install brainiak in editable mode (required for testing)
-pip install -U -e . || \
+pip install $ignore_installed -U -e . || \
     exit_with_error_and_venv "pip failed to install BrainIAK"
 
 # run tests

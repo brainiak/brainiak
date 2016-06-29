@@ -122,7 +122,10 @@ Standards
   (http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines)
   with the exception that we target Python 3 only.
 * Python docstrings should be formatted according to the NumPy docstring
-  standard (https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt)
+  standard as implemented by the `Sphinx Napoleon extension`_ (see also the
+  `Sphinx NumPy example`_). In particular, note that type annotations must
+  follow `PEP 484`_. Please also read the `NumPy documentation guide`_, but
+  note that we consider Sphinx authoritative.
 * C++ code should follow the Google C++ standards
   (https://google.github.io/styleguide/cppguide.html)
 * All user-visible / public APIs should have technical documentation that
@@ -135,8 +138,25 @@ Standards
   with Scikit-learn Pipelines by implementing fit, transform and 
   fit_transform methods as described in the Scikit-learn documentation
   (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
+* Use ``logging`` to record debug messages with a logger obtained using::
+
+    logging.getLogger(__name__)
+
+  Use ``warnings`` to show warning messages to users. Do not use ``print``. See
+  the `Python Logging Tutorial`_ for details.
 * Use ``run-checks.sh`` to check your code before submitting a pull request. It
   requires ``flake8``.
+
+.. _Sphinx Napoleon extension:
+   http://www.sphinx-doc.org/en/stable/ext/napoleon.html
+.. _Sphinx NumPy example:
+   http://www.sphinx-doc.org/en/stable/ext/example_numpy.html
+.. _PEP 484:
+   https://www.python.org/dev/peps/pep-0484/
+.. _NumPy documentation guide:
+   https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+.. _Python Logging Tutorial:
+   https://docs.python.org/3/howto/logging.html
 
 Testing
 =======
@@ -175,10 +195,12 @@ Since BrainIAK is primarily published as a Python package, it is largely
 organized according to the guidelines for Python package distribution:
 http://python-packaging-user-guide.readthedocs.org/en/latest/distributing/
 
-Python code goes in the ``brainiak`` folder, usually with a subfolder for each
-major research initiative or algorithm.
+Python code goes in the ``brainiak`` package, usually with a subpackage for
+each major research initiative. If an algorithm can be implemented in a single
+module, place the module directly in the ``brainiak`` package, do not create a
+subpackage.
 
-Try to give subpackages a short, but still-as-meaningful-as-possible name.
-
-For example, ``brainiak/topofactor`` might be a name for the folder for
-topological factor analysis work.
+Name subpackages and modules using short names describing their functionality,
+e.g., ``tda`` for the subpackage containing topological data analysis work and
+``htfa.py`` for the module implementing hierarchical topographical factor
+analysis.
