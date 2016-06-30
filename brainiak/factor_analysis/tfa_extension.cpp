@@ -1,3 +1,19 @@
+/*
+// Copyright (c) <2016> Intel Corporation
+// //
+// // Licensed under the Apache License, Version 2.0 (the "License");
+// // you may not use this file except in compliance with the License.
+// // You may obtain a copy of the License at
+// //
+// //      http://www.apache.org/licenses/LICENSE-2.0
+// //
+// // Unless required by applicable law or agreed to in writing, software
+// // distributed under the License is distributed on an "AS IS" BASIS,
+// // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// // See the License for the specific language governing permissions and
+// // limitations under the License.
+// */
+//
 #include "Python.h"
 #include <omp.h>
 #include <iostream>
@@ -30,7 +46,23 @@ factor_native(py::array_t<double, py::array::c_style | py::array::forcecast> F_a
        Ix_buf = Ix_arr.request(),
        Iy_buf = Iy_arr.request(),
        Iz_buf = Iz_arr.request();
-
+//This function calculates latest factors based on estimation on
+//centers and widths, as well as voxels' coordinates
+//
+//Input parameters are:
+//F_arr: The factor array, in shape [n_voxel, n_factor] 
+//C_arr: The center array, in shape [n_factor, n_dim]
+//W_arr: The width array, in shape [n_factor, 1]
+//Rx_arr: The unique value of voxel coordinates in x-dimension
+//Ry_arr: The unique value of voxel coordinates in y-dimension
+//Rz_arr: The unique value of voxel coordinates in z-dimension
+//Ix_arr: The index to look up unique value of voxle coordinates in x-dimension
+//Iy_arr: The index to look up unique value of voxel coordinates in y-dimension
+//Iz_arr: The index to look up unique value of voxle coordinates in z-dimension
+//
+//Ouput parameters are:
+//F_arr: The updated factor array
+//
   if(F_buf.ndim != 2)
       throw std::runtime_error("F must be 2D");
   
@@ -142,7 +174,19 @@ recon_native(py::array_t<double, py::array::c_style | py::array::forcecast> reco
        F_buf = F_arr.request(),
        W_buf = W_arr.request(),
        s_buf = s_arr.request();
-
+//This function calculates the reconstruction error 
+//centers and widths, as well as voxels' coordinates
+//
+//Input parameters are:
+//recon_arr: The reconstruction error 
+//X_arr: The original fMRI data, in shape [n_voxel, n_tr] 
+//F_arr: The factor array, in shape [n_voxel, n_factor] 
+//W_arr: The weight array, in shape [n_factor, n_tr]
+//s_arr: The subsampling coeffient 
+//
+//Ouput parameters are:
+//recon_arr: The updated reconstruction error 
+//
   double *recon = (double*) recon_buf.ptr;
   double *X = (double*) X_buf.ptr;
   double *F = (double*) F_buf.ptr;
