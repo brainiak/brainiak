@@ -6,4 +6,3 @@ pytest-cov
 restructuredtext-lint
 sphinx
 sphinx_rtd_theme
-numpydoc
