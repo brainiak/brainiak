@@ -268,8 +268,7 @@ class HTFA(TFA):
 
         Returns
         -------
-
-        self : object
+        HTFA
             Returns the instance itself.
         """
         self.global_posterior_ = self.global_prior_.copy()
@@ -434,7 +433,6 @@ class HTFA(TFA):
 
         Returns
         -------
-
         comm : object
             Returns MPI communication group
 
@@ -470,7 +468,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
 
         """
@@ -493,9 +491,10 @@ class HTFA(TFA):
     def _gather_local_posterior(self, comm, use_gather,
                                 gather_size, gather_offset):
         """Gather/Gatherv local posterior
+
+
         Parameters
         ----------
-
         comm : object
             MPI communication group
 
@@ -511,7 +510,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
 
         """
@@ -532,8 +531,7 @@ class HTFA(TFA):
 
         Returns
         -------
-
-        self : object
+        HTFA
             Returns the instance itself.
         """
 
@@ -616,7 +614,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
 
         """
@@ -655,7 +653,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
         """
 
@@ -750,7 +748,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
         """
         # Check data type
@@ -796,7 +794,7 @@ class HTFA(TFA):
 
         Returns
         -------
-        self : object
+        HTFA
             Returns the instance itself.
         """
         self._check_input(X, R)

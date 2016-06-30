@@ -162,7 +162,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -181,7 +181,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -199,7 +199,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -211,7 +211,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -229,8 +229,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
         """
 
@@ -826,8 +825,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -928,8 +926,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
 
         """
