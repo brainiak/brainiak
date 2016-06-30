@@ -147,7 +147,7 @@ class SRM(BaseEstimator):
         y : not used
         """
         if self.verbose:
-            print('Running Probabilistic SRM')
+            print('Running Probabilistic SRM')  # noqa FIXME
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -307,7 +307,7 @@ class SRM(BaseEstimator):
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
             if self.verbose:
-                print('Iteration %d' % (iteration + 1))
+                print('Iteration %d' % (iteration + 1))  # noqa FIXME
 
             # E-step:
 
@@ -355,7 +355,7 @@ class SRM(BaseEstimator):
             # rho_i^2
             for subject in range(subjects):
                 if self.verbose:
-                    print('.'),
+                    print('.'),  # noqa FIXME
                 a_subject = x[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
@@ -374,6 +374,6 @@ class SRM(BaseEstimator):
                     chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
                     trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                     samples)
-                print('Objective function %f' % loglike)
+                print('Objective function %f' % loglike)  # noqa FIXME
 
         return sigma_s, w, mu, rho2, shared_response

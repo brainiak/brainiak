@@ -11,23 +11,66 @@ The material below is directed at end users. This "READ THIS FIRST" section will
 Brain Imaging Analysis Kit
 ==========================
 
-Brain Imaging Analysis Kit is a package of Python modules useful for neuroscience, primarily focused on
+The Brain Imaging Analysis Kit is a package of Python modules useful for neuroscience, primarily focused on
 functional Magnetic Resonance Imaging (fMRI) analysis.
 
 The package was originally created by a collaboration between Intel and the Princeton Neuroscience Institute (PNI).
 
-To reduce verbosity, we refer to the Brain Imaging Analysis Kit as ``BrainIAK``. Whenever lowercase spelling is used (e.g., Python package name), we use ``brainiak``.
+To reduce verbosity, we may refer to the Brain Imaging Analysis Kit using the ``BrainIAK`` abbreviation. Whenever lowercase spelling is used (e.g., Python package name), we use ``brainiak``.
 
 Requirements
 ============
 
-BrainIAK requires Linux or MacOS X, and Python version 3.4 or higher.
+We support Linux and MacOS with Python version 3.4 or higher. Most of the
+dependencies will be installed automatically. However, a few need to be
+installed manually.
 
+Linux
+-----
+
+Install the following packages (Ubuntu 14.04 is used for the examples)::
+
+    apt install build-essential cmake libgomp1 mpich python3-pip
+
+Install up-to-date versions of ``pip`` and ``virtualenv``::
+
+    # note that the command installed by apt is pip3, not pip
+    pip3 install --user -U pip virtualenv
+
+Note the ``--user`` flag, which instructs ``pip`` to not overwrite system
+files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
+the updated ``pip``, e.g., by adding the following line to ``$HOME/.profile``
+and launching a new login shell (e.g., logout or execute ``bash -l``)::
+
+    PATH="$HOME/.local/bin:$PATH"
+
+MacOS
+-----
+
+Install the Xcode Command Line Tools::
+
+    xcode-select --install
+
+Install ``brew`` from https://brew.sh. Then install the following::
+
+    brew install clang-omp cmake mpich python3
+
+You must instruct programs to use ``clang-omp``. One way to do this, which
+works for most programs, is setting the ``CC`` environment variable. You can
+add the following lines to ``$HOME/.profile`` (for them to take effect, you
+must logout or launch a new login shell, e.g., ``bash -l``)::
+
+    CC=clang-omp
+    CXX=clang-omp++
+
+Install up-to-date versions of ``pip`` and ``virtualenv``::
+
+    pip install -U pip virtualenv
 
 Install
 =======
 
-BrainIAK will be available on PyPI once we finalize the open-sourcing process; for the moment it must be installed from GitHub.
+In the future, the Brain Imaging Analysis Kit will be available on PyPI. For the moment, it must be installed from a Git repository.
 
 Install directly from GitHub
 ----------------------------
@@ -36,14 +79,9 @@ To install directly from GitHub, do:
 
     pip install git+https://github.com/intelpni/brainiak.git
 
-(note that you'll have to enter your username and password since this is
-still a private repository).
-
-Or if you have ssh keys installed, you can do:
+Or, if you have ssh keys installed, you can do:
 
     pip install git+ssh://github.com/intelpni/brainiak.git
-
-and you won't have to enter username or password.
 
 Install from local clone
 ------------------------
