@@ -11,17 +11,17 @@ The material below is directed at end users. This "READ THIS FIRST" section will
 Brain Imaging Analysis Kit
 ==========================
 
-Brain Imaging Analysis Kit is a package of Python modules useful for neuroscience, primarily focused on
+The Brain Imaging Analysis Kit is a package of Python modules useful for neuroscience, primarily focused on
 functional Magnetic Resonance Imaging (fMRI) analysis.
 
 The package was originally created by a collaboration between Intel and the Princeton Neuroscience Institute (PNI).
 
-To reduce verbosity, we refer to the Brain Imaging Analysis Kit as ``BrainIAK``. Whenever lowercase spelling is used (e.g., Python package name), we use ``brainiak``.
+To reduce verbosity, we may refer to the Brain Imaging Analysis Kit using the ``BrainIAK`` abbreviation. Whenever lowercase spelling is used (e.g., Python package name), we use ``brainiak``.
 
 Requirements
 ============
 
-BrainIAK runs on Linux or MacOS, and Python version 3.4 or higher. Most of its
+We support Linux and MacOS with Python version 3.4 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 
@@ -70,7 +70,7 @@ Install up-to-date versions of ``pip`` and ``virtualenv``::
 Install
 =======
 
-BrainIAK will be available on PyPI once we finalize the open-sourcing process; for the moment it must be installed from GitHub.
+In the future, the Brain Imaging Analysis Kit will be available on PyPI. For the moment, it must be installed from a Git repository.
 
 Install directly from GitHub
 ----------------------------
@@ -79,14 +79,9 @@ To install directly from GitHub, do:
 
     pip install git+https://github.com/intelpni/brainiak.git
 
-(note that you'll have to enter your username and password since this is
-still a private repository).
-
-Or if you have ssh keys installed, you can do:
+Or, if you have ssh keys installed, you can do:
 
     pip install git+ssh://github.com/intelpni/brainiak.git
-
-and you won't have to enter username or password.
 
 Install from local clone
 ------------------------
