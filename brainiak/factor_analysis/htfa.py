@@ -537,8 +537,7 @@ class HTFA(TFA):
             Returns the instance itself.
         """
 
-        prior_centers = self.global_prior_[0:self.map_offset[1]]\
-            .reshape(self.K, self.n_dim)
+        prior_centers = self.get_centers(self.global_prior_)
         posterior_centers = self.get_centers(self.global_posterior_)
         posterior_widths = self.get_widths(self.global_posterior_)
         posterior_centers_mean_cov =\
@@ -549,15 +548,15 @@ class HTFA(TFA):
         cost = distance.cdist(prior_centers, posterior_centers, 'euclidean')
         _, col_ind = linear_sum_assignment(cost)
         # reorder centers/widths based on cost assignment
-        self.global_posterior_[0:self.map_offset[1]] = \
-            posterior_centers[col_ind].ravel()
-        self.global_posterior_[self.map_offset[1]:self.map_offset[2]] = \
-            posterior_widths[col_ind].ravel()
+        self.set_centers(self.global_posterior_, posterior_centers)
+        self.set_widths(self.global_posterior_, posterior_widths)
         # reorder cov/var based on cost assignment
-        self.global_posterior_[self.map_offset[2]:self.map_offset[3]] = \
-            posterior_centers_mean_cov[col_ind].ravel()
-        self.global_posterior_[self.map_offset[3]:] = \
-            posterior_widths_mean_var[col_ind].ravel()
+        self.set_centers_mean_cov(
+            self.global_posterior_,
+            posterior_centers_mean_cov[col_ind])
+        self.set_widths_mean_var(
+            self.global_posterior_,
+            posterior_widths_mean_var[col_ind])
         return self
 
     def _update_global_posterior(

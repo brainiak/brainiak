@@ -218,8 +218,8 @@ class TFA(BaseEstimator):
         centers, widths = self.init_centers_widths(R)
         # update prior
         prior = np.zeros(self.K * (self.n_dim + 1))
-        prior[0:self.map_offset[1]] = centers.ravel()
-        prior[self.map_offset[1]:self.map_offset[2]] = widths.ravel()
+        self.set_centers(prior, centers)
+        self.set_widths(prior, widths)
         self.set_prior(prior)
         return self
 
@@ -241,10 +241,8 @@ class TFA(BaseEstimator):
         cost = distance.cdist(prior_centers, posterior_centers, 'euclidean')
         _, col_ind = linear_sum_assignment(cost)
         # reorder centers/widths based on cost assignment
-        self.local_posterior_[0:self.map_offset[1]] =\
-            posterior_centers[col_ind].ravel()
-        self.local_posterior_[self.map_offset[1]:self.map_offset[2]] = \
-            posterior_widths[col_ind].ravel()
+        self.set_centers(self.local_posterior_, posterior_centers[col_ind])
+        self.set_widths(self.local_posterior_, posterior_widths[col_ind])
         return self
 
     def _converged(self):
@@ -366,19 +364,71 @@ class TFA(BaseEstimator):
         centers_cov_all = np.tile(from_sym_2_tri(global_centers_cov), self.K)
         widths_var_all = np.tile(global_widths_var, self.K)
         # initial mean of centers' mean
-        global_prior[0:self.map_offset[1]] = centers.ravel()
-        # initial mean of widths' mean
-        global_prior[self.map_offset[1]:self.map_offset[2]] = widths.ravel()
-        # center mean cov
-        global_prior[self.map_offset[2]:self.map_offset[3]] =\
-            centers_cov_all.ravel()
-        # width mean var
-        global_prior[self.map_offset[3]:] = widths_var_all.ravel()
+        self.set_centers(global_prior, centers)
+        self.set_widths(global_prior, widths)
+        self.set_centers_mean_cov(global_prior, centers_cov_all)
+        self.set_widths_mean_var(global_prior, widths_var_all)
         return global_prior, global_centers_cov, global_widths_var
+
+    def set_centers(self, estimation, centers):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[0:self.map_offset[1]] = centers.ravel()
+
+    def set_widths(self, estimation, widths):
+        """Set estimation on widths
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        widths : 2D array, in shape [K, 1]
+            Estimation on widths
+
+        """
+        estimation[self.map_offset[1]:self.map_offset[2]] = widths.ravel()
+
+    def set_centers_mean_cov(self, estimation, centers_mean_cov):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[self.map_offset[2]:self.map_offset[3]] =\
+            centers_mean_cov.ravel()
+
+    def set_widths_mean_var(self, estimation, widths_mean_var):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[self.map_offset[3]:] = widths_mean_var.ravel()
 
     def get_centers(self, estimation):
         """Get estimation on centers
-
 
         Parameters
         ----------
