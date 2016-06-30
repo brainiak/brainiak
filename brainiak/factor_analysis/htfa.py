@@ -54,10 +54,10 @@ class HTFA(TFA):
     K : int, default: 50
         Number of factors to compute.
 
-    max_outer_iter : int, default: 10
+    max_global_iter : int, default: 10
         Number of global iterations to run the algorithm.
 
-    max_inner_iter : int, default: 10
+    max_local_iter : int, default: 10
         Number of local iterations to run on each subject within each
         global interation.
 
@@ -136,7 +136,7 @@ class HTFA(TFA):
 
     """
 
-    def __init__(self, K, n_subj=1, max_outer_iter=10, max_inner_iter=10,
+    def __init__(self, K, n_subj=1, max_global_iter=10, max_local_iter=10,
                  threshold=0.01, nlss_method='trf', nlss_loss='soft_l1',
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
@@ -144,8 +144,8 @@ class HTFA(TFA):
                  verbose=False):
         self.K = K
         self.n_subj = n_subj
-        self.max_outer_iter = max_outer_iter
-        self.max_inner_iter = max_inner_iter
+        self.max_global_iter = max_global_iter
+        self.max_local_iter = max_local_iter
         self.threshold = threshold
         self.nlss_method = nlss_method
         self.nlss_loss = nlss_loss
@@ -670,7 +670,7 @@ class HTFA(TFA):
         # init tfa for each subject
         for s, subj_data in enumerate(data):
             tfa.append(TFA(
-                max_iter=self.max_inner_iter,
+                max_iter=self.max_local_iter,
                 threshold=self.threshold,
                 K=self.K,
                 nlss_method=self.nlss_method,
@@ -695,14 +695,14 @@ class HTFA(TFA):
 
         m = 0
         outer_converged = np.array([0])
-        while m < self.max_outer_iter and not outer_converged[0]:
+        while m < self.max_global_iter and not outer_converged[0]:
             # root broadcast first 4 fields of global_prior to all nodes
             comm.Bcast(self.global_prior_, root=0)
             # each node loop over its data
             for s, subj_data in enumerate(data):
                 # update tfa with current local prior
                 tfa[s].set_prior(self.global_prior_[0:self.prior_size].copy())
-                tfa[s].set_seed(m * self.max_inner_iter)
+                tfa[s].set_seed(m * self.max_local_iter)
                 tfa[s].fit(
                     subj_data,
                     R=R[s],
