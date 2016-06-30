@@ -39,9 +39,9 @@ logger = logging.getLogger(__name__)
 class HTFA(TFA):
     """Hierarchical Topographical Factor Analysis (HTFA)
 
-    Given multi-subject data, factorizes data from each subject as a
+    Given multi-subject data, HTFA factorizes data from each subject as a
     spatial factor F and a weight matrix W per subject. Also at top
-    level, estimate global template across subjects:
+    level, it estimates global template across subjects:
 
 
     Parameters
