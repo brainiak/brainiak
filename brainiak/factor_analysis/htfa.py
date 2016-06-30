@@ -25,7 +25,6 @@ from mpi4py import MPI
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import mean_squared_error
 from scipy.spatial import distance
-import time
 import logging
 from .tfa import TFA
 from ..utils.utils import fast_inv, from_tri_2_sym, from_sym_2_tri
@@ -122,11 +121,18 @@ class HTFA(TFA):
 
     Attributes
     ----------
-    global_prior_ : 1D array,
+    global_prior_ : 1D array
         The global prior on mean and variance of centers and widths.
 
-    global_posterior_ : 1D array,
+    global_posterior_ : 1D array
         The global posterior on mean and variance of centers and widths.
+
+    local_posterior_ : 1D array
+        Local posterior on centers and widths of subjects allocated
+        to this process.
+
+    local_weights_ : 1D array
+        Local posterior on weights allocated to this process.
 
     """
 
@@ -213,7 +219,7 @@ class HTFA(TFA):
             self,
             prior_mean,
             prior_cov,
-            global_cov,
+            global_cov_scaled,
             new_observation):
         """Maximum A Posterior (MAP) update of a parameter
 
@@ -227,7 +233,7 @@ class HTFA(TFA):
             Prior variance of scalar parameter, or
             prior covariance of multivariate parameter
 
-        global_cov : float or 1D array
+        global_cov_scaled : float or 1D array
             Global prior variance of scalar parameter, or
             global prior covariance of multivariate parameter
 
@@ -245,16 +251,16 @@ class HTFA(TFA):
             posterior covariance of multivariate parameter
 
         """
-        scaled = global_cov / float(self.n_subj)
         try:
-            common = fast_inv(prior_cov + scaled)
+            common = fast_inv(prior_cov + global_cov_scaled)
         except np.linalg.linalg.LinAlgError:
             logging.exception('Error from fast_inv')
             raise
         observation_mean = np.mean(new_observation, axis=1)
-        posterior_mean = prior_cov.dot(
-            common.dot(observation_mean)) + scaled.dot(common.dot(prior_mean))
-        posterior_cov = prior_cov.dot(common.dot(scaled))
+        posterior_mean = prior_cov.dot(common.dot(observation_mean)) +\
+            global_cov_scaled.dot(common.dot(prior_mean))
+        posterior_cov =\
+            prior_cov.dot(common.dot(global_cov_scaled))
         return posterior_mean, posterior_cov
 
     def _map_update_posterior(self):
@@ -267,29 +273,10 @@ class HTFA(TFA):
             Returns the instance itself.
         """
         self.global_posterior_ = self.global_prior_.copy()
-        prior_centers = self.global_prior_[
-            0:self.map_offset[1]].copy().reshape(
-            self.K,
-            self.n_dim)
-        prior_widths = self.global_prior_[
-            self.map_offset[1]:self.map_offset[2]].copy().reshape(
-            self.K,
-            1)
-        prior_centers_mean_cov = self.global_prior_[
-            self.map_offset[2]:self.map_offset[3]].copy().reshape(
-            self.K, self.cov_vec_size)
-        prior_widths_mean_var = \
-            self.global_prior_[self.map_offset[3]:].copy().reshape(self.K, 1)
-        global_centers_cov = self.global_const[
-            0:self.K *
-            self.cov_vec_size].copy().reshape(
-            self.K,
-            self.cov_vec_size)
-        global_widths_var = self.global_const[
-            self.K *
-            self.cov_vec_size:].copy().reshape(
-            self.K,
-            1)
+        prior_centers = self.get_centers(self.global_prior_)
+        prior_widths = self.get_widths(self.global_prior_)
+        prior_centers_mean_cov = self.get_centers_mean_cov(self.global_prior_)
+        prior_widths_mean_var = self.get_widths_mean_var(self.global_prior_)
         center_size = self.K * self.n_dim
         posterior_size = center_size + self.K
         for k in np.arange(self.K):
@@ -298,36 +285,30 @@ class HTFA(TFA):
             for s in np.arange(self.n_subj):
                 center_start = s * posterior_size
                 width_start = center_start + center_size
-                next_centers[:, s] = self.gather_posterior[
-                    center_start +
-                    k * self.n_dim:center_start +
-                    (k + 1) * self.n_dim] .copy()
+                start_idx = center_start + k * self.n_dim
+                end_idx = center_start + (k + 1) * self.n_dim
+                next_centers[:, s] = self.gather_posterior[start_idx:end_idx]\
+                    .copy()
                 next_widths[s] = self.gather_posterior[width_start + k].copy()
 
             # centers
             posterior_mean, posterior_cov = self._map_update(
-                prior_centers[k].T.copy(), from_tri_2_sym(
-                    prior_centers_mean_cov[k], self.n_dim), from_tri_2_sym(
-                    global_centers_cov[k], self.n_dim), next_centers)
-            self.global_posterior_[
-                k *
-                self.n_dim:(
-                    k +
-                    1) *
-                self.n_dim] = posterior_mean.T
-            self.global_posterior_[self.map_offset[2] +
-                                   k *
-                                   self.cov_vec_size:self.map_offset[2] +
-                                   (k +
-                                    1) *
-                                   self.cov_vec_size] = \
+                prior_centers[k].T.copy(),
+                from_tri_2_sym(prior_centers_mean_cov[k], self.n_dim),
+                self.global_centers_cov_scaled,
+                next_centers)
+            self.global_posterior_[k * self.n_dim:(k + 1) * self.n_dim] =\
+                posterior_mean.T
+            start_idx = self.map_offset[2] + k * self.cov_vec_size
+            end_idx = self.map_offset[2] + (k + 1) * self.cov_vec_size
+            self.global_posterior_[start_idx:end_idx] =\
                 from_sym_2_tri(posterior_cov)
 
             # widths
-            scaled = global_widths_var[k] / float(self.n_subj)
-            common = 1.0 / (prior_widths_mean_var[k] + scaled)
+            common = 1.0 /\
+                (prior_widths_mean_var[k] + self.global_widths_var_scaled)
             observation_mean = np.mean(next_widths)
-            tmp = common * scaled
+            tmp = common * self.global_widths_var_scaled
             self.global_posterior_[self.map_offset[1] + k] = \
                 prior_widths_mean_var[k] * common * observation_mean +\
                 tmp * prior_widths[k]
@@ -443,8 +424,8 @@ class HTFA(TFA):
         for idx in np.arange(n_local_subj):
             nvoxel = data[idx].shape[0]
             ntr = data[idx].shape[1]
-            max_sample_voxel[idx] = min(self.max_voxel,
-                                        int(self.voxel_ratio * nvoxel))
+            max_sample_voxel[idx] =\
+                min(self.max_voxel, int(self.voxel_ratio * nvoxel))
             max_sample_tr[idx] = min(self.max_tr, int(self.tr_ratio * ntr))
         return max_sample_tr, max_sample_voxel
 
@@ -496,18 +477,20 @@ class HTFA(TFA):
 
         if rank == 0:
             idx = np.random.choice(n_local_subj, 1)
-            self.global_prior_, self.global_const =\
-                self.get_global_prior(R[idx])
+            self.global_prior_, self.global_centers_cov,\
+                self.global_widths_var = self.get_global_prior(R[idx])
+            self.global_centers_cov_scaled =\
+                self.global_centers_cov / float(self.n_subj)
+            self.global_widths_var_scaled =\
+                self.global_widths_var / float(self.n_subj)
             self.gather_posterior = np.zeros(self.n_subj * self.prior_size)
             self.global_posterior_ = np.zeros(self.prior_size)
         else:
             self.global_prior_ = np.zeros(self.prior_bcast_size)
-            self.global_const = None
-            self.gather_posterior = None
             self.global_posterior_ = None
         return self
 
-    def _gather_local_posterior(self, comm, use_gather, local_posterior,
+    def _gather_local_posterior(self, comm, use_gather,
                                 gather_size, gather_offset):
         """Gather/Gatherv local posterior
         Parameters
@@ -518,9 +501,6 @@ class HTFA(TFA):
 
         use_gather : boolean
             Whether to use Gather or Gatherv
-
-        local_posterior : 1D array
-            Local posterior on this process
 
         gather_size : 1D array
             The size of each local posterior
@@ -536,12 +516,14 @@ class HTFA(TFA):
 
         """
         if use_gather:
-            comm.Gather(local_posterior, self.gather_posterior, root=0)
+            comm.Gather(self.local_posterior_, self.gather_posterior, root=0)
         else:
-            comm.Gatherv(
-                local_posterior, [
-                    self.gather_posterior, gather_size, gather_offset,
-                    MPI.DOUBLE])
+            target = [
+                self.gather_posterior,
+                gather_size,
+                gather_offset,
+                MPI.DOUBLE]
+            comm.Gatherv(self.local_posterior_, target)
         return self
 
     def _assign_posterior(self):
@@ -555,33 +537,22 @@ class HTFA(TFA):
             Returns the instance itself.
         """
 
-        prior_centers = self.global_prior_[
-            0:self.map_offset[1]].reshape(
-            self.K,
-            self.n_dim)
-        posterior_centers = self.global_posterior_[
-            0:self.map_offset[1]].reshape(
-            self.K,
-            self.n_dim)
-        posterior_widths = self.global_posterior_[
-            self.map_offset[1]:self.map_offset[2]] .reshape(
-            self.K,
-            1)
+        prior_centers = self.global_prior_[0:self.map_offset[1]]\
+            .reshape(self.K, self.n_dim)
+        posterior_centers = self.get_centers(self.global_posterior_)
+        posterior_widths = self.get_widths(self.global_posterior_)
+        posterior_centers_mean_cov =\
+            self.get_centers_mean_cov(self.global_posterior_)
+        posterior_widths_mean_var =\
+            self.get_widths_mean_var(self.global_posterior_)
         # linear assignment on centers
         cost = distance.cdist(prior_centers, posterior_centers, 'euclidean')
         _, col_ind = linear_sum_assignment(cost)
         # reorder centers/widths based on cost assignment
-        self.global_posterior_[
-            0:self.map_offset[1]] = posterior_centers[col_ind].ravel()
+        self.global_posterior_[0:self.map_offset[1]] = \
+            posterior_centers[col_ind].ravel()
         self.global_posterior_[self.map_offset[1]:self.map_offset[2]] = \
             posterior_widths[col_ind].ravel()
-        posterior_centers_mean_cov = self.global_posterior_[
-            self.map_offset[2]:self.map_offset[3]].reshape(
-            self.K, self.cov_vec_size)
-        posterior_widths_mean_var = self.global_posterior_[
-            self.map_offset[3]:] .reshape(
-            self.K,
-            1)
         # reorder cov/var based on cost assignment
         self.global_posterior_[self.map_offset[2]:self.map_offset[3]] = \
             posterior_centers_mean_cov[col_ind].ravel()
@@ -624,8 +595,7 @@ class HTFA(TFA):
                 self.global_prior_ = self.global_posterior_
         return outer_converged
 
-    def _update_weight(self, data, R, local_posterior,
-                       n_local_subj, local_weights, local_weight_offset):
+    def _update_weight(self, data, R, n_local_subj, local_weight_offset):
         """update local weight
 
         Parameters
@@ -638,14 +608,8 @@ class HTFA(TFA):
             Each element in the list contains the voxel coordinate matrix
             of fMRI data of one subject.
 
-        local_posterior : 1D array
-            Local posterior of subjects allocated to this process.
-
         n_local_subj : integer
             Number of subjects allocated to this process.
-
-        local_weights : 1D array
-            Weights of subjects allocated to this process.
 
         local_weight_offset : 1D array
             Offset of each subject's weights on this process.
@@ -653,40 +617,29 @@ class HTFA(TFA):
 
         Returns
         -------
-        local_weights : 1D array
-            Return weights of subjects allocated to this process.
+        self : object
+            Returns the instance itself.
 
         """
         for s, subj_data in enumerate(data):
             base = s * self.prior_size
-            centers = local_posterior[
-                base:base +
-                self.K *
-                self.n_dim].copy().reshape(
-                (self.K,
-                 self.n_dim))
-            widths = local_posterior[
-                base +
-                self.K *
-                self.n_dim:base +
-                self.prior_size].copy().reshape(
-                (self.K,
-                 1))
+            centers = self.local_posterior_[base:base + self.K * self.n_dim]\
+                .reshape((self.K, self.n_dim))
+            start_idx = base + self.K * self.n_dim
+            end_idx = base + self.prior_size
+            widths = self.local_posterior_[start_idx:end_idx]\
+                .reshape((self.K, 1))
             unique_R, inds = self._get_unique_R(R[s])
             F = self.get_factors(unique_R, inds, centers, widths)
+            start_idx = local_weight_offset[s]
             if s == n_local_subj - 1:
-                local_weights[
-                    local_weight_offset[s]:] = self.get_weights(
-                    subj_data,
-                    F).ravel()
+                self.local_weights_[start_idx:] =\
+                    self.get_weights(subj_data, F).ravel()
             else:
-                local_weights[
-                    local_weight_offset[s]:local_weight_offset[
-                        s +
-                        1]] = self.get_weights(
-                    subj_data,
-                    F).ravel()
-        return local_weights
+                end_idx = local_weight_offset[s + 1]
+                self.local_weights_[start_idx:end_idx] =\
+                    self.get_weights(subj_data, F).ravel()
+        return self
 
     def _fit_htfa(self, data, R):
         """HTFA main algorithm
@@ -709,8 +662,6 @@ class HTFA(TFA):
 
         comm, rank, size = self._get_mpi_info()
         comm.barrier()
-        if rank == 0 and self.verbose:
-            start_time = time.time()
         use_gather = True if self.n_subj % size == 0 else False
         n_local_subj = len(R)
         max_sample_tr, max_sample_voxel =\
@@ -735,16 +686,13 @@ class HTFA(TFA):
                 max_num_voxel=max_sample_voxel[s]))
 
         # map data to processes
-        gather_size, gather_offset, subject_map = self._get_gather_offset(
-            size)
-        local_posterior = np.zeros(n_local_subj * self.prior_size)
-        local_prior = np.zeros(n_local_subj * self.prior_size)
-        self._init_prior_posterior(rank, R,
-                                   n_local_subj)
-
+        gather_size, gather_offset, subject_map =\
+            self._get_gather_offset(size)
+        self.local_posterior_ = np.zeros(n_local_subj * self.prior_size)
+        self._init_prior_posterior(rank, R, n_local_subj)
         node_weight_size, local_weight_offset =\
             self._get_weight_size(data, n_local_subj)
-        local_weights = np.zeros(node_weight_size[0])
+        self.local_weights_ = np.zeros(node_weight_size[0])
 
         m = 0
         outer_converged = np.array([0])
@@ -753,8 +701,6 @@ class HTFA(TFA):
             comm.Bcast(self.global_prior_, root=0)
             # each node loop over its data
             for s, subj_data in enumerate(data):
-                local_prior[s * self.prior_size:(s + 1) * self.prior_size] =\
-                    self.global_prior_[0:self.prior_size].copy()
                 # update tfa with current local prior
                 tfa[s].set_prior(self.global_prior_[0:self.prior_size].copy())
                 tfa[s].set_seed(m * self.max_inner_iter)
@@ -763,42 +709,32 @@ class HTFA(TFA):
                     R=R[s],
                     global_prior=self.global_prior_.copy())
                 tfa[s]._assign_posterior()
-                local_posterior[
-                    s *
-                    self.prior_size:(
-                        s +
-                        1) *
-                    self.prior_size] = tfa[s].local_posterior
+                start_idx = s * self.prior_size
+                end_idx = (s + 1) * self.prior_size
+                self.local_posterior_[start_idx:end_idx] =\
+                    tfa[s].local_posterior_
 
             self._gather_local_posterior(
                 comm,
                 use_gather,
-                local_posterior,
                 gather_size,
                 gather_offset)
 
             # root updates global_posterior
-            outer_converged = self._update_global_posterior(
-                rank, m, outer_converged)
+            outer_converged =\
+                self._update_global_posterior(rank, m, outer_converged)
             comm.Bcast(outer_converged, root=0)
             logger.info('+')
             m += 1
 
         # update weight matrix for each subject
-        local_weights = self._update_weight(
+        self._update_weight(
             data,
             R,
-            local_posterior,
             n_local_subj,
-            local_weights,
             local_weight_offset)
 
         comm.barrier()
-        if rank == 0:
-            if self.verbose:
-                logger.info(
-                    "htfa exe time: %s seconds" %
-                    (time.time() - start_time))
         return self
 
     def _check_input(self, X, R):
