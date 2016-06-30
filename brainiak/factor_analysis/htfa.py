@@ -577,8 +577,8 @@ class HTFA(TFA):
 
         Returns
         -------
-        outer_converged : 1D array
-            Returns whether outer HTFA loop converged
+        1D array, contains only 1 element for MPI
+            1 means HTFA converged, 0 mean not converged.
 
         """
         if rank == 0:
