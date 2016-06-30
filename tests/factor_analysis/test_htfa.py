@@ -15,8 +15,8 @@ def test_X():
     n_voxel = 100
     n_tr = 20
     K = 5
-    max_outer_iter = 3
-    max_inner_iter = 3
+    max_global_iter = 3
+    max_local_iter = 3
     max_voxel = n_voxel
     max_tr = n_tr
 
@@ -27,8 +27,8 @@ def test_X():
 
     htfa = HTFA(
         K,
-        max_outer_iter=max_outer_iter,
-        max_inner_iter=max_inner_iter,
+        max_global_iter=max_global_iter,
+        max_local_iter=max_local_iter,
         max_voxel=max_voxel,
         max_tr=max_tr)
 
@@ -102,8 +102,8 @@ def test_can_run():
     n_voxel = 100
     n_tr = 20
     K = 5
-    max_outer_iter = 3
-    max_inner_iter = 3
+    max_global_iter = 3
+    max_local_iter = 3
     max_voxel = n_voxel
     max_tr = n_tr
     R = []
@@ -118,8 +118,8 @@ def test_can_run():
     htfa = HTFA(
         K,
         n_subj=n_subj,
-        max_outer_iter=max_outer_iter,
-        max_inner_iter=max_inner_iter,
+        max_global_iter=max_global_iter,
+        max_local_iter=max_local_iter,
         max_voxel=max_voxel,
         max_tr=max_tr,
         verbose=True)

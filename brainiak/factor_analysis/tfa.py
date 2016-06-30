@@ -101,6 +101,20 @@ class TFA(BaseEstimator):
 
     verbose : boolean, default: False
        Verbose mode flag.
+
+
+    Attributes
+    ----------
+    local_posterior_ : 1D array
+        Local posterior on subject's centers and widths
+
+    F_ : 2D array, in shape [n_voxel, K]
+        Latent factors of this subject
+
+    W_ : 2D array, in shape [K, n_tr]
+        Weight matrix of this subject
+
+
     """
 
     def __init__(
@@ -148,7 +162,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -167,7 +181,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -185,7 +199,7 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
@@ -197,49 +211,37 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        self : object
+        TFA
             Returns the instance itself.
 
         """
         centers, widths = self.init_centers_widths(R)
         # update prior
         prior = np.zeros(self.K * (self.n_dim + 1))
-        prior[0:self.map_offset[1]] = centers.ravel()
-        prior[self.map_offset[1]:self.map_offset[2]] = widths.ravel()
+        self.set_centers(prior, centers)
+        self.set_widths(prior, widths)
         self.set_prior(prior)
         return self
 
     def _assign_posterior(self):
-        """Minimum weight matching between prior and posterior,
-           assign posterior to the right prior.
+        """assign posterior to the right prior based on
+           Hungarian algorithm
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
         """
 
-        prior_centers = self.local_prior[
-            0:self.map_offset[1]].reshape(
-            self.K,
-            self.n_dim)
-        posterior_centers = self.local_posterior[
-            0:self.map_offset[1]].reshape(
-            self.K,
-            self.n_dim)
-        posterior_widths = self.local_posterior[
-            self.map_offset[1]:self.map_offset[2]] .reshape(
-            self.K,
-            1)
+        prior_centers = self.get_centers(self.local_prior)
+        posterior_centers = self.get_centers(self.local_posterior_)
+        posterior_widths = self.get_widths(self.local_posterior_)
         # linear assignment on centers
         cost = distance.cdist(prior_centers, posterior_centers, 'euclidean')
         _, col_ind = linear_sum_assignment(cost)
         # reorder centers/widths based on cost assignment
-        self.local_posterior[
-            0:self.map_offset[1]] = posterior_centers[col_ind].ravel()
-        self.local_posterior[self.map_offset[1]:self.map_offset[2]] = \
-            posterior_widths[col_ind].ravel()
+        self.set_centers(self.local_posterior_, posterior_centers[col_ind])
+        self.set_widths(self.local_posterior_, posterior_widths[col_ind])
         return self
 
     def _converged(self):
@@ -255,11 +257,11 @@ class TFA(BaseEstimator):
             Maximum absolute difference between prior and posterior.
 
         """
-        diff = self.local_prior - self.local_posterior
+        diff = self.local_prior - self.local_posterior_
         max_diff = np.max(np.fabs(diff))
         if self.verbose:
             _, mse = self._mse_converged()
-            diff_ratio = np.sum(diff ** 2) / np.sum(self.local_posterior ** 2)
+            diff_ratio = np.sum(diff ** 2) / np.sum(self.local_posterior_ ** 2)
             logger.info(
                 'tfa prior posterior max diff %f mse %f diff_ratio %f' %
                 ((max_diff, mse, diff_ratio)))
@@ -282,7 +284,7 @@ class TFA(BaseEstimator):
 
         """
 
-        mse = mean_squared_error(self.local_prior, self.local_posterior,
+        mse = mean_squared_error(self.local_prior, self.local_posterior_,
                                  multioutput='uniform_average')
         if mse > self.threshold:
             return False, mse
@@ -345,36 +347,165 @@ class TFA(BaseEstimator):
         global_prior : 1D array
             The global prior across subjects.
 
-        global_const:  1D array
-            The global const for Bayesian estimation
+        global_centers_cov:  2D array,  in shape [n_dim, n_dim]
+            The centers' covariance.
+
+        global_widths_var: float
+            The widths' variance
         """
 
         centers, widths = self.init_centers_widths(R)
-        global_prior = np.zeros(
-            self.K * (self.n_dim + 2 + self.cov_vec_size))
-        global_const = np.zeros(self.K * (self.cov_vec_size + 1))
-        center_cov = np.cov(R.T) * math.pow(self.K, -2 / 3.0)
-        # print center_cov
-        center_cov_all = np.tile(from_sym_2_tri(center_cov), self.K)
-        width_var = math.pow(np.nanmax(np.std(R, axis=0)), 2)
-        width_var_all = np.tile(width_var, self.K)
-        # center mean mean
-        global_prior[0:self.map_offset[1]] = centers.ravel()
-        # width mean mean
-        global_prior[
-            self.map_offset[1]:self.map_offset[2]] = widths.ravel()
-        # center mean cov
-        global_prior[
-            self.map_offset[2]:self.map_offset[3]] = center_cov_all.ravel()
-        # width mean var
-        global_prior[self.map_offset[3]:] = width_var_all.ravel()
-        # center cov
-        global_const[
-            0:self.K *
-            self.cov_vec_size] = center_cov_all.ravel()
-        # width var
-        global_const[self.K * self.cov_vec_size:] = width_var_all.ravel()
-        return global_prior, global_const
+        global_prior =\
+            np.zeros(self.K * (self.n_dim + 2 + self.cov_vec_size))
+        # global centers cov and widths var are const
+        global_centers_cov = np.cov(R.T) * math.pow(self.K, -2 / 3.0)
+        global_widths_var = math.pow(np.nanmax(np.std(R, axis=0)), 2)
+        centers_cov_all = np.tile(from_sym_2_tri(global_centers_cov), self.K)
+        widths_var_all = np.tile(global_widths_var, self.K)
+        # initial mean of centers' mean
+        self.set_centers(global_prior, centers)
+        self.set_widths(global_prior, widths)
+        self.set_centers_mean_cov(global_prior, centers_cov_all)
+        self.set_widths_mean_var(global_prior, widths_var_all)
+        return global_prior, global_centers_cov, global_widths_var
+
+    def set_centers(self, estimation, centers):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[0:self.map_offset[1]] = centers.ravel()
+
+    def set_widths(self, estimation, widths):
+        """Set estimation on widths
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        widths : 2D array, in shape [K, 1]
+            Estimation on widths
+
+        """
+        estimation[self.map_offset[1]:self.map_offset[2]] = widths.ravel()
+
+    def set_centers_mean_cov(self, estimation, centers_mean_cov):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[self.map_offset[2]:self.map_offset[3]] =\
+            centers_mean_cov.ravel()
+
+    def set_widths_mean_var(self, estimation, widths_mean_var):
+        """Set estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        estimation[self.map_offset[3]:] = widths_mean_var.ravel()
+
+    def get_centers(self, estimation):
+        """Get estimation on centers
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+            Either prior of posterior estimation
+
+
+        Returns
+        -------
+        centers : 2D array, in shape [K, n_dim]
+            Estimation on centers
+
+        """
+        centers = estimation[0:self.map_offset[1]]\
+            .reshape(self.K, self.n_dim)
+        return centers
+
+    def get_widths(self, estimation):
+        """Get estimation on widths
+
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+             Either prior of posterior estimation
+
+
+        Returns
+        -------
+        fields : 2D array, in shape [K, 1]
+            Estimation of widths
+
+        """
+        widths = estimation[self.map_offset[1]:self.map_offset[2]]\
+            .reshape(self.K, 1)
+        return widths
+
+    def get_centers_mean_cov(self, estimation):
+        """Get estimation on the covariance of centers' mean
+
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+             Either prior of posterior estimation
+
+
+        Returns
+        -------
+
+        centers_mean_cov : 2D array, in shape [K, cov_vec_size]
+            Estimation of the covariance of centers' mean
+
+        """
+        centers_mean_cov = estimation[self.map_offset[2]:self.map_offset[3]]\
+            .reshape(self.K, self.cov_vec_size)
+        return centers_mean_cov
+
+    def get_widths_mean_var(self, estimation):
+        """Get estimation on the variance of widths' mean
+
+
+        Parameters
+        ----------
+        estimation : 1D arrary
+             Either prior of posterior estimation
+
+
+        Returns
+        -------
+
+        widths_mean_var : 2D array, in shape [K, 1]
+            Estimation on variance of widths' mean
+
+        """
+        widths_mean_var = \
+            estimation[self.map_offset[3]:].reshape(self.K, 1)
+        return widths_mean_var
 
     def get_factors(self, unique_R, inds, centers, widths):
         """Calculate factors based on centers and widths
@@ -445,11 +576,8 @@ class TFA(BaseEstimator):
         trans_F = F.T.copy()
         W = np.zeros((self.K, data.shape[1]))
         if self.weight_method == 'rr':
-            W = np.linalg.solve(
-                trans_F.dot(F) +
-                beta *
-                np.identity(self.K),
-                trans_F.dot(data))
+            W = np.linalg.solve(trans_F.dot(F) + beta * np.identity(self.K),
+                                trans_F.dot(data))
         elif self.weight_method == 'ols':
             W = np.linalg.solve(trans_F.dot(F), trans_F.dot(data))
         else:
@@ -496,33 +624,15 @@ class TFA(BaseEstimator):
 
         diameter = self._get_diameter(R)
         final_lower = np.zeros(self.K * (self.n_dim + 1))
-        final_lower[
-            0:self.K *
-            self.n_dim] = np.tile(
-            np.nanmin(
-                R,
-                axis=0),
-            self.K)
-        final_lower[
-            self.K *
-            self.n_dim:] = np.repeat(
-            self.lower_ratio *
-            diameter,
-            self.K)
+        final_lower[0:self.K * self.n_dim] =\
+            np.tile(np.nanmin(R, axis=0), self.K)
+        final_lower[self.K * self.n_dim:] =\
+            np.repeat(self.lower_ratio * diameter, self.K)
         final_upper = np.zeros(self.K * (self.n_dim + 1))
-        final_upper[
-            0:self.K *
-            self.n_dim] = np.tile(
-            np.nanmax(
-                R,
-                axis=0),
-            self.K)
-        final_upper[
-            self.K *
-            self.n_dim:] = np.repeat(
-            self.upper_ratio *
-            diameter,
-            self.K)
+        final_upper[0:self.K * self.n_dim] =\
+            np.tile(np.nanmax(R, axis=0), self.K)
+        final_upper[self.K * self.n_dim:] =\
+            np.repeat(self.upper_ratio * diameter, self.K)
         bounds = (final_lower, final_upper)
         return bounds
 
@@ -534,9 +644,9 @@ class TFA(BaseEstimator):
             X,
             W,
             global_centers,
-            global_center_mean_cov,
+            global_centers_mean_cov,
             global_widths,
-            global_width_mean_var_reci,
+            global_widths_mean_var_reci,
             data_sigma):
         """Residual function for estimating centers and widths
 
@@ -564,13 +674,13 @@ class TFA(BaseEstimator):
         global_centers: 2D array, with shape [K, n_dim]
             The global prior on centers
 
-        global_center_mean_cov: 2D array, with shape [K, cov_size]
+        global_centers_mean_cov: 2D array, with shape [K, cov_size]
             The global prior on covariance of centers' mean
 
         global_widths: 1D array
             The global prior on widths
 
-        global_width_mean_var_reci: 1D array
+        global_widths_mean_var_reci: 1D array
             The reciprocal of global prior on variance of widths' mean
 
         data_sigma: float
@@ -585,8 +695,8 @@ class TFA(BaseEstimator):
 
         """
 
-        centers = estimate[:self.K * self.n_dim].reshape((self.K, self.n_dim))
-        widths = estimate[self.K * self.n_dim:].reshape((self.K, 1))
+        centers = self.get_centers(estimate)
+        widths = self.get_widths(estimate)
         recon = X.size
         other_err = 0 if global_centers is None else (2 * self.K)
         final_err = np.zeros(recon + other_err)
@@ -599,26 +709,19 @@ class TFA(BaseEstimator):
             # center error
             for k in np.arange(self.K):
                 diff = (centers[k] - global_centers[k])
-                cov = from_tri_2_sym(global_center_mean_cov[k], self.n_dim)
-                final_err[
-                    recon +
-                    k] = math.sqrt(
+                cov = from_tri_2_sym(global_centers_mean_cov[k], self.n_dim)
+                final_err[recon + k] = math.sqrt(
                     self.sample_scaling *
-                    diff.dot(
-                        np.linalg.solve(
-                            cov,
-                            diff.T)))
+                    diff.dot(np.linalg.solve(cov, diff.T)))
 
             # width error
             base = recon + self.K
-            final_err[base:] = np.sqrt(self.sample_scaling *
-                                       (global_width_mean_var_reci *
-                                        (widths -
-                                         global_widths) ** 2).ravel())
+            dist = global_widths_mean_var_reci * (widths - global_widths) ** 2
+            final_err[base:] = np.sqrt(self.sample_scaling * dist).ravel()
 
         return final_err
 
-    def _get_centers_widths(
+    def _estimate_centers_widths(
             self,
             unique_R,
             inds,
@@ -628,8 +731,8 @@ class TFA(BaseEstimator):
             init_widths,
             global_centers,
             global_widths,
-            global_center_mean_cov,
-            global_width_mean_var_reci):
+            global_centers_mean_cov,
+            global_widths_mean_var_reci):
         """Estimate centers and widths
 
         Parameters
@@ -662,10 +765,10 @@ class TFA(BaseEstimator):
         global_widths: 1D array
             The global prior on widths
 
-        global_center_mean_cov: 2D array, with shape [K, cov_size]
+        global_centers_mean_cov: 2D array, with shape [K, cov_size]
             The global prior on centers' mean
 
-        global_width_mean_var_reci: 1D array
+        global_widths_mean_var_reci: 1D array
             The reciprocal of global prior on variance of widths' mean
 
 
@@ -681,7 +784,7 @@ class TFA(BaseEstimator):
         """
         # least_squares only accept x in 1D format
         init_estimate = np.hstack(
-            (init_centers.ravel(), init_widths.ravel())).copy()
+            (init_centers.ravel(), init_widths.ravel()))  # .copy()
         data_sigma = 1.0 / math.sqrt(2.0) * np.std(X)
         final_estimate = least_squares(
             self._residual_multivariate,
@@ -693,8 +796,8 @@ class TFA(BaseEstimator):
                 W,
                 global_centers,
                 global_widths,
-                global_center_mean_cov,
-                global_width_mean_var_reci,
+                global_centers_mean_cov,
+                global_widths_mean_var_reci,
                 data_sigma),
             method=self.nlss_method,
             loss=self.nlss_loss,
@@ -722,29 +825,22 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
 
         """
         if global_prior is None:
             global_centers = None
             global_widths = None
-            global_center_mean_cov = None
-            global_width_mean_var_reci = None
+            global_centers_mean_cov = None
+            global_widths_mean_var_reci = None
         else:
-            global_centers = global_prior[0:self.map_offset[1]].copy()\
-                .reshape(self.K, self.n_dim)
-            global_widths = global_prior[
-                self.map_offset[1]:self.map_offset[2]].copy().reshape(
-                self.K,
-                1)
-            global_center_mean_cov = global_prior[
-                self.map_offset[2]:self.map_offset[3]].copy().reshape(
-                self.K,
-                self.cov_vec_size)
-            global_width_mean_var_reci = 1.0 / \
-                (global_prior[self.map_offset[3]:].copy().reshape(self.K, 1))
+            global_centers = self.get_centers(global_prior)
+            global_widths = self.get_widths(global_prior)
+            global_centers_mean_cov =\
+                self.get_centers_mean_cov(global_prior)
+            global_widths_mean_var_reci = 1.0 /\
+                self.get_widths_mean_var(global_prior)
         inner_converged = False
         np.random.seed(self.seed)
         n = 0
@@ -754,12 +850,12 @@ class TFA(BaseEstimator):
                 R,
                 global_centers,
                 global_widths,
-                global_center_mean_cov,
-                global_width_mean_var_reci)
+                global_centers_mean_cov,
+                global_widths_mean_var_reci)
             self._assign_posterior()
             inner_converged, _ = self._converged()
             if not inner_converged:
-                self.local_prior = self.local_posterior
+                self.local_prior = self.local_posterior_
             else:
                 logger.info("TFA converged at %d iteration." % (n))
             n += 1
@@ -802,8 +898,8 @@ class TFA(BaseEstimator):
             R,
             global_centers,
             global_widths,
-            global_center_mean_cov,
-            global_width_mean_var_reci):
+            global_centers_mean_cov,
+            global_widths_mean_var_reci):
         """Fit TFA model, the inner loop part
 
         Parameters
@@ -821,52 +917,41 @@ class TFA(BaseEstimator):
         global_widths: 1D array
             The global prior on widths
 
-        global_center_mean_cov: 2D array, with shape [K, cov_size]
-            The global prior on centers' mean
+        global_centers_mean_cov: 2D array, with shape [K, cov_size]
+            The global prior on covariance of centers' mean
 
-        global_width_mean_var_reci: 1D array
+        global_widths_mean_var_reci: 1D array
             The reciprocal of global prior on variance of widths' mean
 
 
         Returns
         -------
-
-        self : object
+        TFA
             Returns the instance itself.
 
         """
         nfeature = data.shape[0]
         nsample = data.shape[1]
-        feature_indices = np.random.choice(
-            nfeature,
-            self.max_num_voxel,
-            replace=False)
+        feature_indices =\
+            np.random.choice(nfeature, self.max_num_voxel, replace=False)
         sample_features = np.zeros(nfeature).astype(bool)
         sample_features[feature_indices] = True
-        samples_indices = np.random.choice(
-            nsample,
-            self.max_num_tr,
-            replace=False)
-        sample_samples = np.zeros(nsample).astype(bool)
-        sample_samples[samples_indices] = True
-        curr_data = np.zeros(
-            (self.max_num_voxel, self.max_num_tr)).astype(float)
+        samples_indices =\
+            np.random.choice(nsample, self.max_num_tr, replace=False)
+        curr_data = np.zeros((self.max_num_voxel, self.max_num_tr))\
+            .astype(float)
         curr_data = data[feature_indices]
         curr_data = curr_data[:, samples_indices].copy()
         curr_R = R[feature_indices].copy()
-        centers = self.local_prior[
-            0:self.K *
-            self.n_dim].reshape(
-            self.K,
-            self.n_dim)
-        widths = self.local_prior[self.K * self.n_dim:].reshape(self.K, 1)
+        centers = self.get_centers(self.local_prior)
+        widths = self.get_widths(self.local_prior)
         unique_R, inds = self._get_unique_R(curr_R)
         F = self.get_factors(unique_R, inds, centers, widths)
         W = self.get_weights(curr_data, F)
-        self.local_posterior, self.total_cost = self._get_centers_widths(
+        self.local_posterior_, self.total_cost = self._estimate_centers_widths(
             unique_R, inds, curr_data, W, centers, widths,
-            global_centers, global_center_mean_cov,
-            global_widths, global_width_mean_var_reci)
+            global_centers, global_centers_mean_cov,
+            global_widths, global_widths_mean_var_reci)
 
         return self
 
@@ -908,11 +993,16 @@ class TFA(BaseEstimator):
         n_voxel = X.shape[0]
         n_tr = X.shape[1]
         self.sample_scaling = 0.5 * float(
-            self.max_num_voxel *
-            self.max_num_tr) / float(n_voxel * n_tr)
+            self.max_num_voxel * self.max_num_tr) / float(n_voxel * n_tr)
         if global_prior is None:
             self.init_prior(R)
         else:
             self.local_prior = global_prior[0: self.map_offset[2]]
         self._fit_tfa(X, R, global_prior)
+        if global_prior is None:
+            centers = self.get_centers(self.local_posterior_)
+            widths = self.get_widths(self.local_posterior_)
+            unique_R, inds = self._get_unique_R(R)
+            self.F_ = self.get_factors(unique_R, inds, centers, widths)
+            self.W_ = self.get_weights(R, self.F_)
         return self
