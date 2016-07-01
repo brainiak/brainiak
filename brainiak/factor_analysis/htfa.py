@@ -513,6 +513,13 @@ class HTFA(TFA):
         HTFA
             Returns the instance itself.
 
+
+        Notes
+        -----
+        We use numpy array rather than generic Python objects for MPI
+        communication because Gatherv is only supported for the former.
+        https://pythonhosted.org/mpi4py/usrman/tutorial.html
+
         """
         if use_gather:
             comm.Gather(self.local_posterior_, self.gather_posterior, root=0)
