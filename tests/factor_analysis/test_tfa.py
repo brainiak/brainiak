@@ -1,6 +1,6 @@
 import pytest
 
-def test_one_step():
+def test_tfa():
     from brainiak.factor_analysis.tfa import TFA
     import numpy as np
 
@@ -74,11 +74,26 @@ def test_one_step():
     tfa.fit(X, R=R)
     assert True, "Success running TFA with one subject!"
 
-    global_prior, _, _ = tfa.get_global_prior(R)
+    template_prior, _, _ = tfa.get_template(R)
     tfa.set_K(K)
     tfa.set_seed(200)
-    tfa.fit(X, R=R, global_prior=global_prior)
-    assert True, "Success running TFA with one subject and global prior!"
+    tfa.fit(X, R=R, template_prior=template_prior)
+    assert True, "Success running TFA with one subject and template prior!"
     assert tfa.local_posterior_.shape[
         0] == posterior_size,\
         "Invalid result of TFA! (wrong # element in local_posterior)"
+
+    weight_method = 'odd'
+    tfa = TFA(
+        weight_method=weight_method,
+        K=K,
+        max_iter=max_iter,
+        verbose=True,
+        max_num_voxel=max_num_voxel,
+        max_num_tr=max_num_tr)
+    with pytest.raises(ValueError) as excinfo:
+        tfa.fit(X, R=R)
+    assert "'rr' and 'ols' are accepted as weight_method!" in str(
+        excinfo.value)
+
+

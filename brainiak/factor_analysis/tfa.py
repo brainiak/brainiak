@@ -39,7 +39,7 @@ class TFA(BaseEstimator):
 
     """Topographical Factor Analysis (TFA)
 
-    Given a subject data, factorize it as a spatial factor F and
+    Given data from one subject, factorize it as a spatial factor F and
     a weight matrix W.
 
     Parameters
@@ -49,7 +49,7 @@ class TFA(BaseEstimator):
         Number of iterations to run the algorithm.
 
     threshold : float, default: 1.0
-       Tolerance for terminate the parameter estimation
+       Tolerance for terminating the parameter estimation
 
     K : int, default: 50
        Number of factors to compute
@@ -97,7 +97,7 @@ class TFA(BaseEstimator):
        The maximum number of TRs to subsample.
 
     seed : int, default: 100
-       Seed for subsample voxels and trs.
+       Seed for subsampling voxels and trs.
 
     verbose : boolean, default: False
        Verbose mode flag.
@@ -195,7 +195,7 @@ class TFA(BaseEstimator):
         ----------
 
         seed : int
-            Seed for subsample voxels and trs
+            Seed for subsampling voxels and trs
 
         Returns
         -------
@@ -224,8 +224,7 @@ class TFA(BaseEstimator):
         return self
 
     def _assign_posterior(self):
-        """assign posterior to the right prior based on
-           Hungarian algorithm
+        """assign posterior to prior based on Hungarian algorithm
 
         Returns
         -------
@@ -292,14 +291,14 @@ class TFA(BaseEstimator):
             return True, mse
 
     def get_map_offset(self):
-        """Compute offset of global prior
+        """Compute offset of prior/posterior
 
 
         Returns
         -------
 
         map_offest : 1D array
-            The offset to different fields in global prior
+            The offset to different fields in prior/posterior
 
         """
 
@@ -311,16 +310,16 @@ class TFA(BaseEstimator):
         return self.map_offset
 
     def init_centers_widths(self, R):
-        """Initialize global prior of centers and widths
+        """Initialize prior of centers and widths
 
         Returns
         -------
 
         centers : 2D array, with shape [K, n_dim]
-            Global prior of factors' centers.
+            Prior of factors' centers.
 
         widths : 1D array, with shape [K, 1]
-            Global prior of factors' widths.
+            Prior of factors' widths.
 
         """
 
@@ -334,8 +333,8 @@ class TFA(BaseEstimator):
         widths = self._get_diameter(R) * np.ones((self.K, 1))
         return centers, widths
 
-    def get_global_prior(self, R):
-        """Compute global prior
+    def get_template(self, R):
+        """Compute a template on latent factors
 
         Parameters
         ----------
@@ -344,30 +343,30 @@ class TFA(BaseEstimator):
 
         Returns
         -------
-        global_prior : 1D array
-            The global prior across subjects.
+        template_prior : 1D array
+            The template prior.
 
-        global_centers_cov:  2D array,  in shape [n_dim, n_dim]
-            The centers' covariance.
+        template_centers_cov:  2D array,  in shape [n_dim, n_dim]
+            The template on centers' covariance.
 
-        global_widths_var: float
-            The widths' variance
+        template_widths_var: float
+            The template on widths' variance
         """
 
         centers, widths = self.init_centers_widths(R)
-        global_prior =\
+        template_prior =\
             np.zeros(self.K * (self.n_dim + 2 + self.cov_vec_size))
-        # global centers cov and widths var are const
-        global_centers_cov = np.cov(R.T) * math.pow(self.K, -2 / 3.0)
-        global_widths_var = math.pow(np.nanmax(np.std(R, axis=0)), 2)
-        centers_cov_all = np.tile(from_sym_2_tri(global_centers_cov), self.K)
-        widths_var_all = np.tile(global_widths_var, self.K)
+        # template centers cov and widths var are const
+        template_centers_cov = np.cov(R.T) * math.pow(self.K, -2 / 3.0)
+        template_widths_var = math.pow(np.nanmax(np.std(R, axis=0)), 2)
+        centers_cov_all = np.tile(from_sym_2_tri(template_centers_cov), self.K)
+        widths_var_all = np.tile(template_widths_var, self.K)
         # initial mean of centers' mean
-        self.set_centers(global_prior, centers)
-        self.set_widths(global_prior, widths)
-        self.set_centers_mean_cov(global_prior, centers_cov_all)
-        self.set_widths_mean_var(global_prior, widths_var_all)
-        return global_prior, global_centers_cov, global_widths_var
+        self.set_centers(template_prior, centers)
+        self.set_widths(template_prior, widths)
+        self.set_centers_mean_cov(template_prior, centers_cov_all)
+        self.set_widths_mean_var(template_prior, widths_var_all)
+        return template_prior, template_centers_cov, template_widths_var
 
     def set_centers(self, estimation, centers):
         """Set estimation on centers
@@ -375,7 +374,7 @@ class TFA(BaseEstimator):
         Parameters
         ----------
         estimation : 1D arrary
-            Either prior of posterior estimation
+            Either prior or posterior estimation
 
         centers : 2D array, in shape [K, n_dim]
             Estimation on centers
@@ -578,10 +577,8 @@ class TFA(BaseEstimator):
         if self.weight_method == 'rr':
             W = np.linalg.solve(trans_F.dot(F) + beta * np.identity(self.K),
                                 trans_F.dot(data))
-        elif self.weight_method == 'ols':
-            W = np.linalg.solve(trans_F.dot(F), trans_F.dot(data))
         else:
-            logger.error("unknow weight_method")
+            W = np.linalg.solve(trans_F.dot(F), trans_F.dot(data))
         return W
 
     def _get_diameter(self, R):
@@ -643,10 +640,10 @@ class TFA(BaseEstimator):
             inds,
             X,
             W,
-            global_centers,
-            global_centers_mean_cov,
-            global_widths,
-            global_widths_mean_var_reci,
+            template_centers,
+            template_centers_mean_cov,
+            template_widths,
+            template_widths_mean_var_reci,
             data_sigma):
         """Residual function for estimating centers and widths
 
@@ -671,17 +668,17 @@ class TFA(BaseEstimator):
         W : 2D array, with shape [K, n_tr]
             The weight matrix.
 
-        global_centers: 2D array, with shape [K, n_dim]
-            The global prior on centers
+        template_centers: 2D array, with shape [K, n_dim]
+            The template prior on centers
 
-        global_centers_mean_cov: 2D array, with shape [K, cov_size]
-            The global prior on covariance of centers' mean
+        template_centers_mean_cov: 2D array, with shape [K, cov_size]
+            The template prior on covariance of centers' mean
 
-        global_widths: 1D array
-            The global prior on widths
+        template_widths: 1D array
+            The template prior on widths
 
-        global_widths_mean_var_reci: 1D array
-            The reciprocal of global prior on variance of widths' mean
+        template_widths_mean_var_reci: 1D array
+            The reciprocal of template prior on variance of widths' mean
 
         data_sigma: float
             The variance of X.
@@ -698,7 +695,7 @@ class TFA(BaseEstimator):
         centers = self.get_centers(estimate)
         widths = self.get_widths(estimate)
         recon = X.size
-        other_err = 0 if global_centers is None else (2 * self.K)
+        other_err = 0 if template_centers is None else (2 * self.K)
         final_err = np.zeros(recon + other_err)
         F = self.get_factors(unique_R, inds, centers, widths)
         sigma = np.zeros((1,))
@@ -708,15 +705,16 @@ class TFA(BaseEstimator):
         if other_err > 0:
             # center error
             for k in np.arange(self.K):
-                diff = (centers[k] - global_centers[k])
-                cov = from_tri_2_sym(global_centers_mean_cov[k], self.n_dim)
+                diff = (centers[k] - template_centers[k])
+                cov = from_tri_2_sym(template_centers_mean_cov[k], self.n_dim)
                 final_err[recon + k] = math.sqrt(
                     self.sample_scaling *
                     diff.dot(np.linalg.solve(cov, diff.T)))
 
             # width error
             base = recon + self.K
-            dist = global_widths_mean_var_reci * (widths - global_widths) ** 2
+            dist = template_widths_mean_var_reci *\
+                (widths - template_widths) ** 2
             final_err[base:] = np.sqrt(self.sample_scaling * dist).ravel()
 
         return final_err
@@ -729,10 +727,10 @@ class TFA(BaseEstimator):
             W,
             init_centers,
             init_widths,
-            global_centers,
-            global_widths,
-            global_centers_mean_cov,
-            global_widths_mean_var_reci):
+            template_centers,
+            template_widths,
+            template_centers_mean_cov,
+            template_widths_mean_var_reci):
         """Estimate centers and widths
 
         Parameters
@@ -759,17 +757,17 @@ class TFA(BaseEstimator):
         init_widths : 1D array
             The initial values of widths.
 
-        global_centers: 1D array
-            The global prior on centers
+        template_centers: 1D array
+            The template prior on centers
 
-        global_widths: 1D array
-            The global prior on widths
+        template_widths: 1D array
+            The template prior on widths
 
-        global_centers_mean_cov: 2D array, with shape [K, cov_size]
-            The global prior on centers' mean
+        template_centers_mean_cov: 2D array, with shape [K, cov_size]
+            The template prior on centers' mean
 
-        global_widths_mean_var_reci: 1D array
-            The reciprocal of global prior on variance of widths' mean
+        template_widths_mean_var_reci: 1D array
+            The reciprocal of template prior on variance of widths' mean
 
 
         Returns
@@ -794,10 +792,10 @@ class TFA(BaseEstimator):
                 inds,
                 X,
                 W,
-                global_centers,
-                global_widths,
-                global_centers_mean_cov,
-                global_widths_mean_var_reci,
+                template_centers,
+                template_widths,
+                template_centers_mean_cov,
+                template_widths_mean_var_reci,
                 data_sigma),
             method=self.nlss_method,
             loss=self.nlss_loss,
@@ -807,7 +805,7 @@ class TFA(BaseEstimator):
             tr_solver=self.tr_solver)
         return final_estimate.x, final_estimate.cost
 
-    def _fit_tfa(self, data, R, global_prior=None):
+    def _fit_tfa(self, data, R, template_prior=None):
         """TFA main algorithm
 
         Parameters
@@ -819,8 +817,8 @@ class TFA(BaseEstimator):
         R : 2D array, in shape [n_voxel, n_dim]
             The voxel coordinate matrix of fMRI data
 
-        global_prior : 1D array,
-            The global prior on centers and widths.
+        template_prior : 1D array,
+            The template prior on centers and widths.
 
 
         Returns
@@ -829,18 +827,18 @@ class TFA(BaseEstimator):
             Returns the instance itself.
 
         """
-        if global_prior is None:
-            global_centers = None
-            global_widths = None
-            global_centers_mean_cov = None
-            global_widths_mean_var_reci = None
+        if template_prior is None:
+            template_centers = None
+            template_widths = None
+            template_centers_mean_cov = None
+            template_widths_mean_var_reci = None
         else:
-            global_centers = self.get_centers(global_prior)
-            global_widths = self.get_widths(global_prior)
-            global_centers_mean_cov =\
-                self.get_centers_mean_cov(global_prior)
-            global_widths_mean_var_reci = 1.0 /\
-                self.get_widths_mean_var(global_prior)
+            template_centers = self.get_centers(template_prior)
+            template_widths = self.get_widths(template_prior)
+            template_centers_mean_cov =\
+                self.get_centers_mean_cov(template_prior)
+            template_widths_mean_var_reci = 1.0 /\
+                self.get_widths_mean_var(template_prior)
         inner_converged = False
         np.random.seed(self.seed)
         n = 0
@@ -848,10 +846,10 @@ class TFA(BaseEstimator):
             self._fit_tfa_inner(
                 data,
                 R,
-                global_centers,
-                global_widths,
-                global_centers_mean_cov,
-                global_widths_mean_var_reci)
+                template_centers,
+                template_widths,
+                template_centers_mean_cov,
+                template_widths_mean_var_reci)
             self._assign_posterior()
             inner_converged, _ = self._converged()
             if not inner_converged:
@@ -896,10 +894,10 @@ class TFA(BaseEstimator):
             self,
             data,
             R,
-            global_centers,
-            global_widths,
-            global_centers_mean_cov,
-            global_widths_mean_var_reci):
+            template_centers,
+            template_widths,
+            template_centers_mean_cov,
+            template_widths_mean_var_reci):
         """Fit TFA model, the inner loop part
 
         Parameters
@@ -911,17 +909,17 @@ class TFA(BaseEstimator):
         R : 2D array, in shape [n_voxel, n_dim]
             The voxel coordinate matrix of fMRI data
 
-        global_centers: 1D array
-            The global prior on centers
+        template_centers: 1D array
+            The template prior on centers
 
-        global_widths: 1D array
-            The global prior on widths
+        template_widths: 1D array
+            The template prior on widths
 
-        global_centers_mean_cov: 2D array, with shape [K, cov_size]
-            The global prior on covariance of centers' mean
+        template_centers_mean_cov: 2D array, with shape [K, cov_size]
+            The template prior on covariance of centers' mean
 
-        global_widths_mean_var_reci: 1D array
-            The reciprocal of global prior on variance of widths' mean
+        template_widths_mean_var_reci: 1D array
+            The reciprocal of template prior on variance of widths' mean
 
 
         Returns
@@ -950,12 +948,12 @@ class TFA(BaseEstimator):
         W = self.get_weights(curr_data, F)
         self.local_posterior_, self.total_cost = self._estimate_centers_widths(
             unique_R, inds, curr_data, W, centers, widths,
-            global_centers, global_centers_mean_cov,
-            global_widths, global_widths_mean_var_reci)
+            template_centers, template_centers_mean_cov,
+            template_widths, template_widths_mean_var_reci)
 
         return self
 
-    def fit(self, X, R, global_prior=None):
+    def fit(self, X, R, template_prior=None):
         """ Topographical Factor Analysis (TFA)[Manning2014]
 
         Parameters
@@ -966,8 +964,8 @@ class TFA(BaseEstimator):
         R : 2D array, in shape [n_voxel, n_dim]
             The voxel coordinate matrix of fMRI data
 
-        global_prior : None or 1D array
-            The global prior when fitting TFA for HTFA
+        template_prior : None or 1D array
+            The template prior as an extra constraint
             None when fitting TFA alone
         """
         if self.verbose:
@@ -984,6 +982,9 @@ class TFA(BaseEstimator):
         if X.shape[0] != R.shape[0]:
             raise TypeError(
                 "The number of voxels should be the same in X and R!")
+        if self.weight_method != 'rr' and self.weight_method != 'ols':
+            raise ValueError(
+                "only 'rr' and 'ols' are accepted as weight_method!")
 
         # main algorithm
         self.n_dim = R.shape[1]
@@ -994,12 +995,12 @@ class TFA(BaseEstimator):
         n_tr = X.shape[1]
         self.sample_scaling = 0.5 * float(
             self.max_num_voxel * self.max_num_tr) / float(n_voxel * n_tr)
-        if global_prior is None:
+        if template_prior is None:
             self.init_prior(R)
         else:
-            self.local_prior = global_prior[0: self.map_offset[2]]
-        self._fit_tfa(X, R, global_prior)
-        if global_prior is None:
+            self.local_prior = template_prior[0: self.map_offset[2]]
+        self._fit_tfa(X, R, template_prior)
+        if template_prior is None:
             centers = self.get_centers(self.local_posterior_)
             widths = self.get_widths(self.local_posterior_)
             unique_R, inds = self._get_unique_R(R)

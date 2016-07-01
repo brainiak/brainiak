@@ -429,11 +429,11 @@ class HTFA(TFA):
         return max_sample_tr, max_sample_voxel
 
     def _get_mpi_info(self):
-        """get basica MPI info
+        """get basic MPI info
 
         Returns
         -------
-        comm : object
+        comm : Intracomm
             Returns MPI communication group
 
         rank : integer
@@ -476,7 +476,7 @@ class HTFA(TFA):
         if rank == 0:
             idx = np.random.choice(n_local_subj, 1)
             self.global_prior_, self.global_centers_cov,\
-                self.global_widths_var = self.get_global_prior(R[idx])
+                self.global_widths_var = self.get_template(R[idx])
             self.global_centers_cov_scaled =\
                 self.global_centers_cov / float(self.n_subj)
             self.global_widths_var_scaled =\
@@ -566,8 +566,7 @@ class HTFA(TFA):
 
     def _update_global_posterior(
             self, rank, m, outer_converged):
-        """root node associates global posterior to global prior based on
-        Hungarian algorithm and check convergence
+        """Update global posterior and then check convergence
 
         Parameters
         ----------
@@ -585,7 +584,7 @@ class HTFA(TFA):
         Returns
         -------
         1D array, contains only 1 element for MPI
-            1 means HTFA converged, 0 mean not converged.
+            1 means HTFA converged, 0 means not converged.
 
         """
         if rank == 0:
@@ -711,7 +710,7 @@ class HTFA(TFA):
                 tfa[s].fit(
                     subj_data,
                     R=R[s],
-                    global_prior=self.global_prior_.copy())
+                    template_prior=self.global_prior_.copy())
                 tfa[s]._assign_posterior()
                 start_idx = s * self.prior_size
                 end_idx = (s + 1) * self.prior_size
