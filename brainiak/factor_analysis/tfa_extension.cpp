@@ -52,7 +52,9 @@ factor_native(py::array_t<double, py::array::c_style | py::array::forcecast> F_a
 //Input parameters are:
 //F_arr: The factor array, in shape [n_voxel, n_factor] 
 //C_arr: The center array, in shape [n_factor, n_dim]
-//W_arr: The width array, in shape [n_factor, 1]
+//W_arr: The width array, in shape [n_factor, 1]. 
+//<Note> Factor width is defined as 2*\sigma^2, 
+//       where sigma is the standard deviation of Gaussian
 //Rx_arr: The unique value of voxel coordinates in x-dimension
 //Ry_arr: The unique value of voxel coordinates in y-dimension
 //Rz_arr: The unique value of voxel coordinates in z-dimension
