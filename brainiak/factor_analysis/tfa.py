@@ -109,10 +109,10 @@ class TFA(BaseEstimator):
         Local posterior on subject's centers and widths
 
     F_ : 2D array, in shape [n_voxel, K]
-        Latent factors of this subject
+        Latent factors of the subject
 
     W_ : 2D array, in shape [K, n_tr]
-        Weight matrix of this subject
+        Weight matrix of the subject
 
 
     """
@@ -151,7 +151,7 @@ class TFA(BaseEstimator):
         self.verbose = verbose
 
     def set_K(self, K):
-        """set K for this subject
+        """set K for the subject
 
         Parameters
         ----------
@@ -170,7 +170,7 @@ class TFA(BaseEstimator):
         return self
 
     def set_prior(self, prior):
-        """set prior for this subject
+        """set prior for the subject
 
         Parameters
         ----------
@@ -189,7 +189,7 @@ class TFA(BaseEstimator):
         return self
 
     def set_seed(self, seed):
-        """set seed for this subject
+        """set seed for the subject
 
         Parameters
         ----------
@@ -207,7 +207,7 @@ class TFA(BaseEstimator):
         return self
 
     def init_prior(self, R):
-        """initialize prior for this subject
+        """initialize prior for the subject
 
         Returns
         -------

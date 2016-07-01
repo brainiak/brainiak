@@ -2,11 +2,9 @@ import pytest
 
 def test_R():
     from brainiak.factor_analysis.htfa import HTFA
-    try:
+    with pytest.raises(TypeError) as excinfo:
         htfa = HTFA()
-    except TypeError:
-        print("Catched exception #1: two input arguments needed!")
-
+    assert "missing 1 required positional argument" in str(excinfo.value)
 
 def test_X():
     from brainiak.factor_analysis.htfa import HTFA
@@ -136,20 +134,16 @@ def test_can_run():
     if rank == 0:
         htfa.fit(my_data, R=my_R)
         assert True, "Root successfully running HTFA"
-        assert htfa.global_prior_.shape[
-            0] == htfa.prior_bcast_size,\
+        assert htfa.global_prior_.shape[0] == htfa.prior_bcast_size,\
             "Invalid result of HTFA! (wrong # element in global_prior)"
-        assert htfa.global_posterior_.shape[
-            0] == htfa.prior_bcast_size,\
+        assert htfa.global_posterior_.shape[0] == htfa.prior_bcast_size,\
             "Invalid result of HTFA! (wrong # element in global_posterior)"
 
     else:
         htfa.fit(my_data, R=my_R)
         assert True, "worker successfully running HTFA"
         print(htfa.local_weights.shape)
-        assert htfa.local_weights.shape[
-            0] == n_tr * K,\
+        assert htfa.local_weights.shape[0] == n_tr * K,\
             "Invalid result of HTFA! (wrong # element in local_weights)"
-        assert htfa.local_posterior.shape[
-            0] == htfa.prior_size,\
+        assert htfa.local_posterior.shape[0] == htfa.prior_size,\
             "Invalid result of HTFA! (wrong # element in local_posterior)"
