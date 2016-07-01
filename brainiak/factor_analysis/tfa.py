@@ -9,7 +9,7 @@ This implementation is based on the work:
 .. [AndersonM2016] "Scaling Up Multi-Subject Neuroimaging Factor Analysis"
    Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu,
    Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning,
-   Peter J. Ramadge, andself.Kenneth A. Norman
+   Peter J. Ramadge, and Kenneth A. Norman
    2016.
 """
 
