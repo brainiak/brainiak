@@ -476,7 +476,7 @@ class HTFA(TFA):
         if rank == 0:
             idx = np.random.choice(n_local_subj, 1)
             self.global_prior_, self.global_centers_cov,\
-                self.global_widths_var = self.get_template(R[idx])
+                self.global_widths_var = self.get_template(R[idx[0]])
             self.global_centers_cov_scaled =\
                 self.global_centers_cov / float(self.n_subj)
             self.global_widths_var_scaled =\
