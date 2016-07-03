@@ -486,6 +486,7 @@ class HTFA(TFA):
         else:
             self.global_prior_ = np.zeros(self.prior_bcast_size)
             self.global_posterior_ = None
+            self.gather_posterior = None
         return self
 
     def _gather_local_posterior(self, comm, use_gather,
@@ -664,7 +665,6 @@ class HTFA(TFA):
         """
 
         comm, rank, size = self._get_mpi_info()
-        comm.barrier()
         use_gather = True if self.n_subj % size == 0 else False
         n_local_subj = len(R)
         max_sample_tr, max_sample_voxel =\
@@ -737,7 +737,6 @@ class HTFA(TFA):
             n_local_subj,
             local_weight_offset)
 
-        comm.barrier()
         return self
 
     def _check_input(self, X, R):
