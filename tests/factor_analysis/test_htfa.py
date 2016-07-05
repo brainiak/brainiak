@@ -142,8 +142,8 @@ def test_can_run():
     else:
         htfa.fit(my_data, R=my_R)
         assert True, "worker successfully running HTFA"
-        print(htfa.local_weights.shape)
-        assert htfa.local_weights.shape[0] == n_tr * K,\
+        print(htfa.local_weights_.shape)
+        assert htfa.local_weights_.shape[0] == n_tr * K,\
             "Invalid result of HTFA! (wrong # element in local_weights)"
-        assert htfa.local_posterior.shape[0] == htfa.prior_size,\
+        assert htfa.local_posterior_.shape[0] == htfa.prior_size,\
             "Invalid result of HTFA! (wrong # element in local_posterior)"
