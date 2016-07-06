@@ -33,6 +33,9 @@ function create_conda_venv {
 
 function activate_conda_venv {
     source activate $1
+    # Anaconda does not provide pip3 (at least on our Jenkins machine,
+    # Metacortex), so we install it in the virtual environment.
+    pip install -I pip
 }
 
 function deactivate_conda_venv {
@@ -86,16 +89,16 @@ $activate_venv $venv || {
 }
 
 # install developer dependencies
-pip install $ignore_installed -U -r requirements-dev.txt || \
-    exit_with_error_and_venv "pip failed to install requirements"
+pip3 install $ignore_installed -U -r requirements-dev.txt || \
+    exit_with_error_and_venv "pip3 failed to install requirements"
 
 # static analysis
 ./run-checks.sh || \
     exit_with_error_and_venv "run-checks failed"
 
 # install brainiak in editable mode (required for testing)
-pip install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "pip failed to install BrainIAK"
+pip3 install $ignore_installed -U -e . || \
+    exit_with_error_and_venv "pip3 failed to install BrainIAK"
 
 # run tests
 ./run-tests.sh || \

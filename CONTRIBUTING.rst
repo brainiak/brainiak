@@ -36,48 +36,32 @@ We use Pull Requests (PR's)
 to make improvements to the repository. Please see the linked documentation for
 information about how to create your own fork of the project, and generate pull
 requests to submit your code for inclusion in the project. All pull requests
-will be automatically tested as described below, so make sure you test them yourself before submitting them:
+will be automatically tested as described below, so make sure you test them
+yourself before submitting them::
 
   # optional, but highly recommended: create a virtualenv to isolate tests
-
   virtualenv ../brainiak_pr_venv
-
   source ../brainiak_pr_venv/bin/activate
 
-
   # install developer dependencies
-
-  pip install -U -r requirements-dev.txt
-
+  pip3 install -U -r requirements-dev.txt
 
   # static analysis
-
   ./run-checks.sh
 
-
   # install brainiak in editable mode (required for testing)
-
-  pip install -U -e .
-
+  pip3 install -U -e .
 
   # run tests
-
   ./run-tests.sh
 
-
   # build documentation
-
   cd docs
-
   make
-
   cd -
 
-
   # optional: remove virtualenv
-
   deactivate
-
   rm -r ../brainiak_pr_venv
 
 Alternatively, you can run ``pr-check.sh``, which does all of the above and
@@ -113,7 +97,7 @@ goes wrong.
 
 The development requirements are listed in ``requirements-dev.txt``. You can install them with::
 
-  pip install -U -r requirements-dev.txt
+  pip3 install -U -r requirements-dev.txt
 
 Standards
 =========
@@ -171,7 +155,7 @@ in a ``test_*.py`` file in the test folder, following the structure of the
 ``brainiak/functional_alignment/srm.py`` you should have tests in
 ``tests/functional_alignment/test_srm.py``.
 
-You must install the package in editable mode using the ``-e`` flag of ``pip
+You must install the package in editable mode using the ``-e`` flag of ``pip3
 install`` before running the tests.
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
