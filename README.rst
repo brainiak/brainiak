@@ -32,14 +32,13 @@ Install the following packages (Ubuntu 14.04 is used for the examples)::
 
     apt install build-essential cmake libgomp1 mpich python3-pip
 
-Install up-to-date versions of ``pip`` and ``virtualenv``::
+Install updated version of the following Python packages::
 
-    # note that the command installed by apt is pip3, not pip
     pip3 install --user -U pip virtualenv
 
-Note the ``--user`` flag, which instructs ``pip`` to not overwrite system
+Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
-the updated ``pip``, e.g., by adding the following line to ``$HOME/.profile``
+the updated Pip, e.g., by adding the following line to ``$HOME/.profile``
 and launching a new login shell (e.g., logout or execute ``bash -l``)::
 
     PATH="$HOME/.local/bin:$PATH"
@@ -51,7 +50,12 @@ Install the Xcode Command Line Tools::
 
     xcode-select --install
 
-Install ``brew`` from https://brew.sh. Then install the following::
+Install ``brew`` from https://brew.sh. If you already have ``brew``, examine
+the output of the following command to make sure it is working::
+
+    brew doctor
+
+Then install the following::
 
     brew install clang-omp cmake mpich python3
 
@@ -63,9 +67,9 @@ must logout or launch a new login shell, e.g., ``bash -l``)::
     CC=clang-omp
     CXX=clang-omp++
 
-Install up-to-date versions of ``pip`` and ``virtualenv``::
+Install updated versions of the following Python packages::
 
-    pip install -U pip virtualenv
+    pip3 install -U pip virtualenv
 
 Install
 =======
@@ -75,46 +79,35 @@ In the future, the Brain Imaging Analysis Kit will be available on PyPI. For the
 Install directly from GitHub
 ----------------------------
 
-To install directly from GitHub, do:
+To install directly from GitHub, do::
 
-    pip install git+https://github.com/intelpni/brainiak.git
+    pip3 install git+https://github.com/intelpni/brainiak.git
 
-Or, if you have ssh keys installed, you can do:
+Or, if you have ssh keys installed, you can do::
 
-    pip install git+ssh://github.com/intelpni/brainiak.git
+    pip3 install git+ssh://github.com/intelpni/brainiak.git
 
 Install from local clone
 ------------------------
 
 If you prefer to install from a local clone of the repository, follow these
-steps:
+steps::
 
     git clone https://github.com/intelpni/brainiak
-
     cd brainiak
-
     pip install .
-
-    ..
-       To install via `pip`, execute the following at a command prompt::
-       TODO
-       pip install -U --user brainiak
 
 
 Building documentation
 ----------------------
 
-If desired, you can build the documentation yourself. Currently we don't have the docs hosted online, so this is a necessary step at the moment. Once the Brain Imaging Analysis Kit is made public, we'll host documentation at readthedocs.org, so most users will not need to build docs.
-
-To build the documentation, you must have Sphinx installed (you may already have it, even if you've never heard of it). If you need to install, please follow directions from http://www.sphinx-doc.org/en/stable/install.html
-
-Once you have sphinx installed, you can do (assuming you're already in the brainiak folder)
+Assuming you're already in the ``brainiak`` folder, do::
 
     cd docs
+    make
 
-    make html
-
-This will generate html documentation in the _build/html folder within the docs folder. _build/html/index.html is the starting page.
+This will generate HTML documentation in the ``_build/html`` folder within the
+``docs`` folder. ``_build/html/index.html`` is the starting page.
 
 
 Links
