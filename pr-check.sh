@@ -33,6 +33,8 @@ function create_conda_venv {
 
 function activate_conda_venv {
     source activate $1
+    # Anaconda does not provide pip3 (at least on our Jenkins machine,
+    # Metacortex), so we install it in the virtual environment.
     pip install -I pip
 }
 
