@@ -176,13 +176,10 @@ Folder layout
 =============
 
 Since BrainIAK is primarily published as a Python package, it is largely
-organized according to the `Python Packaging User Guide`_ of the `Python
-Packaging Authority`_.
+organized according to the `Python Packaging User Guide`_.
 
 .. _Python Packaging User Guide:
-   http://python-packaging-user-guide.readthedocs.io/distributing/
-.. _Python Packaging Authority:
-   https://www.pypa.io
+   https://packaging.python.org/distributing/
 
 Python code goes in the ``brainiak`` package, usually with a subpackage for
 each major research initiative. If an algorithm can be implemented in a single
