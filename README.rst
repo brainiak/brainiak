@@ -58,11 +58,12 @@ Then install the following::
 
 You must instruct programs to use ``clang-omp``. One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
-add the following lines to ``$HOME/.profile`` (for them to take effect, you
-must logout or launch a new login shell, e.g., ``bash -l``)::
+add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
+you have one). For them to take effect, you must logout or launch a new login
+shell, e.g., ``bash -l``::
 
-    CC=clang-omp
-    CXX=clang-omp++
+    export CC=clang-omp
+    export CXX=clang-omp++
 
 Install updated versions of the following Python packages::
 
