@@ -1,4 +1,4 @@
-"""TODO: add top level package documentation for BrainIAK"""
+"""Brain Imaging Analysis Kit."""
 
 import sys
 
