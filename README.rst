@@ -107,7 +107,12 @@ steps::
 Building documentation
 ----------------------
 
-Assuming you're already in the ``brainiak`` folder, do::
+The documentation will soon be available online. Until then, you can build it
+yourself after installing the required tools::
+
+    pip3 install -U sphinx sphinx_rtd_theme
+
+Then, assuming you're already in the ``brainiak`` folder, do::
 
     cd docs
     make
