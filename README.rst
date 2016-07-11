@@ -1,6 +1,10 @@
 Brain Imaging Analysis Kit
 ==========================
 
+.. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
+   :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
+   :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
 The Brain Imaging Analysis Kit is a package of Python modules useful for
 neuroscience, primarily focused on functional Magnetic Resonance Imaging (fMRI)
 analysis.
