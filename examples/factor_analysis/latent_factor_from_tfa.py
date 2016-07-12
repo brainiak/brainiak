@@ -23,9 +23,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 #download data
 data_dir = os.getcwd() + '/data'
-file_name = os.path.join(data_dir, 's1.mat')
+file_name = os.path.join(data_dir, 's0.mat')
 url = ' https://www.dropbox.com/s/r5s9tg4ekxzbrco/s0.mat?dl=0'
-url = ' https://www.dropbox.com/s/39tr01m76vxwaqa/s1.mat?dl=0'
 cmd = 'curl --location --create-dirs -o ' + file_name + url
 os.system(cmd)
 
