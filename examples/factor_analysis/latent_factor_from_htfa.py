@@ -30,6 +30,9 @@ if rank == 0:
 
 n_subj = 2
 data_dir = os.getcwd() + '/data'
+if rank == 0 and not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+
 url = []
 url.append(' https://www.dropbox.com/s/r5s9tg4ekxzbrco/s0.mat?dl=0')
 url.append(' https://www.dropbox.com/s/39tr01m76vxwaqa/s1.mat?dl=0')
@@ -41,7 +44,7 @@ for idx in range(n_subj):
     if idx % size == rank:
         #download data
         file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
-        cmd = 'curl --location --create-dirs -o ' + file_name + url[idx]
+        cmd = 'curl --location -o ' + file_name + url[idx]
         try:
             retcode = call(cmd, shell=True)
             if retcode < 0:
