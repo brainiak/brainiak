@@ -1,3 +1,16 @@
+#  Copyright 2016 Intel Corporation
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 """Hyper Parameter Optimization (HPO)
 
 This implementation is based on the work:
@@ -90,7 +103,7 @@ class gmm_1d_distribution:
         return pts
 
 
-def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf, show_plot=False):
+def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf):
     z = np.array(list(zip(x, y)), dtype=np.dtype([('x', float), ('y', float)]))
     z = np.sort(z, order='y')
     n = y.shape[0]
@@ -106,13 +119,6 @@ def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf, show_plot=False):
 
     samples = lx.get_samples(chains=10, points_per_chain=100)
     ei = lx(samples) / gx(samples)
-
-    if show_plot is True:
-        import pylab as plt
-        plt.scatter(samples, lx(samples), color='r')
-        plt.scatter(samples, gx(samples), color='b')
-        plt.scatter(samples, ei, color='g')
-        plt.show()
 
     h = (x.max() - x.min()) / (10 * x.size)
     # assumes prior of x is uniform -- should change for different priors
@@ -138,8 +144,6 @@ def getSample(x, y, dist, minlimit=-np.inf, maxlimit=np.inf):
         return np.exp(np.random.random()
                       * (np.log(maxlimit) - np.log(minlimit))
                       + np.log(minlimit))
-    else:
-        logger.error('Unsupported distribution for variable')
 
 
 def fmin(lossfn,
@@ -185,6 +189,12 @@ def fmin(lossfn,
     best : trial entry (dictionary of hyperparameters)
            Best hyperparameter setting found
     """
+
+    for s in space:
+        if (space[s]['dist'] is not 'uniform' and
+                space[s]['dist'] is not 'loguniform'):
+            logger.error('Unsupported distribution for variable')
+            raise TypeError('Unknown distribution type for variable')
 
     if (len(trials) > init_random_evals):
         init_random_evals = 0

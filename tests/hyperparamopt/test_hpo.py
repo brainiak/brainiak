@@ -1,3 +1,16 @@
+#  Copyright 2016 Intel Corporation
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 import pytest
 
 
@@ -15,6 +28,7 @@ def test_simple_gmm():
     samples = d.get_samples(chains=2, points_per_chain=10, burn_in=50)
     np.testing.assert_array_less(samples, 4.)
     np.testing.assert_array_less(0., samples)
+
 
 def test_simple_gmm_weights():
     from brainiak.hyperparamopt.hpo import gmm_1d_distribution
@@ -46,7 +60,15 @@ def test_simple_hpo():
 
     s = {'x': {'dist': 'uniform', 'lo': -10., 'hi': 10.}}
     trials = []
-    best = fmin(lossfn=f, space=s, maxevals=50, trials=trials, verbose=True)
+
+    #Test fmin and ability to continue adding to trials
+    best = fmin(lossfn=f, space=s, maxevals=40, trials=trials, verbose=True)
+    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials, verbose=True)
+
+    assert len(trials) == 50, "HPO continuation trials not working"
+    
+    # Test verbose flag
+    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials, verbose=False)
 
     yarray = np.array([tr['loss'] for tr in trials])
     np.testing.assert_array_less(yarray, 100.)
@@ -56,3 +78,12 @@ def test_simple_hpo():
 
     assert best['loss'] < 100., "HPO out of range"
     assert np.abs(best['x']) < 10., "HPO out of range"
+
+    #Test unknown distributions
+    s2 = {'x': {'dist': 'normal', 'mu': 0., 'sigma': 1.}}
+    trials2 = []
+    with pytest.raises(TypeError) as excinfo:
+        best = fmin(lossfn=f, space=s2, maxevals=40, trials=trials2, verbose=False)
+    assert "Unknown distribution type for variable" in str(excinfo.value)
+
+
