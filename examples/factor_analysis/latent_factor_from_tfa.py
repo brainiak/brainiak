@@ -33,7 +33,7 @@ try:
     if retcode < 0:
         print("File download was terminated by signal", -retcode, file=sys.stderr)
     else:
-        print("Fiile download returned", retcode, file=sys.stderr)
+        print("File download returned", retcode, file=sys.stderr)
 except OSError as e:
     print("File download failed:", e, file=sys.stderr)
 
