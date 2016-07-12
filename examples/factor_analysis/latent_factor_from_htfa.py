@@ -11,20 +11,21 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import os
+import sys
 import scipy.io
-from scipy.stats import stats
 import numpy as np
 import nibabel as nib
-from nilearn.input_data import NiftiMasker
-import os
 from mpi4py import MPI
+from subprocess import call
+from scipy.stats import stats
+from nilearn.input_data import NiftiMasker
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 if rank == 0:
     import logging
-    import sys
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 n_subj = 2
@@ -41,7 +42,14 @@ for idx in range(n_subj):
         #download data
         file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
         cmd = 'curl --location --create-dirs -o ' + file_name + url[idx]
-        os.system(cmd)
+        try:
+            retcode = call(cmd, shell=True)
+            if retcode < 0:
+                print("File download was terminated by signal", -retcode, file=sys.stderr)
+            else:
+                print("Fiile download returned", retcode, file=sys.stderr)
+        except OSError as e:
+            print("File download failed:", e, file=sys.stderr)
         all_data = scipy.io.loadmat(file_name)
         bold = all_data['data']
         # z-score the data

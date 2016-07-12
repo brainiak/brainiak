@@ -871,11 +871,6 @@ class TFA(BaseEstimator):
                 self.local_prior = self.local_posterior_
             else:
                 logger.info("TFA converged at %d iteration." % (n))
-            """
-            print("iter % d " %(n))
-            print(self.get_centers(self.local_posterior_))
-            print(self.get_widths(self.local_posterior_))
-            """
             n += 1
             gc.collect()
         return self

@@ -27,12 +27,13 @@ import click
 @click.option('--mask_file', default=None, type=click.File('rb'), help='The mask file to get ROI')
 @click.option('--zscore', is_flag=True, help='to zscore fMRI data')
 @click.option('--detrend', is_flag=True, help='to detrend fMRI data')
-@click.option('--smoothing_fwmw', default=False, help='the spatial smooth window size')
+@click.option('--smoothing-fwmw', default=False, help='the spatial smooth window size')
 
 
 
 def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwmw):
     if mask_file is None:
+        #whole brain, get coordinate info from nifti_file itself
         mask = nib.load(nifti_file.name)
     else:
         mask = nib.load(mask_file.name)
@@ -64,8 +65,7 @@ def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwm
     data = all_images.T.copy()
 
     #save data
-    subj_data = {'data': data,
-             'R': R}
+    subj_data = {'data': data, 'R': R}
     scipy.io.savemat(out_file.name, subj_data)
 
 
