@@ -27,7 +27,7 @@ import click
 @click.option('--mask_file', default=None, type=click.File('rb'), help='The mask file to get ROI')
 @click.option('--zscore', is_flag=True, help='to zscore fMRI data')
 @click.option('--detrend', is_flag=True, help='to detrend fMRI data')
-@click.option('--smoothing-fwmw', default=False, help='the spatial smooth window size')
+@click.option('--smoothing-fwmw', default=False, type=float, help='the spatial smooth window size')
 
 
 
