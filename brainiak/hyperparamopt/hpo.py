@@ -84,9 +84,9 @@ class gmm_1d_distribution:
                                        self.weights, self.minlimit,
                                        self.maxlimit) for t in xt])
 
-    def get_samples(self, chains=1, points_per_chain=1):
+    def get_samples(self, chains=1, points_per_chain=1, burn_in=2000):
         pts = get_multichain_samples(N=points_per_chain,
-                                     p=self, nchains=chains)
+                                     p=self, nchains=chains, burn_in=burn_in)
         return pts
 
 
@@ -144,7 +144,6 @@ def getSample(x, y, dist, minlimit=-np.inf, maxlimit=np.inf):
 
 def fmin(lossfn,
          space,
-         algo,
          maxevals,
          trials,
          init_random_evals=30,
@@ -160,8 +159,6 @@ def fmin(lossfn,
 
     space : Dictionary specifying the range and distribution of
             the hyperparamters
-
-    algo : Algo to be used (ignored, can use None)
 
     maxevals : int
                Maximum number of evaluations of lossfn allowed

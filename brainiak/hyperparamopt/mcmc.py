@@ -1,3 +1,12 @@
+"""Metropolis-Hasting Random number generator
+
+This implementation provides random samples from a user-given
+probability density function through the Metropolis-Hasting algorithm.
+
+"""
+
+# Authors: Narayanan Sundaram (Intel Labs)
+
 import numpy as np
 import scipy.stats as st
 import logging
