@@ -32,18 +32,17 @@ import click
 
 
 def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwmw):
-    img = nib.load(nifti_file.name)
     if mask_file is None:
         mask = nib.load(nifti_file.name)
     else:
         mask = nib.load(mask_file.name)
     affine = mask.get_affine()
-    img_data_type = mask.header.get_data_dtype()
     if mask_file is None:
         mask_data = mask.get_data()
         if mask_data.ndim == 4:
-            n_tr = mask_data.shape[3]
             #get mask in 3D
+            img_data_type = mask.header.get_data_dtype()
+            n_tr = mask_data.shape[3]
             mask_data = mask_data[:,:,:,int(n_tr/2)].astype(bool)
             mask = nib.Nifti1Image(mask_data.astype(img_data_type), affine)
         else:
@@ -60,6 +59,7 @@ def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwm
 
     #get ROI data, and run preprocessing
     nifti_masker = NiftiMasker(mask_img=mask, standardize=zscore, detrend=detrend, smoothing_fwhm=smoothing_fwmw)
+    img = nib.load(nifti_file.name)
     all_images = np.float64(nifti_masker.fit_transform(img))
     data = all_images.T.copy()
 
