@@ -84,14 +84,14 @@ def test_X():
     # Check that does NOT run with wrong data type
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be an array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be an array" in str(excinfo.value)
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be 2D array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be 2D array" in str(excinfo.value)
 
     R = []
     for s in np.arange(n_subj):

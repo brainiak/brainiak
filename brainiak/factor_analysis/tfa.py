@@ -98,10 +98,12 @@ class TFA(BaseEstimator):
        'rr' means ridge regression, 'ols' means ordinary least square.
 
     upper_ratio : float, default: 1.8
-       The upper bound of the ratio between factor's width and brain diameter.
+       The upper bound of the ratio between factor's width
+       and maximum sigma of scanner coordinates.
 
     lower_ratio : float, default: 0.02
-       The lower bound of the ratio between factor's width and brain diameter.
+       The lower bound of the ratio between factor's width
+       and maximum sigma of scanner coordinates.
 
     max_num_voxel : int, default: 5000
        The maximum number of voxels to subsample.
@@ -133,7 +135,7 @@ class TFA(BaseEstimator):
     def __init__(
             self,
             max_iter=10,
-            threshold=0.01,
+            threshold=1.0,
             K=50,
             nlss_method='trf',
             nlss_loss='soft_l1',
@@ -343,7 +345,7 @@ class TFA(BaseEstimator):
             random_state=100)
         kmeans.fit(R)
         centers = kmeans.cluster_centers_
-        widths = self._get_diameter(R) * np.ones((self.K, 1))
+        widths = self._get_max_sigma(R) * np.ones((self.K, 1))
         return centers, widths
 
     def get_template(self, R):
@@ -352,7 +354,7 @@ class TFA(BaseEstimator):
         Parameters
         ----------
         R : 2D array, in format [n_voxel, n_dim]
-            The coordinate matrix of one subject's fMRI data
+            The scanner coordinate matrix of one subject's fMRI data
 
         Returns
         -------
@@ -371,7 +373,7 @@ class TFA(BaseEstimator):
             np.zeros(self.K * (self.n_dim + 2 + self.cov_vec_size))
         # template centers cov and widths var are const
         template_centers_cov = np.cov(R.T) * math.pow(self.K, -2 / 3.0)
-        template_widths_var = math.pow(np.nanmax(np.std(R, axis=0)), 2)
+        template_widths_var = self._get_max_sigma(R)
         centers_cov_all = np.tile(from_sym_2_tri(template_centers_cov), self.K)
         widths_var_all = np.tile(template_widths_var, self.K)
         # initial mean of centers' mean
@@ -527,7 +529,7 @@ class TFA(BaseEstimator):
 
         unique_R : a list of array,
             Each element contains unique value in one dimension of
-            coordinate matrix R.
+            scanner coordinate matrix R.
 
         inds : a list of array,
             Each element contains the indices to reconstruct one
@@ -594,8 +596,8 @@ class TFA(BaseEstimator):
             W = np.linalg.solve(trans_F.dot(F), trans_F.dot(data))
         return W
 
-    def _get_diameter(self, R):
-        """Calculate diameter of volume data
+    def _get_max_sigma(self, R):
+        """Calculate maximum sigma of scanner RAS coordinates
 
         Parameters
         ----------
@@ -606,13 +608,13 @@ class TFA(BaseEstimator):
         Returns
         -------
 
-        diameter : float
-            The diameter of volume data.
+        max_sigma : float
+            The maximum sigma of scanner coordinates.
 
         """
 
-        diameter = np.max(np.ptp(R, axis=0))
-        return diameter
+        max_sigma = 2.0 * math.pow(np.nanmax(np.std(R, axis=0)), 2)
+        return max_sigma
 
     def get_bounds(self, R):
         """Calculate lower and upper bounds for centers and widths
@@ -632,17 +634,17 @@ class TFA(BaseEstimator):
 
         """
 
-        diameter = self._get_diameter(R)
+        max_sigma = self._get_max_sigma(R)
         final_lower = np.zeros(self.K * (self.n_dim + 1))
         final_lower[0:self.K * self.n_dim] =\
             np.tile(np.nanmin(R, axis=0), self.K)
         final_lower[self.K * self.n_dim:] =\
-            np.repeat(self.lower_ratio * diameter, self.K)
+            np.repeat(self.lower_ratio * max_sigma, self.K)
         final_upper = np.zeros(self.K * (self.n_dim + 1))
         final_upper[0:self.K * self.n_dim] =\
             np.tile(np.nanmax(R, axis=0), self.K)
         final_upper[self.K * self.n_dim:] =\
-            np.repeat(self.upper_ratio * diameter, self.K)
+            np.repeat(self.upper_ratio * max_sigma, self.K)
         bounds = (final_lower, final_upper)
         return bounds
 
@@ -870,11 +872,10 @@ class TFA(BaseEstimator):
             else:
                 logger.info("TFA converged at %d iteration." % (n))
             n += 1
-            logger.info('.')
             gc.collect()
         return self
 
-    def _get_unique_R(self, R):
+    def get_unique_R(self, R):
         """Get unique vlaues from coordinate matrix
 
         Parameters
@@ -956,7 +957,7 @@ class TFA(BaseEstimator):
         curr_R = R[feature_indices].copy()
         centers = self.get_centers(self.local_prior)
         widths = self.get_widths(self.local_prior)
-        unique_R, inds = self._get_unique_R(curr_R)
+        unique_R, inds = self.get_unique_R(curr_R)
         F = self.get_factors(unique_R, inds, centers, widths)
         W = self.get_weights(curr_data, F)
         self.local_posterior_, self.total_cost = self._estimate_centers_widths(
@@ -1016,7 +1017,7 @@ class TFA(BaseEstimator):
         if template_prior is None:
             centers = self.get_centers(self.local_posterior_)
             widths = self.get_widths(self.local_posterior_)
-            unique_R, inds = self._get_unique_R(R)
+            unique_R, inds = self.get_unique_R(R)
             self.F_ = self.get_factors(unique_R, inds, centers, widths)
             self.W_ = self.get_weights(R, self.F_)
         return self
