@@ -22,9 +22,9 @@ import sys
 import click
 
 @click.command()
-@click.argument('nifti_file', type=click.File('rb'))
-@click.argument('out_file', type=click.File('wb'))
-@click.option('--mask_file', default=None, type=click.File('rb'), help='The mask file to get ROI')
+@click.argument('nifti-file', type=click.File('rb'))
+@click.argument('out-file', type=click.File('wb'))
+@click.option('--mask-file', default=None, type=click.File('rb'), help='The mask file to get ROI')
 @click.option('--zscore', is_flag=True, help='to zscore fMRI data')
 @click.option('--detrend', is_flag=True, help='to detrend fMRI data')
 @click.option('--smoothing-fwmw', default=False, type=float, help='the spatial smooth window size')
@@ -44,7 +44,7 @@ def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwm
             #get mask in 3D
             img_data_type = mask.header.get_data_dtype()
             n_tr = mask_data.shape[3]
-            mask_data = mask_data[:,:,:,int(n_tr/2)].astype(bool)
+            mask_data = mask_data[:,:,:,n_tr//2].astype(bool)
             mask = nib.Nifti1Image(mask_data.astype(img_data_type), affine)
         else:
             mask_data = mask_data.astype(bool)

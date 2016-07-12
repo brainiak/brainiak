@@ -29,7 +29,7 @@ if rank == 0:
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 n_subj = 2
-data_dir = os.getcwd() + '/data'
+data_dir = os.path.join(os.getcwd(), 'data')
 if rank == 0 and not os.path.exists(data_dir):
     os.makedirs(data_dir)
 
@@ -50,7 +50,7 @@ for idx in range(n_subj):
             if retcode < 0:
                 print("File download was terminated by signal", -retcode, file=sys.stderr)
             else:
-                print("Fiile download returned", retcode, file=sys.stderr)
+                print("File download returned", retcode, file=sys.stderr)
         except OSError as e:
             print("File download failed:", e, file=sys.stderr)
         all_data = scipy.io.loadmat(file_name)
@@ -64,7 +64,8 @@ n_voxel, n_tr = data[0].shape
 
 # Run HTFA with downloaded data
 from brainiak.factor_analysis.htfa import HTFA
-help(HTFA)
+# uncomment below line to get help message on HTFA
+#help(HTFA)
 
 K = 5
 htfa = HTFA(K=K,
