@@ -147,6 +147,11 @@ class HTFA(TFA):
     local_weights_ : 1D array
         Local posterior on weights allocated to this process.
 
+
+    Notes
+    -----
+    We recommend to use data in MNI space to better interpret global template
+
     """
 
     def __init__(self, K, n_subj=2, max_global_iter=10, max_local_iter=10,
