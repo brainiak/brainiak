@@ -37,7 +37,7 @@ try:
 except OSError as e:
     print("File download failed:", e, file=sys.stderr)
 
-#get fMRI deta and scanner RAS coordinates
+#get fMRI data and scanner RAS coordinates
 all_data = scipy.io.loadmat(file_name)
 data = all_data['data']
 R = all_data['R']
