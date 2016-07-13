@@ -28,7 +28,7 @@ installed manually.
 Linux
 -----
 
-Install the following packages (Ubuntu 14.04 is used for the examples)::
+Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
     apt install build-essential cmake libgomp1 mpich python3-pip
 
@@ -74,46 +74,32 @@ Install updated versions of the following Python packages::
     pip3 install -U pip virtualenv
 
 
-Install
-=======
+Installing
+==========
 
-In the future, the Brain Imaging Analysis Kit will be available on PyPI. For
-the moment, it must be installed from a Git repository.
+The Brain Imaging Analysis Kit is available on PyPI::
 
+    pip3 install -U brainiak
 
-Install directly from GitHub
-----------------------------
+Note that you may see a `Failed building wheel for brainiak` message (`issue
+#61`_). Installation will proceed despite this failure. You can safely ignore it
+as long as you see `Successfully installed` at the end.
 
-To install directly from GitHub, do::
-
-    pip3 install git+https://github.com/intelpni/brainiak.git
-
-Or, if you have ssh keys installed, you can do::
-
-    pip3 install git+ssh://github.com/intelpni/brainiak.git
-
-
-Install from local clone
-------------------------
-
-If you prefer to install from a local clone of the repository, follow these
-steps::
-
-    git clone https://github.com/intelpni/brainiak
-    cd brainiak
-    pip install .
+.. _issue #61:
+   https://github.com/IntelPNI/brainiak/issues/61
 
 
 Documentation
--------------
+=============
 
-The documentation is available at::
+The documentation is available at `pythonhosted.org/brainiak`_.
 
+.. _pythonhosted.org/brainiak:
     https://pythonhosted.org/brainiak
 
 
-Contribute
-==========
+Contributing
+============
 
 We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
 
