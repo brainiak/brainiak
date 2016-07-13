@@ -7,6 +7,7 @@
 *.o
 
 brainiak.egg-info
+build
 .cache
 .coverage
 coverage.xml

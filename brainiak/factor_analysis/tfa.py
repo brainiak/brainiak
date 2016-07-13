@@ -35,7 +35,7 @@ from scipy.optimize import least_squares
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
 from ..utils.utils import from_tri_2_sym, from_sym_2_tri
-import tfa_extension
+from . import tfa_extension
 import numpy as np
 import math
 import gc
