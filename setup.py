@@ -103,6 +103,9 @@ class BuildExt(build_ext):
 setup(
     name='brainiak',
     version=__version__,
+    setup_requires=[
+        'pybind11>=1.7',
+    ],
     install_requires=[
         'mpi4py',
         'numpy',
