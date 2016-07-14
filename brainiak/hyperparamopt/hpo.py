@@ -33,7 +33,6 @@ import math
 import numpy as np
 from scipy.special import erf
 import scipy.stats as st
-from tqdm import tqdm
 
 
 logger = logging.getLogger(__name__)
@@ -317,7 +316,7 @@ def fmin(lossfn,
     if (len(trials) > init_random_evals):
         init_random_evals = 0
 
-    for t in tqdm(range(maxevals)):
+    for t in range(maxevals):
         sdict = {}
 
         if (t >= init_random_evals and np.random.random() > explore_prob):
