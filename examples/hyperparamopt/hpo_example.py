@@ -25,7 +25,14 @@ import scipy.stats as st
 import matplotlib.pyplot as plt
 
 # Branin is the function we want to minimize.
-# It is a function of 2 variables
+# It is a function of 2 variables.
+# In the range x1 in [-5, 10] and x2 in [0, 15],
+# this function has 2 local minima and 1 global minima.
+# Global minima of -16.6 at (-3.7, 13.7). 
+# This is the modified version (Branin-Hoo) of the standard branin function.
+# If you want the standard version (which has 3 global minima),
+# you can omit the "+5*x1" term at the end
+# For more details, see http://www.sfu.ca/~ssurjano/branin.html
 def branin(x1, x2):
     a = 1.0
     b = 5.1/(4*np.pi*np.pi)
