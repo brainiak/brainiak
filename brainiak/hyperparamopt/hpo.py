@@ -79,6 +79,7 @@ def get_sigma(x, minlimit=-np.inf, maxlimit=np.inf):
             sigma[i] = 1.0
     return sigma
 
+
 class gmm_1d_distribution:
     """GMM 1D distribution.
 
@@ -114,7 +115,6 @@ class gmm_1d_distribution:
                              / (np.sqrt(2.) * self.sigma))) * weights
         self.W_sum = np.sum(self.weights)
 
-
     def get_gmm_pdf(self, xt):
         """Calculates the 1D GMM likelihood for a single point
 
@@ -122,9 +122,9 @@ class gmm_1d_distribution:
         """
 
         def my_norm_pdf(x, mu, sigma):
-          z = (x - mu) / sigma
-          return (math.exp(-0.5 * z * z)
-                 / (math.sqrt(2. * np.pi) * sigma))
+            z = (x - mu) / sigma
+            return (math.exp(-0.5 * z * z)
+                    / (math.sqrt(2. * np.pi) * sigma))
 
         y = 0
         if (xt < self.minlimit):
@@ -133,7 +133,7 @@ class gmm_1d_distribution:
             return 0
         for _x in range(self.points.size):
             y += (my_norm_pdf(xt, self.points[_x], self.sigma[_x])
-                 * self.weights[_x]) / self.W_sum
+                  * self.weights[_x]) / self.W_sum
         return y
 
     def __call__(self, xt):
@@ -330,8 +330,8 @@ def fmin(lossfn,
             sarray = np.array([tr[s] for tr in trials])
             if (search_algo == 'Exploit'):
                 sdict[s] = get_next_sample(sarray, yarray,
-                                         minlimit=space[s]['lo'],
-                                         maxlimit=space[s]['hi'])
+                                           minlimit=space[s]['lo'],
+                                           maxlimit=space[s]['hi'])
             else:
                 sdict[s] = space[s]['dist'].rvs()
 
