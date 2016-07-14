@@ -61,7 +61,7 @@ class HTFA(TFA):
     ----------
 
     R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-        Each element in the list contains the voxel coordinate matrix
+        Each element in the list contains the scanner coordinate matrix
         of fMRI data of one subject.
 
     K : int, default: 50
@@ -74,7 +74,7 @@ class HTFA(TFA):
         Number of local iterations to run on each subject within each
         global interation.
 
-    n_subj : int, default: 1
+    n_subj : int, default: 2
         Total number of subjects in dataset.
 
     threshold : float, default: 1.0
@@ -147,9 +147,14 @@ class HTFA(TFA):
     local_weights_ : 1D array
         Local posterior on weights allocated to this process.
 
+
+    Notes
+    -----
+    We recommend to use data in MNI space to better interpret global template
+
     """
 
-    def __init__(self, K, n_subj=1, max_global_iter=10, max_local_iter=10,
+    def __init__(self, K, n_subj=2, max_global_iter=10, max_local_iter=10,
                  threshold=0.01, nlss_method='trf', nlss_loss='soft_l1',
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
@@ -472,7 +477,7 @@ class HTFA(TFA):
             The rank of this process
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-            Each element in the list contains the voxel coordinate matrix
+            Each element in the list contains the scanner coordinate matrix
             of fMRI data of one subject.
 
         n_local_subj : integer
@@ -622,7 +627,7 @@ class HTFA(TFA):
             Subjects' fMRI data.
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-            Each element in the list contains the voxel coordinate matrix
+            Each element in the list contains the scanner coordinate matrix
             of fMRI data of one subject.
 
         n_local_subj : integer
@@ -646,7 +651,7 @@ class HTFA(TFA):
             end_idx = base + self.prior_size
             widths = self.local_posterior_[start_idx:end_idx]\
                 .reshape((self.K, 1))
-            unique_R, inds = self._get_unique_R(R[s])
+            unique_R, inds = self.get_unique_R(R[s])
             F = self.get_factors(unique_R, inds, centers, widths)
             start_idx = local_weight_offset[s]
             if s == n_local_subj - 1:
@@ -668,7 +673,7 @@ class HTFA(TFA):
             The fMRI data from multiple subjects.
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-            Each element in the list contains the voxel coordinate matrix
+            Each element in the list contains the scanner coordinate matrix
             of fMRI data of one subject.
 
         Returns
@@ -713,6 +718,8 @@ class HTFA(TFA):
         m = 0
         outer_converged = np.array([0])
         while m < self.max_global_iter and not outer_converged[0]:
+            if(self.verbose):
+                logger.info("HTFA global iter %d " % (m))
             # root broadcast first 4 fields of global_prior to all nodes
             comm.Bcast(self.global_prior_, root=0)
             # each node loop over its data
@@ -740,7 +747,6 @@ class HTFA(TFA):
             outer_converged =\
                 self._update_global_posterior(rank, m, outer_converged)
             comm.Bcast(outer_converged, root=0)
-            logger.info('+')
             m += 1
 
         # update weight matrix for each subject
@@ -761,7 +767,7 @@ class HTFA(TFA):
             Each element in the list contains the fMRI data of one subject.
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-            Each element in the list contains the voxel coordinate matrix
+            Each element in the list contains the scanner coordinate matrix
             of fMRI data of one subject.
 
         Returns
@@ -788,10 +794,10 @@ class HTFA(TFA):
                 raise TypeError("Each subject data should be 2D array")
             if not isinstance(R[idx], np.ndarray):
                 raise TypeError(
-                    "Each voxel coordinate matrix should be an array")
+                    "Each scanner coordinate matrix should be an array")
             if R[idx].ndim != 2:
                 raise TypeError(
-                    "Each voxel coordinate matrix should be 2D array")
+                    "Each scanner coordinate matrix should be 2D array")
             if x.shape[0] != R[idx].shape[0]:
                 raise TypeError(
                     "n_voxel should be the same in X[idx] and R[idx]")
@@ -807,7 +813,7 @@ class HTFA(TFA):
             Each element in the list contains the fMRI data of one subject.
 
         R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-            Each element in the list contains the voxel coordinate matrix
+            Each element in the list contains the scanner coordinate matrix
             of fMRI data of one subject.
 
         Returns

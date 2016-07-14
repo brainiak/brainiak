@@ -1,7 +1,6 @@
 cython
 flake8
 flake8-print
-notebook
 pytest
 pytest-cov
 pytest-cython

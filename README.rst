@@ -104,21 +104,12 @@ steps::
     pip install .
 
 
-Building documentation
-----------------------
+Documentation
+-------------
 
-The documentation will soon be available online. Until then, you can build it
-yourself after installing the required tools::
+The documentation is available at::
 
-    pip3 install -U sphinx sphinx_rtd_theme
-
-Then, assuming you're already in the ``brainiak`` folder, do::
-
-    cd docs
-    make
-
-This will generate HTML documentation in the ``_build/html`` folder within the
-``docs`` folder. ``_build/html/index.html`` is the starting page.
+    https://pythonhosted.org/brainiak
 
 
 Contribute
