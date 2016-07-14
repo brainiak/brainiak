@@ -29,17 +29,44 @@ This implementation is based on the work:
 # Authors: Narayanan Sundaram (Intel Labs)
 
 import logging
-from .mcmc import get_multichain_samples
-from .norm import getgmmpdf
+import math
 import numpy as np
 from scipy.special import erf
+import scipy.stats as st
 from tqdm import tqdm
 
 
 logger = logging.getLogger(__name__)
 
 
-def getsigma(x, minlimit=-np.inf, maxlimit=np.inf):
+def get_sigma(x, minlimit=-np.inf, maxlimit=np.inf):
+    """Computes the standard deviations around the points for a 1D
+    Gaussian mixture model computation.
+
+    We take the distance from the nearest left and right neighbors
+    for each point, then use the max as the estimate of standard
+    deviation for the gaussian around that point.
+
+    Arguments
+    ---------
+
+    x : 1D array
+      Set of points to create the GMM
+
+    minlimit : double, default : -np.inf
+      Minimum limit for the distribution
+
+    maxlimit : double, default : np.inf
+      maximum limit for the distribution
+
+    Returns
+    -------
+
+    sigma : 1D array
+      Array of standard deviations
+
+    """
+
     z = np.append(x, [minlimit, maxlimit])
     sigma = np.ones(x.shape)
     for i in range(x.size):
@@ -51,7 +78,6 @@ def getsigma(x, minlimit=-np.inf, maxlimit=np.inf):
         if (sigma[i] == -np.inf):
             sigma[i] = 1.0
     return sigma
-
 
 class gmm_1d_distribution:
     """GMM 1D distribution.
@@ -81,29 +107,133 @@ class gmm_1d_distribution:
         self.N = x.size
         self.minlimit = minlimit
         self.maxlimit = maxlimit
-        self.sigma = getsigma(x, minlimit=minlimit, maxlimit=maxlimit)
+        self.sigma = get_sigma(x, minlimit=minlimit, maxlimit=maxlimit)
         self.weights = 2. / (erf((maxlimit - x)
                              / (np.sqrt(2.) * self.sigma))
                              - erf((minlimit - x)
                              / (np.sqrt(2.) * self.sigma))) * weights
-        # return self
+        self.W_sum = np.sum(self.weights)
+
+
+    def get_gmm_pdf(self, xt):
+        """Calculates the 1D GMM likelihood for a single point
+
+        y = \sum_{i=1}^{N} norm_pdf(x, x_i, sigma_i)/(\sum weight_i)
+        """
+
+        def my_norm_pdf(x, mu, sigma):
+          z = (x - mu) / sigma
+          return (math.exp(-0.5 * z * z)
+                 / (math.sqrt(2. * np.pi) * sigma))
+
+        y = 0
+        if (xt < self.minlimit):
+            return 0
+        if (xt > self.maxlimit):
+            return 0
+        for _x in range(self.points.size):
+            y += (my_norm_pdf(xt, self.points[_x], self.sigma[_x])
+                 * self.weights[_x]) / self.W_sum
+        return y
 
     def __call__(self, xt):
+        """Returns the likelihood of point(s) belonging to the GMM
+        distribution.
+
+        Arguments
+        ---------
+
+        x : scalar (or) 1D array of reals
+          Point(s) at which likelihood needs to be computed
+
+        Returns
+        -------
+
+        l : scalar (or) 1D array
+          Likelihood values at the given point(s)
+
+        """
+
         if (np.isscalar(xt)):
-            return getgmmpdf(xt, self.points, self.sigma, self.weights,
-                             self.minlimit, self.maxlimit)
+            return self.get_gmm_pdf(xt)
         else:
-            return np.array([getgmmpdf(t, self.points, self.sigma,
-                                       self.weights, self.minlimit,
-                                       self.maxlimit) for t in xt])
+            return np.array([self.get_gmm_pdf(t) for t in xt])
 
-    def get_samples(self, chains=1, points_per_chain=1, burn_in=2000):
-        pts = get_multichain_samples(N=points_per_chain,
-                                     p=self, nchains=chains, burn_in=burn_in)
-        return pts
+    def get_samples(self, n):
+        """Samples the GMM distribution.
+
+        Arguments
+        ---------
+
+        n : int
+          Number of samples needed
+
+        Returns
+        -------
+
+        samples : 1D array
+          Samples from the distribution
+
+        """
+
+        normalized_w = self.weights / np.sum(self.weights)
+        get_rand_index = st.rv_discrete(values=(range(self.N),
+                                        normalized_w)).rvs(size=n)
+        samples = np.zeros(n)
+        k = 0
+        j = 0
+        while (k < n):
+            i = get_rand_index[j]
+            j = j + 1
+            if (j == n):
+                get_rand_index = st.rv_discrete(values=(range(self.N),
+                                                normalized_w)).rvs(size=n)
+                j = 0
+            v = np.random.normal(loc=self.points[i], scale=self.sigma[i])
+            if (v > self.maxlimit or v < self.minlimit):
+                continue
+            else:
+                samples[k] = v
+                k = k + 1
+                if (k == n):
+                    break
+        return samples
 
 
-def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf):
+def get_next_sample(x, y, minlimit=-np.inf, maxlimit=np.inf):
+    """Returns the point that gives the largest Expected improvement (EI) in the
+    optimization function.
+
+    We use [Bergstra2013] to compute this. This model fits 2 different GMMs -
+    one for points that have loss values in the bottom 15% and another
+    for the rest. Then we sample from the former distribution and estimate
+    EI as the ratio of the likelihoods of the 2 distributions. We pick the
+    point with the best EI among the samples that is also not very close to
+    a point we have sampled earlier.
+
+    Arguments
+    ---------
+
+    x : 1D array
+      Samples generated from the distribution so far
+
+    y : 1D array
+      Loss values at the corresponding samples
+
+    minlimit : double, default : -inf
+      Minimum limit for the distribution
+
+    maxlimit : double, default : +inf
+      Maximum limit for the distribution
+
+    Returns
+    -------
+
+    x_next : double
+      Next value to use for HPO
+
+    """
+
     z = np.array(list(zip(x, y)), dtype=np.dtype([('x', float), ('y', float)]))
     z = np.sort(z, order='y')
     n = y.shape[0]
@@ -117,7 +247,7 @@ def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf):
                              maxlimit=maxlimit, weights=weights)
     gx = gmm_1d_distribution(gdata['x'], minlimit=minlimit, maxlimit=maxlimit)
 
-    samples = lx.get_samples(chains=10, points_per_chain=100)
+    samples = lx.get_samples(n=1000)
     ei = lx(samples) / gx(samples)
 
     h = (x.max() - x.min()) / (10 * x.size)
@@ -135,24 +265,12 @@ def getNextSample(x, y, minlimit=-np.inf, maxlimit=np.inf):
     return xnext
 
 
-def getSample(x, y, dist, minlimit=-np.inf, maxlimit=np.inf):
-    if (dist == 'GMM'):
-        return getNextSample(x, y, minlimit, maxlimit)
-    if (dist == 'uniform'):
-        return np.random.random() * (maxlimit - minlimit) + minlimit
-    if (dist == 'loguniform'):
-        return np.exp(np.random.random()
-                      * (np.log(maxlimit) - np.log(minlimit))
-                      + np.log(minlimit))
-
-
 def fmin(lossfn,
          space,
          maxevals,
          trials,
          init_random_evals=30,
-         explore_prob=0.2,
-         verbose=False):
+         explore_prob=0.2):
     """Find the minimum of function through hyper paramter optimization
 
     Arguments
@@ -180,9 +298,6 @@ def fmin(lossfn,
                    Controls the exploration-vs-exploitation ratio
                    Currently 20% of trails are random samples
 
-    verbose : bool, default False
-              Get information on current point being processed
-
     Returns
     -------
 
@@ -191,10 +306,13 @@ def fmin(lossfn,
     """
 
     for s in space:
-        if (space[s]['dist'] is not 'uniform' and
-                space[s]['dist'] is not 'loguniform'):
+        if (hasattr(space[s]['dist'], 'rvs') is False):
             logger.error('Unsupported distribution for variable')
             raise TypeError('Unknown distribution type for variable')
+        if ('lo' not in space[s]):
+            space[s]['lo'] = -np.inf
+        if ('hi' not in space[s]):
+            space[s]['hi'] = np.inf
 
     if (len(trials) > init_random_evals):
         init_random_evals = 0
@@ -210,14 +328,15 @@ def fmin(lossfn,
         yarray = np.array([tr['loss'] for tr in trials])
         for s in space:
             sarray = np.array([tr[s] for tr in trials])
-            dist = 'GMM' if (search_algo == 'Exploit') else space[s]['dist']
-            sdict[s] = getSample(sarray, yarray, dist,
-                                 minlimit=space[s]['lo'],
-                                 maxlimit=space[s]['hi'])
+            if (search_algo == 'Exploit'):
+                sdict[s] = get_next_sample(sarray, yarray,
+                                         minlimit=space[s]['lo'],
+                                         maxlimit=space[s]['hi'])
+            else:
+                sdict[s] = space[s]['dist'].rvs()
 
-        if (verbose):
-            logger.info(search_algo)
-            logger.info('Next point ', t, ' = ', sdict)
+        logger.debug(search_algo)
+        logger.info('Next point ', t, ' = ', sdict)
 
         y = lossfn(sdict)
         sdict['loss'] = y
@@ -226,6 +345,5 @@ def fmin(lossfn,
     yarray = np.array([tr['loss'] for tr in trials])
     yargmin = yarray.argmin()
 
-    if (verbose):
-        logger.info('Best point so far = ', trials[yargmin])
+    logger.info('Best point so far = ', trials[yargmin])
     return trials[yargmin]

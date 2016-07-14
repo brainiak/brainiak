@@ -12,12 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import pytest
+import numpy as np
+import scipy.stats as st
+from brainiak.hyperparamopt.hpo import gmm_1d_distribution, fmin
 
 
 def test_simple_gmm():
-    from brainiak.hyperparamopt.hpo import gmm_1d_distribution
-    import numpy as np
-
     x = np.array([1., 1., 2., 3., 1.])
     d = gmm_1d_distribution(x, minlimit=0., maxlimit=4.)
     assert d(1.1) > d(3.5), "GMM distribution not behaving correctly"
@@ -25,15 +25,12 @@ def test_simple_gmm():
     assert d(-1.0) == 0, "GMM distribution out of bounds error"
     assert d(9.0) == 0, "GMM distribution out of bounds error"
 
-    samples = d.get_samples(chains=2, points_per_chain=10, burn_in=50)
+    samples = d.get_samples(n=25)
     np.testing.assert_array_less(samples, 4.)
     np.testing.assert_array_less(0., samples)
 
 
 def test_simple_gmm_weights():
-    from brainiak.hyperparamopt.hpo import gmm_1d_distribution
-    import numpy as np
-
     x = np.array([1., 1., 2., 3., 1., 3.])
     d = gmm_1d_distribution(x)
 
@@ -42,33 +39,31 @@ def test_simple_gmm_weights():
     d2 = gmm_1d_distribution(x2, weights=w)
     y2 = d2(np.array([1.1, 2.0]))
 
-    assert(d2(1.1) == y2[0],
-           "GMM distribution array & scalar results don't match")
-    assert(np.abs(d(1.1) - d2(1.1)) < 1e-5,
-           "GMM distribution weights not handled correctly")
-    assert(np.abs(d(2.0) - d2(2.0)) < 1e-5,
-           "GMM distribution weights not handled correctly")
+    assert d2(1.1) == y2[0],\
+           "GMM distribution array & scalar results don't match"
+    assert np.abs(d(1.1) - d2(1.1)) < 1e-5,\
+           "GMM distribution weights not handled correctly"
+    assert np.abs(d(2.0) - d2(2.0)) < 1e-5,\
+           "GMM distribution weights not handled correctly"
 
 
 def test_simple_hpo():
-    from brainiak.hyperparamopt.hpo import fmin
-    import numpy as np
 
     def f(args):
       x = args['x']
       return x*x
 
-    s = {'x': {'dist': 'uniform', 'lo': -10., 'hi': 10.}}
+    s = {'x': {'dist': st.uniform(loc=-10., scale=20), 'lo': -10., 'hi': 10.}}
     trials = []
 
     #Test fmin and ability to continue adding to trials
-    best = fmin(lossfn=f, space=s, maxevals=40, trials=trials, verbose=True)
-    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials, verbose=True)
+    best = fmin(lossfn=f, space=s, maxevals=40, trials=trials)
+    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials)
 
     assert len(trials) == 50, "HPO continuation trials not working"
     
     # Test verbose flag
-    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials, verbose=False)
+    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials)
 
     yarray = np.array([tr['loss'] for tr in trials])
     np.testing.assert_array_less(yarray, 100.)
@@ -83,7 +78,10 @@ def test_simple_hpo():
     s2 = {'x': {'dist': 'normal', 'mu': 0., 'sigma': 1.}}
     trials2 = []
     with pytest.raises(TypeError) as excinfo:
-        best = fmin(lossfn=f, space=s2, maxevals=40, trials=trials2, verbose=False)
+        best2 = fmin(lossfn=f, space=s2, maxevals=40, trials=trials2)
     assert "Unknown distribution type for variable" in str(excinfo.value)
 
+    s3 = {'x': {'dist': st.norm(loc=0., scale=1.)}}
+    trials3 = []
+    best3 = fmin(lossfn=f, space=s3, maxevals=40, trials=trials3)
 

@@ -11,9 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-import numpy as np
-import matplotlib.pyplot as plt
 import brainiak.hyperparamopt.hpo as hpo
+import numpy as np
+import scipy.stats as st
+import matplotlib.pyplot as plt
 
 def branin(x1, x2):
     a = 1.0
@@ -34,12 +35,12 @@ x1hi = 10
 x2lo = 0
 x2hi = 15
 
-space = {'x1':{'dist':'uniform', 'lo':x1lo, 'hi':x1hi},
-         'x2':{'dist':'uniform', 'lo':x2lo, 'hi':x2hi}}
+space = {'x1':{'dist': st.uniform(x1lo, x1hi-x1lo), 'lo':x1lo, 'hi':x1hi},
+         'x2':{'dist': st.uniform(x2lo, x2hi-x2lo), 'lo':x2lo, 'hi':x2hi}}
 trials = []
 n_hpo_samples = 100
 
-best = hpo.fmin(lossfn=g, space=space, maxevals=n_hpo_samples, trials=trials, verbose=False)
+best = hpo.fmin(lossfn=g, space=space, maxevals=n_hpo_samples, trials=trials)
 print("Best obtained through HPO (", n_hpo_samples, " samples) = ",
        best['x1'], best['x2'], "; min value = ", best['loss'])
 
