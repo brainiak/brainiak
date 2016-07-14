@@ -19,7 +19,7 @@ from brainiak.hyperparamopt.hpo import gmm_1d_distribution, fmin
 
 def test_simple_gmm():
     x = np.array([1., 1., 2., 3., 1.])
-    d = gmm_1d_distribution(x, minlimit=0., maxlimit=4.)
+    d = gmm_1d_distribution(x, min_limit=0., max_limit=4.)
     assert d(1.1) > d(3.5), "GMM distribution not behaving correctly"
     assert d(2.0) > d(3.0), "GMM distribution not behaving correctly"
     assert d(-1.0) == 0, "GMM distribution out of bounds error"
@@ -57,13 +57,13 @@ def test_simple_hpo():
     trials = []
 
     #Test fmin and ability to continue adding to trials
-    best = fmin(lossfn=f, space=s, maxevals=40, trials=trials)
-    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials)
+    best = fmin(loss_fn=f, space=s, max_evals=40, trials=trials)
+    best = fmin(loss_fn=f, space=s, max_evals=10, trials=trials)
 
     assert len(trials) == 50, "HPO continuation trials not working"
     
     # Test verbose flag
-    best = fmin(lossfn=f, space=s, maxevals=10, trials=trials)
+    best = fmin(loss_fn=f, space=s, max_evals=10, trials=trials)
 
     yarray = np.array([tr['loss'] for tr in trials])
     np.testing.assert_array_less(yarray, 100.)
@@ -78,10 +78,10 @@ def test_simple_hpo():
     s2 = {'x': {'dist': 'normal', 'mu': 0., 'sigma': 1.}}
     trials2 = []
     with pytest.raises(TypeError) as excinfo:
-        best2 = fmin(lossfn=f, space=s2, maxevals=40, trials=trials2)
+        best2 = fmin(loss_fn=f, space=s2, max_evals=40, trials=trials2)
     assert "Unknown distribution type for variable" in str(excinfo.value)
 
     s3 = {'x': {'dist': st.norm(loc=0., scale=1.)}}
     trials3 = []
-    best3 = fmin(lossfn=f, space=s3, maxevals=40, trials=trials3)
+    best3 = fmin(loss_fn=f, space=s3, max_evals=40, trials=trials3)
 

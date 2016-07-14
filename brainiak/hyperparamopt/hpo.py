@@ -38,7 +38,7 @@ import scipy.stats as st
 logger = logging.getLogger(__name__)
 
 
-def get_sigma(x, minlimit=-np.inf, maxlimit=np.inf):
+def get_sigma(x, min_limit=-np.inf, max_limit=np.inf):
     """Computes the standard deviations around the points for a 1D
     Gaussian mixture model computation.
 
@@ -52,10 +52,10 @@ def get_sigma(x, minlimit=-np.inf, maxlimit=np.inf):
     x : 1D array
       Set of points to create the GMM
 
-    minlimit : double, default : -np.inf
+    min_limit : double, default : -np.inf
       Minimum limit for the distribution
 
-    maxlimit : double, default : np.inf
+    max_limit : double, default : np.inf
       maximum limit for the distribution
 
     Returns
@@ -66,7 +66,7 @@ def get_sigma(x, minlimit=-np.inf, maxlimit=np.inf):
 
     """
 
-    z = np.append(x, [minlimit, maxlimit])
+    z = np.append(x, [min_limit, max_limit])
     sigma = np.ones(x.shape)
     for i in range(x.size):
         xleft = z[np.argmin([(x[i] - k) if k < x[i] else np.inf for k in z])]
@@ -92,50 +92,50 @@ class gmm_1d_distribution:
     x : 1D array
       Set of points to create the GMM
 
-    minlimit : double, default : -inf
+    min_limit : double, default : -inf
       Minimum limit for the distribution
 
-    maxlimit : double, default : +inf
+    max_limit : double, default : +inf
       Maximum limit for the distribution
 
     weights : double scalar or 1D array with same size as x, default 1.0
       Used to weight the points non-uniformly if required
     """
 
-    def __init__(self, x, minlimit=-np.inf, maxlimit=np.inf, weights=1.0):
+    def __init__(self, x, min_limit=-np.inf, max_limit=np.inf, weights=1.0):
         self.points = x
         self.N = x.size
-        self.minlimit = minlimit
-        self.maxlimit = maxlimit
-        self.sigma = get_sigma(x, minlimit=minlimit, maxlimit=maxlimit)
-        self.weights = 2. / (erf((maxlimit - x)
+        self.min_limit = min_limit
+        self.max_limit = max_limit
+        self.sigma = get_sigma(x, min_limit=min_limit, max_limit=max_limit)
+        self.weights = 2. / (erf((max_limit - x)
                              / (np.sqrt(2.) * self.sigma))
-                             - erf((minlimit - x)
+                             - erf((min_limit - x)
                              / (np.sqrt(2.) * self.sigma))) * weights
         self.W_sum = np.sum(self.weights)
 
-    def get_gmm_pdf(self, xt):
+    def get_gmm_pdf(self, x):
         """Calculates the 1D GMM likelihood for a single point
 
         y = \sum_{i=1}^{N} norm_pdf(x, x_i, sigma_i)/(\sum weight_i)
         """
 
-        def my_norm_pdf(x, mu, sigma):
-            z = (x - mu) / sigma
+        def my_norm_pdf(xt, mu, sigma):
+            z = (xt - mu) / sigma
             return (math.exp(-0.5 * z * z)
                     / (math.sqrt(2. * np.pi) * sigma))
 
         y = 0
-        if (xt < self.minlimit):
+        if (x < self.min_limit):
             return 0
-        if (xt > self.maxlimit):
+        if (x > self.max_limit):
             return 0
         for _x in range(self.points.size):
-            y += (my_norm_pdf(xt, self.points[_x], self.sigma[_x])
+            y += (my_norm_pdf(x, self.points[_x], self.sigma[_x])
                   * self.weights[_x]) / self.W_sum
         return y
 
-    def __call__(self, xt):
+    def __call__(self, x):
         """Returns the likelihood of point(s) belonging to the GMM
         distribution.
 
@@ -153,10 +153,10 @@ class gmm_1d_distribution:
 
         """
 
-        if (np.isscalar(xt)):
-            return self.get_gmm_pdf(xt)
+        if np.isscalar(x):
+            return self.get_gmm_pdf(x)
         else:
-            return np.array([self.get_gmm_pdf(t) for t in xt])
+            return np.array([self.get_gmm_pdf(t) for t in x])
 
     def get_samples(self, n):
         """Samples the GMM distribution.
@@ -189,7 +189,7 @@ class gmm_1d_distribution:
                                                 normalized_w)).rvs(size=n)
                 j = 0
             v = np.random.normal(loc=self.points[i], scale=self.sigma[i])
-            if (v > self.maxlimit or v < self.minlimit):
+            if (v > self.max_limit or v < self.min_limit):
                 continue
             else:
                 samples[k] = v
@@ -199,7 +199,7 @@ class gmm_1d_distribution:
         return samples
 
 
-def get_next_sample(x, y, minlimit=-np.inf, maxlimit=np.inf):
+def get_next_sample(x, y, min_limit=-np.inf, max_limit=np.inf):
     """Returns the point that gives the largest Expected improvement (EI) in the
     optimization function.
 
@@ -219,10 +219,10 @@ def get_next_sample(x, y, minlimit=-np.inf, maxlimit=np.inf):
     y : 1D array
       Loss values at the corresponding samples
 
-    minlimit : double, default : -inf
+    min_limit : double, default : -inf
       Minimum limit for the distribution
 
-    maxlimit : double, default : +inf
+    max_limit : double, default : +inf
       Maximum limit for the distribution
 
     Returns
@@ -242,9 +242,10 @@ def get_next_sample(x, y, minlimit=-np.inf, maxlimit=np.inf):
     lymin = ldata['y'].min()
     lymax = ldata['y'].max()
     weights = (lymax - ldata['y']) / (lymax - lymin)
-    lx = gmm_1d_distribution(ldata['x'], minlimit=minlimit,
-                             maxlimit=maxlimit, weights=weights)
-    gx = gmm_1d_distribution(gdata['x'], minlimit=minlimit, maxlimit=maxlimit)
+    lx = gmm_1d_distribution(ldata['x'], min_limit=min_limit,
+                             max_limit=max_limit, weights=weights)
+    gx = gmm_1d_distribution(gdata['x'], min_limit=min_limit,
+                             max_limit=max_limit)
 
     samples = lx.get_samples(n=1000)
     ei = lx(samples) / gx(samples)
@@ -264,9 +265,9 @@ def get_next_sample(x, y, minlimit=-np.inf, maxlimit=np.inf):
     return xnext
 
 
-def fmin(lossfn,
+def fmin(loss_fn,
          space,
-         maxevals,
+         max_evals,
          trials,
          init_random_evals=30,
          explore_prob=0.2):
@@ -275,14 +276,14 @@ def fmin(lossfn,
     Arguments
     ---------
 
-    lossfn : function that takes in a dictionary and returns a real value
+    loss_fn : function that takes in a dictionary and returns a real value
              Function to be minimized
 
     space : Dictionary specifying the range and distribution of
             the hyperparamters
 
-    maxevals : int
-               Maximum number of evaluations of lossfn allowed
+    max_evals : int
+               Maximum number of evaluations of loss_fn allowed
 
     trials : list
              Holds the output of the optimization trials
@@ -305,21 +306,21 @@ def fmin(lossfn,
     """
 
     for s in space:
-        if (hasattr(space[s]['dist'], 'rvs') is False):
+        if not hasattr(space[s]['dist'], 'rvs'):
             logger.error('Unsupported distribution for variable')
             raise TypeError('Unknown distribution type for variable')
-        if ('lo' not in space[s]):
+        if 'lo' not in space[s]:
             space[s]['lo'] = -np.inf
-        if ('hi' not in space[s]):
+        if 'hi' not in space[s]:
             space[s]['hi'] = np.inf
 
-    if (len(trials) > init_random_evals):
+    if len(trials) > init_random_evals:
         init_random_evals = 0
 
-    for t in range(maxevals):
+    for t in range(max_evals):
         sdict = {}
 
-        if (t >= init_random_evals and np.random.random() > explore_prob):
+        if t >= init_random_evals and np.random.random() > explore_prob:
             search_algo = 'Exploit'
         else:
             search_algo = 'Explore'
@@ -329,15 +330,15 @@ def fmin(lossfn,
             sarray = np.array([tr[s] for tr in trials])
             if (search_algo == 'Exploit'):
                 sdict[s] = get_next_sample(sarray, yarray,
-                                           minlimit=space[s]['lo'],
-                                           maxlimit=space[s]['hi'])
+                                           min_limit=space[s]['lo'],
+                                           max_limit=space[s]['hi'])
             else:
                 sdict[s] = space[s]['dist'].rvs()
 
         logger.debug(search_algo)
         logger.info('Next point ', t, ' = ', sdict)
 
-        y = lossfn(sdict)
+        y = loss_fn(sdict)
         sdict['loss'] = y
         trials.append(sdict)
 

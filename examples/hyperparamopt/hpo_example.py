@@ -74,8 +74,8 @@ n_hpo_samples = 100
 # fmin run. We just append to the trials object and will use existing data
 # in our optimization.
 print("Starting optimization through hpo")
-best = hpo.fmin(lossfn=branin_wrapper, space=space,
-                maxevals=n_hpo_samples, trials=trials)
+best = hpo.fmin(loss_fn=branin_wrapper, space=space,
+                max_evals=n_hpo_samples, trials=trials)
 
 # Print out the best value obtained through HPO
 print("Best obtained through HPO (", n_hpo_samples, " samples) = ",
@@ -86,18 +86,18 @@ print("Best obtained through HPO (", n_hpo_samples, " samples) = ",
 #####################################
 
 # Divide the space into a uniform grid (meshgrid)
-nt = 200
-x1t = np.linspace(x1lo, x1hi, nt)
-x2t = np.linspace(x2lo, x2hi, nt)
-x1m, x2m = np.meshgrid(x1t, x2t)
+n = 200
+x1 = np.linspace(x1lo, x1hi, n)
+x2 = np.linspace(x2lo, x2hi, n)
+x1_grid, x2_grid = np.meshgrid(x1, x2)
 
 # Calculate the function values along the grid
 print("Starting optimization through grid search")
-z = branin(x1m, x2m)
+z = branin(x1_grid, x2_grid)
 
 # Print out the best value obtained through grid search
-print("Best obtained through grid search (", nt*nt, " samples) = ",
-       x1m.flatten()[z.argmin()], x2m.flatten()[z.argmin()],
+print("Best obtained through grid search (", n*n, " samples) = ",
+       x1_grid.flatten()[z.argmin()], x2_grid.flatten()[z.argmin()],
        "; min value = ", z.min())
 
 ########
@@ -111,20 +111,20 @@ y = np.array([tr['loss'] for tr in trials])
 
 # Plot the function contour using the grid search data
 h = (z.max()-z.min())/25
-plt.contour(x1m, x2m, z, levels=np.linspace(z.min()-h, z.max(), 26))
+plt.contour(x1_grid, x2_grid, z, levels=np.linspace(z.min()-h, z.max(), 26))
 
 # Mark the points that were sampled through HPO
 plt.scatter(x1, x2, s=10, color='r', label='HPO Samples')
 
 # Mark the best points obtained through both methods
 plt.scatter(best['x1'], best['x2'], s=30, color='b', label='Best HPO')
-plt.scatter(x1m.flatten()[z.argmin()], x2m.flatten()[z.argmin()],
+plt.scatter(x1_grid.flatten()[z.argmin()], x2_grid.flatten()[z.argmin()],
             s=30, color='g', label='Best grid search')
 
 # Labels
 plt.xlabel('x1')
 plt.ylabel('x2')
-plt.title('Hyperparamter optimization using HPO')
+plt.title('Hyperparamter optimization using HPO (Branin function)')
 plt.legend()
 plt.show()
 
