@@ -81,9 +81,9 @@ The Brain Imaging Analysis Kit is available on PyPI::
 
     pip3 install -U brainiak
 
-Note that you may see a `Failed building wheel for brainiak` message (`issue
+Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 #61`_). Installation will proceed despite this failure. You can safely ignore it
-as long as you see `Successfully installed` at the end.
+as long as you see ``Successfully installed`` at the end.
 
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
