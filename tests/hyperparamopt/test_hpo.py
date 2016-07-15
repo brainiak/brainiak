@@ -77,7 +77,7 @@ def test_simple_hpo():
     #Test unknown distributions
     s2 = {'x': {'dist': 'normal', 'mu': 0., 'sigma': 1.}}
     trials2 = []
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         best2 = fmin(loss_fn=f, space=s2, max_evals=40, trials=trials2)
     assert "Unknown distribution type for variable" in str(excinfo.value)
 

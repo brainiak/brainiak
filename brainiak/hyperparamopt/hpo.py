@@ -39,42 +39,44 @@ logger = logging.getLogger(__name__)
 
 
 def get_sigma(x, min_limit=-np.inf, max_limit=np.inf):
-    """Computes the standard deviations around the points for a 1D
-    Gaussian mixture model computation.
+    """Compute the standard deviations around the points for a 1D GMM.
 
     We take the distance from the nearest left and right neighbors
     for each point, then use the max as the estimate of standard
-    deviation for the gaussian around that point.
+    deviation for the gaussian mixture around that point.
 
     Arguments
     ---------
-
     x : 1D array
-      Set of points to create the GMM
+        Set of points to create the GMM
 
-    min_limit : double, default : -np.inf
-      Minimum limit for the distribution
+    min_limit : Optional[float], default : -inf
+        Minimum limit for the distribution
 
-    max_limit : double, default : np.inf
-      maximum limit for the distribution
+    max_limit : Optional[float], default : inf
+        maximum limit for the distribution
 
     Returns
     -------
-
-    sigma : 1D array
-      Array of standard deviations
-
+    1D array
+        Array of standard deviations
     """
 
     z = np.append(x, [min_limit, max_limit])
     sigma = np.ones(x.shape)
     for i in range(x.size):
+        # Calculate the nearest left neighbor of x[i]
+        # Find the minimum of (x[i] - k) for k < x[i]
         xleft = z[np.argmin([(x[i] - k) if k < x[i] else np.inf for k in z])]
+
+        # Calculate the nearest right neighbor of x[i]
+        # Find the minimum of (k - x[i]) for k > x[i]
         xright = z[np.argmin([(k - x[i]) if k > x[i] else np.inf for k in z])]
+
         sigma[i] = max(x[i] - xleft, xright - x[i])
         if sigma[i] == np.inf:
             sigma[i] = min(x[i] - xleft, xright - x[i])
-        if (sigma[i] == -np.inf):
+        if (sigma[i] == -np.inf):  # should never happen
             sigma[i] = 1.0
     return sigma
 
@@ -86,20 +88,22 @@ class gmm_1d_distribution:
     can calculate likelihoods and generate samples from this
     1D Gaussian mixture model.
 
-    Parameters
+    Attributes
     ----------
+    points : 1D array
+        Set of points to create the GMM
 
-    x : 1D array
-      Set of points to create the GMM
+    N : int
+        Number of points to create the GMM
 
-    min_limit : double, default : -inf
-      Minimum limit for the distribution
+    min_limit : Optional[float], default : -inf
+        Minimum limit for the distribution
 
-    max_limit : double, default : +inf
-      Maximum limit for the distribution
+    max_limit : Optional[float], default : inf
+        Maximum limit for the distribution
 
-    weights : double scalar or 1D array with same size as x, default 1.0
-      Used to weight the points non-uniformly if required
+    weights : Optional[1D array], default : array of ones
+        Used to weight the points non-uniformly if required
     """
 
     def __init__(self, x, min_limit=-np.inf, max_limit=np.inf, weights=1.0):
@@ -108,16 +112,27 @@ class gmm_1d_distribution:
         self.min_limit = min_limit
         self.max_limit = max_limit
         self.sigma = get_sigma(x, min_limit=min_limit, max_limit=max_limit)
-        self.weights = 2. / (erf((max_limit - x)
-                             / (np.sqrt(2.) * self.sigma))
-                             - erf((min_limit - x)
-                             / (np.sqrt(2.) * self.sigma))) * weights
+        self.weights = (2
+                        / (erf((max_limit - x) / (np.sqrt(2.) * self.sigma))
+                           - erf((min_limit - x) / (np.sqrt(2.) * self.sigma)))
+                        * weights)
         self.W_sum = np.sum(self.weights)
 
     def get_gmm_pdf(self, x):
-        """Calculates the 1D GMM likelihood for a single point
+        """Calculate the GMM likelihood for a single point.
 
-        y = \sum_{i=1}^{N} norm_pdf(x, x_i, sigma_i)/(\sum weight_i)
+        .. math::
+            y = \sum_{i=1}^{N} w_i*normpdf(x, x_i, \sigma_i)/\sum_{i=1}^{N} w_i
+
+        Arguments
+        ---------
+        x : float
+            Point at which likelihood needs to be computed
+
+        Returns
+        -------
+        float
+            Likelihood value at x
         """
 
         def my_norm_pdf(xt, mu, sigma):
@@ -136,21 +151,20 @@ class gmm_1d_distribution:
         return y
 
     def __call__(self, x):
-        """Returns the likelihood of point(s) belonging to the GMM
-        distribution.
+        """Return the GMM likelihood for given point(s).
+
+        .. math::
+            y = \sum_{i=1}^{N} w_i*normpdf(x, x_i, \sigma_i)/\sum_{i=1}^{N} w_i
 
         Arguments
         ---------
-
         x : scalar (or) 1D array of reals
-          Point(s) at which likelihood needs to be computed
+            Point(s) at which likelihood needs to be computed
 
         Returns
         -------
-
-        l : scalar (or) 1D array
-          Likelihood values at the given point(s)
-
+        scalar (or) 1D array
+            Likelihood values at the given point(s)
         """
 
         if np.isscalar(x):
@@ -159,20 +173,17 @@ class gmm_1d_distribution:
             return np.array([self.get_gmm_pdf(t) for t in x])
 
     def get_samples(self, n):
-        """Samples the GMM distribution.
+        """Sample the GMM distribution.
 
         Arguments
         ---------
-
         n : int
-          Number of samples needed
+            Number of samples needed
 
         Returns
         -------
-
-        samples : 1D array
-          Samples from the distribution
-
+        1D array
+            Samples from the distribution
         """
 
         normalized_w = self.weights / np.sum(self.weights)
@@ -200,37 +211,34 @@ class gmm_1d_distribution:
 
 
 def get_next_sample(x, y, min_limit=-np.inf, max_limit=np.inf):
-    """Returns the point that gives the largest Expected improvement (EI) in the
-    optimization function.
+    """Get the next point to try, given the previous samples.
 
-    We use [Bergstra2013] to compute this. This model fits 2 different GMMs -
-    one for points that have loss values in the bottom 15% and another
-    for the rest. Then we sample from the former distribution and estimate
-    EI as the ratio of the likelihoods of the 2 distributions. We pick the
-    point with the best EI among the samples that is also not very close to
-    a point we have sampled earlier.
+    We use [Bergstra2013]_ to compute the point that gives the largest
+    Expected improvement (EI) in the optimization function. This model fits 2
+    different GMMs - one for points that have loss values in the bottom 15%
+    and another for the rest. Then we sample from the former distribution
+    and estimate EI as the ratio of the likelihoods of the 2 distributions.
+    We pick the point with the best EI among the samples that is also not
+    very close to a point we have sampled earlier.
 
     Arguments
     ---------
-
     x : 1D array
-      Samples generated from the distribution so far
+        Samples generated from the distribution so far
 
     y : 1D array
-      Loss values at the corresponding samples
+        Loss values at the corresponding samples
 
-    min_limit : double, default : -inf
-      Minimum limit for the distribution
+    min_limit : float, default : -inf
+        Minimum limit for the distribution
 
-    max_limit : double, default : +inf
-      Maximum limit for the distribution
+    max_limit : float, default : +inf
+        Maximum limit for the distribution
 
     Returns
     -------
-
-    x_next : double
-      Next value to use for HPO
-
+    float
+        Next value to use for HPO
     """
 
     z = np.array(list(zip(x, y)), dtype=np.dtype([('x', float), ('y', float)]))
@@ -251,7 +259,8 @@ def get_next_sample(x, y, min_limit=-np.inf, max_limit=np.inf):
     ei = lx(samples) / gx(samples)
 
     h = (x.max() - x.min()) / (10 * x.size)
-    # assumes prior of x is uniform -- should change for different priors
+    # TODO
+    # assumes prior of x is uniform; should ideally change for other priors
     # d = np.abs(x - samples[ei.argmax()]).min()
     # CDF(x+d/2) - CDF(x-d/2) < 1/(10*x.size) then reject else accept
     s = 0
@@ -271,44 +280,55 @@ def fmin(loss_fn,
          trials,
          init_random_evals=30,
          explore_prob=0.2):
-    """Find the minimum of function through hyper paramter optimization
+    """Find the minimum of function through hyper parameter optimization.
 
     Arguments
     ---------
+    loss_fn : ``function(*args) -> float``
+        Function that takes in a dictionary and returns a real value.
+        This is the function to be minimized.
 
-    loss_fn : function that takes in a dictionary and returns a real value
-             Function to be minimized
-
-    space : Dictionary specifying the range and distribution of
-            the hyperparamters
+    space : dictionary
+        Custom dictionary specifying the range and distribution of
+        the hyperparamters.
+        E.g. ``space = {'x': {'dist':scipy.stats.uniform(0,1),
+        'lo':0, 'hi':1}}``
+        for a 1-dimensional space with variable x in range [0,1]
 
     max_evals : int
-               Maximum number of evaluations of loss_fn allowed
+        Maximum number of evaluations of loss_fn allowed
 
     trials : list
-             Holds the output of the optimization trials
-             Need not be empty to begin with, new trials are appended
-             at the end
+        Holds the output of the optimization trials.
+        Need not be empty to begin with, new trials are appended
+        at the end.
 
-    init_random_evals : int, default 30
-                        Number of random trials to initialize the
-                        optimization
+    init_random_evals : Optional[int], default 30
+        Number of random trials to initialize the
+        optimization.
 
-    explore_prob : double in [0, 1], default 0.2
-                   Controls the exploration-vs-exploitation ratio
-                   Currently 20% of trails are random samples
+    explore_prob : Optional[float], default 0.2
+        Controls the exploration-vs-exploitation ratio. Value should
+        be in [0,1]. By default, 20% of trails are random samples.
 
     Returns
     -------
+    trial entry (dictionary of hyperparameters)
+           Best hyperparameter setting found.
+           E.g. {'x': 5.6, 'loss' : 0.5} where x is the best hyparameter
+           value found and loss is the value of the function for the
+           best hyperparameter value(s).
 
-    best : trial entry (dictionary of hyperparameters)
-           Best hyperparameter setting found
+    Raises
+    ------
+    ValueError
+        If the distribution specified in space does not support a ``rvs()``
+        method to generate random numbers, a ValueError is raised.
     """
 
     for s in space:
         if not hasattr(space[s]['dist'], 'rvs'):
-            logger.error('Unsupported distribution for variable')
-            raise TypeError('Unknown distribution type for variable')
+            raise ValueError('Unknown distribution type for variable')
         if 'lo' not in space[s]:
             space[s]['lo'] = -np.inf
         if 'hi' not in space[s]:
@@ -321,21 +341,21 @@ def fmin(loss_fn,
         sdict = {}
 
         if t >= init_random_evals and np.random.random() > explore_prob:
-            search_algo = 'Exploit'
+            use_random_sampling = False
         else:
-            search_algo = 'Explore'
+            use_random_sampling = True
 
         yarray = np.array([tr['loss'] for tr in trials])
         for s in space:
             sarray = np.array([tr[s] for tr in trials])
-            if (search_algo == 'Exploit'):
+            if use_random_sampling:
+                sdict[s] = space[s]['dist'].rvs()
+            else:
                 sdict[s] = get_next_sample(sarray, yarray,
                                            min_limit=space[s]['lo'],
                                            max_limit=space[s]['hi'])
-            else:
-                sdict[s] = space[s]['dist'].rvs()
 
-        logger.debug(search_algo)
+        logger.debug('Explore' if use_random_sampling else 'Exploit')
         logger.info('Next point ', t, ' = ', sdict)
 
         y = loss_fn(sdict)

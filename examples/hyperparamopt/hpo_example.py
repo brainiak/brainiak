@@ -131,7 +131,7 @@ plt.scatter(x1_grid.flatten()[z.argmin()], x2_grid.flatten()[z.argmin()],
 # Labels
 plt.xlabel('x1')
 plt.ylabel('x2')
-plt.title('Hyperparamter optimization using HPO (Branin function)')
+plt.title('Hyperparameter optimization using HPO (Branin function)')
 plt.legend()
 plt.show()
 
