@@ -1,7 +1,9 @@
+cython
 flake8
 flake8-print
 pytest
 pytest-cov
+pytest-cython
 restructuredtext-lint
 sphinx
 sphinx_rtd_theme
