@@ -1019,5 +1019,5 @@ class TFA(BaseEstimator):
             widths = self.get_widths(self.local_posterior_)
             unique_R, inds = self.get_unique_R(R)
             self.F_ = self.get_factors(unique_R, inds, centers, widths)
-            self.W_ = self.get_weights(R, self.F_)
+            self.W_ = self.get_weights(X, self.F_)
         return self
