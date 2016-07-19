@@ -1,22 +1,21 @@
-READ THIS FIRST
-===============
-
-For directions about how to contribute to the Brain Imaging Analysis Kit,
-please see CONTRIBUTING.rst in the repository
-(also visible nicely formatted at
-https://github.com/IntelPNI/brainiak.rst)
-
-The material below is directed at end users. This "READ THIS FIRST" section will be removed before our first release.
-
 Brain Imaging Analysis Kit
 ==========================
 
-The Brain Imaging Analysis Kit is a package of Python modules useful for neuroscience, primarily focused on
-functional Magnetic Resonance Imaging (fMRI) analysis.
+.. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
+   :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
+   :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
-The package was originally created by a collaboration between Intel and the Princeton Neuroscience Institute (PNI).
+The Brain Imaging Analysis Kit is a package of Python modules useful for
+neuroscience, primarily focused on functional Magnetic Resonance Imaging (fMRI)
+analysis.
 
-To reduce verbosity, we may refer to the Brain Imaging Analysis Kit using the ``BrainIAK`` abbreviation. Whenever lowercase spelling is used (e.g., Python package name), we use ``brainiak``.
+The package was originally created by a collaboration between Intel and the
+Princeton Neuroscience Institute (PNI).
+
+To reduce verbosity, we may refer to the Brain Imaging Analysis Kit using the
+``BrainIAK`` abbreviation. Whenever lowercase spelling is used (e.g., Python
+package name), we use ``brainiak``.
+
 
 Requirements
 ============
@@ -25,10 +24,11 @@ We support Linux and MacOS with Python version 3.4 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 
+
 Linux
 -----
 
-Install the following packages (Ubuntu 14.04 is used for the examples)::
+Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
     apt install build-essential cmake libgomp1 mpich python3-pip
 
@@ -42,6 +42,7 @@ the updated Pip, e.g., by adding the following line to ``$HOME/.profile``
 and launching a new login shell (e.g., logout or execute ``bash -l``)::
 
     PATH="$HOME/.local/bin:$PATH"
+
 
 MacOS
 -----
@@ -61,65 +62,46 @@ Then install the following::
 
 You must instruct programs to use ``clang-omp``. One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
-add the following lines to ``$HOME/.profile`` (for them to take effect, you
-must logout or launch a new login shell, e.g., ``bash -l``)::
+add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
+you have one). For them to take effect, you must logout or launch a new login
+shell, e.g., ``bash -l``::
 
-    CC=clang-omp
-    CXX=clang-omp++
+    export CC=clang-omp
+    export CXX=clang-omp++
 
 Install updated versions of the following Python packages::
 
     pip3 install -U pip virtualenv
 
-Install
-=======
 
-In the future, the Brain Imaging Analysis Kit will be available on PyPI. For the moment, it must be installed from a Git repository.
-
-Install directly from GitHub
-----------------------------
-
-To install directly from GitHub, do::
-
-    pip3 install git+https://github.com/intelpni/brainiak.git
-
-Or, if you have ssh keys installed, you can do::
-
-    pip3 install git+ssh://github.com/intelpni/brainiak.git
-
-Install from local clone
-------------------------
-
-If you prefer to install from a local clone of the repository, follow these
-steps::
-
-    git clone https://github.com/intelpni/brainiak
-    cd brainiak
-    pip install .
-
-
-Building documentation
-----------------------
-
-Assuming you're already in the ``brainiak`` folder, do::
-
-    cd docs
-    make
-
-This will generate HTML documentation in the ``_build/html`` folder within the
-``docs`` folder. ``_build/html/index.html`` is the starting page.
-
-
-Links
-=====
-
-- Official source code repo: https://github.com/IntelPNI/brainiak
-- HTML documentation (stable release): TODO (will be hosted on readthedocs.org once repository is made public)
-
-
-
-Contribute
+Installing
 ==========
 
-Please read the contributor's guide at
-https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
+The Brain Imaging Analysis Kit is available on PyPI::
+
+    pip3 install -U brainiak
+
+Note that you may see a ``Failed building wheel for brainiak`` message (`issue
+#61`_). Installation will proceed despite this failure. You can safely ignore it
+as long as you see ``Successfully installed`` at the end.
+
+.. _issue #61:
+   https://github.com/IntelPNI/brainiak/issues/61
+
+
+Documentation
+=============
+
+The documentation is available at `pythonhosted.org/brainiak`_.
+
+.. _pythonhosted.org/brainiak:
+    https://pythonhosted.org/brainiak
+
+
+Contributing
+============
+
+We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
+
+.. _CONTRIBUTING.rst:
+   https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst

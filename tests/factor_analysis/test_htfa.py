@@ -1,3 +1,16 @@
+#  Copyright 2016 Intel Corporation
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 import pytest
 
 def test_R():
@@ -71,14 +84,14 @@ def test_X():
     # Check that does NOT run with wrong data type
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be an array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be an array" in str(excinfo.value)
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be 2D array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be 2D array" in str(excinfo.value)
 
     R = []
     for s in np.arange(n_subj):
