@@ -48,13 +48,28 @@ logger = logging.getLogger(__name__)
 def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
     """Preprocess the data for TDA relevant features
 
-    Takes in a specified volume (3d or 4d) for a participant's block,
-    determines whether it should be binary,
-    applies smoothing to the volume and returns the result
-    TODO: fix to be like tfa
-    """
+    Parameters
+    ----------
 
-    #TODO: exception flag
+    volume : 2d array, float
+        fMRI data, voxel by TR.
+
+    t_score : boolean, default: 1
+       Do you use the t values of the data or do you binarize based on some
+       threshold?
+
+    gauss_size: float, default: 0
+       Sigma for the 3d smoothing kernel.
+
+    norm_power : float, default: 0
+       The power value for the normalization procedure.
+
+    """
+    #Handle exceptions in the values of the volume input
+    if len(volume.shape)!=2:
+        logging.exception('Volume is only {} dimensions, requires 2 '
+                          'dimensional data'.format(len(volume.shape)))
+        quit()
 
     # Binarize the data
     if t_score == 0:
@@ -71,18 +86,46 @@ def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
     return(volume)
 
 def _ttest_score(volume):
-    #TODO: Doc string
+    """Perform a one sample t test against zero for each voxels across time
+
+    Parameters
+    ----------
+
+    volume : 2d array, float
+        fMRI data, voxel by TR.
+    """
     altered_voxel = abs(stats.ttest_1samp(volume, 0, axis=1)[1])
     return altered_voxel
 
 def _variance_score(volume):
-    # TODO: Doc string
+    """Find the variance for each voxels across time
+
+    Parameters
+    ----------
+
+    volume : 2d array, float
+        fMRI data, voxel by TR.
+    """
     altered_voxel = np.var(volume, axis=1)
     return altered_voxel
 
 
-def _select_voxels(volume, voxel_number=100, selectionfunc=_ttest_score):
-    # TODO: Doc string
+def _select_voxels(volume, voxel_number=1000, selectionfunc=_ttest_score):
+    """Select voxels that perform best according to some function
+
+    Parameters
+    ----------
+
+    volume : 2d array, float
+        fMRI data, voxel by TR.
+
+    voxel_number : int, default: 1000
+       How many voxels are you going to use.
+
+    selectionfunc: object, default: _ttest_score
+       What function are you going to use to select the top voxels.
+
+    """
     #Reduce the number of voxels to be considered if it exceeds the limit
     if voxel_number>volume.shape[0]:
         voxel_number = volume.shape[0]
@@ -102,7 +145,21 @@ def _select_voxels(volume, voxel_number=100, selectionfunc=_ttest_score):
 
 
 def _mds_conversion(volume, selected_voxels, dist_metric, dimensions=2):
-    # TODO: Doc string
+    """Select voxels that perform best according to some function
+
+    Parameters
+    ----------
+
+    volume : 2d array, float
+        fMRI data, voxel by TR.
+
+    selected_voxels : int
+       Which indexes, according to volume, are selected
+
+    dist_metric: 2d array, float
+       The distance matrix, the same size as len(selected_voxels) by len(selected_voxels)
+
+    """
     # Run classical MDS, project into dimensions
 
     import sklearn.manifold
@@ -121,34 +178,41 @@ def _mds_conversion(volume, selected_voxels, dist_metric, dimensions=2):
 #Calculate the euclidean distance between
 _compute_euclidean_distance = \
     lambda x: spatial.distance.squareform(spatial.distance.pdist(x))
+_compute_inverse_corr_distance = \
+    lambda x: 1 - x #Take the inverse of the correlation matrix (kind of)
+_compute_inverse_abs_corr_distance = \
+    lambda x: 1 - abs(x) #Take the inverse of the abs correlation matrix (kind of)
 
-#TODO: lines
-_compute_inverse_corr_distance = lambda x: 1 - x #Take the inverse of the correlation matrix (kind of)
-_compute_inverse_abs_corr_distance = lambda x: 1 - abs(x) #Take the inverse of the abs correlation matrix (kind of)
 
 
-#TODO: Fix, put below func name
-""" Correlate all functions with all other functions
 
-Run a correlation of every voxel against every other voxel
+def convert_space(volume, voxel_number=1000, selectionfunc=_ttest_score):
+    """ Correlate all voxels with all other voxels
 
-Takes in a time series, ignoring the conditions. It does some voxel selection on this time series.
-It then runs a correlation on all of these selected voxels.
-Now each voxel can be represented as existing in a higher dimensional space now
+    Parameters
+    ----------
 
-volume is organized as an Voxel x Timepoint matrix
-voxel_number describes how many voxels are to be used in the correlation
-selection contains the procedure for selecting voxels: Ttest, Variance
-distance is the procedure for calculating the distance matrix: Dist, InverseCor, InverseAbsCor or none
+    volume : list of 4d array, float
+        fMRI volumes, by TR.
 
- Authors: Cameron Ellis (Princeton) 2016
+    voxel_number : int, default: 1000
+       How many voxels are you going to use
 
-"""
+    selectionfunc: object, _ttest_score
+       What function are you going to use to select the top voxels
 
-def convert_space(volume, voxel_number=100, selectionfunc=_ttest_score, distancefunc=_compute_euclidean_distance):
+    norm_power : float, default: 0
+       The power value for the normalization procedure
+
+    """
+    #Handle exceptions in the values of the volume input
+    if len(volume.shape)!=2:
+        logging.exception('Volume is only {} dimensions, requires 2 '
+                          'dimensional data'.format(len(volume.shape)))
+        quit()
 
     #TODO: use more advanced voxel selection procedures
-    selected_voxels = _select_voxels(volume, voxel_number=voxel_number, selectionfunc=selectionfunc)
+    selected_voxels = _select_voxels(volume=volume, voxel_number=voxel_number, selectionfunc=selectionfunc)
 
     #TODO: use fcma toolbox to calculate the correlation matrix
     cor_matrix = np.corrcoef(volume[selected_voxels,])
