@@ -35,8 +35,8 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
-        'brainiak.factor_analysis.tfa_extension',
-        ['brainiak/factor_analysis/tfa_extension.cpp'],
+        'brainiak.factoranalysis.tfa_extension',
+        ['brainiak/factoranalysis/tfa_extension.cpp'],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),

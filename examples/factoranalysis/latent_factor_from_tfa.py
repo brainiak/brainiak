@@ -47,7 +47,7 @@ data = stats.zscore(data, axis=1, ddof=1)
 n_voxel, n_tr = data.shape
 
 # Run TFA with downloaded data
-from brainiak.factor_analysis.tfa import TFA
+from brainiak.factoranalysis.tfa import TFA
 # uncomment below line to get help message on TFA
 #help(TFA)
 
