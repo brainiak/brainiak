@@ -14,13 +14,13 @@
 import pytest
 
 def test_R():
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     with pytest.raises(TypeError) as excinfo:
         htfa = HTFA()
     assert "missing 1 required positional argument" in str(excinfo.value)
 
 def test_X():
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     import numpy as np
 
     n_voxel = 100
@@ -104,7 +104,7 @@ def test_X():
 
 def test_can_run():
     import numpy as np
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()

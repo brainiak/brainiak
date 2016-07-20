@@ -12,8 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 def test_can_instantiate():
-    import brainiak.functional_alignment.srm
-    s = brainiak.functional_alignment.srm.SRM()
+    import brainiak.funcalign.srm
+    s = brainiak.funcalign.srm.SRM()
     assert s, "Invalid SRM instance!"
 
     import numpy as np
@@ -23,8 +23,8 @@ def test_can_instantiate():
     subjects = 2
     features = 3
 
-    s = brainiak.functional_alignment.srm.SRM(verbose=True, n_iter=5,
-                                             features=features)
+    s = brainiak.funcalign.srm.SRM(verbose=True, n_iter=5,
+                                   features=features)
     assert s, "Invalid SRM instance!"
 
 

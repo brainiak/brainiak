@@ -63,7 +63,7 @@ for idx in range(n_subj):
 n_voxel, n_tr = data[0].shape
 
 # Run HTFA with downloaded data
-from brainiak.factor_analysis.htfa import HTFA
+from brainiak.factoranalysis.htfa import HTFA
 # uncomment below line to get help message on HTFA
 #help(HTFA)
 
