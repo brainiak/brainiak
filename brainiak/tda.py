@@ -29,7 +29,7 @@ volume is organized as an Voxel x Timepoint matrix
 voxel_number describes how many voxels are to be used in the correlation
 selection contains the procedure for selecting voxels: Ttest, Variance
 distance is the procedure for calculating the distance matrix:
-    Dist, InverseCor, InverseAbsCor or none
+Dist, InverseCor, InverseAbsCor or none
 
  Authors: Cameron Ellis (Princeton) 2016
 """
@@ -50,7 +50,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def preprocess(volume, t_score=True, gauss_size=0, norm_power=0):
+def preprocess(volume, t_score=True, gauss_size=0, normalize=False):
     """Preprocess the data for TDA relevant features
 
     Parameters
@@ -66,7 +66,7 @@ def preprocess(volume, t_score=True, gauss_size=0, norm_power=0):
     gauss_size: float, default: 0
        Sigma for the 3d smoothing kernel.
 
-    norm_power : float, default: 0
+    normalize : boolean, default: True
        The power value for the normalization procedure.
 
     Returns
@@ -82,7 +82,7 @@ def preprocess(volume, t_score=True, gauss_size=0, norm_power=0):
         quit()
 
     # Binarize the data
-    if t_score == 0:
+    if t_score is False:
         volume[abs(volume) > 0] = 1
 
     # Smooth the data using a given kernel
@@ -90,9 +90,8 @@ def preprocess(volume, t_score=True, gauss_size=0, norm_power=0):
         volume = ndimage.filters.gaussian_filter(volume, gauss_size)
 
     # Normalize the data to a given power, 0 means nothing is changed
-    if norm_power > 0:
-        volume = volume / np.power(np.sum(np.power(volume, norm_power)),
-                                   1 / norm_power)
+    if normalize is True:
+        volume = (volume - np.mean(volume)) / np.std(volume)
 
     return(volume)
 
