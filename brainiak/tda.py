@@ -20,14 +20,16 @@ Preprocess the volumes involving binarizing, smoothing and normalizing
 
 Run a correlation of every voxel against every other voxel
 
-Takes in a time series, ignoring the conditions. It does some voxel selection on this time series.
+Takes in a time series, ignoring the conditions.
+It does some voxel selection on this time series.
 It then runs a correlation on all of these selected voxels.
 Now each voxel can be represented as existing in a higher dimensional space now
 
 volume is organized as an Voxel x Timepoint matrix
 voxel_number describes how many voxels are to be used in the correlation
 selection contains the procedure for selecting voxels: Ttest, Variance
-distance is the procedure for calculating the distance matrix: Dist, InverseCor, InverseAbsCor or none
+distance is the procedure for calculating the distance matrix:
+    Dist, InverseCor, InverseAbsCor or none
 
  Authors: Cameron Ellis (Princeton) 2016
 """
@@ -39,13 +41,16 @@ from scipy import spatial
 from scipy import stats
 
 __all__ = [
-    "preprocess",
     "convert_space",
+    "DistanceFuncs",
+    "preprocess",
+    "SelectionFuncs",
 ]
 
 logger = logging.getLogger(__name__)
 
-def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
+
+def preprocess(volume, t_score=True, gauss_size=0, norm_power=0):
     """Preprocess the data for TDA relevant features
 
     Parameters
@@ -54,7 +59,7 @@ def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
     volume : 2d array, float
         fMRI data, voxel by TR.
 
-    t_score : boolean, default: 1
+    t_score : boolean, default: True
        Do you use the t values of the data or do you binarize based on some
        threshold?
 
@@ -64,9 +69,14 @@ def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
     norm_power : float, default: 0
        The power value for the normalization procedure.
 
+    Returns
+    ----------
+
+    2d array, float
+        Preprocessed fMRI data, voxel by TR.
     """
-    #Handle exceptions in the values of the volume input
-    if len(volume.shape)!=2:
+    # Handle exceptions in the values of the volume input
+    if len(volume.shape) != 2:
         logging.exception('Volume is only {} dimensions, requires 2 '
                           'dimensional data'.format(len(volume.shape)))
         quit()
@@ -81,36 +91,26 @@ def preprocess(volume, t_score=1, gauss_size=0, norm_power=0):
 
     # Normalize the data to a given power, 0 means nothing is changed
     if norm_power > 0:
-        volume = volume / np.power(np.sum(np.power(volume, norm_power)), 1 / norm_power)
+        volume = volume / np.power(np.sum(np.power(volume, norm_power)),
+                                   1 / norm_power)
 
     return(volume)
 
-def _ttest_score(volume):
-    """Perform a one sample t test against zero for each voxels across time
 
-    Parameters
-    ----------
+class SelectionFuncs:
+    """Evaluate the voxels according to the given metric."""
 
-    volume : 2d array, float
-        fMRI data, voxel by TR.
-    """
-    altered_voxel = abs(stats.ttest_1samp(volume, 0, axis=1)[1])
-    return altered_voxel
+    # Perform a one sample t test against zero for each voxels across time
+    def ttest_score(volume):
+        return stats.ttest_1samp(volume, 0, axis=1)[1]
 
-def _variance_score(volume):
-    """Find the variance for each voxels across time
-
-    Parameters
-    ----------
-
-    volume : 2d array, float
-        fMRI data, voxel by TR.
-    """
-    altered_voxel = np.var(volume, axis=1)
-    return altered_voxel
+    # Calculate the variance for each voxels across time
+    def variance_score(volume):
+        return np.var(volume, axis=1)
 
 
-def _select_voxels(volume, voxel_number=1000, selectionfunc=_ttest_score):
+def _select_voxels(volume, voxel_number=1000,
+                   selectionfunc=SelectionFuncs.ttest_score):
     """Select voxels that perform best according to some function
 
     Parameters
@@ -122,12 +122,20 @@ def _select_voxels(volume, voxel_number=1000, selectionfunc=_ttest_score):
     voxel_number : int, default: 1000
        How many voxels are you going to use.
 
-    selectionfunc: object, default: _ttest_score
+    selectionfunc: Option[Callable[[ndarray], ndarray],
+            SelectionFuncs.ttest_score]
        What function are you going to use to select the top voxels.
 
+    Returns
+    ----------
+
+    Iterable[bool]
+        The voxels that have been selected
+
     """
-    #Reduce the number of voxels to be considered if it exceeds the limit
-    if voxel_number>volume.shape[0]:
+    # TODO: use more advanced voxel selection procedures
+    # Reduce the number of voxels to be considered if it exceeds the limit
+    if voxel_number > volume.shape[0]:
         voxel_number = volume.shape[0]
 
     # Run the one function that was test
@@ -157,8 +165,14 @@ def _mds_conversion(volume, selected_voxels, dist_metric, dimensions=2):
        Which indexes, according to volume, are selected
 
     dist_metric: 2d array, float
-       The distance matrix, the same size as len(selected_voxels) by len(selected_voxels)
+       The distance matrix, the same size as len(selected_voxels) by len(
+       selected_voxels)
 
+    Returns
+    ----------
+
+    ndarray[float].shape(selected_voxels.shape(0),dimensions)
+        The coordinates, listed as voxel by dimension, as the output of MDS
     """
     # Run classical MDS, project into dimensions
 
@@ -169,25 +183,37 @@ def _mds_conversion(volume, selected_voxels, dist_metric, dimensions=2):
 
     # Specify the coordinates
     selected_coordinates = np.empty((volume.shape[0], dimensions))  # Preset
-    selected_coordinates[selected_voxels,] = mds_coords.embedding_  # Put the MDS coordinates where they are supposed to go
+    # Put the MDS coordinates where they are supposed to go
+    selected_coordinates[selected_voxels, ] = mds_coords.embedding_
 
     return selected_coordinates
 
-#Define how to transform the neural data, if at all
 
-#Calculate the euclidean distance between
-_compute_euclidean_distance = \
-    lambda x: spatial.distance.squareform(spatial.distance.pdist(x))
-_compute_inverse_corr_distance = \
-    lambda x: 1 - x #Take the inverse of the correlation matrix (kind of)
-_compute_inverse_abs_corr_distance = \
-    lambda x: 1 - abs(x) #Take the inverse of the abs correlation matrix (kind of)
+class DistanceFuncs:
+    """Collection of distance functions"""
+    # TODO: Get distance metrics from the Han lab
+    # Calculate the correlation
+    def compute_corr(cor_matrix):
+        return cor_matrix
+
+    # Calculate the euclidean distance between
+    def compute_euclidean_distance(cor_matrix):
+        return spatial.distance.squareform(spatial.distance.pdist(cor_matrix))
+
+    # Take the inverse of the correlation matrix (kind of)
+    def compute_inverse_corr_distance(cor_matrix):
+        return 1 - cor_matrix
+
+    # Take the inverse of the abs correlation matrix (kind of)
+    def compute_inverse_abs_corr_distance(cor_matrix):
+        return 1 - abs(cor_matrix)
 
 
-
-
-def convert_space(volume, voxel_number=1000, selectionfunc=_ttest_score):
-    """ Correlate all voxels with all other voxels
+def convert_space(volume, voxel_number=1000,
+                  selectionfunc=SelectionFuncs.ttest_score,
+                  distancefunc=DistanceFuncs.compute_corr,
+                  run_mds=False, dimensions=2):
+    """Correlate  voxels and  process the correlation matrix
 
     Parameters
     ----------
@@ -198,27 +224,43 @@ def convert_space(volume, voxel_number=1000, selectionfunc=_ttest_score):
     voxel_number : int, default: 1000
        How many voxels are you going to use
 
-    selectionfunc: object, _ttest_score
+    selectionfunc : Option[Callable[[ndarray], ndarray],
+            SelectionFuncs.ttest_score]
        What function are you going to use to select the top voxels
 
-    norm_power : float, default: 0
-       The power value for the normalization procedure
+    run_mds : bool, default: False
+        Lower the dimensionality of the correlation matrix
 
+    dimensions : int, default: 2
+        How many dimensions are you reducing the correlation matrix to
+
+    distancefunc : Option[Callable[[ndarray], ndarray],
+            DistanceFuncs.compute_euclidean_distance]
+       What function are you going to use to convert the correlation matrix
+
+    Returns
+    ----------
+
+    ndarray, float
+        The coordinates, listed as voxel by dimension, as the output of MDS
     """
-    #Handle exceptions in the values of the volume input
-    if len(volume.shape)!=2:
+    # Handle exceptions in the values of the volume input
+    if len(volume.shape) != 2:
         logging.exception('Volume is only {} dimensions, requires 2 '
                           'dimensional data'.format(len(volume.shape)))
         quit()
 
-    #TODO: use more advanced voxel selection procedures
-    selected_voxels = _select_voxels(volume=volume, voxel_number=voxel_number, selectionfunc=selectionfunc)
+    selected_voxels = _select_voxels(volume, voxel_number, selectionfunc)
 
-    #TODO: use fcma toolbox to calculate the correlation matrix
-    cor_matrix = np.corrcoef(volume[selected_voxels,])
+    # TODO: use fcma toolbox to calculate the correlation matrix
+    cor_matrix = np.corrcoef(volume[selected_voxels, ])
 
-    #TODO: Use the distance metrics from the Han lab to calculate more interesting distrance functions
-    dist_metric = _compute_euclidean_distance(cor_matrix)
-    selected_coordinates = _mds_conversion(volume, selected_voxels, dist_metric)
+    dist_metric = distancefunc(cor_matrix)
 
-    return selected_coordinates
+    if run_mds == 1:
+        converted_space = _mds_conversion(volume, selected_voxels,
+                                          dist_metric, dimensions)
+    else:
+        converted_space = dist_metric
+
+    return converted_space
