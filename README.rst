@@ -74,8 +74,8 @@ shell, e.g., ``bash -l``::
 In addition, you also need to specify the directories that the newly installed `clang`
 will seek for linking::
 
-    LDFLAGS:  -L/usr/local/opt/llvm/lib
-    CPPFLAGS: -I/usr/local/opt/llvm/include
+    export LDFLAGS=-L/usr/local/opt/llvm/lib
+    export CPPFLAGS=-I/usr/local/opt/llvm/include
 
 Install updated versions of the following Python packages::
 
