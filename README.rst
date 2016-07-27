@@ -60,22 +60,21 @@ Then install the following::
 
     brew install llvm cmake mpich python3
 
-The new version of ``clang`` (3.8.1 as of 2016/07/27) supports ``OpenMP`` by default.
-You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``
-if you install it via ``brew`` by default. One way to do this, which
+You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``.
+One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
 add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
 you have one). For them to take effect, you must logout or launch a new login
 shell, e.g., ``bash -l``::
 
     export CC=/usr/local/opt/llvm/bin/clang
-    export CXX=/usr/local/opt/llvm/bin/clang-omp++
+    export CXX=/usr/local/opt/llvm/bin/clang++
 
 In addition, you also need to specify the directories that the newly installed `clang`
-will seek for linking::
+will seek for compiling and linking::
 
-    export LDFLAGS=-L/usr/local/opt/llvm/lib
-    export CPPFLAGS=-I/usr/local/opt/llvm/include
+    export LDFLAGS=-L/usr/local/opt/llvm/lib:$LDFLAGS
+    export CPPFLAGS=-I/usr/local/opt/llvm/include:$CPPFLAGS
 
 Install updated versions of the following Python packages::
 
