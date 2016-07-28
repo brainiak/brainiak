@@ -14,7 +14,7 @@
 import pytest
 
 def test_tfa():
-    from brainiak.factor_analysis.tfa import TFA
+    from brainiak.factoranalysis.tfa import TFA
     import numpy as np
 
     n_voxel = 100

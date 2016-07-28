@@ -2,7 +2,7 @@ Brain Imaging Analysis Kit
 ==========================
 
 .. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
-   :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
+:alt: Join the chat at https://gitter.im/IntelPNI/brainiak
    :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 The Brain Imaging Analysis Kit is a package of Python modules useful for
@@ -28,7 +28,7 @@ installed manually.
 Linux
 -----
 
-Install the following packages (Ubuntu 14.04 is used for the examples)::
+Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
     apt install build-essential cmake libgomp1 mpich python3-pip
 
@@ -73,8 +73,8 @@ shell, e.g., ``bash -l``::
 In addition, you also need to specify the directories that the newly installed `clang`
 will seek for compiling and linking::
 
-    export LDFLAGS=-L/usr/local/opt/llvm/lib $LDFLAGS
-    export CPPFLAGS=-I/usr/local/opt/llvm/include $CPPFLAGS
+    export LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+    export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
 
 Install updated versions of the following Python packages::
 

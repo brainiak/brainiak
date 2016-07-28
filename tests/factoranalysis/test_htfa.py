@@ -14,13 +14,13 @@
 import pytest
 
 def test_R():
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     with pytest.raises(TypeError) as excinfo:
         htfa = HTFA()
     assert "missing 1 required positional argument" in str(excinfo.value)
 
 def test_X():
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     import numpy as np
 
     n_voxel = 100
@@ -84,14 +84,14 @@ def test_X():
     # Check that does NOT run with wrong data type
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be an array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be an array" in str(excinfo.value)
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
     with pytest.raises(TypeError) as excinfo:
         htfa.fit(X, R=R)
-    assert "Each voxel coordinate matrix should be 2D array" in str(excinfo.value)
+    assert "Each scanner coordinate matrix should be 2D array" in str(excinfo.value)
 
     R = []
     for s in np.arange(n_subj):
@@ -104,7 +104,7 @@ def test_X():
 
 def test_can_run():
     import numpy as np
-    from brainiak.factor_analysis.htfa import HTFA
+    from brainiak.factoranalysis.htfa import HTFA
     from mpi4py import MPI
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()

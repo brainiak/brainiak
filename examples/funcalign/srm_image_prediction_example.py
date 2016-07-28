@@ -30,10 +30,9 @@ for subject in range(subjects):
     movie_data[subject] = stats.zscore(movie_data[subject],axis=1,ddof=1)
 
 # Run SRM with the movie data
-import brainiak.functional_alignment.srm
-help(brainiak.functional_alignment.srm.SRM)
-srm = brainiak.functional_alignment.srm.SRM(n_iter=10, features=50,
-        verbose=True)
+import brainiak.funcalign.srm
+help(brainiak.funcalign.srm.SRM)
+srm = brainiak.funcalign.srm.SRM(n_iter=10, features=50, verbose=True)
 srm.fit(movie_data)
 
 # We define a function to present the output of the experiment.
@@ -69,14 +68,13 @@ image_data = list(image_data['image_data_lh'])
 
 assert image_data[0].shape[0] == movie_data[0].shape[0], "Number of voxels in movie data and image data do not match!"
 
-# Z-score the data
+# Z-score the image data
 for subject in range(subjects):
     image_data[subject] = stats.zscore(image_data[subject],axis=1,ddof=1)
 
-# Transform the data to the shared response subspace
-image_data_shared = [None] * subjects
+# Z-score the shared response data
+image_data_shared = srm.transform(image_data)
 for subject in range(subjects):
-    image_data_shared[subject] = srm.w_[subject].T.dot(image_data[subject])
     image_data_shared[subject] = stats.zscore(image_data_shared[subject], axis=1, ddof=1)
 
 # Read the labels of the image data for training the classifier.
