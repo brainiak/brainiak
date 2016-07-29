@@ -95,12 +95,6 @@ as long as you see ``Successfully installed`` at the end.
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
 
-In MacOS, note that you will have to edit ``pyport.h`` for successful installation.
-Details can be found at `issue #83`_
-
-.. _issue #83:
-   https://github.com/IntelPNI/brainiak/issues/83
-
 Documentation
 =============
 
