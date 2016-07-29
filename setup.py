@@ -104,6 +104,7 @@ setup(
     name='brainiak',
     version=__version__,
     install_requires=[
+        'cython',
         'mpi4py',
         'numpy',
         'scikit-learn',
