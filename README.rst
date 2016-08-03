@@ -1,6 +1,9 @@
 Brain Imaging Analysis Kit
 ==========================
 
+.. image:: https://travis-ci.org/IntelPNI/brainiak.svg?branch=master
+    :target: https://travis-ci.org/IntelPNI/brainiak
+
 .. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
    :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
    :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
