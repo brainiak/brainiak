@@ -216,7 +216,7 @@ class VoxelSelector:
     def correlationComputation(self, task):
         s = task[0]
         e = s+task[1]
-        #time1 = time.time()
+        time1 = time.time()
         nEpochs = len(self.raw_data)
         corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='C')
         count=0
@@ -235,28 +235,31 @@ class VoxelSelector:
                                  mat.ctypes.data_as(ctypes.c_void_p), n2,
                                  zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
             count += 1
-        #time2 = time.time()
-        #print('correlation computation time:', (time2-time1)*1000.0)
-        #sys.stdout.flush()
+        time2 = time.time()
+        print('correlation computation time:', (time2-time1)*1000.0)
+        sys.stdout.flush()
         return corr
 
     def correlationNormalization(self, corr):
-        #time1 = time.time()
+        time1 = time.time()
         (sv, e, av) = corr.shape
         for i in range(sv):
             start = 0
             while start<e:
                 corr[i,start:start+self.epochs_per_subj,:] = \
+                    .5 * np.log((corr[i,start:start+self.epochs_per_subj,:]+1)/
+                                   (corr[i,start:start+self.epochs_per_subj,:]+1))
+                corr[i,start:start+self.epochs_per_subj,:] = \
                     zscore(corr[i, start:start+self.epochs_per_subj, :], axis = 0, ddof = 0)
                 start += self.epochs_per_subj
         corr = np.nan_to_num(corr) # if zscore fails (standard deviation is zero), set all values to be zero
-        #time2 = time.time()
-        #print('normalization time:', (time2-time1)*1000.0)
-        #sys.stdout.flush()
+        time2 = time.time()
+        print('normalization time:', (time2-time1)*1000.0)
+        sys.stdout.flush()
         return corr
 
     def crossValidation(self, task, corr):
-        #time1 = time.time()
+        time1 = time.time()
         (sv, e, av) = corr.shape
         kernel_matrix = np.zeros((e, e), np.float32, order='C')
         results = []
@@ -275,10 +278,10 @@ class VoxelSelector:
                 for k in range(j):
                     kernel_matrix[k,j] = kernel_matrix[j,k]
             clf = svm.SVC(kernel='precomputed', shrinking=False)
-            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=18)
+            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=18)   # by default, no shuffling
             results.append((i+task[0], scores.mean()))
-        #time2 = time.time()
-        #print('cross validation time:', (time2-time1)*1000.0)
+        time2 = time.time()
+        print('cross validation time:', (time2-time1)*1000.0)
         #print(results)
         sys.stdout.flush()
         return results
