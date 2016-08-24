@@ -59,7 +59,7 @@ def readActivityData(dir, file_extension, mask_file):
     """
     mask_img = nib.load(mask_file)
     nifti_masker = NiftiMasker(mask_img=mask_img)
-    files = [f for f in os.listdir(dir) if os.path.isfile(os.path.join(dir, f)) and f.endswith(file_extension)]
+    files = [f for f in sorted(os.listdir(dir)) if os.path.isfile(os.path.join(dir, f)) and f.endswith(file_extension)]
     activity_data = []
     for f in files:
         # NOTE: nifti_masker.fit_transform runs one order of magnitude slower than C++ version
@@ -147,10 +147,11 @@ class VoxelSelector:
         rank = MPI.COMM_WORLD.Get_rank()
         if rank == 0:
             results = self.master()
+            # TODO: sort results
+            results.sort(key=lambda tup: tup[1], reverse=True)
         else:
             self.worker()
-        # TODO: sort results
-        results.sort(key=lambda tup: tup[1], reverse=True)
+            results = []
         return results
 
     def master(self):
@@ -192,7 +193,7 @@ class VoxelSelector:
             results += result
 
         for i in range(1, size):
-            comm.send(None, dest=i, tag=DIETAG)
+            comm.send(None, dest=i, tag=TERMINATETAG)
 
         return results
 
@@ -328,4 +329,5 @@ if __name__ == '__main__':
     labels = comm.bcast(labels, root=0)
     vs = VoxelSelector(raw_data, 12, labels, 18)
     results = vs.run()
-    print(results[0:100])
+    if rank==0:
+        print(results[0:100])
