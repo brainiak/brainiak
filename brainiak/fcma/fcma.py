@@ -35,7 +35,6 @@ import numpy as np
 import nibabel as nib
 import os, math, sys, time
 from mpi4py import MPI
-from nilearn.input_data import NiftiMasker
 from scipy.stats.mstats import zscore
 import ctypes
 from ctypes.util import find_library
@@ -58,14 +57,23 @@ def readActivityData(dir, file_extension, mask_file):
                             len(activity_data) equals the number of subjects
     """
     mask_img = nib.load(mask_file)
-    nifti_masker = NiftiMasker(mask_img=mask_img)
+    mask = mask_img.get_data()
+    count = 0
+    for index in np.ndindex(mask.shape):
+        if mask[index]!=0:
+            count+=1
     files = [f for f in sorted(os.listdir(dir)) if os.path.isfile(os.path.join(dir, f)) and f.endswith(file_extension)]
     activity_data = []
     for f in files:
-        # NOTE: nifti_masker.fit_transform runs one order of magnitude slower than C++ version
-        #       it returns data in (nTRs, nVoxels) shape
         img = nib.load(os.path.join(dir, f))
-        masked_data = nifti_masker.fit_transform(img)
+        data = img.get_data()
+        (d1, d2, d3, d4) = data.shape
+        masked_data = np.zeros([d4, count], np.float32, order='C')
+        count1=0
+        for index in np.ndindex(mask.shape):
+            if mask[index]!=0:
+                masked_data[:,count1] = np.copy(data[index])
+                count1+=1
         activity_data.append(masked_data)
         print(f, masked_data.shape)
         sys.stdout.flush()
@@ -298,6 +306,7 @@ class VoxelSelector:
         results = self.crossValidation(task, corr)
         time2 = time.time()
         print('task:', task[0], time2-time1)
+        sys.stdout.flush()
         return results
 
 if __name__ == '__main__':
