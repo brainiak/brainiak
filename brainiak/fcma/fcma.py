@@ -41,9 +41,10 @@ from ctypes.util import find_library
 from ctypes import byref, c_char, c_float, c_int
 from sklearn import cross_validation
 from sklearn import svm
+from . import fcma_extension
 
 
-# __all__ = ['']
+#__all__ = ['readActivityData', 'separateEpochs', 'VoxelSelector']
 
 WORKTAG = 0
 TERMINATETAG = 1
@@ -96,12 +97,6 @@ def separateEpochs(activity_data, epoch_map):
         mat = mat / math.sqrt(r)
         raw_data.append(mat)
     return raw_data
-
-
-def preprocessActivityData():
-    """Read, filter (applying masks and eliminating TRs not in epochs of interest) the activity data
-
-    """
 
 class VoxelSelector:
     """Correlation-based voxel selection component of FCMA
@@ -305,41 +300,10 @@ class VoxelSelector:
         corr = self.correlationComputation(task) # corr is a 3D array in row major,
                                                  # in (selected_voxels, epochs, all_voxels) shape
                                                  # corr[i,e,s+j] = corr[j,e,s+i]
-        corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
+        #corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
+        fcma_extension.normalization(corr, self.epochs_per_subj)
         results = self.crossValidation(task, corr)
         time2 = time.time()
         print('task:', task[0], time2-time1)
         sys.stdout.flush()
         return results
-
-if __name__ == '__main__':
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    sys.stdout.flush()
-    raw_data = []
-    labels = []
-    if rank==0:
-        activity_data = readActivityData('/Users/yidawang/data/face_scene/raw', 'nii.gz',
-                                '/Users/yidawang/data/face_scene/mask.nii.gz')
-        epoch_map = []
-        for i in range(18):
-            epoch_map.append((i, 4, 15))
-            epoch_map.append((i, 24, 35))
-            epoch_map.append((i, 44, 55))
-            epoch_map.append((i, 64, 75))
-            epoch_map.append((i, 84, 95))
-            epoch_map.append((i, 104, 115))
-            epoch_map.append((i, 124, 135))
-            epoch_map.append((i, 144, 155))
-            epoch_map.append((i, 164, 175))
-            epoch_map.append((i, 184, 195))
-            epoch_map.append((i, 204, 215))
-            epoch_map.append((i, 224, 235))
-        raw_data=separateEpochs(activity_data, epoch_map)
-        labels = [i%2 for i in range(216)]
-    raw_data = comm.bcast(raw_data, root=0)
-    labels = comm.bcast(labels, root=0)
-    vs = VoxelSelector(raw_data, 12, labels, 18)
-    results = vs.run()
-    if rank==0:
-        print(results[0:100])

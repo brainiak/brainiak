@@ -48,7 +48,7 @@ ext_modules = [
             get_pybind_include(user=True)
         ],
     ),
-    CMakeExtension('brainiak.fcma', 'brainiak/fcma/'),
+    CMakeExtension('brainiak.fcma.fcma_extension', 'brainiak/fcma/'),
 ]
 
 
