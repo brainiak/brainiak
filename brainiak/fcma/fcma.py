@@ -248,7 +248,7 @@ class VoxelSelector:
             while start<e:
                 corr[i,start:start+self.epochs_per_subj,:] = \
                     .5 * np.log((corr[i,start:start+self.epochs_per_subj,:]+1)/
-                                   (corr[i,start:start+self.epochs_per_subj,:]+1))
+                                   (1-corr[i,start:start+self.epochs_per_subj,:]))
                 corr[i,start:start+self.epochs_per_subj,:] = \
                     zscore(corr[i, start:start+self.epochs_per_subj, :], axis = 0, ddof = 0)
                 start += self.epochs_per_subj
