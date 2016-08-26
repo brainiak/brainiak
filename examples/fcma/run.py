@@ -12,5 +12,5 @@ if __name__ == '__main__':
     num_subjs = 18
     vs = VoxelSelector(raw_data, epochs_per_subj, labels, num_subjs)
     results = vs.run()
-    if rank==0:
+    if MPI.COMM_WORLD.Get_rank()==0:
         print(results[0:100])
