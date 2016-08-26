@@ -58,6 +58,7 @@ def readActivityData(dir, file_extension, mask_file):
     :return: activity_data: array of matrices in (nTRs, nVoxels) shape (numpy array),
                             len(activity_data) equals the number of subjects
     """
+    time1 = time.time()
     mask_img = nib.load(mask_file)
     mask = mask_img.get_data()
     count = 0
@@ -79,6 +80,9 @@ def readActivityData(dir, file_extension, mask_file):
         activity_data.append(masked_data)
         print(f, masked_data.shape)
         sys.stdout.flush()
+    time2 = time.time()
+    print('data reading done, takes', time2-time1, 's')
+    sys.stdout.flush()
     return activity_data
 
 def separateEpochs(activity_data, epoch_list):
@@ -90,6 +94,7 @@ def separateEpochs(activity_data, epoch_list):
     :return: raw_data: array of matrices in (epoch length, nVoxels) shape,
                        len(raw_data) equals the number of epochs
     """
+    time1 = time.time()
     raw_data = []
     labels = []
     for sid in range(len(epoch_list)):
@@ -105,6 +110,26 @@ def separateEpochs(activity_data, epoch_list):
                     mat = mat / math.sqrt(r)
                     raw_data.append(mat)
                     labels.append(cond)
+    time2 = time.time()
+    print('epoch separation done, takes', time2-time1, 's')
+    sys.stdout.flush()
+    return raw_data, labels
+
+def prepareData(data_dir, extension, mask_file, epoch_file):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    raw_data = []
+    labels = []
+    if rank==0:
+        activity_data = readActivityData(data_dir, extension, mask_file)
+        epoch_list = np.load(epoch_file) # a list of numpy array in shape (condition, nEpochs, nTRs)
+        raw_data, labels=separateEpochs(activity_data, epoch_list)
+        time1 = time.time()
+    raw_data = comm.bcast(raw_data, root=0)
+    labels = comm.bcast(labels, root=0)
+    if rank == 0:
+        time2 = time.time()
+        print('data broadcasting done, takes', time2-time1, 's')
     return raw_data, labels
 
 class VoxelSelector:
