@@ -51,6 +51,7 @@ TERMINATETAG = 1
 
 def readActivityData(dir, file_extension, mask_file):
     """ read in data in NIfTI format and apply the spacial mask to them
+
     :param dir: the path to all input file
     :param file_extension: the file extension, usually nii.gz or nii
     :param mask_file: the absolute path of the mask file, we apply the mask right after reading a file for saving memory
@@ -80,26 +81,35 @@ def readActivityData(dir, file_extension, mask_file):
         sys.stdout.flush()
     return activity_data
 
-def separateEpochs(activity_data, epoch_map):
+def separateEpochs(activity_data, epoch_list):
     """ keep data in epochs of interest specified in epoch_map and z-score them for computing correlation
+
     :param activity_data: array of matrices in (nTRs, nVoxels) shape,
                           consisting of the masked activity data of all subjects
-    :param epoch_map: array of (subject id, starting TR, ending TR) tuple
+    :param epoch_list: array of (subject id, starting TR, ending TR) tuple
     :return: raw_data: array of matrices in (epoch length, nVoxels) shape,
                        len(raw_data) equals the number of epochs
     """
     raw_data = []
-    for (sid, s, e) in epoch_map:
-        mat = activity_data[sid][s:e+1,:]
-        (r, c) = mat.shape
-        mat = zscore(mat, axis=0, ddof=0)
-        mat = np.nan_to_num(mat) # if zscore fails (standard deviation is zero), set all values to be zero
-        mat = mat / math.sqrt(r)
-        raw_data.append(mat)
-    return raw_data
+    labels = []
+    for sid in range(len(epoch_list)):
+        epoch = epoch_list[sid] # epoch is a numpy array in shape (condition, nEpochs, nTRs)
+        for cond in range(epoch.shape[0]):
+            sub_epoch = epoch[cond,:,:]
+            for eid in range(epoch.shape[1]):
+                r = np.sum(sub_epoch[eid,:])
+                if r > 0:   # there is an epoch in this condition
+                    mat = activity_data[sid][sub_epoch[eid,:]==1,:]
+                    mat = zscore(mat, axis=0, ddof=0)
+                    mat = np.nan_to_num(mat) # if zscore fails (standard deviation is zero), set all values to be zero
+                    mat = mat / math.sqrt(r)
+                    raw_data.append(mat)
+                    labels.append(cond)
+    return raw_data, labels
 
 class VoxelSelector:
     """Correlation-based voxel selection component of FCMA
+
     Parameters
     ----------
 
