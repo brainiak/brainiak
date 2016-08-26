@@ -118,14 +118,19 @@ def separateEpochs(activity_data, epoch_list):
 def prepareData(data_dir, extension, mask_file, epoch_file):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    raw_data = []
     labels = []
+    raw_data = []
     if rank==0:
         activity_data = readActivityData(data_dir, extension, mask_file)
         epoch_list = np.load(epoch_file) # a list of numpy array in shape (condition, nEpochs, nTRs)
         raw_data, labels=separateEpochs(activity_data, epoch_list)
         time1 = time.time()
-    raw_data = comm.bcast(raw_data, root=0)
+    raw_data_length = len(raw_data)
+    raw_data_length = comm.bcast(raw_data_length, root=0)
+    for i in range(raw_data_length):  # broadcast the data subject by subject to prevent size overflow
+        if rank!=0:
+            raw_data.append(None)
+        raw_data[i] = comm.bcast(raw_data[i], root=0)
     labels = comm.bcast(labels, root=0)
     if rank == 0:
         time2 = time.time()
