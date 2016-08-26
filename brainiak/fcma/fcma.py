@@ -136,10 +136,23 @@ class VoxelSelector:
         self.labels = labels
         self.num_folds = num_folds
         self.voxel_unit = voxel_unit
-        libblas_so_name = find_library('blas') if find_library('blas') else find_library('mkl_rt')
-        if libblas_so_name is None:
-            raise RuntimeError("No Blas library is found in the system")
-        self.blas_library = ctypes.cdll.LoadLibrary(libblas_so_name)
+        #libblas_so_name = find_library('blas') if find_library('blas') else find_library('mkl_rt')
+        #if libblas_so_name is None:
+        #    raise RuntimeError("No Blas library is found in the system")
+        # use the following code since find_library doesn't work for libraries in customized directory in Linux
+        if sys.platform=='darwin':
+            extension = '.dylib'
+        elif sys.platform=='linux':
+            extension = '.so'
+        else:
+            raise RuntimeError("Unsupported operating system")
+        try:
+            self.blas_library = ctypes.cdll.LoadLibrary('libblas'+extension)
+        except:
+            try:
+                self.blas_library = ctypes.cdll.LoadLibrary('libmkl_rt'+extension)
+            except:
+                raise RuntimeError("No Blas library is found in the system")
         if self.num_voxels == 0:
             raise RuntimeError("Zero processed voxels")
 
@@ -211,7 +224,6 @@ class VoxelSelector:
     def correlationComputation(self, task):
         s = task[0]
         e = s+task[1]
-        time1 = time.time()
         nEpochs = len(self.raw_data)
         corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='C')
         count=0
@@ -230,13 +242,9 @@ class VoxelSelector:
                                  mat.ctypes.data_as(ctypes.c_void_p), n2,
                                  zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
             count += 1
-        time2 = time.time()
-        print('correlation computation time:', (time2-time1)*1000.0)
-        sys.stdout.flush()
         return corr
 
     def correlationNormalization(self, corr):
-        time1 = time.time()
         (sv, e, av) = corr.shape
         for i in range(sv):
             start = 0
@@ -248,13 +256,9 @@ class VoxelSelector:
                     zscore(corr[i, start:start+self.epochs_per_subj, :], axis = 0, ddof = 0)
                 start += self.epochs_per_subj
         corr = np.nan_to_num(corr) # if zscore fails (standard deviation is zero), set all values to be zero
-        time2 = time.time()
-        print('normalization time:', (time2-time1)*1000.0)
-        sys.stdout.flush()
         return corr
 
     def crossValidation(self, task, corr):
-        time1 = time.time()
         (sv, e, av) = corr.shape
         kernel_matrix = np.zeros((e, e), np.float32, order='C')
         results = []
@@ -272,38 +276,27 @@ class VoxelSelector:
             for j in range(kernel_matrix.shape[0]):
                 for k in range(j):
                     kernel_matrix[k,j] = kernel_matrix[j,k]
-            clf = svm.SVC(kernel='precomputed', shrinking=False)
-            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=18)   # by default, no shuffling
+            clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
+            skf = cross_validation.StratifiedKFold(self.labels, n_folds=self.num_folds, shuffle=False) # no shuffling in cv
+            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf)
             results.append((i+task[0], scores.mean()))
-        time2 = time.time()
-        print('cross validation time:', (time2-time1)*1000.0)
-        #print(results)
-        sys.stdout.flush()
         return results
 
     def voxelScoring(self, task):
         """Voxel selection worker
         Take the task in, do analysis on voxels specified by the task (voxel id, number of voxels)
         """
-        # TODO: use the C++ routines to do the following:
-        # 1. correlation computation
-        # 2. normalization
-        # 3. cross validation
-        # input: activity matrices, starting voxel, number of voxels, epochs_per_subj, labels, number of folds
-        # output: array of float, accuracy numbers
-        # scores = voxelScoringingCPP(self.raw_data, task[0], task[1], self.epochs_per_subj, self.labels, self.num_folds)
-        #result = ()
-        #for i in range(len(scores)):
-        #    result.append((task[0]+i, scores[i]))
-        #return result
         time1 = time.time()
+        # 1. correlation computation
         corr = self.correlationComputation(task) # corr is a 3D array in row major,
                                                  # in (selected_voxels, epochs, all_voxels) shape
                                                  # corr[i,e,s+j] = corr[j,e,s+i]
+        # 2. normalization
         #corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
         fcma_extension.normalization(corr, self.epochs_per_subj)
+        # 3. cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
-        print('task:', task[0], time2-time1)
+        print('task:', task[0]%self.num_voxels, time2-time1)
         sys.stdout.flush()
         return results
