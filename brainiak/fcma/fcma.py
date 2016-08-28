@@ -37,25 +37,21 @@ import os, math, sys, time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
 import ctypes
-from ctypes.util import find_library
 from ctypes import byref, c_char, c_float, c_int
 from sklearn import cross_validation
 from sklearn import svm
 from . import fcma_extension
 
-
-#__all__ = ['readActivityData', 'separateEpochs', 'VoxelSelector']
-
 WORKTAG = 0
 TERMINATETAG = 1
 
 def readActivityData(dir, file_extension, mask_file):
-    """ read in data in NIfTI format and apply the spacial mask to them
+    """ read data in NIfTI format and apply the spatial mask to them
 
-    :param dir: the path to all input file
+    :param dir: the path to all subject files
     :param file_extension: the file extension, usually nii.gz or nii
     :param mask_file: the absolute path of the mask file, we apply the mask right after reading a file for saving memory
-    :return: activity_data: array of matrices in (nTRs, nVoxels) shape (numpy array),
+    :return: activity_data: list of matrices (numpy array) in (nTRs, nVoxels) shape,
                             len(activity_data) equals the number of subjects
     """
     time1 = time.time()
@@ -86,13 +82,15 @@ def readActivityData(dir, file_extension, mask_file):
     return activity_data
 
 def separateEpochs(activity_data, epoch_list):
-    """ keep data in epochs of interest specified in epoch_map and z-score them for computing correlation
+    """ separate data into epochs of interest specified in epoch_list and z-score them for computing correlation
 
-    :param activity_data: array of matrices in (nTRs, nVoxels) shape,
+    :param activity_data: list of matrices in (nTRs, nVoxels) shape,
                           consisting of the masked activity data of all subjects
-    :param epoch_list: array of (subject id, starting TR, ending TR) tuple
-    :return: raw_data: array of matrices in (epoch length, nVoxels) shape,
+    :param epoch_list: list of cubes (numpy array) in shape (condition, nEpochs, nTRs)
+            assuming all subjects have the same number of epochs
+    :return: raw_data: list of matrices (numpy array) in (epoch length, nVoxels) shape,
                        len(raw_data) equals the number of epochs
+             labels: list of the condition labels of the epochs, the length of labels equals the number of epochs
     """
     time1 = time.time()
     raw_data = []
@@ -116,6 +114,16 @@ def separateEpochs(activity_data, epoch_list):
     return raw_data, labels
 
 def prepareData(data_dir, extension, mask_file, epoch_file):
+    """ read the data in and generate epochs of interests, then broadcast to all workers
+
+    :param data_dir: the path to all subject files
+    :param extension: the file extension, usually nii.gz or nii
+    :param mask_file: the absolute path of the mask file
+    :param epoch_file: the absolute path of the epoch file
+    :return: raw_data: list of matrices (numpy array) in (epoch length, nVoxels) shape,
+                       len(raw_data) equals the number of epochs
+             labels: list of the condition labels of the epochs, the length of labels equals the number of epochs
+    """
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     labels = []
@@ -148,10 +156,9 @@ class VoxelSelector:
             which essentially is a nVoxels x nTRs matrix but is serialized as one dimensional vector
         Assumption: 1. all activity data contains the same number of voxels
                     2. the activity data has been z-scored, ready to compute correlation as matrix multiplication
-                    3. the epochs belonging to the same subject are continuous in the array
-                    4. all subjects have the same number of epochs
-                    5. voxel selection is always done in the self-correlation, i.e. raw_data correlate with themselves
-                    6. the classifier used is SVM with linear kernel
+                    3. all subjects have the same number of epochs
+                    4. voxel selection is always done in the auto-correlation, i.e. raw_data correlate with themselves
+                    5. the classifier used is SVM with linear kernel
 
     epochs_per_subj : int
         The number of epochs of each subject
@@ -176,9 +183,6 @@ class VoxelSelector:
         self.labels = labels
         self.num_folds = num_folds
         self.voxel_unit = voxel_unit
-        #libblas_so_name = find_library('blas') if find_library('blas') else find_library('mkl_rt')
-        #if libblas_so_name is None:
-        #    raise RuntimeError("No Blas library is found in the system")
         # use the following code since find_library doesn't work for libraries in customized directory in Linux
         if sys.platform=='darwin':
             extension = '.dylib'
@@ -197,13 +201,15 @@ class VoxelSelector:
             raise RuntimeError("Zero processed voxels")
 
     def run(self):
-        """run voxel selection in master-worker model
+        """ run correlation-based voxel selection in master-worker model
+
         Sort the voxels based on the cross-validation accuracy of their correlation vectors
+        :return: results: list of tuple (voxel_id, accuracy) in accuracy descending order
         """
         rank = MPI.COMM_WORLD.Get_rank()
         if rank == 0:
             results = self.master()
-            # TODO: sort results
+            # Sort the voxels based on the cross-validation accuracy of their correlation vectors
             results.sort(key=lambda tup: tup[1], reverse=True)
         else:
             self.worker()
@@ -211,9 +217,9 @@ class VoxelSelector:
         return results
 
     def master(self):
-        """
-        return value
-            results: an array of tuple (voxel id, accuracy), the length of array equals the number of voxels
+        """ master node's operation, assigning tasks and collecting results
+
+        :return: results: list of tuple (voxel_id, accuracy), the length of array equals the number of voxels
         """
         results = []
         comm = MPI.COMM_WORLD
@@ -254,6 +260,10 @@ class VoxelSelector:
         return results
 
     def worker(self):
+        """ worker node's operation, receiving tasks from the master to process and sending the result back
+
+        :return: none
+        """
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
@@ -262,6 +272,11 @@ class VoxelSelector:
             comm.send(self.voxelScoring(task), dest=0)
 
     def correlationComputation(self, task):
+        """ use BLAS API to do correlation computation (matrix multiplication)
+
+        :param task: a tuple (start_voxel_id, num_assigned_voxels) depicting the voxels assigned to compute
+        :return: corr: the correlation values
+        """
         s = task[0]
         e = s+task[1]
         nEpochs = len(self.raw_data)
@@ -285,6 +300,12 @@ class VoxelSelector:
         return corr
 
     def correlationNormalization(self, corr):
+        """ within-subject normalization
+
+        this method uses scipy.zscore to normalize the data, but is much slower than its C++ counterpart
+        :param corr: the raw correlation values
+        :return: corr: the normalized correlation values
+        """
         (sv, e, av) = corr.shape
         for i in range(sv):
             start = 0
@@ -299,6 +320,12 @@ class VoxelSelector:
         return corr
 
     def crossValidation(self, task, corr):
+        """ voxelwise cross validation based on correlation vectors
+
+        :param task: a tuple (start_voxel_id, num_assigned_voxels) depicting the voxels assigned to compute
+        :param corr: the normalized correlation values
+        :return: results: list of tuple (voxel_id, accuracy), the length of array equals the number of assigned voxels
+        """
         (sv, e, av) = corr.shape
         kernel_matrix = np.zeros((e, e), np.float32, order='C')
         results = []
@@ -310,31 +337,41 @@ class VoxelSelector:
             n2 = c_int(self.num_voxels)
             one = c_float(1.0)
             zero = c_float(0.0)
-            self.blas_library.cblas_ssyrk(row_order, lower, no_trans, n1, n2, one, corr[i,:,:].ctypes.data_as(ctypes.c_void_p),
+            self.blas_library.cblas_ssyrk(row_order, lower, no_trans, n1, n2, one,
+                                          corr[i,:,:].ctypes.data_as(ctypes.c_void_p),
                                           n2, zero, kernel_matrix.ctypes.data_as(ctypes.c_void_p), n1)
             kernel_matrix *= .001
             for j in range(kernel_matrix.shape[0]):
                 for k in range(j):
                     kernel_matrix[k,j] = kernel_matrix[j,k]
+            # no shrinking, set C=10
             clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
-            skf = cross_validation.StratifiedKFold(self.labels, n_folds=self.num_folds, shuffle=False) # no shuffling in cv
+            # no shuffling in cv
+            skf = cross_validation.StratifiedKFold(self.labels, n_folds=self.num_folds, shuffle=False)
             scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf)
             results.append((i+task[0], scores.mean()))
         return results
 
     def voxelScoring(self, task):
-        """Voxel selection worker
+        """ voxel selection processing done in the worker node
+
         Take the task in, do analysis on voxels specified by the task (voxel id, number of voxels)
+        It is a three-stage pipeline consisting of:
+        1. correlation computation
+        2. within-subject normalization
+        3. voxelwise cross validaion
+        :param task: a tuple (start_voxel_id, num_assigned_voxels) depicting the voxels assigned to compute
+        :return: results: list of tuple (voxel_id, accuracy), the length of array equals the number of assigned voxels
         """
         time1 = time.time()
-        # 1. correlation computation
+        # correlation computation
         corr = self.correlationComputation(task) # corr is a 3D array in row major,
                                                  # in (selected_voxels, epochs, all_voxels) shape
                                                  # corr[i,e,s+j] = corr[j,e,s+i]
-        # 2. normalization
+        # normalization
         #corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
         fcma_extension.normalization(corr, self.epochs_per_subj)
-        # 3. cross validation
+        # cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
         print('task:', task[0]%self.num_voxels, time2-time1)
