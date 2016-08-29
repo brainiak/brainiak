@@ -374,6 +374,6 @@ class VoxelSelector:
         # cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
-        print('task:', int(task[0]%self.num_voxels), time2-time1)
+        print('task:', int(task[0]/self.voxel_unit), time2-time1)
         sys.stdout.flush()
         return results
