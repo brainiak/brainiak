@@ -96,7 +96,7 @@ def separateEpochs(activity_data, epoch_list):
     raw_data = []
     labels = []
     for sid in range(len(epoch_list)):
-        epoch = epoch_list[sid] # epoch is a numpy array in shape (condition, nEpochs, nTRs)
+        epoch = epoch_list[sid]
         for cond in range(epoch.shape[0]):
             sub_epoch = epoch[cond,:,:]
             for eid in range(epoch.shape[1]):
@@ -348,7 +348,7 @@ class VoxelSelector:
             clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
             # no shuffling in cv
             skf = cross_validation.StratifiedKFold(self.labels, n_folds=self.num_folds, shuffle=False)
-            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf)
+            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf, n_jobs=-1)
             results.append((i+task[0], scores.mean()))
         return results
 
@@ -374,6 +374,6 @@ class VoxelSelector:
         # cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
-        print('task:', task[0]%self.num_voxels, time2-time1)
+        print('task:', int(task[0]%self.num_voxels), time2-time1)
         sys.stdout.flush()
         return results
