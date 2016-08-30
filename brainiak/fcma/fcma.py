@@ -36,14 +36,10 @@ import nibabel as nib
 import os, math, sys, time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
-import ctypes
-from ctypes import byref, c_char, c_float, c_int
 from sklearn import cross_validation
 from sklearn import svm
 from . import fcma_extension
-#import pyximport
-#pyximport.install()
-#from . import cython_blas
+from . import cython_blas as blas
 
 WORKTAG = 0
 TERMINATETAG = 1
@@ -187,20 +183,6 @@ class VoxelSelector:
         self.labels = labels
         self.num_folds = num_folds
         self.voxel_unit = voxel_unit
-        # use the following code since find_library doesn't work for libraries in customized directory in Linux
-        if sys.platform=='darwin':
-            extension = '.dylib'
-        elif sys.platform=='linux':
-            extension = '.so'
-        else:
-            raise RuntimeError("Unsupported operating system")
-        try:
-            self.blas_library = ctypes.cdll.LoadLibrary('libblas'+extension)
-        except:
-            try:
-                self.blas_library = ctypes.cdll.LoadLibrary('libmkl_rt'+extension)
-            except:
-                raise RuntimeError("No Blas library is found in the system")
         if self.num_voxels == 0:
             raise RuntimeError("Zero processed voxels")
 
@@ -288,29 +270,11 @@ class VoxelSelector:
         corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='C')
         count=0
         for mat in self.raw_data:
-            row_order = c_int(101)
-            col_order = c_int(102)
-            no_trans = c_int(111)
-            trans = c_int(112)
-            n1 = c_int(task[1])
-            n2 = c_int(self.num_voxels)
-            n3 = c_int(mat.shape[0])
-            n4 = c_int(self.num_voxels*nEpochs)
-            #print(mat.flags['F_CONTIGUOUS'], mat.shape, n1, n2, n3, n4, s, e, mat[:,s:e].shape)
-            one = c_float(1.0)
-            zero = c_float(0.0)
-            #self.blas_library.cblas_sgemm(row_order, trans, no_trans, n1, n2, n3, one,
-            #                     mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n2,
-            #                     mat.ctypes.data_as(ctypes.c_void_p), n2,
-            #                     zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
-            self.blas_library.cblas_sgemm(col_order, no_trans, trans, n2, n1, n3, one,
-                                          mat.ctypes.data_as(ctypes.c_void_p), n2,
-                                          mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n2,
-                                          zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
-            #blas.sgemm('T', 'N', n2, n1, n3, one,
-            #           mat.ctypes.data_as(ctypes.c_void_p), n3,
-            #           mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n3,
-            #           zero, corr[:,count,0].ctypes.data_as(ctypes.c_void_p), n4)
+            no_trans = 'N'
+            trans = 'T'
+            blas.compute_correlation(no_trans, trans, self.num_voxels, task[1], mat.shape[0], 1.0,
+                                          mat, self.num_voxels, s, self.num_voxels,
+                                          0.0, corr, self.num_voxels*nEpochs, count)
             count += 1
         return corr
 
@@ -345,20 +309,8 @@ class VoxelSelector:
         kernel_matrix = np.zeros((e, e), np.float32, order='C')
         results = []
         for i in range(sv):
-            col_order = c_int(102)
-            trans = c_int(112)
-            lower = c_int(122)
-            n1 = c_int(e)
-            n2 = c_int(self.num_voxels)
-            one = c_float(1.0)
-            zero = c_float(0.0)
-            self.blas_library.cblas_ssyrk(col_order, lower, trans, n1, n2, one,
-                                          corr[i,:,:].ctypes.data_as(ctypes.c_void_p),
-                                          n2, zero, kernel_matrix.ctypes.data_as(ctypes.c_void_p), n1)
-            kernel_matrix *= .001
-            for j in range(kernel_matrix.shape[0]):
-                for k in range(j):
-                    kernel_matrix[j,k] = kernel_matrix[k,j]
+            blas.compute_kernel_matrix('L', 'T', e, self.num_voxels, 1.0, corr, i, self.num_voxels,
+                                          0.0, kernel_matrix, e)
             # no shrinking, set C=10
             clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
             # no shuffling in cv

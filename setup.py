@@ -169,5 +169,8 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
+    package_data = {
+        'brainiak.fcma': ['*.pyx'],
+    },
     zip_safe=False,
 )
