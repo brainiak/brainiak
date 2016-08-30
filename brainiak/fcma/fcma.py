@@ -76,7 +76,7 @@ def readActivityData(dir, file_extension, mask_file):
         print(f, masked_data.shape)
         sys.stdout.flush()
     time2 = time.time()
-    print('data reading done, takes', time2-time1, 's')
+    print('data reading done, takes', round(time2-time1, 2), 's')
     sys.stdout.flush()
     return activity_data
 
@@ -109,7 +109,7 @@ def separateEpochs(activity_data, epoch_list):
                     raw_data.append(mat)
                     labels.append(cond)
     time2 = time.time()
-    print('epoch separation done, takes', time2-time1, 's')
+    print('epoch separation done, takes', round(time2-time1, 2), 's')
     sys.stdout.flush()
     return raw_data, labels
 
@@ -142,7 +142,7 @@ def prepareData(data_dir, extension, mask_file, epoch_file):
     labels = comm.bcast(labels, root=0)
     if rank == 0:
         time2 = time.time()
-        print('data broadcasting done, takes', time2-time1, 's')
+        print('data broadcasting done, takes', round(time2-time1, 2), 's')
     return raw_data, labels
 
 class VoxelSelector:
@@ -335,19 +335,13 @@ class VoxelSelector:
         corr = self.correlationComputation(task) # corr is a 3D array in row major,
                                                  # in (selected_voxels, epochs, all_voxels) shape
                                                  # corr[i,e,s+j] = corr[j,e,s+i]
-        time3 = time.time()
-        print('corr comp', time3-time1)
-        sys.stdout.flush()
         # normalization
         #corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
         fcma_extension.normalization(corr, self.epochs_per_subj)
-        time4 = time.time()
-        print('norm', time4-time3)
-        sys.stdout.flush()
+
         # cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
-        print('cv', time2-time4)
-        print('task:', int(task[0]/self.voxel_unit), time2-time1)
+        print('task:', int(task[0]/self.voxel_unit), round(time2-time1, 2), 's')
         sys.stdout.flush()
         return results
