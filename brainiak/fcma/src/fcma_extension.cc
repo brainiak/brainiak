@@ -25,7 +25,7 @@
 
 namespace py = pybind11;
 
-void within_subject_norm_native(py::array_t<float, py::array::c_style |
+void within_subject_norm_native(py::array_t<float, py::array::f_style |
                                   py::array::forcecast> py_data, int epochsPerSubj)
 {
     // the input data is a 3D array in row major, in (selected_voxels, epochs, all_voxels) shape
@@ -34,45 +34,46 @@ void within_subject_norm_native(py::array_t<float, py::array::c_style |
     // sanity check
     if (buf.ndim != 3)
         throw std::runtime_error("The multi-subject correlation data structure must be 3D");
-    size_t nSelectedVoxels = buf.shape[0];
+    size_t nSelectedVoxels = buf.shape[2];
     size_t nEpochs = buf.shape[1];
-    size_t nVoxels = buf.shape[2];
+    size_t nVoxels = buf.shape[0];
     size_t nSubjs = nEpochs / epochsPerSubj;
+    std::cout<<nVoxels<<" "<<nEpochs<<" "<<nSelectedVoxels<<std::endl<<std::flush;
     //array_t inArray = {(float *)inBuf.ptr, (int)inBuf.strides[0] >> 2,
     //                   (int)inBuf.strides[1] >> 2, (int)inBuf.strides[2] >> 2,
     //                   (int)inBuf.shape[3]};
-  #pragma omp parallel for
-  for(int v = 0 ; v < nSelectedVoxels*nSubjs ; v++)
-  {
-    int s = v % nSubjs;  // subject id
-    int i = v / nSubjs;  // voxel id
-    //float (*mat)[nVoxels] = (float(*)[nVoxels])&(data[i*nEpochs*nVoxels]);
-    float *mat = data+i*nEpochs*nVoxels;
-    #pragma simd
-    for(int j = 0 ; j < nVoxels ; j++)
+    #pragma omp parallel for
+    for(int v = 0 ; v < nSelectedVoxels*nSubjs ; v++)
     {
-      float mean = 0.0f;
-    	float std_dev = 0.0f;
-      for(int b = s*epochsPerSubj; b < (s+1)*epochsPerSubj; b++)
-      {
-        float num = 1.0f + mat[b*nVoxels+j];
-      	float den = 1.0f - mat[b*nVoxels+j];
-      	num = (num <= 0.0f) ? 1e-4 : num;
-      	den = (den <= 0.0f) ? 1e-4 : den;
-      	mat[b*nVoxels+j] = 0.5f * logf(num/den);
-      	mean += mat[b*nVoxels+j];
-      	std_dev += mat[b*nVoxels+j] * mat[b*nVoxels+j];
-      }
-      mean = mean / (float)epochsPerSubj;
-      std_dev = std_dev / (float)epochsPerSubj - mean*mean;
-      float inv_std_dev = (std_dev <= 0.0f) ? 0.0f : 1.0f / sqrt(std_dev);
-      for(int b = s*epochsPerSubj; b < (s+1)*epochsPerSubj; b++)
-      {
-        mat[b*nVoxels+j] = (mat[b*nVoxels+j] - mean) * inv_std_dev;
-      }
+        int s = v % nSubjs;  // subject id
+        int i = v / nSubjs;  // voxel id
+        //float (*mat)[nVoxels] = (float(*)[nVoxels])&(data[i*nEpochs*nVoxels]);
+        float *mat = data+i*nEpochs*nVoxels;
+        #pragma simd
+        for(int j = 0 ; j < nVoxels ; j++)
+        {
+            float mean = 0.0f;
+    	    float std_dev = 0.0f;
+            for(int b = s*epochsPerSubj; b < (s+1)*epochsPerSubj; b++)
+            {
+                float num = 1.0f + mat[b*nVoxels+j];
+      	        float den = 1.0f - mat[b*nVoxels+j];
+      	        num = (num <= 0.0f) ? 1e-4 : num;
+      	        den = (den <= 0.0f) ? 1e-4 : den;
+      	        mat[b*nVoxels+j] = 0.5f * logf(num/den);
+      	        mean += mat[b*nVoxels+j];
+      	        std_dev += mat[b*nVoxels+j] * mat[b*nVoxels+j];
+            }
+            mean = mean / (float)epochsPerSubj;
+            std_dev = std_dev / (float)epochsPerSubj - mean*mean;
+            float inv_std_dev = (std_dev <= 0.0f) ? 0.0f : 1.0f / sqrt(std_dev);
+            for(int b = s*epochsPerSubj; b < (s+1)*epochsPerSubj; b++)
+            {
+                mat[b*nVoxels+j] = (mat[b*nVoxels+j] - mean) * inv_std_dev;
+            }
+        }
     }
-  }
-  return;
+    return;
 }
 
 PYBIND11_PLUGIN(fcma_extension) {

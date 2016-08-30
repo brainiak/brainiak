@@ -67,7 +67,7 @@ def readActivityData(dir, file_extension, mask_file):
         img = nib.load(os.path.join(dir, f))
         data = img.get_data()
         (d1, d2, d3, d4) = data.shape
-        masked_data = np.zeros([d4, count], np.float32, order='C')
+        masked_data = np.zeros([d4, count], np.float32, order='F')
         count1=0
         for index in np.ndindex(mask.shape):
             if mask[index]!=0:
@@ -102,7 +102,7 @@ def separateEpochs(activity_data, epoch_list):
             for eid in range(epoch.shape[1]):
                 r = np.sum(sub_epoch[eid,:])
                 if r > 0:   # there is an epoch in this condition
-                    mat = activity_data[sid][sub_epoch[eid,:]==1,:]
+                    mat = np.asfortranarray(activity_data[sid][sub_epoch[eid,:]==1,:])
                     mat = zscore(mat, axis=0, ddof=0)
                     mat = np.nan_to_num(mat) # if zscore fails (standard deviation is zero), set all values to be zero
                     mat = mat / math.sqrt(r)
@@ -275,27 +275,33 @@ class VoxelSelector:
         """ use BLAS API to do correlation computation (matrix multiplication)
 
         :param task: a tuple (start_voxel_id, num_assigned_voxels) depicting the voxels assigned to compute
-        :return: corr: the correlation values
+        :return: corr: the correlation values, column major, in shape (num_voxels, num_epochs, num_selected_voxels)
         """
         s = task[0]
         e = s+task[1]
         nEpochs = len(self.raw_data)
-        corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='C')
+        #corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='F')
+        corr = np.zeros((self.num_voxels, nEpochs, task[1]), np.float32, order='F')
         count=0
         for mat in self.raw_data:
-            row_order = c_int(101)
+            col_order = c_int(102)
             no_trans = c_int(111)
             trans = c_int(112)
             n1 = c_int(task[1])
             n2 = c_int(self.num_voxels)
             n3 = c_int(mat.shape[0])
             n4 = c_int(self.num_voxels*nEpochs)
+            #print(mat.flags['F_CONTIGUOUS'], mat.shape, n1, n2, n3, n4, s, e, mat[:,s:e].shape)
             one = c_float(1.0)
             zero = c_float(0.0)
-            self.blas_library.cblas_sgemm(row_order, trans, no_trans, n1, n2, n3, one,
-                                 mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n2,
-                                 mat.ctypes.data_as(ctypes.c_void_p), n2,
-                                 zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
+            #self.blas_library.cblas_sgemm(row_order, trans, no_trans, n1, n2, n3, one,
+            #                     mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n2,
+            #                     mat.ctypes.data_as(ctypes.c_void_p), n2,
+            #                     zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
+            self.blas_library.cblas_sgemm(col_order, trans, no_trans, n2, n1, n3, one,
+                                          mat.ctypes.data_as(ctypes.c_void_p), n3,
+                                          mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n3,
+                                          zero, corr[:,count,0].ctypes.data_as(ctypes.c_void_p), n4)
             count += 1
         return corr
 
@@ -306,15 +312,15 @@ class VoxelSelector:
         :param corr: the raw correlation values
         :return: corr: the normalized correlation values
         """
-        (sv, e, av) = corr.shape
+        (av, e, sv) = corr.shape
         for i in range(sv):
             start = 0
             while start<e:
-                corr[i,start:start+self.epochs_per_subj,:] = \
-                    .5 * np.log((corr[i,start:start+self.epochs_per_subj,:]+1)/
-                                   (1-corr[i,start:start+self.epochs_per_subj,:]))
-                corr[i,start:start+self.epochs_per_subj,:] = \
-                    zscore(corr[i, start:start+self.epochs_per_subj, :], axis = 0, ddof = 0)
+                corr[:,start:start+self.epochs_per_subj,i] = \
+                    .5 * np.log((corr[:,start:start+self.epochs_per_subj,i]+1)/
+                                   (1-corr[:,start:start+self.epochs_per_subj,i]))
+                corr[:,start:start+self.epochs_per_subj,i] = \
+                    zscore(corr[:, start:start+self.epochs_per_subj, i], axis = 0, ddof = 0)
                 start += self.epochs_per_subj
         corr = np.nan_to_num(corr) # if zscore fails (standard deviation is zero), set all values to be zero
         return corr
@@ -326,19 +332,19 @@ class VoxelSelector:
         :param corr: the normalized correlation values
         :return: results: list of tuple (voxel_id, accuracy), the length of array equals the number of assigned voxels
         """
-        (sv, e, av) = corr.shape
-        kernel_matrix = np.zeros((e, e), np.float32, order='C')
+        (av, e, sv) = corr.shape
+        kernel_matrix = np.zeros((e, e), np.float32, order='F')
         results = []
         for i in range(sv):
-            row_order = c_int(101)
-            no_trans = c_int(111)
+            col_order = c_int(102)
+            trans = c_int(112)
             lower = c_int(122)
             n1 = c_int(e)
             n2 = c_int(self.num_voxels)
             one = c_float(1.0)
             zero = c_float(0.0)
-            self.blas_library.cblas_ssyrk(row_order, lower, no_trans, n1, n2, one,
-                                          corr[i,:,:].ctypes.data_as(ctypes.c_void_p),
+            self.blas_library.cblas_ssyrk(col_order, lower, trans, n1, n2, one,
+                                          corr[:,:,i].ctypes.data_as(ctypes.c_void_p),
                                           n2, zero, kernel_matrix.ctypes.data_as(ctypes.c_void_p), n1)
             kernel_matrix *= .001
             for j in range(kernel_matrix.shape[0]):
@@ -348,7 +354,7 @@ class VoxelSelector:
             clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
             # no shuffling in cv
             skf = cross_validation.StratifiedKFold(self.labels, n_folds=self.num_folds, shuffle=False)
-            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf, n_jobs=-1)
+            scores = cross_validation.cross_val_score(clf, kernel_matrix, self.labels, cv=skf, n_jobs=1)
             results.append((i+task[0], scores.mean()))
         return results
 
@@ -368,12 +374,19 @@ class VoxelSelector:
         corr = self.correlationComputation(task) # corr is a 3D array in row major,
                                                  # in (selected_voxels, epochs, all_voxels) shape
                                                  # corr[i,e,s+j] = corr[j,e,s+i]
+        time3 = time.time()
+        print('corr comp', time3-time1)
+        sys.stdout.flush()
         # normalization
         #corr = self.correlationNormalization(corr) # in-place z-score, the result is still in corr
         fcma_extension.normalization(corr, self.epochs_per_subj)
+        time4 = time.time()
+        print('norm', time4-time3)
+        sys.stdout.flush()
         # cross validation
         results = self.crossValidation(task, corr)
         time2 = time.time()
+        print('cv', time2-time4)
         print('task:', int(task[0]/self.voxel_unit), time2-time1)
         sys.stdout.flush()
         return results
