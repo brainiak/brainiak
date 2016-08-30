@@ -288,6 +288,7 @@ class VoxelSelector:
         corr = np.zeros((task[1], nEpochs, self.num_voxels), np.float32, order='C')
         count=0
         for mat in self.raw_data:
+            row_order = c_int(101)
             col_order = c_int(102)
             no_trans = c_int(111)
             trans = c_int(112)
@@ -304,7 +305,7 @@ class VoxelSelector:
             #                     zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
             self.blas_library.cblas_sgemm(col_order, no_trans, trans, n2, n1, n3, one,
                                           mat.ctypes.data_as(ctypes.c_void_p), n2,
-                                          mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n1,
+                                          mat[:,s:e].ctypes.data_as(ctypes.c_void_p), n2,
                                           zero, corr[0,count,:].ctypes.data_as(ctypes.c_void_p), n4)
             #blas.sgemm('T', 'N', n2, n1, n3, one,
             #           mat.ctypes.data_as(ctypes.c_void_p), n3,
@@ -357,7 +358,7 @@ class VoxelSelector:
             kernel_matrix *= .001
             for j in range(kernel_matrix.shape[0]):
                 for k in range(j):
-                    kernel_matrix[k,j] = kernel_matrix[j,k]
+                    kernel_matrix[j,k] = kernel_matrix[k,j]
             # no shrinking, set C=10
             clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
             # no shuffling in cv
