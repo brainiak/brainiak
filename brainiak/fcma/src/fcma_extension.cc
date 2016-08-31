@@ -28,7 +28,18 @@ namespace py = pybind11;
 void within_subject_norm_native(py::array_t<float, py::array::c_style |
                                   py::array::forcecast> py_data, int epochsPerSubj)
 {
-    // the input data is a 3D array in row major, in (selected_voxels, epochs, all_voxels) shape
+//This function calculates the within-subject normalization of the input correlation values
+//
+//Input parameters are:
+//py_data: the correlation value array, in shape [num_voxels, num_epochs, num_selected_voxels]
+//  containing the raw correlation values
+//epochsPerSubj: the number pf epochs per subject
+//<Note> assuming all subjects have the same number of epochs
+//
+//Ouput parameters are:
+//py_data: the correlation value array, in shape [num_voxels, num_epochs, num_selected_voxels]
+//  containing the normalized correlation values
+//
     py::buffer_info buf = py_data.request();
     float* data = (float*)buf.ptr;
     // sanity check

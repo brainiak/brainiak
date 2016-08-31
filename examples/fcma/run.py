@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from brainiak.fcma.fcma import *
+from sklearn import svm
 import sys
 from mpi4py import MPI
 """
@@ -29,6 +30,9 @@ if __name__ == '__main__':
     epochs_per_subj = int(sys.argv[5])
     num_subjs = int(sys.argv[6])
     vs = VoxelSelector(raw_data, epochs_per_subj, labels, num_subjs)
-    results = vs.run()
+    # for cross validation, use SVM with precomputed kernel
+    # no shrinking, set C=10
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
+    results = vs.run(clf)
     if MPI.COMM_WORLD.Get_rank()==0:
         print(results[0:100])
