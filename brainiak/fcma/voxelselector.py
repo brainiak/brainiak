@@ -152,7 +152,9 @@ class VoxelSelector:
             if current_task[1] == 0:
                 using_size = i
                 break
-            comm.send(current_task, dest=i, tag=self._WORKTAG)
+            comm.send(current_task,
+                      dest=i,
+                      tag=self._WORKTAG)
             next_start = current_task[0] + current_task[1]
             sending_voxels = self.voxel_unit \
                 if self.voxel_unit < self.num_voxels - next_start \
@@ -166,7 +168,9 @@ class VoxelSelector:
                                tag=MPI.ANY_TAG,
                                status=status)
             results += result
-            comm.send(current_task, dest=status.Get_source(), tag=self._WORKTAG)
+            comm.send(current_task,
+                      dest=status.Get_source(),
+                      tag=self._WORKTAG)
             next_start = current_task[0] + current_task[1]
             sending_voxels = self.voxel_unit \
                 if self.voxel_unit < self.num_voxels - next_start \
@@ -178,7 +182,9 @@ class VoxelSelector:
             results += result
 
         for i in range(1, size):
-            comm.send(None, dest=i, tag=self._TERMINATETAG)
+            comm.send(None,
+                      dest=i,
+                      tag=self._TERMINATETAG)
 
         return results
 
@@ -199,10 +205,13 @@ class VoxelSelector:
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
-            task = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
+            task = comm.recv(source=0,
+                             tag=MPI.ANY_TAG,
+                             status=status)
             if status.Get_tag():
                 break
-            comm.send(self._voxelScoring(task, clf), dest=0)
+            comm.send(self._voxelScoring(task, clf),
+                      dest=0)
 
     def _correlationComputation(self, task):
         """ use BLAS API to do correlation computation (matrix multiplication)
