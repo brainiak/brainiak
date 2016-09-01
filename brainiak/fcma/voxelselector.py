@@ -47,9 +47,6 @@ __all__ = [
     "VoxelSelector",
 ]
 
-WORKTAG = 0
-TERMINATETAG = 1
-
 
 class VoxelSelector:
     """Correlation-based voxel selection component of FCMA
@@ -94,6 +91,10 @@ class VoxelSelector:
         self.voxel_unit = voxel_unit
         if self.num_voxels == 0:
             raise ValueError("Zero processed voxels")
+
+    # tags for MPI messages
+    _WORKTAG = 0
+    _TERMINATETAG = 1
 
     def run(self, clf):
         """ run correlation-based voxel selection in master-worker model
@@ -151,7 +152,7 @@ class VoxelSelector:
             if current_task[1] == 0:
                 using_size = i
                 break
-            comm.send(current_task, dest=i, tag=WORKTAG)
+            comm.send(current_task, dest=i, tag=self._WORKTAG)
             next_start = current_task[0] + current_task[1]
             sending_voxels = self.voxel_unit \
                 if self.voxel_unit < self.num_voxels - next_start \
@@ -165,7 +166,7 @@ class VoxelSelector:
                                tag=MPI.ANY_TAG,
                                status=status)
             results += result
-            comm.send(current_task, dest=status.Get_source(), tag=WORKTAG)
+            comm.send(current_task, dest=status.Get_source(), tag=self._WORKTAG)
             next_start = current_task[0] + current_task[1]
             sending_voxels = self.voxel_unit \
                 if self.voxel_unit < self.num_voxels - next_start \
@@ -177,7 +178,7 @@ class VoxelSelector:
             results += result
 
         for i in range(1, size):
-            comm.send(None, dest=i, tag=TERMINATETAG)
+            comm.send(None, dest=i, tag=self._TERMINATETAG)
 
         return results
 
