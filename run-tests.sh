@@ -20,7 +20,7 @@ pip freeze | grep -qi /brainiak || {
     exit 1
 }
 
-sleep 5     # allow the run-time build of cython to complete
+sleep 10     # allow the run-time build of cython to complete
 
 mpirun -np 2 py.test --cov=brainiak --cov-append || \
     mpirun -np 2 py.test --cov=brainiak --cov-append
