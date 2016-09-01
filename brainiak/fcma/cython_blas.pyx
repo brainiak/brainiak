@@ -15,7 +15,7 @@
 cimport scipy.linalg.cython_blas as blas
 
 def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a, py_lda,
-          py_start_voxel, py_ldb, py_beta, py_c, py_ldc, py_start_epoch):
+          int py_start_voxel, py_ldb, py_beta, py_c, py_ldc, int py_start_epoch):
     """ use blas API wrapped by scipy.linalg.cython_blas to compute correlation
 
     The blas APIs process matrices in column-major,
@@ -99,10 +99,10 @@ def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a
     A = py_a
     cdef float[:, :, ::1] C
     C = py_c
-    blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0,0], &lda,
-               &A[0,py_start_voxel], &ldb, &beta, &C[0,py_start_epoch,0], &ldc)
+    blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
+               &A[0, py_start_voxel], &ldb, &beta, &C[0, py_start_epoch,0], &ldc)
 
-def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, py_start_voxel, py_lda,
+def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, int py_start_voxel, py_lda,
                           py_beta, py_c, py_ldc):
     """ use blas API wrapped by scipy.linalg.cython_blas to compute kernel matrix of SVM
 
@@ -180,16 +180,16 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, py_star
     A = py_a
     cdef float[:, ::1] C
     C = py_c
-    blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[py_start_voxel,0,0], &lda,
-               &beta, &C[0,0], &ldc)
+    blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[py_start_voxel, 0, 0], &lda,
+               &beta, &C[0, 0], &ldc)
     # shrink the values for getting more stable alpha values in SVM training iteration
     py_c *= .001
     # complete the other half of the kernel matrix
     if (py_uplo=='L'):
         for j in range(py_c.shape[0]):
             for k in range(j):
-                py_c[j,k] = py_c[k,j]
+                py_c[j, k] = py_c[k, j]
     else:
         for j in range(py_c.shape[0]):
             for k in range(j):
-                py_c[k,j] = py_c[j,k]
+                py_c[k, j] = py_c[j, k]

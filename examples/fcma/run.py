@@ -166,6 +166,7 @@ def prepareData(data_dir, extension, mask_file, epoch_file):
     if rank == 0:
         time2 = time.time()
         print('data broadcasting done, takes', round(time2 - time1, 2), 's')
+        sys.stdout.flush()
     return raw_data, labels
 
 
