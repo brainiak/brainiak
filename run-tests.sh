@@ -20,4 +20,5 @@ pip freeze | grep -qi /brainiak || {
     exit 1
 }
 
-py.test --cov=brainiak
+mpirun -np 2 py.test --cov=brainiak --cov-append || \
+    mpirun -np 2 py.test --cov=brainiak --cov-append

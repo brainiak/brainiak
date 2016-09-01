@@ -18,9 +18,9 @@ def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a
           py_start_voxel, py_ldb, py_beta, py_c, py_ldc, py_start_epoch):
     """ use blas API wrapped by scipy.linalg.cython_blas to compute correlation
 
-    The blas APIs process matrices in column-major, but our matrices are in row-major,
-    so we play the transpose trick here, i.e. A*B=(B^T*A^T)^T
-
+    The blas APIs process matrices in column-major,
+    but our matrices are in row-major,
+    so we play the transpose trick here, i.e. A*B=(B^T*A^T)^T.
     The resulting matrix in shape [num_assigned_voxels, num_voxels]
     is stored in an alternate way to make sure that
     the correlation vectors of the same voxel stored continuously
@@ -28,45 +28,58 @@ def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a
     Parameters
     ----------
     py_trans_a: str
-        do transpose or not for the first matrix A
+    do transpose or not for the first matrix A
+
     py_trans_b: str
-        do transpose or not for the first matrix B
+    do transpose or not for the first matrix B
+
     py_m: int
-        the row of the resulting matrix C
-        in our case, is num_voxels
+    the row of the resulting matrix C
+    in our case, is num_voxels
+
     py_n: int
-        the column of the resulting matrix C
-        in our case, is num_assigned_voxels
+    the column of the resulting matrix C
+    in our case, is num_assigned_voxels
+
     py_k: int
-        the collapsed dimension of the multiplying matrices
-        i.e. the column of the first matrix after transpose if necessary
-             the row of the second matrix after transpose if necessary
+    the collapsed dimension of the multiplying matrices
+    i.e. the column of the first matrix after transpose if necessary
+    the row of the second matrix after transpose if necessary
+
     py_alpha: float
-        the weight applied to the first matrix A
+    the weight applied to the first matrix A
+
     py_a: 2D array in shape [epoch_length, num_voxels] in our case
-        the activity data of an epoch
+    the activity data of an epoch
+
     py_lda: int
-        the stride of the first matrix A
+    the stride of the first matrix A
+
     py_start_voxel: int
-        the starting voxel of assigned voxels
-        used to locate the second matrix B
+    the starting voxel of assigned voxels
+    used to locate the second matrix B
+
     py_ldb: int
-        the stride of the second matrix B
+    the stride of the second matrix B
+
     py_beta: float
-        the weight applied to the resulting matrix C
+    the weight applied to the resulting matrix C
+
     py_c: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
-        place to store the resulting correlation values
+    place to store the resulting correlation values
+
     py_ldc: int
-        the stride of the resulting matrix
-        in our case, num_voxels*num_epochs
+    the stride of the resulting matrix
+    in our case, num_voxels*num_epochs
+
     py_start_epoch: int
-        the epoch over which the correlation is computed
+    the epoch over which the correlation is computed
 
     Returns
     -------
     py_c: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
-        write the resulting correlation values in an alternate way
-        for the processing epoch
+    write the resulting correlation values in an alternate way
+    for the processing epoch
     """
     cdef bytes by_trans_a=py_trans_a.encode()
     cdef bytes by_trans_b=py_trans_b.encode()
@@ -108,38 +121,48 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, py_star
     Parameters
     ----------
     py_uplo: str
-        getting the upper or lower triangle of the matrix
+    getting the upper or lower triangle of the matrix
+
     py_trans: str
-        do transpose or not for the input matrix A
+    do transpose or not for the input matrix A
+
     py_n: int
-        the row and column of the resulting matrix C
-        in our case, is num_epochs
+    the row and column of the resulting matrix C
+    in our case, is num_epochs
+
     py_k: int
-        the collapsed dimension of the multiplying matrices
-        i.e. the column of the first matrix after transpose if necessary
-             the row of the second matrix after transpose if necessary
-        in our case, is num_voxels
+    the collapsed dimension of the multiplying matrices
+    i.e. the column of the first matrix after transpose if necessary
+    the row of the second matrix after transpose if necessary
+    in our case, is num_voxels
+
     py_alpha: float
-        the weight applied to the input matrix A
+    the weight applied to the input matrix A
+
     py_a: 3D array in shape [num_assigned_voxels, num_epochs, num_voxels] in our case
-        the normalized correlation values of a voxel
+    the normalized correlation values of a voxel
+
     py_start_voxel: int
-        the processed voxel
-        used to locate the input matrix A
+    the processed voxel
+    used to locate the input matrix A
+
     py_lda: int
-        the stride of the input matrix A
+    the stride of the input matrix A
+
     py_beta: float
-        the weight applied to the resulting matrix C
+    the weight applied to the resulting matrix C
+
     py_c: 2D array in shape [num_epochs, num_epochs]
-        place to store the resulting kernel matrix
+    place to store the resulting kernel matrix
+
     py_ldc: int
-        the stride of the resulting matrix
+    the stride of the resulting matrix
 
     Returns
     -------
     py_c: 2D array in shape [num_epochs, num_epochs]
-        write the resulting kernel_matrix
-        for the processing voxel
+    write the resulting kernel_matrix
+    for the processing voxel
     """
     cdef bytes by_uplo=py_uplo.encode()
     cdef bytes by_trans=py_trans.encode()
