@@ -106,12 +106,6 @@ class BuildExt(build_ext):
     if sys.platform == 'darwin':
         c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
                            '-ftemplate-depth-1024']
-    # configuration for CMake
-    try:
-        out = subprocess.check_output(['cmake', '--version'])
-    except OSError:
-        raise RuntimeError("CMake must be installed to build the following extensions: " +
-                           ", ".join(e.name for e in self.extensions))
 
     def build_extensions(self):
         """the system will execute the run functions of the base class (distutils.command.build_ext)
@@ -139,6 +133,12 @@ class BuildExt(build_ext):
         self.build_extension(ext)
 
     def cmake_compiling(self, ext):
+        # configuration for CMake
+        try:
+            out = subprocess.check_output(['cmake', '--version'])
+        except OSError:
+            raise RuntimeError("CMake must be installed to build the following extensions: " +
+                           ", ".join(e.name for e in self.extensions))
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
                       '-DPYTHON_EXECUTABLE=' + sys.executable]

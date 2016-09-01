@@ -17,6 +17,8 @@ from scipy.stats.mstats import zscore
 from sklearn import svm
 import numpy as np
 import math
+from mpi4py import MPI
+import time
 
 
 def create_epoch():
@@ -42,4 +44,7 @@ def test_voxel_selection():
     # test scipy normalization
     fake_corr = np.random.rand(1, 12, 100).astype(np.float32)
     fake_corr = vs.correlationNormalization(fake_corr)
+    # make one process sleep a while to resolve file writing competition
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        time.sleep(0.5)
     return results, fake_corr
