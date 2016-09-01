@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from brainiak.fcma.fcma import *
+from brainiak.fcma.voxelselector import VoxelSelector
 from scipy.stats.mstats import zscore
 from sklearn import svm
 import sys
@@ -20,6 +20,8 @@ from mpi4py import MPI
 import nibabel as nib
 import os
 import math
+import time
+import numpy as np
 
 
 def readActivityData(dir, file_extension, mask_file):

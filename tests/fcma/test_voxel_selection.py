@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from brainiak.fcma.fcma import *
+from brainiak.fcma.voxelselector import VoxelSelector
 from scipy.stats.mstats import zscore
 from sklearn import svm
 import numpy as np
@@ -43,7 +43,7 @@ def test_voxel_selection():
     results = vs.run(clf)
     # test scipy normalization
     fake_corr = np.random.rand(1, 12, 100).astype(np.float32)
-    fake_corr = vs.correlationNormalization(fake_corr)
+    fake_corr = vs._correlationNormalization(fake_corr)
     # make one process sleep a while to resolve file writing competition
     if MPI.COMM_WORLD.Get_rank() == 0:
         time.sleep(0.5)

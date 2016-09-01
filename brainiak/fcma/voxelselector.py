@@ -43,6 +43,10 @@ import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
 
+__all__ = [
+    "VoxelSelector",
+]
+
 WORKTAG = 0
 TERMINATETAG = 1
 
@@ -65,9 +69,6 @@ class VoxelSelector:
 
     epochs_per_subj: int
         The number of epochs of each subject
-
-    num_voxels: int
-        The number of voxels participating in the voxel selection
 
     labels: list of 1D array
         the condition labels of the epochs
@@ -92,7 +93,7 @@ class VoxelSelector:
         self.num_folds = num_folds
         self.voxel_unit = voxel_unit
         if self.num_voxels == 0:
-            raise RuntimeError("Zero processed voxels")
+            raise ValueError("Zero processed voxels")
 
     def run(self, clf):
         """ run correlation-based voxel selection in master-worker model
@@ -113,16 +114,18 @@ class VoxelSelector:
         """
         rank = MPI.COMM_WORLD.Get_rank()
         if rank == 0:
-            results = self.master()
+            results = self._master()
             # Sort the voxels
             results.sort(key=lambda tup: tup[1], reverse=True)
         else:
-            self.worker(clf)
+            self._worker(clf)
             results = []
         return results
 
-    def master(self):
-        """ master node's operation, assigning tasks and collecting results
+    def _master(self):
+        """ master node's operation
+
+        Assigning tasks to workers and collecting results from them
 
         Parameters
         ----------
@@ -178,9 +181,10 @@ class VoxelSelector:
 
         return results
 
-    def worker(self, clf):
-        """ worker node's operation,
-        receiving tasks from the master to process and sending the result back
+    def _worker(self, clf):
+        """ worker node's operation
+
+        Receiving tasks from the master to process and sending the result back
 
         Parameters
         ----------
@@ -197,9 +201,9 @@ class VoxelSelector:
             task = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
             if status.Get_tag():
                 break
-            comm.send(self.voxelScoring(task, clf), dest=0)
+            comm.send(self._voxelScoring(task, clf), dest=0)
 
-    def correlationComputation(self, task):
+    def _correlationComputation(self, task):
         """ use BLAS API to do correlation computation (matrix multiplication)
 
         Parameters
@@ -212,6 +216,7 @@ class VoxelSelector:
         corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
             the correlation values of all subjects in all epochs
             for the assigned values, in row-major
+            corr[i, e, s + j] = corr[j, e, s + i]
         """
         s = task[0]
         nEpochs = len(self.raw_data)
@@ -231,11 +236,12 @@ class VoxelSelector:
             count += 1
         return corr
 
-    def correlationNormalization(self, corr):
+    def _correlationNormalization(self, corr):
         """ within-subject normalization
 
-        this method uses scipy.zscore to normalize the data,
-        but is much slower than its C++ counterpart
+        This method uses scipy.zscore to normalize the data,
+        but is much slower than its C++ counterpart。
+        It is doing in-place z-score.
 
         Parameters
         ----------
@@ -263,7 +269,7 @@ class VoxelSelector:
         corr = np.nan_to_num(corr)
         return corr
 
-    def crossValidation(self, task, corr, clf):
+    def _crossValidation(self, task, corr, clf):
         """ voxelwise cross validation based on correlation vectors
 
         Parameters
@@ -303,7 +309,7 @@ class VoxelSelector:
             results.append((i + task[0], scores.mean()))
         return results
 
-    def voxelScoring(self, task, clf):
+    def _voxelScoring(self, task, clf):
         """ voxel selection processing done in the worker node
 
         Take the task in,
@@ -328,17 +334,13 @@ class VoxelSelector:
         """
         time1 = time.time()
         # correlation computation
-        # corr is a 3D array in row major,
-        # in (selected_voxels, epochs, all_voxels) shape
-        # corr[i, e, s + j] = corr[j, e, s + i]
-        corr = self.correlationComputation(task)
+        corr = self._correlationComputation(task)
         # normalization
-        # in-place z-score, the result is still in corr
-        # corr = self.correlationNormalization(corr)
+        # corr = self._correlationNormalization(corr)
         fcma_extension.normalization(corr, self.epochs_per_subj)
 
         # cross validation
-        results = self.crossValidation(task, corr, clf)
+        results = self._crossValidation(task, corr, clf)
         time2 = time.time()
         print('task:', int(task[0] / self.voxel_unit),
               round(time2 - time1, 2), 's')
