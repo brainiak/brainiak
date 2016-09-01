@@ -5,6 +5,7 @@
 *.swp
 *.lib
 *.o
+*.npy
 
 brainiak.egg-info
 build
@@ -18,3 +19,4 @@ htmlcov
 .idea
 .ipynb_checkpoints
 junit-*.xml
+brainiak/fcma/__pycache__
