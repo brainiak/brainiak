@@ -124,7 +124,7 @@ class BRSA(BaseEstimator):
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
             tolx=2e-3, verbose=False, pad_DC=False, epsilon=0.001,
             space_smooth_range=None, inten_smooth_range=None,
-            inten_weight=0.1, init_iter=40):
+            inten_weight=0.1, init_iter=20):
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
@@ -227,7 +227,7 @@ class BRSA(BaseEstimator):
                 'data X, or voxel coordinates are not provided. '\
                 'Please make sure that coords is in the shape of '\
                 '[ n_voxel x 3].'
-            assert coords.dim <= 2,\
+            assert coords.ndim <= 2,\
                 'The coordinate matrix should not have '\
                 'more than 2 dimensions'
             if coords.ndim == 1:
@@ -350,7 +350,7 @@ class BRSA(BaseEstimator):
             n_V = coords.shape[1]
             dist2 = np.zeros([n_V, n_V])
             # square of spatial distance between every two voxels
-            for dim in range(np.shape(coords, 1)):
+            for dim in range(np.size(coords, 1)):
                 coord_tile = np.tile(coords[:, dim], [n_V, 1])
                 dist2 = dist2 + (coord_tile - coord_tile.T)**2
 
@@ -430,7 +430,7 @@ class BRSA(BaseEstimator):
         dist2, inten_diff2, space_smooth_range, inten_smooth_range,\
             n_smooth = self.calc_dist2_GP(
                 coords=coords, inten=inten,
-                GP_space=GP_space, GP_inen=GP_inten)
+                GP_space=GP_space, GP_inten=GP_inten)
         current_GP = np.zeros(n_smooth)
 
         beta_hat = np.linalg.lstsq(design, Y)[0]
@@ -543,7 +543,7 @@ class BRSA(BaseEstimator):
                 #                  '{}'.format(current_logSNR2))
                 #     logger.debug('log(sigma^2) has non-finite number')
 
-                param0_fitV = res_fitV.x.copy()
+                param0_fitV[:n_V - 1] = res_fitV.x.copy()
 
                 # fit U, the covariance matrix, together with AR(1) param
                 param0_fitU[0:n_l] = current_vec_U_chlsk_l_AR1
@@ -925,8 +925,8 @@ class BRSA(BaseEstimator):
 
     def _loglike_y_AR1_diagV_fitV(self, param, XTX, XTDX, XTFX, YTY_diag,
                                   YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                  L_l, a1, l_idx, n_C, n_T, n_V, rank,
-                                  GP_space, GP_inten, dist2=None,
+                                  L_l, a1, l_idx, n_C, n_T, n_V, rank=None,
+                                  GP_space=False, GP_inten=False, dist2=None,
                                   inten_dist2=None, space_smooth_range=None,
                                   inten_smooth_range=None, inten_weight=0.0):
 
@@ -965,11 +965,10 @@ class BRSA(BaseEstimator):
         # weighted for the Gaussian Process. It should be in the range of
         # (0,1)
 
-        LL = 0.0
         n_l = np.size(l_idx[0])
         # the number of parameters in the index of lower-triangular matrix
         if rank is None:
-            rank = int((2 * n_C + 1 - 
+            rank = int((2 * n_C + 1 -
                         np.sqrt(n_C**2 * 4 + n_C * 4 + 1 - 8 * n_l)) / 2)
         L = np.zeros([n_C, rank])
         L[l_idx] = L_l
@@ -988,228 +987,208 @@ class BRSA(BaseEstimator):
         # SNR = np.exp(log_SNR2 / 2.0)
         # Literally we should impose the GP prior on log(SNR).
         # But in the implementation we impose on log(SNR^2)
-        rho1 = 2.0/np.pi * np.arctan(a1)
-
-        YTAY = YTY_diag - rho1*YTDY_diag + rho1**2 * YTFY_diag
-        XTAX = XTX[np.newaxis,:,:] - rho1[:,np.newaxis,np.newaxis]*XTDX[np.newaxis,:,:] \
-            + rho1[:,np.newaxis,np.newaxis]**2 * XTFX[np.newaxis,:,:]
+        deriv_log_SNR2 = np.zeros(np.shape(SNR2))
+        # Partial derivative of log likelihood over log(SNR^2)
+        # dimension: space,
+        rho1 = 2.0 / np.pi * np.arctan(a1)
+        # AR(1) coefficient, dimension: space
+        YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
+        XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
+            * XTDX[np.newaxis, :, :] \
+            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX[np.newaxis, :, :]
         # dimension: space*feature*feature
-        XTAY = XTY - rho1*XTDY + rho1**2 * XTFY
+        XTAY = XTY - rho1 * XTDY + rho1**2 * XTFY
         # dimension: feature*space
-        LTXTAY = np.dot(L.T,XTAY)
-        
-        LAMBDA_i = np.zeros([n_V,rank,rank])
+        LTXTAY = np.dot(L.T, XTAY)
+        # dimension: rank*space
+        LAMBDA_i = np.zeros([n_V, rank, rank])
         for i_v in range(n_V):
-            LAMBDA_i[i_v,:,:] = np.dot(np.dot(L.T,XTAX[i_v,:,:]),L) * SNR2[i_v]
-        LAMBDA_i += np.eye(rank) 
+            LAMBDA_i[i_v, :, :] = np.dot(np.dot(L.T, XTAX[i_v, :, :]), L) \
+                * SNR2[i_v]
+        LAMBDA_i += np.eye(rank)
         # dimension: space*rank*rank
         LAMBDA = np.linalg.inv(LAMBDA_i)
         # dimension: space*rank*rank
-        YTAXL_LAMBDA = np.einsum('ijk,ki->ij',LAMBDA,LTXTAY)
+        YTAXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAY)
         # dimension: space*rank
-        YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA,L.T)
-    
-        sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA_LT * XTAY.T, axis=1)) / n_T
-        
-        
-#         if np.sum(log_SNR2!=0) == 0:
-#             # all SNR2 become 1. No need to incorporate GP prior.
-#             GP_space = False
-        
-        # Flags for whethe to incorportate GP smoothness prior in space or tissue type
-        if GP_space :
-            b_space = param[n_V-1]
-            l2_space = np.exp(b_space)
-            dl2_db_space = l2_space
-            # partial derivative
+        YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA, L.T)
+        # dimension: space*feature
+        sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA_LT * XTAY.T, axis=1))\
+            / n_T
+        # dimension: space
 
+        LL = -np.sum(np.log(sigma2)) * n_T * 0.5\
+            + np.sum(np.log(1 - rho1**2)) * 0.5\
+            - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 - n_T * 0.5
+        # Log likelihood of data given parameters, without the GP prior.
+        deriv_log_SNR2 = (-rank + np.trace(LAMBDA, axis1=1, axis2=2)) * 0.5\
+            + YTAY / (sigma2 * 2.0) - n_T * 0.5 \
+            - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA_LT,
+                        XTAX, YTAXL_LAMBDA_LT)\
+            / (sigma2 * 2.0) * (SNR2**2.0)
+
+        if GP_space:
+            # Imposing GP prior on log(SNR^2) at least over
+            # spatial coordinates
+            b_space = param[n_V - 1]
+            l2_space = np.exp(b_space)
+            # The square of the length scale of the GP kernel defined on
+            # the spatial coordinates of voxels
+            dl2_db_space = l2_space
+            # partial derivative of l^2 over b
 
             if GP_inten:
                 b_inten = param[n_V]
                 l2_inten = np.exp(b_inten)
+                # The square of the length scale of the GP kernel defined
+                # on the image intensity of voxels
                 dl2_db_inten = l2_inten
-
-
-
-        deriv_log_SNR2 = np.zeros(np.shape(SNR2))
-        
-
-        if GP_inten:
-            K_major = np.exp(- (dist2/l2_space * (1-inten_weight) + inten_dist2/l2_inten * inten_weight)/2.0) 
-#             K_major = np.exp(- (dist2*l_2_space + inten_dist2*l_2_inten)/2.0) # *tau2
-        elif GP_space:
-            K_major = np.exp(- dist2/l2_space/2.0)
-#             K_major = np.exp(- dist2*l_2_space/2.0) # *tau2
-
-        if GP_space:
-            
-            K_tilde = K_major + np.diag(np.ones(n_V)*self.epsilon) # *tau2
-            # Note that the K_tilder here is the correct K divided by the variance tau^2
+                # partial derivative of l^2 over b
+                K_major = np.exp(- (dist2 / l2_space * (1 - inten_weight)
+                                    + inten_dist2 / l2_inten * inten_weight)
+                                 / 2.0)
+            else:
+                K_major = np.exp(- dist2 / l2_space / 2.0)
+                # The kernel defined over the spatial coordinates of voxels.
+                # This is a template: the diagonal values are all 1, meaning
+                # the variance of log(SNR^2) has not been multiplied
+            K_tilde = K_major + np.diag(np.ones(n_V) * self.epsilon)
+            # We add a small number to the diagonal to make sure the matrix
+            # is invertible.
+            # Note that the K_tilder here is still template:
+            # It is the correct K divided by the variance tau^2
             # So it does not depend on the variance of the GP.
-            L_K = np.linalg.cholesky(K_tilde)
-#             inv_L_K = np.linalg.inv(L_K)
-            inv_L_K = np.linalg.solve(L_K,np.identity(n_V))
-            inv_K_tilde = np.dot(inv_L_K.T,inv_L_K)
-            log_det_K_tilde = np.sum(np.log(np.diag(L_K)**2))
+            L_K_tilde = np.linalg.cholesky(K_tilde)
+            inv_L_K_tilde = np.linalg.solve(L_K_tilde, np.identity(n_V))
+            inv_K_tilde = np.dot(inv_L_K_tilde.T, inv_L_K_tilde)
+            log_det_K_tilde = np.sum(np.log(np.diag(L_K_tilde)**2))
 
-            invK_tilde_log_SNR2 = np.dot(inv_K_tilde,log_SNR2)
-            log_SNR2_invK_tilde_log_SNR2 = np.dot(log_SNR2,invK_tilde_log_SNR2)
-
-        
-        # dimension: space,
-        LL = -np.sum(np.log(sigma2))*n_T*0.5 + np.sum(np.log(1-rho1**2))*0.5 -np.sum(np.log(np.linalg.det(LAMBDA_i)))*0.5 \
-            -n_T*0.5
-        
-
-        # dimension: space*feature*rank
-        deriv_log_SNR2 = (-rank + np.trace(LAMBDA,axis1=1,axis2=2))*0.5 + YTAY / (sigma2*2.0) - n_T*0.5 \
-            - np.einsum('ij,ijk,ik->i',YTAXL_LAMBDA_LT,XTAX,YTAXL_LAMBDA_LT) / (sigma2*2.0) * (SNR2**2.0) \
-            
-        # dimension: space,
-
-
-
-        if GP_space:
+            invK_tilde_log_SNR2 = np.dot(inv_K_tilde, log_SNR2)
+            log_SNR2_invK_tilde_log_SNR2 = np.dot(log_SNR2,
+                                                  invK_tilde_log_SNR2)
 
             tau2 = log_SNR2_invK_tilde_log_SNR2 / n_V
-#             LL = LL - log_SNR2_invK_tilde_log_SNR2/2.0/tau2 - log_det_K_tilde/2.0 -n_V/2.0*np.log(tau2) - np.log(2*np.pi)*n_V/2.0
-            LL = LL - 0.5 - log_det_K_tilde/2.0 -n_V/2.0*np.log(tau2) - np.log(2*np.pi)*n_V/2.0
-            # If we parametrize tau^2 with its log, then we do not need to take log again above.
-            
-            deriv_log_SNR2 = deriv_log_SNR2 - invK_tilde_log_SNR2/tau2
 
-            
-            
-            
-            
-            dK_tilde_dl2_space = dist2*(K_major)/2.0/l2_space * (1-inten_weight)
+            # GP prior terms added to the log likelihood
+            LL = LL - 0.5 - log_det_K_tilde / 2.0 \
+                - n_V / 2.0 * np.log(tau2) - np.log(2 * np.pi) * n_V / 2.0
 
+            deriv_log_SNR2 -= invK_tilde_log_SNR2 / tau2
 
-            deriv_b_space =  0.5 * np.dot(np.dot(invK_tilde_log_SNR2.T,dK_tilde_dl2_space),invK_tilde_log_SNR2)*dl2_db_space/tau2 \
-                - 0.5*np.sum(inv_K_tilde*dK_tilde_dl2_space)*dl2_db_space 
+            dK_tilde_dl2_space = dist2 * (K_major) / 2.0 \
+                / l2_space**2 * (1 - inten_weight)
+            deriv_b_space = \
+                0.5 * np.dot(np.dot(invK_tilde_log_SNR2.T, dK_tilde_dl2_space),
+                             invK_tilde_log_SNR2) * dl2_db_space / tau2 \
+                - 0.5 * np.sum(inv_K_tilde * dK_tilde_dl2_space) * dl2_db_space
 
-                
-            if inten_weight != 1:
-                LL += scipy.stats.halfcauchy.logpdf(l2_space**0.5,scale=space_smooth_range)
-                deriv_b_space -= 2*l2_space**0.5/(l2_space + space_smooth_range**2) * dl2_db_space 
-            
-            
+            # Prior on the length scales
+            LL += scipy.stats.halfcauchy.logpdf(
+                l2_space**0.5, scale=space_smooth_range)
+            deriv_b_space -= 2 * l2_space**0.5 / \
+                (l2_space + space_smooth_range**2) * dl2_db_space
+
             if GP_inten:
-                
-                dK_tilde_dl2_inten = inten_dist2*(K_major)/2.0/l2_inten * inten_weight
+                dK_tilde_dl2_inten = inten_dist2 * K_major \
+                    / 2.0 / l2_inten**2 * inten_weight
 
+                deriv_b_inten = 0.5 * np.dot(
+                    np.dot(invK_tilde_log_SNR2.T, dK_tilde_dl2_inten),
+                    invK_tilde_log_SNR2) * dl2_db_inten / tau2 \
+                    - 0.5 * np.sum(inv_K_tilde * dK_tilde_dl2_inten)\
+                    * dl2_db_inten
 
-                deriv_b_inten =  0.5 * np.dot(np.dot(invK_tilde_log_SNR2.T,dK_tilde_dl2_inten),invK_tilde_log_SNR2)*dl2_db_inten/tau2 \
-                    - 0.5*np.sum(inv_K_tilde*dK_tilde_dl2_inten)*dl2_db_inten 
-                if inten_weight != 0:
-                    LL += scipy.stats.halfcauchy.logpdf(l2_inten**0.5,scale=inten_smooth_range)
-                    deriv_b_inten -= 2*l2_inten**0.5/(l2_inten + inten_smooth_range**2) * dl2_db_inten 
+                LL += scipy.stats.halfcauchy.logpdf(
+                    l2_inten**0.5, scale=inten_smooth_range)
+                deriv_b_inten -= 2 * l2_inten**0.5 /\
+                    (l2_inten + inten_smooth_range**2) * dl2_db_inten
 
-                
-                # deriv_b_inten = 0.5 * np.dot(np.dot(invK_tilde_SNR,dK_tilde_dl_2_inten),invK_tilde_SNR)*dl_2_db_inten/tau2 \
-                #     - 0.5*np.sum(inv_K_tilde*dK_tilde_dl_2_inten)*dl_2_db_inten - 2.0*b_inten/(1+b_inten**2) \
-                #     -2.0/l_2_inten*dl_2_db_inten    
-#         else:
-#             LL += np.sum(scipy.stats.norm.logpdf(log_SNR2,scale=scale_log_SNR2))
-#             deriv_log_SNR2 -= log_SNR2 / (scale_log_SNR2**2)
-#             tau2 = np.sum(log_SNR2**2) / n_V
-#             LL = LL - 0.5  -n_V/2.0*np.log(tau2) - np.log(2*np.pi)*n_V/2.0
-#             deriv_log_SNR2 -= log_SNR2/tau2
-            # Prior to control the magnitude of log(SNR^2)
-#             LL += np.sum(scipy.stats.halfcauchy.logpdf(SNR,scale=scale_SNR))
-#             deriv_log_SNR2 -= SNR*2 / (SNR2+scale_SNR**2) 
-        
-        
         deriv = np.zeros(np.size(param))
-        deriv[0:n_V-1] = deriv_log_SNR2[0:n_V-1] - deriv_log_SNR2[n_V-1]
+        deriv[0:n_V - 1] = deriv_log_SNR2[0:n_V - 1] - deriv_log_SNR2[n_V - 1]
         if GP_space:
-            deriv[n_V-1] = deriv_b_space
+            deriv[n_V - 1] = deriv_b_space
             if GP_inten:
                 deriv[n_V] = deriv_b_inten
-    
-
 
         return -LL, -deriv
-    
-    
-    
-    
-    
-    def _loglike_y_U_AR1_singpara(self,param, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, XTY, XTDY, XTFY, l_idx,n_C,n_T,n_V,rank): 
-        #In this version, we assume that beta is independent between voxels and noise is also independent
-        #By the assumption that noise is independent, we only need to pass the products X'X, X'Y and Y'Y, instead of X and Y
-        #We can even just pass the diagonal of Y'Y. Different from loglike_y_U_sigma_ind, this function treats sigma as part 
-        #of parameters
-        # singpara version uses single parameter of sigma^2 and rho1 to all voxels. We want to see if this reduces the bias in L
+
+    def _loglike_y_U_AR1_singpara(self, param, XTX, XTDX, XTFX, YTY_diag,
+                                  YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
+                                  l_idx, n_C, n_T, n_V, rank=None):
+        # In this version, we assume that beta is independent
+        # between voxels and noise is also independent.
+        # singpara version uses single parameter of sigma^2 and rho1
+        # to all voxels. This serves as the initial fitting to get
+        # an estimate of L and sigma^2 and rho1. The SNR is inherently
+        # assumed to be 1.
         LL = 0.0
 
-        n_l = np.size(l_idx[0]) # the number of parameters in the index of lower-triangular matrix
-        
-        if rank == None:
-            rank = int((2*n_C+1 - np.sqrt(n_C**2*4+n_C*4+1-8*n_l))/2)
+        n_l = np.size(l_idx[0])
+        # the number of parameters in the index of lower-triangular matrix
 
-        L = np.zeros([n_C,rank])
+        if rank is None:
+            rank = int((2 * n_C + 1
+                        - np.sqrt(n_C**2 * 4 + n_C * 4 + 1 - 8 * n_l)) / 2)
+
+        L = np.zeros([n_C, rank])
         L[l_idx] = param[0:n_l]
-        
+
         log_sigma2 = param[n_l]
         sigma2 = np.exp(log_sigma2)
-        a1 = param[n_l+1]
-        rho1 = 2.0/np.pi * np.arctan(a1)
+        a1 = param[n_l + 1]
+        rho1 = 2.0 / np.pi * np.arctan(a1)
 
+        XTAX = XTX - rho1 * XTDX + rho1**2 * XTFX
+        LAMBDA_i = np.eye(rank) +\
+            np.dot(np.dot(np.transpose(L), XTAX), L) / sigma2
 
-
-        XTAX = XTX - rho1*XTDX + rho1**2 * XTFX
-        LAMBDA_i = np.eye(rank) + np.dot(np.dot(np.transpose(L),XTAX),L) / sigma2
-
-
-        XTAY = XTY - rho1*XTDY + rho1**2 * XTFY
+        XTAY = XTY - rho1 * XTDY + rho1**2 * XTFY
         LTXTAY = np.dot(L.T, XTAY)
 
-        YTAY = YTY_diag - rho1*YTDY_diag + rho1**2 * YTFY_diag
+        YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
 
-        LAMBDA_LTXTAY = np.linalg.solve(LAMBDA_i,LTXTAY)
+        LAMBDA_LTXTAY = np.linalg.solve(LAMBDA_i, LTXTAY)
         L_LAMBDA_LTXTAY = np.dot(L, LAMBDA_LTXTAY)
-
 
         LL = LL + np.sum(LTXTAY * LAMBDA_LTXTAY) / (sigma2**2 * 2.0) \
             - np.sum(YTAY) / (sigma2 * 2.0)
 
+        deriv_L = np.dot(XTAY, LAMBDA_LTXTAY.T) / sigma2**2 \
+            - np.dot(np.dot(XTAX, L_LAMBDA_LTXTAY),
+                     LAMBDA_LTXTAY.T) / sigma2**3
 
+        deriv_log_sigma2 = np.sum(YTAY) / (sigma2 * 2.0) \
+            - np.sum(XTAY * L_LAMBDA_LTXTAY) / (sigma2**2) \
+            + np.sum(np.dot(XTAX, L_LAMBDA_LTXTAY)
+                     * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0)
 
-        deriv_L = np.dot(XTAY,LAMBDA_LTXTAY.T) / sigma2**2 \
-            - np.dot(np.dot(XTAX, L_LAMBDA_LTXTAY),LAMBDA_LTXTAY.T) / sigma2**3 
+        deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) \
+            * (-rho1 / (1 - rho1**2)
+               + np.sum((-XTDY + 2 * rho1 * XTFY)
+                        * L_LAMBDA_LTXTAY) / (sigma2**2)
+               - np.sum(np.dot((-XTDX + 2 * rho1 * XTFX), L_LAMBDA_LTXTAY)
+                        * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0)
+               - np.sum(-YTDY_diag + 2 * rho1 * YTFY_diag) / (sigma2 * 2.0))
 
-        deriv_log_sigma2 = np.sum(YTAY) / (sigma2 * 2.0) - np.sum(XTAY * L_LAMBDA_LTXTAY) / (sigma2**2) \
-            + np.sum(np.dot(XTAX, L_LAMBDA_LTXTAY) * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0)
-         
+        LL = LL + np.size(YTY_diag) * (-log_sigma2 * n_T * 0.5
+                                       + np.log(1 - rho1**2) * 0.5
+                                       - np.log(np.linalg.det(LAMBDA_i))
+                                       * 0.5)
 
-        deriv_a1 = 2.0/(np.pi*(1+a1**2)) * (- rho1 /(1 - rho1**2) \
-            + np.sum((-XTDY+2*rho1*XTFY) * L_LAMBDA_LTXTAY)/(sigma2**2) \
-            - np.sum(np.dot((-XTDX+2*rho1*XTFX), L_LAMBDA_LTXTAY) * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0) \
-            - np.sum(-YTDY_diag + 2*rho1*YTFY_diag) / (sigma2*2.0)) 
+        deriv_L = deriv_L - np.linalg.solve(LAMBDA_i, np.dot(L.T, XTAX)).T\
+            / sigma2 * np.size(YTY_diag)
+        deriv_log_sigma2 = deriv_log_sigma2 \
+            + (rank - n_T - np.trace(np.linalg.inv(LAMBDA_i)))\
+            * 0.5 * np.size(YTY_diag)
+        deriv_a1 = deriv_a1 - np.trace(
+            np.linalg.solve(LAMBDA_i,
+                            np.dot(np.dot(L.T,
+                                          (-XTDX + 2 * rho1 * XTFX)), L)))\
+            / (sigma2 * 2) * np.size(YTY_diag)
 
-
-
-
-        LL = LL + np.size(YTY_diag) * (- log_sigma2 * n_T *0.5 + np.log(1 - rho1**2)*0.5 - np.log(np.linalg.det(LAMBDA_i)) * 0.5)
-
-        deriv_L = deriv_L - np.transpose(np.linalg.solve(LAMBDA_i, np.dot(L.T, XTAX))) / sigma2 * np.size(YTY_diag)
-        deriv_log_sigma2 = deriv_log_sigma2 + (rank - n_T - np.trace(np.linalg.inv(LAMBDA_i))) * 0.5 * np.size(YTY_diag)
-        deriv_a1 = deriv_a1 - np.trace(np.linalg.solve(LAMBDA_i,np.dot(np.dot(L.T, (-XTDX + 2*rho1*XTFX)),L))) / (sigma2*2) * np.size(YTY_diag)
-
-    
         deriv = np.zeros(np.size(param))
         deriv[0:n_l] = deriv_L[l_idx]
         deriv[n_l] = deriv_log_sigma2
-        deriv[n_l+1] = deriv_a1
-
-
+        deriv[n_l + 1] = deriv_a1
 
         return -LL, -deriv
-    
-    
-    
-    
-    
-    
-    

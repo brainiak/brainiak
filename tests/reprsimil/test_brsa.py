@@ -17,9 +17,9 @@ import pytest
 
 
 def test_can_instantiate():
-    import brainiak.brsa
+    import brainiak.reprsimil.brsa
     import numpy as np
-    s = brainiak.bayesianrsa.brsa.BRSA()
+    s = brainiak.reprsimil.brsa.BRSA()
     assert s, "Invalid BRSA instance!"
 
     
@@ -28,17 +28,19 @@ def test_can_instantiate():
     samples = 500
     features = 3
 
-    s = brainiak.representationsimilarity.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tolx=2e-3,verbose=True,\
+    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tolx=2e-3,\
                 pad_DC=False,epsilon=0.001,space_smooth_range=10.0,inten_smooth_range=100.0)
     assert s, "Invalid BRSA instance!"
 
 def test_fit():
-    from brainiak.bayesianrsa.brsa import BRSA
-    import brainiak.utils.read_design as read_design
+    from brainiak.reprsimil.brsa import BRSA
+    import brainiak.utils.utils as utils
     import scipy.stats
     import numpy as np
+    import os.path
+    file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     # Load an example design matrix
-    design = read_design.design_matrix('example_design.1D')
+    design = utils.read_design(fname=file_path)
     # concatenate it by 4 times, mimicking 4 runs of itenditcal timing
     design.design_used = np.tile(design.design_used[:,0:17],[4,1])
     design.n_TR = design.n_TR * 4
@@ -77,7 +79,7 @@ def test_fit():
 
     # generating signal
     snr_level = 5.0 # test with high SNR    
-    snr = np.random.rand(n_V)*(snr_top-snr_bot)+snr_bot
+    # snr = np.random.rand(n_V)*(snr_top-snr_bot)+snr_bot
     # Notice that accurately speaking this is not snr. the magnitude of signal depends
     # not only on beta but also on x.
     inten = np.random.randn(n_V) * 5.0
@@ -109,19 +111,19 @@ def test_fit():
     scan_onsets = np.linspace(0,design.n_TR,num=5)
 
     
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20,rank=rank)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
 
     brsa.fit(X=Y,design=design.design_used,scan_onsets=scan_onsets,coords=coords,inten=inten,inten_weight=0.1)
     
     # Check that result is significantly correlated with the ideal covariance matrix
     u_b = brsa.U_[1:,1:]
     u_i = ideal_cov[1:,1:]
-    p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)]).pvalue 
+    p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNR makes sense
-    p = scipy.stats.pearsonr(brsa.nSNR_,snr).pvalue
+    p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
     assert p < 0.05, "Fitted SNR does not correlate with simualted SNR!"
-    assert np.isclose(np.mean(np.log(brsa.nSNR_))), "nSNR_ not normalized!"
+    assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     
     
     
@@ -129,15 +131,18 @@ def test_fit():
     XTY,XTDY,XTFY,YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX = brsa._prepare_data(design.design_used,Y,n_T,n_V,scan_onsets)
     n_l = n_C*(n_C+1)/2
     param0_fitU = np.random.randn(n_l+n_V) * 0.1
-    param0_fitV = np.random.randn(n_V+2) * 0.1
+    param0_fitV = np.random.randn(n_V+1) * 0.1
+    param0_fitV[:n_V-1] += np.log(snr[:n_V-1])*2
+    param0_fitV[n_V-1] += np.log(smooth_width)*2
+    param0_fitV[n_V] += np.log(inten_kernel)*2
     l_idx = np.tril_indices(n_C)
     perturb = 1e-6
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V)
+                XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
     param1_fitU = param0_fitU.copy()
     param1_fitU[0] = param1_fitU[0]+perturb
     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitU(param1_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V)
+                XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
     num_diff = ll1-ll0
     ana_diff = deriv0[0]*perturb
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of L is not right"
@@ -145,7 +150,7 @@ def test_fit():
     param1_fitU = param0_fitU.copy()
     param1_fitU[n_l] = param1_fitU[n_l]+perturb
     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitU(param1_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V)
+                XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_l]*perturb
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of AR(1) coefficient reparametrization is not right"
