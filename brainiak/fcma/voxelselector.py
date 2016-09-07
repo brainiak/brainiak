@@ -42,6 +42,9 @@ from sklearn import cross_validation
 import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
+import logging
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "VoxelSelector",
@@ -138,6 +141,9 @@ class VoxelSelector:
             the accuracy numbers of all voxels, in accuracy descending order
             the length of array equals the number of voxels
         """
+        logger.info(
+            'Master starts to allocate tasks'
+        )
         results = []
         comm = MPI.COMM_WORLD
         size = comm.Get_size()
@@ -228,6 +234,7 @@ class VoxelSelector:
             for the assigned values, in row-major
             corr[i, e, s + j] = corr[j, e, s + i]
         """
+        time1 = time.time()
         s = task[0]
         nEpochs = len(self.raw_data)
         corr = np.zeros((task[1], nEpochs, self.num_voxels),
@@ -244,6 +251,11 @@ class VoxelSelector:
                                      0.0, corr,
                                      self.num_voxels * nEpochs, count)
             count += 1
+        time2 = time.time()
+        logger.debug(
+            'correlation computation for %d voxels, takes %.2f s' %
+            ((task[1] - task[0]), (time2 - time1))
+        )
         return corr
 
     def _correlationNormalization(self, corr):
@@ -265,6 +277,7 @@ class VoxelSelector:
             the normalized correlation values of all subjects in all epochs
             for the assigned values, in row-major
         """
+        time1 = time.time()
         (sv, e, av) = corr.shape
         for i in range(sv):
             start = 0
@@ -277,6 +290,12 @@ class VoxelSelector:
         # if zscore fails (standard deviation is zero),
         # set all values to be zero
         corr = np.nan_to_num(corr)
+        time2 = time.time()
+        logger.debug(
+            'within-subject normalization for %d voxels using numpy zscore function,'
+            ' takes %.2f s' %
+            (sv, (time2 - time1))
+        )
         return corr
 
     def _crossValidation(self, task, corr, clf):
@@ -296,6 +315,7 @@ class VoxelSelector:
             the accuracy numbers of all voxels, in accuracy descending order
             the length of array equals the number of assigned voxels
         """
+        time1 = time.time()
         (sv, e, av) = corr.shape
         kernel_matrix = np.zeros((e, e), np.float32, order='C')
         results = []
@@ -317,6 +337,11 @@ class VoxelSelector:
             scores = cross_validation.cross_val_score(clf, data, self.labels,
                                                       cv=skf, n_jobs=1)
             results.append((i + task[0], scores.mean()))
+        time2 = time.time()
+        logger.debug(
+            'cross validation for %d voxels, takes %.2f s' %
+            ((task[1] - task[0]), (time2 - time1))
+        )
         return results
 
     def _voxelScoring(self, task, clf):
@@ -347,12 +372,21 @@ class VoxelSelector:
         corr = self._correlationComputation(task)
         # normalization
         # corr = self._correlationNormalization(corr)
+        time3 = time.time()
         fcma_extension.normalization(corr, self.epochs_per_subj)
+        time4 = time.time()
+        logger.debug(
+            'within-subject normalization for %d voxels using C++, '
+            'takes %.2f s' %
+            ((task[1] - task[0]), (time4 - time3))
+        )
 
         # cross validation
         results = self._crossValidation(task, corr, clf)
         time2 = time.time()
-        print('task:', int(task[0] / self.voxel_unit),
-              round(time2 - time1, 2), 's')
-        sys.stdout.flush()
+        logger.info(
+            'in rank %d, task %d takes %.2f s' %
+            (MPI.COMM_WORLD.Get_rank(),
+             (int(task[0] / self.voxel_unit)), (time2 - time1))
+        )
         return results

@@ -22,7 +22,13 @@ import os
 import math
 import time
 import numpy as np
+import logging
 
+format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+# if want to output log to a file instead of outputting log to the console,
+# replace "stream=sys.stdout" with "filename='fcma.log'"
+logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
+logger = logging.getLogger(__name__)
 
 def readActivityData(dir, file_extension, mask_file):
     """ read data in NIfTI format and apply the spatial mask to them
@@ -65,11 +71,15 @@ def readActivityData(dir, file_extension, mask_file):
                 masked_data[:, count1] = np.copy(data[index])
                 count1 += 1
         activity_data.append(masked_data)
-        print(f, masked_data.shape)
-        sys.stdout.flush()
+        logger.info(
+            'file %s is loaded and masked, with data shape %s' %
+            (f, masked_data.shape)
+        )
     time2 = time.time()
-    print('data reading done, takes', round(time2 - time1, 2), 's')
-    sys.stdout.flush()
+    logger.info(
+        'data reading done, takes %.2f s' %
+        (time2 - time1)
+    )
     return activity_data
 
 
@@ -117,8 +127,10 @@ def separateEpochs(activity_data, epoch_list):
                     raw_data.append(mat)
                     labels.append(cond)
     time2 = time.time()
-    print('epoch separation done, takes', round(time2 - time1, 2), 's')
-    sys.stdout.flush()
+    logger.info(
+        'epoch separation done, takes %.2f s' %
+        (time2 - time1)
+    )
     return raw_data, labels
 
 
@@ -167,8 +179,10 @@ def prepareData(data_dir, extension, mask_file, epoch_file):
     labels = comm.bcast(labels, root=0)
     if rank == 0:
         time2 = time.time()
-        print('data broadcasting done, takes', round(time2 - time1, 2), 's')
-        sys.stdout.flush()
+        logger.info(
+            'data broadcasting done, takes %.2f s' %
+            (time2 - time1)
+        )
     return raw_data, labels
 
 
@@ -178,6 +192,11 @@ mpirun -np 2 python run.py /Users/yidawang/data/face_scene/raw nii.gz /Users/yid
                         data/fs_epoch_labels.npy 12 18
 """
 if __name__ == '__main__':
+    if MPI.COMM_WORLD.Get_rank()==0:
+        logger.info(
+            'programming starts in %d process(es)' %
+            MPI.COMM_WORLD.Get_size()
+        )
     data_dir = sys.argv[1]
     extension = sys.argv[2]
     mask_file = sys.argv[3]
@@ -190,5 +209,6 @@ if __name__ == '__main__':
     # no shrinking, set C=10
     clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
     results = vs.run(clf)
+    # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
         print(results[0:100])
