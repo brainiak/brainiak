@@ -20,6 +20,8 @@
     neural representational similarity structure",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
     Neural Information Processing System 29, 2016.
+    A preprint is available at 
+    http://biorxiv.org/content/early/2016/09/07/073932
 """
 
 # Authors: Mingbo Cai
