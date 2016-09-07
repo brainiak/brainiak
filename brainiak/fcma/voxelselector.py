@@ -34,7 +34,6 @@ This implementation is based on the following publications:
 # (Intel Labs), 2016
 
 import numpy as np
-import sys
 import time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
@@ -292,8 +291,8 @@ class VoxelSelector:
         corr = np.nan_to_num(corr)
         time2 = time.time()
         logger.debug(
-            'within-subject normalization for %d voxels using numpy zscore function,'
-            ' takes %.2f s' %
+            'within-subject normalization for %d voxels '
+            'using numpy zscore function, takes %.2f s' %
             (sv, (time2 - time1))
         )
         return corr
@@ -376,8 +375,8 @@ class VoxelSelector:
         fcma_extension.normalization(corr, self.epochs_per_subj)
         time4 = time.time()
         logger.debug(
-            'within-subject normalization for %d voxels using C++, '
-            'takes %.2f s' %
+            'within-subject normalization for %d voxels '
+            'using C++, takes %.2f s' %
             ((task[1] - task[0]), (time4 - time3))
         )
 
