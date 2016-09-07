@@ -20,7 +20,7 @@
     neural representational similarity structure",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
     Neural Information Processing System 29, 2016.
-    A preprint is available at 
+    A preprint is available at
     http://biorxiv.org/content/early/2016/09/07/073932
 """
 
@@ -120,11 +120,12 @@ class BRSA(BaseEstimator):
     lGPinten_: number, only if GP_inten is True
         the length scale in fMRI intensity of the GP prior of log(SNR)
 
-    ..  Note: 
-        The current version assumes noise is independent
-        across voxels. Real data typically has spatial correlation in noise.
-        This assumption might still introduce some bias in the result.
-        Spatial correlation will be included in a future version.
+    Notes
+    -----
+    The current version assumes noise is independent across voxels.
+    across voxels. Real data typically has spatial correlation in noise.
+    This assumption might still introduce some bias in the result.
+    Spatial correlation will be included in a future version.
     """
 
     def __init__(
