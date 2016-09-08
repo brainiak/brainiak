@@ -596,91 +596,6 @@ class BRSA(BaseEstimator):
             param0_fitV[n_V - 1:n_V - 1 + n_smooth] = current_GP
             logger.debug('current GP[0]:{}'.format(current_GP[0]))
 
-# Debugging purpose. Commented out due to complexity limit.
-# These lines will display gradient. The test code would do the same.
-#         if self.verbose:
-#             logger.debug('testing gradient for fitV')
-#             ll0, deriv0 = self._loglike_y_AR1_diagV_fitV(
-#                 param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-#                 XTY, XTDY, XTFY, current_vec_U_chlsk_l_AR1, current_a1,
-#                 l_idx, n_C, n_T, n_V, rank, GP_space, GP_inten, dist2,
-#                 inten_diff2, space_smooth_range, inten_smooth_range,
-#                 inten_weight)
-#             perturb = 1e-4
-
-#             param_perturb = param1_fitV.copy()
-#             param_perturb[0] = param_perturb[0] + perturb
-#             ll1, deriv1 = self._loglike_y_AR1_diagV_fitV(
-#                 param_perturb, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,
-#                 YTFY_diag, XTY, XTDY, XTFY, current_vec_U_chlsk_l_AR1,
-#                 current_a1, l_idx, n_C, n_T, n_V, rank, GP_space, GP_inten,
-#                 dist2, inten_diff2, space_smooth_range, inten_smooth_range,
-#                 inten_weight)
-#             logger.debug('perturbing log_SNR2')
-#             logger.debug('numerical difference: {}'.format(ll1 - ll0))
-#             logger.debug('analytical difference: {}'.format(
-#                 deriv0[0] * perturb))
-
-#             if GP_space:
-#                 param_perturb = param1_fitV.copy()
-#                 param_perturb[n_V - 1] = param_perturb[n_V - 1] + perturb
-#                 ll1, deriv1 = self._loglike_y_AR1_diagV_fitV(
-#                     param_perturb, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,
-#                     YTFY_diag, XTY, XTDY, XTFY, current_vec_U_chlsk_l_AR1,
-#                     current_a1, l_idx, n_C, n_T, n_V, rank, GP_space,
-#                     GP_inten, dist2, inten_diff2, space_smooth_range,
-#                     inten_smooth_range, inten_weight)
-#                 logger.debug('perturbing GP[0]')
-#                 logger.debug('numerical difference: {}'.format(ll1 - ll0))
-#                 logger.debug(
-#                     'analytical difference: {}'.format(deriv0[n_V - 1]
-#                     * perturb))
-#                 if GP_inten:
-#                     param_perturb = param1_fitV.copy()
-#                     param_perturb[n_V] = param_perturb[n_V] + perturb
-#                     ll1, deriv1 = self._loglike_y_AR1_diagV_fitV(
-#                         param_perturb, XTX, XTDX, XTFX, YTY_diag,
-#                         YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-#                         current_vec_U_chlsk_l_AR1, current_a1, l_idx, n_C,
-#                         n_T, n_V, rank, GP_space, GP_inten, dist2,
-#                         inten_diff2, space_smooth_range,
-#                         inten_smooth_range, inten_weight)
-#                     logger.debug('perturbing GP[1]')
-#                     logger.debug(
-#                         'numerical difference: {}'.format(ll1 - ll0))
-#                     logger.debug(
-#                         'analytical difference: {}'.format(deriv0[n_V]
-#                         * perturb))
-
-#             logger.debug('testing gradient for fitU')
-
-#             ll0, deriv0 = self._loglike_y_AR1_diagV_fitU(
-#                 param1_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-#                 XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C, n_T, n_V, rank)
-#             perturb = 1e-4
-
-#             param_perturb = param1_fitU.copy()
-#             param_perturb[0] = param_perturb[0] + perturb
-#             ll1, deriv1 = self._loglike_y_AR1_diagV_fitU(
-#                 param_perturb, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,
-#                 YTFY_diag, XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C,
-#                 n_T, n_V, rank)
-#             logger.debug('perturbing L')
-#             logger.debug('numerical difference: {}'.format(ll1 - ll0))
-#             logger.debug('analytical difference: {}'.format(deriv0[0]
-#                                                             * perturb))
-
-#             param_perturb = param1_fitU.copy()
-#             param_perturb[n_l] = param_perturb[n_l] + perturb
-#             ll1, deriv1 = self._loglike_y_AR1_diagV_fitU(
-#                 param_perturb, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,
-#                 YTFY_diag, XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C,
-#                 n_T, n_V, rank)
-#             logger.debug('perturbing a1')
-#             logger.debug('numerical difference: {}'.format(ll1 - ll0))
-#             logger.debug('analytical difference: {}'.format(deriv0[n_l]
-#                                                             * perturb))
-
         tolx = self.tolx
         n_iter = self.n_iter
         logger.debug('start real fitting')
@@ -733,11 +648,7 @@ class BRSA(BaseEstimator):
                          '{}'.format(norm_fitUchange))
             param0_fitU = res_fitU.x.copy()
 
-#             if norm_fitVchange/np.sqrt(param0_fitV.size-n_smooth) \
-            # < tolx and norm_fitUchange/np.sqrt(param0_fitU.size)\
-            # < tolx and np.linalg.norm(fitUchange[0:n_l])/np.sqrt(n_l) \
-            # < tolx:
-
+            # Debugging purpose. But it exceeds complexity limit
             # if GP_space:
             #     current_GP = res_fitV.x[n_V - 1:n_V - 1 + n_smooth]
             #     logger.debug('current GP[0]: {}'.format(current_GP[0]))
@@ -802,20 +713,22 @@ class BRSA(BaseEstimator):
                                  inten_diff2 / opt_intensity_kernel_r**2)
                                  / 2.0)
                 K = K_major + np.diag(np.ones(n_V) * self.epsilon)
-                opt_std_log_SNR2 = (np.dot(current_logSNR2, np.dot(
-                    np.linalg.inv(K), current_logSNR2)) / (n_V - 1))**0.5
+                opt_std_log_SNR = (np.dot(current_logSNR2, np.dot(
+                    np.linalg.inv(K), current_logSNR2)) / n_V / 4)**0.5
+                # divided by 4 because the GP prior was implemented for
+                # log(SNR^2) instead of log(SNR)
                 return est_cov_AR1_UV, Uest_chlsk_l_AR1_UV, opt_SNR_AR1_UV, \
                     opt_sigma_AR1_UV, opt_rho1_AR1_UV, opt_space_smooth_r, \
-                    opt_std_log_SNR2, opt_intensity_kernel_r
+                    opt_std_log_SNR, opt_intensity_kernel_r
             # When GP_inten is True, the following lines won't be reached
             else:
                 K_major = np.exp(- dist2 / opt_space_smooth_r**2 / 2.0)
                 K = K_major + np.diag(np.ones(n_V) * self.epsilon)
-                opt_std_log_SNR2 = (np.dot(current_logSNR2, np.dot(
-                    np.linalg.inv(K), current_logSNR2)) / (n_V - 1))**0.5
+                opt_std_log_SNR = (np.dot(current_logSNR2, np.dot(
+                    np.linalg.inv(K), current_logSNR2)) / n_V / 4)**0.5
                 return est_cov_AR1_UV, Uest_chlsk_l_AR1_UV, opt_SNR_AR1_UV, \
                     opt_sigma_AR1_UV, opt_rho1_AR1_UV, opt_space_smooth_r, \
-                    opt_std_log_SNR2
+                    opt_std_log_SNR
         else:
             return est_cov_AR1_UV, Uest_chlsk_l_AR1_UV, opt_SNR_AR1_UV, \
                 opt_sigma_AR1_UV, opt_rho1_AR1_UV
