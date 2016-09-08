@@ -42,3 +42,11 @@ def test_fast_inv():
     with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
         fast_inv(a)
     assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
+
+def test_read_design():
+    from brainiak.utils.utils import read_design
+    import numpy as np
+    import os.path
+    file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
+    design = read_design(fname=file_path)
+    assert design, 'Failed to read design matrix'
