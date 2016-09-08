@@ -48,6 +48,7 @@ __all__ = [
 
 class BRSA(BaseEstimator):
     """Bayesian representational Similarity Analysis (BRSA)
+
     Given the time series of preprocessed neural imaging data and
     the hypothetical neural response (design matrix) to
     each experimental condition of interest,
@@ -123,7 +124,7 @@ class BRSA(BaseEstimator):
     Notes
     -----
     The current version assumes noise is independent across voxels.
-    across voxels. Real data typically has spatial correlation in noise.
+    Real data typically has spatial correlation in noise.
     This assumption might still introduce some bias in the result.
     Spatial correlation will be included in a future version.
     """
@@ -163,7 +164,7 @@ class BRSA(BaseEstimator):
         """Compute the Bayesian RSA
         Parameters
         ----------
-        X : 2-D numpy array, shape=[time_points, voxels]
+        X: 2-D numpy array, shape=[time_points, voxels]
             In the equation, this is actually Y.
         design: 2-D numpy array, shape=[time_points, conditions]
             This is the design matrix. We will automatically pad a column
