@@ -1,7 +1,11 @@
 def make_ext(modname, pyxfilename):
     from distutils.extension import Extension
+    import os
+    opts = []
+    if 'icc' in os.environ["CC"]:
+        opts += ['-lirc', '-lintlc']
     return Extension(
-        name=modname,
-        sources=[pyxfilename],
-        extra_link_args=['-lirc', '-lintlc']
+        name = modname,
+        sources = [pyxfilename],
+        extra_link_args = opts,
     )
