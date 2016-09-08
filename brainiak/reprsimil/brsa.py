@@ -98,6 +98,7 @@ class BRSA(BaseEstimator):
         In future version, we will include a seperate input
         argument for all regressors you are not interested in,
         such as DC component and motion parameters.
+
     Attributes
     ----------
     U_ : The shared covariance matrix, shape=[condition,condition].
@@ -162,6 +163,7 @@ class BRSA(BaseEstimator):
     def fit(self, X, design, scan_onsets=None, coords=None,
             inten=None, inten_weight=None):
         """Compute the Bayesian RSA
+
         Parameters
         ----------
         X: 2-D numpy array, shape=[time_points, voxels]
