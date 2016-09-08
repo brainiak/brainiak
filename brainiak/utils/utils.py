@@ -25,15 +25,20 @@ def from_tri_2_sym(tri, dim):
     """convert a upper triangular matrix in 1D format
        to 2D symmetric matrix
 
+
     Parameters
     ----------
+
     tri: 1D array
         Contains elements of upper triangular matrix
+
     dim : int
         The dimension of target matrix.
 
+
     Returns
     -------
+
     symm : 2D array
         Symmetric matrix in shape=[dim, dim]
     """
@@ -48,14 +53,18 @@ def from_sym_2_tri(symm):
 
     Parameters
     ----------
+
     symm : 2D array
           Symmetric matrix
 
+
     Returns
     -------
+
     tri: 1D array
           Contains elements of upper triangular matrix
     """
+
     inds = np.triu_indices_from(symm)
     tri = symm[inds]
     return tri
@@ -66,15 +75,20 @@ def fast_inv(a):
 
     Parameters
     ----------
+
     a : 2D array
+
 
     Returns
     -------
+
     inva: 2D array
          inverse of input matrix a
 
+
     Raises
     -------
+
     LinAlgError
         If a is singular or not square
     """
