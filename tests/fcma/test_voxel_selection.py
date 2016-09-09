@@ -41,11 +41,14 @@ def test_voxel_selection():
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=10
     clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
-    results = vs.run(clf)
+    results0 = vs.run(clf)
+    # set master rank to be 1 and do it again
+    vs = VoxelSelector(fake_raw_data, 2, labels, 2, master_rank=1)
+    results1 = vs.run(clf)
     # test scipy normalization
     fake_corr = np.random.rand(1, 12, 100).astype(np.float32)
     fake_corr = vs._correlationNormalization(fake_corr)
     # make one process sleep a while to resolve file writing competition
     if MPI.COMM_WORLD.Get_rank() == 0:
         time.sleep(0.5)
-    return results, fake_corr
+    return results0, results1, fake_corr
