@@ -78,21 +78,33 @@ class VoxelSelector:
 
     voxel_unit: int, default 100
         The number of voxel assigned to a worker each time
+
+    master_rank: int, default 0
+        The process which serves as the master
     """
     def __init__(self,
                  raw_data,
                  epochs_per_subj,
                  labels,
                  num_folds,
-                 voxel_unit=100):
+                 voxel_unit=100,
+                 master_rank=0):
         self.raw_data = raw_data
         self.epochs_per_subj = epochs_per_subj
         self.num_voxels = raw_data[0].shape[1]
         self.labels = labels
         self.num_folds = num_folds
         self.voxel_unit = voxel_unit
+        self.master_rank = master_rank
         if self.num_voxels == 0:
-            raise ValueError("Zero processed voxels")
+            raise ValueError('Zero processed voxels')
+        if MPI.COMM_WORLD.Get_size() == 1:
+            raise RuntimeError('one process cannot run the '
+                               'master-worker model')
+        if self.master_rank >= MPI.COMM_WORLD.Get_size():
+            logger.warn('Master rank exceeds the number of '
+                        'launched processes, set to 0')
+            self.master_rank = 0
 
     # tags for MPI messages
     _WORKTAG = 0
@@ -116,7 +128,7 @@ class VoxelSelector:
             the length of array equals the number of voxels
         """
         rank = MPI.COMM_WORLD.Get_rank()
-        if rank == 0:
+        if rank == self.master_rank:
             results = self._master()
             # Sort the voxels
             results.sort(key=lambda tup: tup[1], reverse=True)
@@ -153,7 +165,9 @@ class VoxelSelector:
         # using_size is used when the number of tasks
         # is smaller than the number of workers
         using_size = size
-        for i in range(1, size):
+        for i in range(0, size):
+            if i == self.master_rank:
+                continue
             if current_task[1] == 0:
                 using_size = i
                 break
@@ -182,11 +196,15 @@ class VoxelSelector:
                 else self.num_voxels - next_start
             current_task = (next_start, sending_voxels)
 
-        for i in range(1, using_size):
+        for i in range(0, using_size):
+            if i == self.master_rank:
+                continue
             result = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
             results += result
 
-        for i in range(1, size):
+        for i in range(0, size):
+            if i == self.master_rank:
+                continue
             comm.send(None,
                       dest=i,
                       tag=self._TERMINATETAG)
@@ -210,13 +228,13 @@ class VoxelSelector:
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
-            task = comm.recv(source=0,
+            task = comm.recv(source=self.master_rank,
                              tag=MPI.ANY_TAG,
                              status=status)
             if status.Get_tag():
                 break
             comm.send(self._voxelScoring(task, clf),
-                      dest=0)
+                      dest=self.master_rank)
 
     def _correlationComputation(self, task):
         """ use BLAS API to do correlation computation (matrix multiplication)

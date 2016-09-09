@@ -36,7 +36,8 @@ def test_voxel_selection():
     fake_raw_data = [create_epoch(), create_epoch(),
                      create_epoch(), create_epoch()]
     labels = [0, 1, 0, 1]
-    vs = VoxelSelector(fake_raw_data, 2, labels, 2)
+    # set master rank to be 0
+    vs = VoxelSelector(fake_raw_data, 2, labels, 2, master_rank=0)
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=10
     clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
