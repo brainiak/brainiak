@@ -65,6 +65,8 @@ class VoxelSelector:
                        in the list
                     5. voxel selection is always done in the auto-correlation,
                        i.e. raw_data correlate with themselves
+                    6. if MPI jobs are running on multiple nodes, the user
+                       home directory is shared by all nodes
 
     epochs_per_subj: int
         The number of epochs of each subject

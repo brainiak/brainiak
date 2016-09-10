@@ -116,7 +116,6 @@ pip3 install $ignore_installed -U -e . || \
     exit_with_error_and_venv "pip3 failed to install BrainIAK"
 
 # run tests
-sleep 10     # allow the run-time build of cython to complete
 ./run-tests.sh || \
     exit_with_error_and_venv "run-tests failed"
 

@@ -193,3 +193,8 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, int py_
         for j in range(py_c.shape[0]):
             for k in range(j):
                 py_c[k, j] = py_c[j, k]
+
+def installed():
+    """
+    This is an empty method for installing cython_blas library
+    """
