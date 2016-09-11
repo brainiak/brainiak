@@ -103,6 +103,28 @@ def fast_inv(a):
         logging.exception('Error from np.linalg.solve')
         raise
 
+def cov2corr(cov):
+    """Calculate the correlation matrix based on a
+        covariance matrix
+
+    Parameters
+    ----------
+    
+    cov: 2D array
+    
+    Returns
+    -------
+    
+    corr: 2D array
+        correlation converted from the covarince matrix
+
+
+    """
+    assert cov.ndim == 2, 'covariance matrix should be 2D array'
+    inv_sd = 1 / np.sqrt(np.diag(cov))
+    corr = cov * np.outer(inv_sd, inv_sd)
+    return corr
+
 
 class read_design:
     """ A class which has the ability of reading in design matrix in .1D file,
