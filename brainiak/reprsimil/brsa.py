@@ -19,7 +19,7 @@
  .. [Cai2016] "Unbiased Bayesian estimation of
     neural representational similarity structure",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
-    Neural Information Processing System 29, 2016.
+    Neural Information Processing Systems 29, 2016.
     A preprint is available at
     http://biorxiv.org/content/early/2016/09/07/073932
 """
@@ -36,6 +36,7 @@ import time
 from sklearn.base import BaseEstimator
 from sklearn.utils import assert_all_finite
 import logging
+import brainiak.utils.utils as utils
 warnings.filterwarnings('ignore')
 
 
@@ -98,6 +99,31 @@ class BRSA(BaseEstimator):
         In future version, we will include a seperate input
         argument for all regressors you are not interested in,
         such as DC component and motion parameters.
+    epsilon: a small number added to the diagonal element of the
+        covariance matrix in the Gaussian Process prior. This is
+        to ensure that the matrix is invertible.
+    space_smooth_range: the distance (in unit the same as what
+        you would use when supplying the spatial coordiates of
+        each voxel, typically millimeter) which you believe is
+        the maximum range of the length scale parameter of
+        Gaussian Process defined over voxel location. This is
+        used to impose a half-cauchy prior on the length scale.
+        If not provided, the program will set it to half of the
+        maximum distance between all voxels.
+    inten_smooth_range: the difference in image intensity which
+        you believe is the maximum range of plausible length
+        scale for the Gaussian Process defined over image
+        intensity. Length scales larger than this are allowed,
+        but will be penalized. If not supplied, this parameter
+        will be set to half of the maximal intensity difference.
+    inten_weight: how much the kernel based on image intensity
+        is weighted to form the kernel of the GP prior on
+        log(SNR). This should be a small number between 0 and 1.
+        In future, we will experiment fitting this parameter.
+    init_iter: how many initial iterations to fit the model
+        without introducing the GP prior before fitting with it,
+        if GP_space or GP_inten is requested. This initial
+        fitting is to give the parameters a good starting point.
 
     Attributes
     ----------
@@ -260,13 +286,19 @@ class BRSA(BaseEstimator):
 
         # Run Bayesian RSA
         if not self.GP_space:
+            # If GP_space is not requested, then the model is fitted
+            # without imposing any Gaussian Process prior on log(SNR^2)
             self.U_, self.L_, self.nSNR_, self.sigma_, self.rho_ = \
                 self._fit_RSA_UV(design, X, scan_onsets=scan_onsets)
         elif not self.GP_inten or inten_weight == 0:
+            # If GP_space is requested, but GP_inten is not, a GP prior
+            # based on spatial locations of voxels will be imposed.
             self.U_, self.L_, self.nSNR_, self.sigma_, self.rho_,\
                 self.lGPspace_, self.bGP_ = self._fit_RSA_UV(
                     design, X, scan_onsets=scan_onsets, coords=coords)
         else:
+            # If both self.GP_space and self.GP_inten are True,
+            # a GP prior based on both location and intensity is imposed.
             self.U_, self.L_, self.nSNR_, self.sigma_, self.rho_, \
                 self.lGPspace_, self.bGP_, self.lGPinten_ = \
                 self._fit_RSA_UV(design, X, scan_onsets=scan_onsets,
@@ -276,9 +308,7 @@ class BRSA(BaseEstimator):
         if self.pad_DC:
             self.U_ = self.U_[:-1, :-1]
             self.L_ = self.L_[:-1, :self.rank]
-        sqrt_diag = np.diag(self.U_)**0.5
-        self.C_ = self.U_ / np.tile(sqrt_diag, [np.size(sqrt_diag), 1])\
-            / np.transpose(np.tile(sqrt_diag, [np.size(sqrt_diag), 1]))
+        self.C_ = utils.cor2corr(self.U_)
         return self
 
     # The following 2 functions below generate templates used
