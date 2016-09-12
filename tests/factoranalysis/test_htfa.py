@@ -126,37 +126,39 @@ def test_can_run():
         if idx % size == rank:
             my_R.append(R[idx])
 
-    htfa = HTFA(
-        K,
-        n_subj=n_subj,
-        max_global_iter=max_global_iter,
-        max_local_iter=max_local_iter,
-        max_voxel=max_voxel,
-        max_tr=max_tr,
-        verbose=True)
-    assert htfa, "Invalid HTFA instance!"
+    for root in range(size):
+        htfa = HTFA(
+            K,
+            n_subj=n_subj,
+            max_global_iter=max_global_iter,
+            max_local_iter=max_local_iter,
+            max_voxel=max_voxel,
+            max_tr=max_tr,
+            verbose=True,
+            root=root)
+        assert htfa, "Invalid HTFA instance!"
 
-    X = []
-    for s in np.arange(n_subj):
-        X.append(np.random.rand(n_voxel, n_tr))
-    my_data = []
-    for idx in np.arange(n_subj):
-        if idx % size == rank:
-            my_data.append(X[idx])
+        X = []
+        for s in np.arange(n_subj):
+            X.append(np.random.rand(n_voxel, n_tr))
+        my_data = []
+        for idx in np.arange(n_subj):
+            if idx % size == rank:
+                my_data.append(X[idx])
 
-    if rank == 0:
-        htfa.fit(my_data, R=my_R)
-        assert True, "Root successfully running HTFA"
-        assert htfa.global_prior_.shape[0] == htfa.prior_bcast_size,\
-            "Invalid result of HTFA! (wrong # element in global_prior)"
-        assert htfa.global_posterior_.shape[0] == htfa.prior_bcast_size,\
-            "Invalid result of HTFA! (wrong # element in global_posterior)"
+        if rank == root:
+            htfa.fit(my_data, R=my_R)
+            assert True, "Root successfully running HTFA"
+            assert htfa.global_prior_.shape[0] == htfa.prior_bcast_size,\
+                "Invalid result of HTFA! (wrong # element in global_prior)"
+            assert htfa.global_posterior_.shape[0] == htfa.prior_bcast_size,\
+                "Invalid result of HTFA! (wrong # element in global_posterior)"
 
-    else:
-        htfa.fit(my_data, R=my_R)
-        assert True, "worker successfully running HTFA"
-        print(htfa.local_weights_.shape)
-        assert htfa.local_weights_.shape[0] == n_tr * K,\
-            "Invalid result of HTFA! (wrong # element in local_weights)"
-        assert htfa.local_posterior_.shape[0] == htfa.prior_size,\
-            "Invalid result of HTFA! (wrong # element in local_posterior)"
+        else:
+            htfa.fit(my_data, R=my_R)
+            assert True, "worker successfully running HTFA"
+            print(htfa.local_weights_.shape)
+            assert htfa.local_weights_.shape[0] == n_tr * K,\
+                "Invalid result of HTFA! (wrong # element in local_weights)"
+            assert htfa.local_posterior_.shape[0] == htfa.prior_size,\
+                "Invalid result of HTFA! (wrong # element in local_posterior)"
