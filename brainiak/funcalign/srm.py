@@ -34,11 +34,13 @@ import numpy as np
 import scipy
 from sklearn.base import BaseEstimator
 from sklearn.utils import assert_all_finite
+import logging
 
 __all__ = [
     "SRM",
 ]
 
+logger = logging.getLogger(__name__)
 
 def _init_w_transforms(data, features):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
@@ -160,7 +162,7 @@ class SRM(BaseEstimator):
         y : not used
         """
         if self.verbose:
-            print('Running Probabilistic SRM')  # noqa FIXME
+            logger.info('Starting Probabilistic SRM')
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -320,7 +322,7 @@ class SRM(BaseEstimator):
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
             if self.verbose:
-                print('Iteration %d' % (iteration + 1))  # noqa FIXME
+                logger.info('Iteration %d' % (iteration + 1))  # noqa FIXME
 
             # E-step:
 
@@ -367,8 +369,6 @@ class SRM(BaseEstimator):
             # Update each subject's mapping transform W_i and error variance
             # rho_i^2
             for subject in range(subjects):
-                if self.verbose:
-                    print('.'),  # noqa FIXME
                 a_subject = x[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
@@ -381,12 +381,12 @@ class SRM(BaseEstimator):
                 rho2[subject] /= samples * voxels[subject]
 
             if self.verbose:
-                # Calculate and print the current log-likelihood for checking
+                # Calculate and log the current log-likelihood for checking
                 # convergence
                 loglike = self._likelihood(
                     chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
                     trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                     samples)
-                print('Objective function %f' % loglike)  # noqa FIXME
+                logger.info('Objective function %f' % loglike)
 
         return sigma_s, w, mu, rho2, shared_response
