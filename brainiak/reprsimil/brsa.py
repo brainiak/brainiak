@@ -37,8 +37,9 @@ from sklearn.base import BaseEstimator
 from sklearn.utils import assert_all_finite
 import logging
 import brainiak.utils.utils as utils
-warnings.filterwarnings('ignore')
 import scipy.spatial.distance as spdist
+warnings.filterwarnings('ignore')
+
 
 logger = logging.getLogger(__name__)
 
@@ -263,11 +264,8 @@ class BRSA(BaseEstimator):
                 'data X, or voxel coordinates are not provided. '\
                 'Please make sure that coords is in the shape of '\
                 '[ n_voxel x 3].'
-            assert coords.ndim <= 2,\
-                'The coordinate matrix should not have '\
-                'more than 2 dimensions'
-            if coords.ndim == 1:
-                coords = np.expand_dims(coords, 1)
+            assert coords.ndim == 2,\
+                'The coordinate matrix should be a 2-d array'
             if self.GP_inten:
                 assert inten is not None and inten.shape[0] == X.shape[1],\
                     'The voxel number of intensity does not '\
@@ -275,11 +273,11 @@ class BRSA(BaseEstimator):
                 assert np.var(inten) > 0,\
                     'All voxels have the same intensity.'
         if (not self.GP_space and coords is not None) or\
-            (not self.GP_inten and inten is not None):
-                logger.warning('Coordinates or image intensity provided'
-                               ' but GP_space or GP_inten is not set '
-                               'to True. The coordinates or intensity are'
-                               ' ignored.
+                (not self.GP_inten and inten is not None):
+            logger.warning('Coordinates or image intensity provided'
+                           ' but GP_space or GP_inten is not set '
+                           'to True. The coordinates or intensity are'
+                           ' ignored.')
         # Run Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
@@ -310,7 +308,7 @@ class BRSA(BaseEstimator):
         if self.pad_DC:
             self.U_ = self.U_[:-1, :-1]
             self.L_ = self.L_[:-1, :self.rank]
-        self.C_ = utils.cor2corr(self.U_)
+        self.C_ = utils.cov2corr(self.U_)
         return self
 
     # The following 2 functions below generate templates used
@@ -385,7 +383,7 @@ class BRSA(BaseEstimator):
         return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX
 
     def _calc_dist2_GP(self, coords=None, inten=None,
-                      GP_space=False, GP_inten=False):
+                       GP_space=False, GP_inten=False):
         # calculate the square of difference between each voxel's location
         # coorinates and image intensity.
         if GP_space:
@@ -396,7 +394,7 @@ class BRSA(BaseEstimator):
             # for dim in range(np.size(coords, 1)):
             #     coord_tile = np.tile(coords[:, dim], [n_V, 1])
             #     dist2 = dist2 + (coord_tile - coord_tile.T)**2
-            dist2 = spdist.squareform(spdist.pdist(coods, 'sqeuclidean')
+            dist2 = spdist.squareform(spdist.pdist(coords, 'sqeuclidean'))
             # set the hyperparameter for the GP process:
             if self.space_smooth_range is None:
                 space_smooth_range = np.max(dist2)**0.5 / 2.0
@@ -412,8 +410,8 @@ class BRSA(BaseEstimator):
                 # # every two voxels
                 # inten_tile = np.tile(inten, [n_V, 1])
                 # inten_diff2 = (inten_tile - inten_tile.T)**2
-                inten2 = spdist.squareform(spdist.pdist(inten,
-                                                        'sqeuclidean')
+                inten_diff2 = spdist.squareform(
+                    spdist.pdist(inten[:, None], 'sqeuclidean'))
                 # set the hyperparameter for the GP process:
                 if self.inten_smooth_range is None:
                     inten_smooth_range = np.max(inten_diff2)**0.5 / 2.0
