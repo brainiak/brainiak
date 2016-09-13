@@ -42,6 +42,7 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 def _init_w_transforms(data, features):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
@@ -322,7 +323,7 @@ class SRM(BaseEstimator):
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
             if self.verbose:
-                logger.info('Iteration %d' % (iteration + 1))  # noqa FIXME
+                logger.info('Iteration %d' % (iteration + 1))
 
             # E-step:
 
