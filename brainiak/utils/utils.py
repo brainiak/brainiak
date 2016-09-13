@@ -103,18 +103,19 @@ def fast_inv(a):
         logging.exception('Error from np.linalg.solve')
         raise
 
+
 def cov2corr(cov):
     """Calculate the correlation matrix based on a
         covariance matrix
 
     Parameters
     ----------
-    
+
     cov: 2D array
-    
+
     Returns
     -------
-    
+
     corr: 2D array
         correlation converted from the covarince matrix
 
