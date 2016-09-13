@@ -4,7 +4,7 @@ import os
 import sys
 import setuptools
 
-__version__ = '0.1'
+__version__ = '0.2'
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
@@ -104,6 +104,7 @@ setup(
     name='brainiak',
     version=__version__,
     install_requires=[
+        'cython',
         'mpi4py',
         'numpy',
         'scikit-learn',

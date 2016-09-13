@@ -1,6 +1,4 @@
-#!/bin/sh
-
-#  Copyright 2016 Intel Corporation
+#  Copyright 2016 Princeton University
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,11 +11,4 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-pip freeze | grep -qi /brainiak || {
-    echo "You must install brainiak in editable mode using \"pip install -e\""`
-        `" before calling "$(basename "$0")
-    exit 1
-}
-
-py.test --cov=brainiak
+"""Event segmentation of continuous data + event transfer between datasets."""

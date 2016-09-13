@@ -30,11 +30,13 @@ This implementation is based on the following publications:
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek
 # (Intel Labs), 2015
 
+import logging
+
 import numpy as np
 import scipy
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
-import logging
+from sklearn.utils.validation import NotFittedError
 
 __all__ = [
     "SRM",
@@ -86,7 +88,7 @@ def _init_w_transforms(data, features):
     return w, voxels
 
 
-class SRM(BaseEstimator):
+class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM)
 
     Given multi-subject data, factorize it as a shared response S among all
@@ -182,13 +184,45 @@ class SRM(BaseEstimator):
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError(
-                    "Different number of samples between subjects.")
+                raise ValueError("Different number of samples between subjects"
+                                 ".")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
         return self
+
+    def transform(self, X, y=None):
+        """Use the model to transform matrix to Shared Response space
+
+        Parameters
+        ----------
+        X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
+            Each element in the list contains the fMRI data of one subject
+            note that number of voxels and samples can vary across subjects
+        y : not used (as it is unsupervised learning)
+
+
+        Returns
+        -------
+        s : list of 2D arrays, element i has shape=[features_i, samples_i]
+            Shared responses from input data (X)
+        """
+
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of subjects
+        if len(X) != len(self.w_):
+            raise ValueError("The number of subjects does not match the one"
+                             " in the model.")
+
+        s = [None] * len(X)
+        for subject in range(len(X)):
+            s[subject] = self.w_[subject].T.dot(X[subject])
+
+        return s
 
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
