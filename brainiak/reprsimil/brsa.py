@@ -16,12 +16,12 @@
 
     This implementation is based on the following publications:
 
- .. [Cai2016] "Unbiased Bayesian estimation of
-    neural representational similarity structure",
+ .. [Cai2016] "A Bayesian method for reducing bias in neural
+    representational similarity analysis",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
     Neural Information Processing Systems 29, 2016.
     A preprint is available at
-    http://biorxiv.org/content/early/2016/09/07/073932
+    https://doi.org/10.1101/073932
 """
 
 # Authors: Mingbo Cai
@@ -38,7 +38,7 @@ from sklearn.utils import assert_all_finite
 import logging
 import brainiak.utils.utils as utils
 warnings.filterwarnings('ignore')
-
+import scipy.spatial.distance as spdist
 
 logger = logging.getLogger(__name__)
 
@@ -186,16 +186,22 @@ class BRSA(BaseEstimator):
         Parameters
         ----------
         X: 2-D numpy array, shape=[time_points, voxels]
-            In the equation, this is actually Y.
+            If you have multiple scans of the same participants that you
+            want to analyze together, you should concatenate them along
+            the time dimension after proper preprocessing (e.g. spatial
+            alignment), and specify the onsets of each scan in scan_onsets.
         design: 2-D numpy array, shape=[time_points, conditions]
             This is the design matrix. We will automatically pad a column
-            of all one's if pad_DC is True
+            of all one's if pad_DC is True.
         scan_onsets: optional, an 1-D numpy array, shape=[runs,]
             this specifies the indices of X which correspond to the onset
-            of each scanning run. If you do not provide,
-            we assume all data are from the same run.
+            of each scanning run. For example, if you have two experimental
+            runs of the same subject, each with 100 TRs, then scan_onsets
+            should be [0,100].
+            If you do not provide the argument, the program will
+            assume all data are from the same run.
             This only makes a difference for the inverse
-            of the temporal covariance matrix of noise
+            of the temporal covariance matrix of noise.
         coords: optional, 2-D numpy array, shape=[voxels,3]
             This is the coordinate of each voxel,
             used for implementing Gaussian Process prior.
@@ -268,7 +274,12 @@ class BRSA(BaseEstimator):
                     'match that of data X, or intensity not provided.'
                 assert np.var(inten) > 0,\
                     'All voxels have the same intensity.'
-
+        if (not self.GP_space and coords is not None) or\
+            (not self.GP_inten and inten is not None):
+                logger.warning('Coordinates or image intensity provided'
+                               ' but GP_space or GP_inten is not set '
+                               'to True. The coordinates or intensity are'
+                               ' ignored.
         # Run Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
@@ -345,8 +356,8 @@ class BRSA(BaseEstimator):
             logger.debug('I infer that the number of volumes'
                          ' in each scan are: {}'.format(run_TRs))
 
-            D_ele = list(map(self._D_gen, run_TRs))
-            F_ele = list(map(self._F_gen, run_TRs))
+            D_ele = map(self._D_gen, run_TRs)
+            F_ele = map(self._F_gen, run_TRs)
             D = []
             for d_ele in D_ele:
                 D = scipy.linalg.block_diag(D, d_ele)
@@ -373,35 +384,41 @@ class BRSA(BaseEstimator):
         XTFX = np.dot(np.dot(X.T, F), X)
         return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX
 
-    def calc_dist2_GP(self, coords=None, inten=None,
+    def _calc_dist2_GP(self, coords=None, inten=None,
                       GP_space=False, GP_inten=False):
         # calculate the square of difference between each voxel's location
         # coorinates and image intensity.
         if GP_space:
             assert coords is not None, 'coordinate is not provided'
-            n_V = coords.shape[1]
-            dist2 = np.zeros([n_V, n_V])
-            # square of spatial distance between every two voxels
-            for dim in range(np.size(coords, 1)):
-                coord_tile = np.tile(coords[:, dim], [n_V, 1])
-                dist2 = dist2 + (coord_tile - coord_tile.T)**2
-
+            # n_V = coords.shape[1]
+            # dist2 = np.zeros([n_V, n_V])
+            # # square of spatial distance between every two voxels
+            # for dim in range(np.size(coords, 1)):
+            #     coord_tile = np.tile(coords[:, dim], [n_V, 1])
+            #     dist2 = dist2 + (coord_tile - coord_tile.T)**2
+            dist2 = spdist.squareform(spdist.pdist(coods, 'sqeuclidean')
             # set the hyperparameter for the GP process:
             if self.space_smooth_range is None:
                 space_smooth_range = np.max(dist2)**0.5 / 2.0
+                # By default, we assume the length scale should be
+                # within half the size of ROI.
             else:
                 space_smooth_range = self.space_smooth_range
 
             if GP_inten:
                 assert inten is not None, 'intensity is not provided'
-                inten_diff2 = np.zeros([n_V, n_V])
-                # squre of difference between intensities of
-                # every two voxels
-                inten_tile = np.tile(inten, [n_V, 1])
-                inten_diff2 = (inten_tile - inten_tile.T)**2
+                # inten_diff2 = np.zeros([n_V, n_V])
+                # # squre of difference between intensities of
+                # # every two voxels
+                # inten_tile = np.tile(inten, [n_V, 1])
+                # inten_diff2 = (inten_tile - inten_tile.T)**2
+                inten2 = spdist.squareform(spdist.pdist(inten,
+                                                        'sqeuclidean')
                 # set the hyperparameter for the GP process:
                 if self.inten_smooth_range is None:
                     inten_smooth_range = np.max(inten_diff2)**0.5 / 2.0
+                    # By default, we assume the length scale should be
+                    # within half the maximum difference of intensity.
                 else:
                     inten_smooth_range = self.inten_smooth_range
                 n_smooth = 2
@@ -422,6 +439,14 @@ class BRSA(BaseEstimator):
     def _fit_RSA_UV(self, X, Y,
                     scan_onsets=None, coords=None, inten=None):
         """ The major utility of fitting Bayesian RSA.
+            Note that there is a naming change of variable. X in fit()
+            is changed to Y here, and design in fit() is changed to X here.
+            This is because we follow the tradition that X expresses the
+            variable defined (controlled) by the experimenter, i.e., the
+            time course of experimental conditions convolved by an HRF,
+            and Y expresses data.
+            However, in wrapper function fit(), we follow the naming
+            routine of scikit-learn.
         """
         GP_inten = self.GP_inten
         GP_space = self.GP_space
@@ -459,7 +484,7 @@ class BRSA(BaseEstimator):
             self._prepare_data(X, Y, n_T, n_V, scan_onsets)
 
         dist2, inten_diff2, space_smooth_range, inten_smooth_range,\
-            n_smooth = self.calc_dist2_GP(
+            n_smooth = self._calc_dist2_GP(
                 coords=coords, inten=inten,
                 GP_space=GP_space, GP_inten=GP_inten)
         current_GP = np.zeros(n_smooth)
