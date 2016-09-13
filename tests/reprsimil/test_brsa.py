@@ -89,9 +89,9 @@ def test_fit():
     smooth_width = 5.0
     inten_kernel = 1.0
     
-    coords = np.arange(0,n_V)
-    coords_tile = np.tile(coords,[n_V,1])
-    dist2 = (coords_tile-coords_tile.T)**2
+    coords = np.arange(0,n_V)[:,None]
+
+    dist2 = np.square(coords-coords.T)
     
     inten_tile = np.tile(inten,[n_V,1])
     inten_diff2 = (inten_tile-inten_tile.T)**2
@@ -113,7 +113,8 @@ def test_fit():
     
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
 
-    brsa.fit(X=Y,design=design.design_used,scan_onsets=scan_onsets,coords=coords,inten=inten,inten_weight=0.1)
+    brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets,
+             coords=coords, inten=inten)
     
     # Check that result is significantly correlated with the ideal covariance matrix
     u_b = brsa.U_[1:,1:]
@@ -157,12 +158,12 @@ def test_fit():
     
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-                dist2,inten_diff2,100,100,0.1)
+                dist2,inten_diff2,100,100)
     param1_fitV = param0_fitV.copy()
     param1_fitV[0] = param1_fitV[0]+perturb
     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-                dist2,inten_diff2,100,100,0.1)
+                dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[0]*perturb
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of log_SNR2 parameter is not right"
@@ -171,7 +172,7 @@ def test_fit():
     param1_fitV[n_V-1] = param1_fitV[n_V-1]+perturb
     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-                dist2,inten_diff2,100,100,0.1)
+                dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_V-1]*perturb
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of GP spatial lengths scale parameter is not right"
@@ -180,7 +181,7 @@ def test_fit():
     param1_fitV[n_V] = param1_fitV[n_V]+perturb
     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-                dist2,inten_diff2,100,100,0.1)
+                dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_V]*perturb
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of GP intensity lengths scale parameter is not right"
