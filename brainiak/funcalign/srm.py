@@ -20,7 +20,8 @@ These implementations are based on the following publications:
    Advances in Neural Information Processing Systems (NIPS), 2015.
    http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
 
-.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging Datasets",
+.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging 
+   Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
    Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
    Kenneth A. Norman, arXiv preprint, 2016.
