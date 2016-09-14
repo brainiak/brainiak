@@ -13,18 +13,18 @@
 #  limitations under the License.
 """Shared Response Model (SRM)
 
-The implementations are based on the following publications:
+This implementations are based on the following publications:
 
 .. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
    Advances in Neural Information Processing Systems (NIPS), 2015.
    http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
 
-.. [Anderson2016] "Scaling Up Machine Learning Algorithms For Multi-Subject
-   Neuroimaging Analysis",
+.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
    Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
-   Kenneth A. Norman, under review, 2016.
+   Kenneth A. Norman, arXiv preprint, 2016.
+   https://arxiv.org/abs/1608.04647
 """
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek
