@@ -469,7 +469,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
        This is a single node version.
 
-       The run-time complexity is :math:`O(I (V T K + K^3))` and the memory
+       The run-time complexity is :math:`O(I (V T K))` and the memory
        complexity is :math:`O(V T)` with I - the number of iterations, V - the
        sum of voxels from all subjects, T - the number of samples, and K - the
        number of features (typically, :math:`V \\gg T \\gg K`).
@@ -603,7 +603,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         s = np.zeros((w[0].shape[1], data[0].shape[1]))
         for m in range(len(w)):
             s = s + w[m].T.dot(data[m])
-        s /= float(len(w))
+        s /= len(w)
 
         return s
 
