@@ -75,6 +75,7 @@ function exit_with_error_and_venv {
 
 if [ $(which conda) ]
 then
+    export PYTHONNOUSERSITE=True
     create_venv=create_conda_venv
     activate_venv=activate_conda_venv
     deactivate_venv=deactivate_conda_venv
