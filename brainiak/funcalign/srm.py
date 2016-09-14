@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Shared Response Model (SRM)
 
-This implementations are based on the following publications:
+These implementations are based on the following publications:
 
 .. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
