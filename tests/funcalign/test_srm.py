@@ -78,7 +78,18 @@ def test_can_instantiate():
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
 
-    # Check that it does NOT run with non-matcing number of subjects
+    # Check that it does run to compute the shared response after the model computation
+    try:
+        new_s = s.transform(X)
+    except ValueError:
+        assert True, "Problem transforming new data with SRM."
+
+    assert len(new_s) == subjects, "Invalid computation of SRM! (wrong # subjects after transform)"
+    for subject in range(subjects):
+        assert new_s[subject].shape[0] == features, "Invalid computation of SRM! (wrong # features after transform)"
+        assert new_s[subject].shape[1] == samples, "Invalid computation of SRM! (wrong # samples after transform)"
+
+    # Check that it does NOT run with non-matching number of subjects
     try:
         s.transform(X[1])
         assert True, "Success transforming with non-matching number of subjects"
@@ -99,6 +110,107 @@ def test_can_instantiate():
     try:
         s.fit(X)
         assert True, "Success running SRM with different number of samples!"
+    except ValueError:
+        print("Catched Exception number 2: different number of samples per subject")
+
+
+
+def test_det_srm():
+    import brainiak.funcalign.srm
+    model = brainiak.funcalign.srm.DetSRM()
+    assert model, "Invalid DetSRM instance!"
+
+    import numpy as np
+
+    voxels = 100
+    samples = 500
+    subjects = 2
+    features = 3
+
+    model = brainiak.funcalign.srm.DetSRM(verbose=True, n_iter=5,
+                                   features=features)
+    assert model, "Invalid DetSRM instance!"
+
+
+    # Create a Shared response S with K = 3
+    theta = np.linspace(-4 * np.pi, 4 * np.pi, samples)
+    z = np.linspace(-2, 2, samples)
+    r = z**2 + 1
+    x = r * np.sin(theta)
+    y = r * np.cos(theta)
+
+    S = np.vstack((x, y, z))
+
+    X = []
+    W = []
+    Q, R = np.linalg.qr(np.random.random((voxels, features)))
+    W.append(Q)
+    X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+
+    # Check that transform does NOT run before fitting the model
+    try:
+        model.transform(X)
+        assert True, "Success transforming before fitting the model!"
+    except NotFittedError:
+        print("Caught Exception number 1: transforming before fitting the model")
+
+    # Check that it does NOT run with 1 subject
+    try:
+        model.fit(X)
+        assert True, "Success running DetSRM with one subject!"
+    except ValueError:
+        print("Caught Exception number 1: running DetSRM with 1 subject")
+
+    for subject in range(1, subjects):
+        Q, R = np.linalg.qr(np.random.random((voxels, features)))
+        W.append(Q)
+        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+
+    # Check that runs with 2 subject
+    try:
+        model.fit(X)
+    except ValueError:
+        assert True, "Problem running DetSRM."
+
+    assert len(model.w_) == subjects, "Invalid computation of DetSRM! (wrong # subjects in W)"
+    for subject in range(subjects):
+        assert model.w_[subject].shape[0] == voxels, "Invalid computation of DetSRM! (wrong # voxels in W)"
+        assert model.w_[subject].shape[1] == features, "Invalid computation of DetSRM! (wrong # features in W)"
+    assert model.s_.shape[0] == features, "Invalid computation of DetSRM! (wrong # features in S)"
+    assert model.s_.shape[1] == samples, "Invalid computation of DetSRM! (wrong # samples in S)"
+
+    # Check that it does run to compute the shared response after the model computation
+    try:
+        new_s = model.transform(X)
+    except ValueError:
+        assert True, "Problem transforming new data with DetSRM."
+
+    assert len(new_s) == subjects, "Invalid computation of DetSRM! (wrong # subjects after transform)"
+    for subject in range(subjects):
+        assert new_s[subject].shape[0] == features, "Invalid computation of DetSRM! (wrong # features after transform)"
+        assert new_s[subject].shape[1] == samples, "Invalid computation of DetSRM! (wrong # samples after transform)"
+
+    # Check that it does NOT run with non-matching number of subjects
+    try:
+        model.transform(X[1])
+        assert True, "Success transforming with non-matching number of subjects"
+    except ValueError:
+        print("Caught Exception number 2: transforming with non-matching number of subjects")
+
+    # Check that it does not run without enough samples (TRs).
+    try:
+        model.set_params(features=(samples+1))
+        model.fit(X)
+        assert True, "Success running DetSRM with more features than samples!"
+    except ValueError as e:
+        print("Catched Exception number 3: not enough samples")
+
+    # Check that it does not run with different number of samples (TRs)
+    S2 = S[:,:-2]
+    X.append(Q.dot(S2))
+    try:
+        model.fit(X)
+        assert True, "Success running DetSRM with different number of samples!"
     except ValueError:
         print("Catched Exception number 2: different number of samples per subject")
 
