@@ -122,6 +122,7 @@ pip3 install $ignore_installed -U -e . || \
 
 # build documentation
 cd docs
+git clean -Xf .
 make || {
     cd -
     exit_with_error_and_venv "make docs failed"
