@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Shared Response Model (SRM)
 
-These implementations are based on the following publications:
+The implementations are based on the following publications:
 
 .. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
@@ -641,7 +641,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             objective = self._objective_function(data, w, shared_response)
             logger.info('Objective function %f' % objective)
 
-    # Main loop of the algorithm
+        # Main loop of the algorithm
         for iteration in range(self.n_iter):
             if self.verbose:
                 logger.info('Iteration %d' % (iteration + 1))
