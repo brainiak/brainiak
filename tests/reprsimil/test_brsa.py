@@ -28,7 +28,7 @@ def test_can_instantiate():
     samples = 500
     features = 3
 
-    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tolx=2e-3,\
+    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tol=2e-3,\
                 pad_DC=False,epsilon=0.001,space_smooth_range=10.0,inten_smooth_range=100.0)
     assert s, "Invalid BRSA instance!"
 
@@ -85,9 +85,9 @@ def test_fit():
     inten = np.random.randn(n_V) * 5.0
 
     # parameters of Gaussian process to generate pseuso SNR
-    tau = 0.5
+    tau = 0.8
     smooth_width = 5.0
-    inten_kernel = 1.0
+    inten_kernel = 0.5
     
     coords = np.arange(0,n_V)[:,None]
 
@@ -96,7 +96,7 @@ def test_fit():
     inten_tile = np.tile(inten,[n_V,1])
     inten_diff2 = (inten_tile-inten_tile.T)**2
 
-    K = np.exp(-dist2/smooth_width**2/2.0 * 0.9 -inten_diff2/inten_kernel**2/2.0 * 0.1) * tau**2 + np.eye(n_V)*tau**2*0.001
+    K = np.exp(-dist2/smooth_width**2/2.0 -inten_diff2/inten_kernel**2/2.0) * tau**2 + np.eye(n_V)*tau**2*0.001
 
     L = np.linalg.cholesky(K)
     snr = np.exp(np.dot(L,np.random.randn(n_V))) * snr_level
@@ -110,7 +110,7 @@ def test_fit():
 
     scan_onsets = np.linspace(0,design.n_TR,num=5)
 
-    
+    # Testing with GP prior.
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
 
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets,
@@ -123,10 +123,14 @@ def test_fit():
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNR makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    assert p < 0.05, "Fitted SNR does not correlate with simualted SNR!"
+    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
-    
-    
+
+    assert np.abs(brsa.bGP_ - tau) / tau < 0.3, "standard deviation of GP deviates too much"
+    assert np.abs(brsa.lGPspace_ - smooth_width) / smooth_width < 0.7,\
+        "spatial length scale of GP deviates too much"
+    assert np.abs(brsa.lGPinten_ - inten_kernel) / inten_kernel < 0.7,\
+        "intensity length scale of GP deviates too much"
     
     # test if gradient is correct
     XTY,XTDY,XTFY,YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX = brsa._prepare_data(design.design_used,Y,n_T,n_V,scan_onsets)
@@ -187,7 +191,21 @@ def test_fit():
     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of GP intensity lengths scale parameter is not right"
     
     
-    
+    # Testing without GP prior.
+    brsa = BRSA()
 
+    brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets)
     
+    # Check that result is significantly correlated with the ideal covariance matrix
+    u_b = brsa.U_[1:,1:]
+    u_i = ideal_cov[1:,1:]
+    p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
+    assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
+    # check that the recovered SNR makes sense
+    p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
+    assert p < 0.05, "Fitted SNR does not correlate with simualted SNR!"
+    assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
+    assert not hasattr(brsa,'bGP_') and not hasattr(brsa,'lGPspace_') and not hasattr(brsa,'lGPinten_'),\
+        'the BRSA object should not have parameters of GP if GP is not requested.'
+    # GP parameters are not set if not requested
     
