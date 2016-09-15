@@ -131,6 +131,9 @@ class HTFA(TFA):
     verbose : boolean, default: False
         Verbose mode flag.
 
+    root : int, default: 0
+        The master process when MPI is used
+
 
     Attributes
     ----------
@@ -159,7 +162,7 @@ class HTFA(TFA):
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
                  voxel_ratio=0.25, tr_ratio=0.1, max_voxel=5000, max_tr=500,
-                 verbose=False):
+                 verbose=False, root=0):
         self.K = K
         self.n_subj = n_subj
         self.max_global_iter = max_global_iter
@@ -178,6 +181,7 @@ class HTFA(TFA):
         self.max_voxel = max_voxel
         self.max_tr = max_tr
         self.verbose = verbose
+        self.root = root
 
     def _converged(self):
         """Check convergence based on maximum absolute difference
@@ -491,7 +495,7 @@ class HTFA(TFA):
 
         """
 
-        if rank == 0:
+        if rank == self.root:
             idx = np.random.choice(n_local_subj, 1)
             self.global_prior_, self.global_centers_cov,\
                 self.global_widths_var = self.get_template(R[idx[0]])
@@ -541,7 +545,8 @@ class HTFA(TFA):
 
         """
         if use_gather:
-            comm.Gather(self.local_posterior_, self.gather_posterior, root=0)
+            comm.Gather(self.local_posterior_, self.gather_posterior,
+                        root=self.root)
         else:
             target = [
                 self.gather_posterior,
@@ -606,7 +611,7 @@ class HTFA(TFA):
             1 means HTFA converged, 0 means not converged.
 
         """
-        if rank == 0:
+        if rank == self.root:
             self._map_update_posterior()
             self._assign_posterior()
             is_converged, _ = self._converged()
@@ -721,7 +726,7 @@ class HTFA(TFA):
             if(self.verbose):
                 logger.info("HTFA global iter %d " % (m))
             # root broadcast first 4 fields of global_prior to all nodes
-            comm.Bcast(self.global_prior_, root=0)
+            comm.Bcast(self.global_prior_, root=self.root)
             # each node loop over its data
             for s, subj_data in enumerate(data):
                 # update tfa with current local prior
@@ -746,7 +751,7 @@ class HTFA(TFA):
             # root updates global_posterior
             outer_converged =\
                 self._update_global_posterior(rank, m, outer_converged)
-            comm.Bcast(outer_converged, root=0)
+            comm.Bcast(outer_converged, root=self.root)
             m += 1
 
         # update weight matrix for each subject
