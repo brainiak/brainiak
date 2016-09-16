@@ -1097,9 +1097,7 @@ class BRSA(BaseEstimator):
         # presumably because we have created correlation between logS_NR2
         # due to the constraint. But I have not reproduced this often.
         SNR2 = np.exp(log_SNR2)
-        # SNR = np.exp(log_SNR2 / 2.0)
-        # Literally we should impose the GP prior on log(SNR).
-        # But in the implementation we impose on log(SNR^2)
+        # If requested, a GP prior is imposed on log(SNR).
         deriv_log_SNR2 = np.zeros(np.shape(SNR2))
         # Partial derivative of log likelihood over log(SNR^2)
         # dimension: space,
@@ -1141,7 +1139,7 @@ class BRSA(BaseEstimator):
             / (sigma2 * 2.0) * (SNR2**2.0)
 
         if GP_space:
-            # Imposing GP prior on log(SNR^2) at least over
+            # Imposing GP prior on log(SNR) at least over
             # spatial coordinates
             c_space = param[n_V - 1]
             l2_space = np.exp(c_space)
@@ -1164,7 +1162,7 @@ class BRSA(BaseEstimator):
                 K_major = np.exp(- dist2 / l2_space / 2.0)
                 # The kernel defined over the spatial coordinates of voxels.
                 # This is a template: the diagonal values are all 1, meaning
-                # the variance of log(SNR^2) has not been multiplied
+                # the variance of log(SNR) has not been multiplied
             K_tilde = K_major + np.diag(np.ones(n_V) * self.epsilon)
             # We add a small number to the diagonal to make sure the matrix
             # is invertible.
