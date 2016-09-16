@@ -82,12 +82,12 @@ def test_fit():
     # snr = np.random.rand(n_V)*(snr_top-snr_bot)+snr_bot
     # Notice that accurately speaking this is not snr. the magnitude of signal depends
     # not only on beta but also on x.
-    inten = np.random.randn(n_V) * 5.0
+    inten = np.random.randn(n_V) * 10.0
 
     # parameters of Gaussian process to generate pseuso SNR
     tau = 0.8
     smooth_width = 5.0
-    inten_kernel = 0.5
+    inten_kernel = 1.0
     
     coords = np.arange(0,n_V)[:,None]
 
