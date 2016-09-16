@@ -33,11 +33,6 @@ class get_pybind_include(object):
         import pybind11
         return pybind11.get_include(self.user)
 
-class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
-        Extension.__init__(self, name, sources=[])
-        self.sourcedir = os.path.abspath(sourcedir)
-
 ext_modules = [
     Extension(
         'brainiak.factoranalysis.tfa_extension',
@@ -48,7 +43,6 @@ ext_modules = [
             get_pybind_include(user=True)
         ],
     ),
-    #CMakeExtension('brainiak.fcma.fcma_extension', 'brainiak/fcma/'),
     Extension(
         'brainiak.fcma.fcma_extension',
         ['brainiak/fcma/src/fcma_extension.cc'],
@@ -93,7 +87,7 @@ def cpp_flag(compiler):
 
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options.
-       Support both regular compiling and CMake compiling.
+       Support regular compiling.
        Support Unix/Linux and MacOS.
     """
     if sys.platform == 'Windows':
@@ -114,9 +108,7 @@ class BuildExt(build_ext):
         # First, sanity-check the 'extensions' list, i.e. ext_module
         self.check_extensions_list(self.extensions)
         for ext in self.extensions:
-            if isinstance(ext, CMakeExtension):
-                self.cmake_compiling(ext)
-            elif isinstance(ext, Extension):
+            if isinstance(ext, Extension):
                 self.regular_compiling(ext)
 
     def regular_compiling(self, ext):
@@ -131,31 +123,6 @@ class BuildExt(build_ext):
         ext.extra_compile_args = opts
         ext.extra_link_args = opts
         self.build_extension(ext)
-
-    def cmake_compiling(self, ext):
-        # configuration for CMake
-        try:
-            out = subprocess.check_output(['cmake', '--version'])
-        except OSError:
-            raise RuntimeError("CMake must be installed to build the following extensions: " +
-                           ", ".join(e.name for e in self.extensions))
-        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
-
-        cfg = 'Debug' if self.debug else 'Release'
-        build_args = ['--config', cfg]
-
-        cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-        build_args += ['--', '-j']
-
-        env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
-                                                              self.distribution.get_version())
-        if not os.path.exists(self.build_temp):
-            os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
 setup(
     name='brainiak',
