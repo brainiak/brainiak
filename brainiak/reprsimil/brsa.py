@@ -742,8 +742,10 @@ class BRSA(BaseEstimator):
             current_a1, current_logSNR2,
             idx_param_fitU, idx_param_fitV,
             l_idx, n_C, n_T, n_V, n_l, rank):
-        # (optional) second step of fitting, full model but without GP
-        # prior on log(SNR)
+        """ (optional) second step of fitting, full model but without
+            GP prior on log(SNR). This is only used when GP is
+            requested.
+        """
         init_iter = self.init_iter
         logger.debug('second fitting without GP prior'
                      ' for {} times'.format(init_iter))
@@ -826,6 +828,9 @@ class BRSA(BaseEstimator):
             idx_param_fitU, idx_param_fitV,
             l_idx, n_C, n_T, n_V, n_l, rank, GP_space, GP_inten,
             dist2, inten_diff2, space_smooth_range, inten_smooth_range):
+        """ Last step of fitting. If GP is not requested, it will still
+            fit.
+        """
         tol = self.tol
         n_iter = self.n_iter
         logger.debug('Last step of fitting.'
