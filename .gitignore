@@ -20,4 +20,4 @@ htmlcov
 .idea
 .ipynb_checkpoints
 junit-*.xml
-brainiak/fcma/__pycache__
+__pycache__

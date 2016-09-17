@@ -3,7 +3,6 @@ from setuptools.command.build_ext import build_ext
 import os
 import sys
 import setuptools
-import subprocess
 
 __version__ = '0.2'
 
@@ -21,7 +20,6 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
-
     The purpose of this class is to postpone importing pybind11
     until it is actually installed, so that the ``get_include()``
     method can be invoked. """
@@ -33,19 +31,11 @@ class get_pybind_include(object):
         import pybind11
         return pybind11.get_include(self.user)
 
+
 ext_modules = [
     Extension(
         'brainiak.factoranalysis.tfa_extension',
         ['brainiak/factoranalysis/tfa_extension.cpp'],
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
-            get_pybind_include(user=True)
-        ],
-    ),
-    Extension(
-        'brainiak.fcma.fcma_extension',
-        ['brainiak/fcma/src/fcma_extension.cc'],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),
@@ -73,7 +63,6 @@ def has_flag(compiler, flagname):
 
 def cpp_flag(compiler):
     """Return the -std=c++[11/14] compiler flag.
-
     The c++14 is prefered over c++11 (when it is available).
     """
     if has_flag(compiler, '-std=c++14'):
@@ -86,32 +75,16 @@ def cpp_flag(compiler):
 
 
 class BuildExt(build_ext):
-    """A custom build extension for adding compiler-specific options.
-       Support regular compiling.
-       Support Unix/Linux and MacOS.
-    """
-    if sys.platform == 'Windows':
-        raise RuntimeError("BrainIAK cannot be built on Windows")
-
-    # configuration for regular compiling
+    """A custom build extension for adding compiler-specific options."""
     c_opts = {
         'unix': ['-g0', '-fopenmp'],
     }
+
     if sys.platform == 'darwin':
         c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
-        """the system will execute the run functions of the base class (distutils.command.build_ext)
-           and get to this function which is override in the sub class
-        """
-        # First, sanity-check the 'extensions' list, i.e. ext_module
-        self.check_extensions_list(self.extensions)
-        for ext in self.extensions:
-            if isinstance(ext, Extension):
-                self.regular_compiling(ext)
-
-    def regular_compiling(self, ext):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
         if ct == 'unix':
@@ -120,9 +93,10 @@ class BuildExt(build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
-        ext.extra_compile_args = opts
-        ext.extra_link_args = opts
-        self.build_extension(ext)
+        for ext in self.extensions:
+            ext.extra_compile_args = opts
+            ext.extra_link_args = opts
+        build_ext.build_extensions(self)
 
 setup(
     name='brainiak',
@@ -145,8 +119,5 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
-    package_data = {
-        'brainiak.fcma': ['*.pyx', '*.pyxbld'],
-    },
     zip_safe=False,
 )
