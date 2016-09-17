@@ -20,6 +20,7 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
+
     The purpose of this class is to postpone importing pybind11
     until it is actually installed, so that the ``get_include()``
     method can be invoked. """
@@ -72,6 +73,7 @@ def has_flag(compiler, flagname):
 
 def cpp_flag(compiler):
     """Return the -std=c++[11/14] compiler flag.
+
     The c++14 is prefered over c++11 (when it is available).
     """
     if has_flag(compiler, '-std=c++14'):
