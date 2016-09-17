@@ -42,6 +42,15 @@ ext_modules = [
             get_pybind_include(user=True)
         ],
     ),
+    Extension(
+        'brainiak.fcma.fcma_extension',
+        ['brainiak/fcma/src/fcma_extension.cc'],
+        include_dirs=[
+            # Path to pybind11 headers
+            get_pybind_include(),
+            get_pybind_include(user=True)
+        ],
+    ),
 ]
 
 
