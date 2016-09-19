@@ -123,7 +123,11 @@ pip3 install $ignore_installed -U -e . || \
 # build documentation
 cd docs
 git clean -Xf .
-make || {
+if [ ! -z $SLURM_NODELIST ]
+then
+    make_wrapper="srun -n 1"
+fi
+$make_wrapper make || {
     cd -
     exit_with_error_and_venv "make docs failed"
 }
