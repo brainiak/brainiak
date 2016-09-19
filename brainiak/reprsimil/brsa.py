@@ -129,8 +129,8 @@ class BRSA(BaseEstimator):
         fitting is to give the parameters a good starting point.
     optimizer: the optimizer to use for minimizing cost function.
         We use 'BFGS' as a default. Users can try other optimizer
-        coming with scipy.optimize.minimize, or customer
-        optimizers.
+        coming with scipy.optimize.minimize, or a custom
+        optimizer.
 
     Attributes
     ----------
@@ -489,7 +489,7 @@ class BRSA(BaseEstimator):
                          'among voxels is of full rank.'
                          'Rank = {}'.format(rank))
             logger.debug('Please be aware that estimating a matrix of '
-                         'high rank can be veryy slow.'
+                         'high rank can be very slow.'
                          'If you have a good reason to specify a lower rank '
                          'than the number of experiment conditions, do so.')
 
@@ -523,7 +523,7 @@ class BRSA(BaseEstimator):
         # (2) (optional) A fitting which allows each voxel to have their
         # own pseudo-SNR and AR(1) coefficients. But no Gaussian Process
         # prior is imposed on log(SNR). This step is neglected if GP
-        # prior is not requested. This is to allow the SNR parameters to
+        # prior is not requested. This step allows the SNR parameters to
         # move closer to their correct values before GP is introduced.
         # This step alternately fits the shared covariance and voxel-
         # specific variance. It fits for init_iter steps and the
