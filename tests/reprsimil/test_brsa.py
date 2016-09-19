@@ -143,7 +143,7 @@ def test_fit():
     param0_fitV[n_V-1] += np.log(smooth_width)*2
     param0_fitV[n_V] += np.log(inten_kernel)*2
     l_idx = np.tril_indices(n_C)
-    perturb = 1e-10
+    perturb = 1e-12
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
     param1_fitU = param0_fitU.copy()

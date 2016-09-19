@@ -124,7 +124,7 @@ def cov2corr(cov):
     """
     assert cov.ndim == 2, 'covariance matrix should be 2D array'
     inv_sd = 1 / np.sqrt(np.diag(cov))
-    corr = cov * np.outer(inv_sd, inv_sd)
+    corr = cov * inv_sd[None, :] * inv_sd[:, None]
     return corr
 
 
