@@ -1,6 +1,7 @@
 coverage
 flake8
 flake8-print
+numdifftools
 pytest
 pytest-cython
 restructuredtext-lint
