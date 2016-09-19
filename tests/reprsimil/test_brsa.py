@@ -110,6 +110,7 @@ def test_fit():
 
     scan_onsets = np.linspace(0,design.n_TR,num=5)
 
+
     # Testing with GP prior.
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
 
@@ -131,6 +132,7 @@ def test_fit():
         "spatial length scale of GP deviates too much"
     assert np.abs(brsa.lGPinten_ - inten_kernel) / inten_kernel < 0.5,\
         "intensity length scale of GP deviates too much"
+
     
     # test if gradient is correct
     XTY,XTDY,XTFY,YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX = brsa._prepare_data(design.design_used,Y,n_T,n_V,scan_onsets)
@@ -207,5 +209,22 @@ def test_fit():
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     assert not hasattr(brsa,'bGP_') and not hasattr(brsa,'lGPspace_') and not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of GP if GP is not requested.'
+    # GP parameters are not set if not requested
+
+
+    # Testing GP over just spatial coordinates.
+    brsa = BRSA(GP_space=True)
+    brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets, coords=coords)
+    # Check that result is significantly correlated with the ideal covariance matrix
+    u_b = brsa.U_[1:,1:]
+    u_i = ideal_cov[1:,1:]
+    p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
+    assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
+    # check that the recovered SNR makes sense
+    p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
+    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
+    assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
+    assert not hasattr(brsa,'lGPinten_'),\
+        'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
     # GP parameters are not set if not requested
     

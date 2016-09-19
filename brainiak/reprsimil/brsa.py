@@ -325,7 +325,26 @@ class BRSA(BaseEstimator):
 
     # The following 2 functions below generate templates used
     # for constructing inverse of covariance matrix of AR(1) noise
-
+    # The inverse of covarian matrix is
+    # (I - rho1 * D + rho1**2 * F) / sigma**2. D is a matrix where all the
+    # elements adjacent to the diagonal are 1 and all others are 0. F is
+    # a matrix which is 1 on all diagonal elements except for in the first
+    # and last columns. We denote (I - rho1 * D + rho1**2 * F) with A.
+    # In the function calculating likelihood function,
+    # XTAX, YTAY_diag, YTAX all mean multiplying the inverse covariance matrix
+    # in between either the design matrix or the data.
+    # As one can see, even though rho1 and sigma2 might update as we keep
+    # fitting parameters, several terms stay unchanged and do not need to
+    # be re-calculated.
+    # For example, in X'AX = X'(I + rho1*D + rho1**2*F)X / sigma2,
+    # the products X'X, X'DX, X'FX, etc. can always be re-used if they
+    # are pre-calculated. Therefore, _D_gen and _F_gen constructs matrices
+    # D and F, and _prepare_data calculates these products that can be
+    # re-used. In principle, once parameters have been fitted for a
+    # dataset, they can be updated for new incoming data by adding the
+    # products X'X, X'DX, X'FX, X'Y etc. from new data to those from
+    # existing data, and refit the parameters starting from the ones
+    # fitted from existing data.
     def _D_gen(self, TR):
         if TR > 0:
             return np.diag(np.ones(TR - 1), -1) \
@@ -444,11 +463,15 @@ class BRSA(BaseEstimator):
         """
         idx_param_sing = {'Cholesky': np.arange(n_l),
                           'log_sigma2': n_l, 'a1': n_l + 1}
+        # for simplified fitting
         idx_param_fitU = {'Cholesky': np.arange(n_l),
                           'a1': np.arange(n_l, n_l + n_V)}
+        # for the likelihood function when we fit U (the shared covariance).
         idx_param_fitV = {'log_SNR2': np.arange(n_V - 1),
                           'c_space': n_V - 1, 'c_inten': n_V,
                           'c_both': np.arange(n_V - 1, n_V - 1 + n_smooth)}
+        # for the likelihood functin when we fit V (reflected by SNR of
+        # each voxel)
         return idx_param_sing, idx_param_fitU, idx_param_fitV
 
     def _fit_RSA_UV(self, X, Y,
@@ -931,7 +954,7 @@ class BRSA(BaseEstimator):
     def _loglike_y_AR1_diagV_fitU(self, param, XTX, XTDX, XTFX, YTY_diag,
                                   YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
                                   log_SNR2, l_idx, n_C, n_T, n_V, rank):
-        # This code calculates the log likelihood of data given cholesky
+        # This function calculates the log likelihood of data given cholesky
         # decomposition of U and AR(1) parameters of noise as free parameters.
         # Free parameters are in param.
         # The log of the square of signal to noise level in each voxel
@@ -984,6 +1007,8 @@ class BRSA(BaseEstimator):
 
         YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
         # dimension: space,
+        # A/sigma2 is the inverse of noise covariance matrix in each voxel.
+        # YTAY means Y'AY
         XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis]\
             * XTDX[np.newaxis, :, :] + rho1[:, np.newaxis, np.newaxis]**2\
             * XTFX[np.newaxis, :, :]
@@ -999,6 +1024,11 @@ class BRSA(BaseEstimator):
         # dimension: space*rank*rank
         LAMBDA = np.linalg.inv(LAMBDA_i)
         # dimension: space*rank*rank
+        # LAMBDA is essentially the inverse covariance matrix of the
+        # posterior probability of alpha, which bears the relation with
+        # beta by beta = L * alpha, and L is the Cholesky factor of the
+        # shared covariance matrix U. refer to the explanation below
+        # Equation 5 in the NIPS paper.
         YTAXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAY)
         # dimension: space*rank
         YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA, L.T)
@@ -1019,16 +1049,18 @@ class BRSA(BaseEstimator):
                       SNR2**2 / sigma2) \
             + np.dot(XTAY / sigma2 * SNR2, YTAXL_LAMBDA)
         # dimension: feature*rank
-        tmp = -XTDX + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX
+        dXTAX_drho1 = -XTDX + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX
         # dimension: space*feature*feature
+        # because this term will be used twice below, we explicitly name
+        # it here.
         deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) * \
             (-rho1 / (1 - rho1**2) -
-             np.einsum('...ij,...ji', np.dot(LAMBDA, L.T), np.dot(tmp, L))
-             * SNR2 / 2.0
+             np.einsum('...ij,...ji', np.dot(LAMBDA, L.T),
+                       np.dot(dXTAX_drho1, L)) * SNR2 / 2.0
              + np.sum((-XTDY + 2.0 * rho1 * XTFY)
                       * YTAXL_LAMBDA_LT.T, axis=0) / sigma2 * SNR2
              - np.einsum('...i,...ij,...j',
-                         YTAXL_LAMBDA_LT, tmp, YTAXL_LAMBDA_LT)
+                         YTAXL_LAMBDA_LT, dXTAX_drho1, YTAXL_LAMBDA_LT)
              / sigma2 / 2.0 * (SNR2**2.0)
              - (-YTDY_diag + 2.0 * rho1 * YTFY_diag) / (sigma2 * 2.0))
         # dimension: space,
@@ -1046,7 +1078,7 @@ class BRSA(BaseEstimator):
                                   inten_dist2=None, space_smooth_range=None,
                                   inten_smooth_range=None):
 
-        # This code calculates the log likelihood of data given
+        # This function calculates the log likelihood of data given
         # the log of the square of pseudo signal to noise ratio in each voxel.
         # The free parameter log(SNR^2) is in param
         # This likelihood is iteratively optimized with the one with _fitU.
@@ -1056,14 +1088,6 @@ class BRSA(BaseEstimator):
         # (sigma^2) given other parameters has analytic form,
         # we do not need to explicitly parametrize it.
         # Just set it to the ML value.
-        # We assume that beta is independent between voxels
-        # and noise is also independent
-        # By the assumption that noise is independent, we only need to
-        # pass the products X'X, X'Y and Y'Y, instead of X and Y
-        # Y'Y is passed in the form of its diagonal elements.
-        # DiagV means we assume that the beta amplitude can be different
-        # between voxels. This means that V is a diagonal
-        # matrix instead of an identity matrix.
         #
         # L_l is the lower triangular part of L, a1 is tan(rho1*pi/2),
         # where rho1 is the autoregressive coefficient in each voxel
