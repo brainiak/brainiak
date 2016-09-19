@@ -1157,7 +1157,7 @@ class BRSA(BaseEstimator):
             - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 - n_T * 0.5
         # Log likelihood of data given parameters, without the GP prior.
         deriv_log_SNR2 = (-rank + np.trace(LAMBDA, axis1=1, axis2=2)) * 0.5\
-            + YTAY / (sigma2 * 2.0) - n_T * 0.5 \
+            + YTAY / (sigma2 * 2.0) - n_C * 0.5 \
             - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA_LT,
                         XTAX, YTAXL_LAMBDA_LT)\
             / (sigma2 * 2.0) * (SNR2**2.0)
