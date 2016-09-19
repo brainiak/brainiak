@@ -127,9 +127,9 @@ def test_fit():
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
 
     assert np.abs(brsa.bGP_ - tau) / tau < 0.3, "standard deviation of GP deviates too much"
-    assert np.abs(brsa.lGPspace_ - smooth_width) / smooth_width < 0.7,\
+    assert np.abs(brsa.lGPspace_ - smooth_width) / smooth_width < 0.5,\
         "spatial length scale of GP deviates too much"
-    assert np.abs(brsa.lGPinten_ - inten_kernel) / inten_kernel < 0.7,\
+    assert np.abs(brsa.lGPinten_ - inten_kernel) / inten_kernel < 0.5,\
         "intensity length scale of GP deviates too much"
     
     # test if gradient is correct
@@ -141,7 +141,7 @@ def test_fit():
     param0_fitV[n_V-1] += np.log(smooth_width)*2
     param0_fitV[n_V] += np.log(inten_kernel)*2
     l_idx = np.tril_indices(n_C)
-    perturb = 1e-6
+    perturb = 1e-10
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
     param1_fitU = param0_fitU.copy()
@@ -150,7 +150,7 @@ def test_fit():
                 XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
     num_diff = ll1-ll0
     ana_diff = deriv0[0]*perturb
-    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of L is not right"
+    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.01, "Gradient of L is not right"
     
     param1_fitU = param0_fitU.copy()
     param1_fitU[n_l] = param1_fitU[n_l]+perturb
@@ -158,7 +158,7 @@ def test_fit():
                 XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_l]*perturb
-    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of AR(1) coefficient reparametrization is not right"
+    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.01, "Gradient of AR(1) coefficient reparametrization is not right"
     
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
@@ -170,7 +170,7 @@ def test_fit():
                 dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[0]*perturb
-    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of log_SNR2 parameter is not right"
+    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.01, "Gradient of log_SNR2 parameter is not right"
     
     param1_fitV = param0_fitV.copy()
     param1_fitV[n_V-1] = param1_fitV[n_V-1]+perturb
@@ -179,7 +179,7 @@ def test_fit():
                 dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_V-1]*perturb
-    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of GP spatial lengths scale parameter is not right"
+    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.01, "Gradient of GP spatial lengths scale parameter is not right"
     
     param1_fitV = param0_fitV.copy()
     param1_fitV[n_V] = param1_fitV[n_V]+perturb
@@ -188,7 +188,7 @@ def test_fit():
                 dist2,inten_diff2,100,100)
     num_diff = ll1-ll0
     ana_diff = deriv0[n_V]*perturb
-    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.1, "Gradient of GP intensity lengths scale parameter is not right"
+    assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.01, "Gradient of GP intensity lengths scale parameter is not right"
     
     
     # Testing without GP prior.
@@ -203,7 +203,7 @@ def test_fit():
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNR makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    assert p < 0.05, "Fitted SNR does not correlate with simualted SNR!"
+    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     assert not hasattr(brsa,'bGP_') and not hasattr(brsa,'lGPspace_') and not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of GP if GP is not requested.'

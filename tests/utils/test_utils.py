@@ -50,3 +50,5 @@ def test_read_design():
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     design = read_design(fname=file_path)
     assert design, 'Failed to read design matrix'
+    read = read_design()
+    assert read, 'Failure to initialize'
