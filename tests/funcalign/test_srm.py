@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 from sklearn.utils.validation import NotFittedError
-
+import pytest
 
 def test_can_instantiate():
     import brainiak.funcalign.srm
@@ -26,8 +26,7 @@ def test_can_instantiate():
     subjects = 2
     features = 3
 
-    s = brainiak.funcalign.srm.SRM(verbose=True, n_iter=5,
-                                   features=features)
+    s = brainiak.funcalign.srm.SRM(n_iter=5, features=features)
     assert s, "Invalid SRM instance!"
 
 
@@ -47,18 +46,14 @@ def test_can_instantiate():
     X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
 
     # Check that transform does NOT run before fitting the model
-    try:
+    with pytest.raises(NotFittedError) as excinfo:
         s.transform(X)
-        assert True, "Success transforming before fitting the model!"
-    except NotFittedError:
-        print("Caught Exception number 1: transforming before fitting the model")
+    print("Test: transforming before fitting the model")
 
     # Check that it does NOT run with 1 subject
-    try:
+    with pytest.raises(ValueError) as excinfo:
         s.fit(X)
-        assert True, "Success running SRM with one subject!"
-    except ValueError:
-        print("Caught Exception number 1: running SRM with 1 subject")
+    print("Test: running SRM with 1 subject")
 
     for subject in range(1, subjects):
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
@@ -66,23 +61,19 @@ def test_can_instantiate():
         X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
 
     # Check that runs with 2 subject
-    try:
-        s.fit(X)
-    except ValueError:
-        assert True, "Problem running SRM."
+    s.fit(X)
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
         assert s.w_[subject].shape[0] == voxels, "Invalid computation of SRM! (wrong # voxels in W)"
         assert s.w_[subject].shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
+        ortho = np.linalg.norm(model.w_[subject].T.dot(model.w_[subject]) - np.eye(model.w_[subject].shape[1]), 'fro')
+        assert ortho < 1e-7, "A Wi mapping is not orthonormal in SRM."
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
 
     # Check that it does run to compute the shared response after the model computation
-    try:
-        new_s = s.transform(X)
-    except ValueError:
-        assert True, "Problem transforming new data with SRM."
+    new_s = s.transform(X)
 
     assert len(new_s) == subjects, "Invalid computation of SRM! (wrong # subjects after transform)"
     for subject in range(subjects):
@@ -90,28 +81,22 @@ def test_can_instantiate():
         assert new_s[subject].shape[1] == samples, "Invalid computation of SRM! (wrong # samples after transform)"
 
     # Check that it does NOT run with non-matching number of subjects
-    try:
+    with pytest.raises(ValueError) as excinfo:
         s.transform(X[1])
-        assert True, "Success transforming with non-matching number of subjects"
-    except ValueError:
-        print("Caught Exception number 2: transforming with non-matching number of subjects")
+    print("Test: transforming with non-matching number of subjects")
 
     # Check that it does not run without enough samples (TRs).
-    try:
+    with pytest.raises(ValueError) as excinfo:
         s.set_params(features=(samples+1))
         s.fit(X)
-        assert True, "Success running SRM with more features than samples!"
-    except ValueError as e:
-        print("Catched Exception number 3: not enough samples")
+    print("Test: not enough samples")
 
     # Check that it does not run with different number of samples (TRs)
     S2 = S[:,:-2]
     X.append(Q.dot(S2))
-    try:
+    with pytest.raises(ValueError) as excinfo:
         s.fit(X)
-        assert True, "Success running SRM with different number of samples!"
-    except ValueError:
-        print("Catched Exception number 2: different number of samples per subject")
+    print("Test: different number of samples per subject")
 
 
 
@@ -127,8 +112,7 @@ def test_det_srm():
     subjects = 2
     features = 3
 
-    model = brainiak.funcalign.srm.DetSRM(verbose=True, n_iter=5,
-                                   features=features)
+    model = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
     assert model, "Invalid DetSRM instance!"
 
 
@@ -148,18 +132,14 @@ def test_det_srm():
     X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
 
     # Check that transform does NOT run before fitting the model
-    try:
+    with pytest.raises(NotFittedError) as excinfo:
         model.transform(X)
-        assert True, "Success transforming before fitting the model!"
-    except NotFittedError:
-        print("Caught Exception number 1: transforming before fitting the model")
+    print("Test: transforming before fitting the model")
 
     # Check that it does NOT run with 1 subject
-    try:
+    with pytest.raises(ValueError) as excinfo:
         model.fit(X)
-        assert True, "Success running DetSRM with one subject!"
-    except ValueError:
-        print("Caught Exception number 1: running DetSRM with 1 subject")
+    print("Test: running DetSRM with 1 subject")
 
     for subject in range(1, subjects):
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
@@ -167,23 +147,19 @@ def test_det_srm():
         X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
 
     # Check that runs with 2 subject
-    try:
-        model.fit(X)
-    except ValueError:
-        assert True, "Problem running DetSRM."
+    model.fit(X)
 
     assert len(model.w_) == subjects, "Invalid computation of DetSRM! (wrong # subjects in W)"
     for subject in range(subjects):
         assert model.w_[subject].shape[0] == voxels, "Invalid computation of DetSRM! (wrong # voxels in W)"
         assert model.w_[subject].shape[1] == features, "Invalid computation of DetSRM! (wrong # features in W)"
+        ortho = np.linalg.norm(model.w_[subject].T.dot(model.w_[subject]) - np.eye(model.w_[subject].shape[1]), 'fro')
+        assert ortho < 1e-7, "A Wi mapping is not orthonormal in DetSRM."
     assert model.s_.shape[0] == features, "Invalid computation of DetSRM! (wrong # features in S)"
     assert model.s_.shape[1] == samples, "Invalid computation of DetSRM! (wrong # samples in S)"
 
     # Check that it does run to compute the shared response after the model computation
-    try:
-        new_s = model.transform(X)
-    except ValueError:
-        assert True, "Problem transforming new data with DetSRM."
+    new_s = model.transform(X)
 
     assert len(new_s) == subjects, "Invalid computation of DetSRM! (wrong # subjects after transform)"
     for subject in range(subjects):
@@ -191,27 +167,21 @@ def test_det_srm():
         assert new_s[subject].shape[1] == samples, "Invalid computation of DetSRM! (wrong # samples after transform)"
 
     # Check that it does NOT run with non-matching number of subjects
-    try:
+    with pytest.raises(ValueError) as excinfo:
         model.transform(X[1])
-        assert True, "Success transforming with non-matching number of subjects"
-    except ValueError:
-        print("Caught Exception number 2: transforming with non-matching number of subjects")
+    print("Test: transforming with non-matching number of subjects")
 
     # Check that it does not run without enough samples (TRs).
-    try:
+    with pytest.raises(ValueError) as excinfo:
         model.set_params(features=(samples+1))
         model.fit(X)
-        assert True, "Success running DetSRM with more features than samples!"
-    except ValueError as e:
-        print("Catched Exception number 3: not enough samples")
+    print("Test: not enough samples")
 
     # Check that it does not run with different number of samples (TRs)
     S2 = S[:,:-2]
     X.append(Q.dot(S2))
-    try:
+    with pytest.raises(ValueError) as excinfo:
         model.fit(X)
-        assert True, "Success running DetSRM with different number of samples!"
-    except ValueError:
-        print("Catched Exception number 2: different number of samples per subject")
+    print("Test: different number of samples per subject")
 
 
