@@ -410,7 +410,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 rho2[subject] += trace_sigma_s
                 rho2[subject] /= samples * voxels[subject]
 
-            if logger.isEnabledFor(20):
+            if logger.isEnabledFor(logging.INFO):
                 # Calculate and log the current log-likelihood for checking
                 # convergence
                 loglike = self._likelihood(
@@ -625,7 +625,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # voxels with the number of voxels in each subject.
         w, _ = _init_w_transforms(data, self.features)
         shared_response = self._compute_shared_response(data, w)
-        if logger.isEnabledFor(20):
+        if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
             objective = self._objective_function(data, w, shared_response)
             logger.info('Objective function %f' % objective)
@@ -646,7 +646,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             # Update the shared response:
             shared_response = self._compute_shared_response(data, w)
 
-            if logger.isEnabledFor(20):
+            if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
                 objective = self._objective_function(data, w, shared_response)
                 logger.info('Objective function %f' % objective)
