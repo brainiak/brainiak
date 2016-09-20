@@ -142,10 +142,10 @@ class SRM(BaseEstimator, TransformerMixin):
 
        This is a single node version.
 
-       The run-time complexity is :math:`O(I (V T K + K^3))` and the memory
-       complexity is :math:`O(V T)` with I - the number of iterations, V - the
-       sum of voxels from all subjects, T - the number of samples, and K - the
-       number of features (typically, :math:`V \\gg T \\gg K`).
+       The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
+       memory complexity is :math:`O(V T)` with I - the number of iterations,
+       V - the sum of voxels from all subjects, T - the number of samples, and
+       K - the number of features (typically, :math:`V \\gg T \\gg K`).
     """
 
     def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
@@ -468,10 +468,11 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
        This is a single node version.
 
-       The run-time complexity is :math:`O(I (V T K))` and the memory
+       The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
        complexity is :math:`O(V T)` with I - the number of iterations, V - the
-       sum of voxels from all subjects, T - the number of samples, and K - the
-       number of features (typically, :math:`V \\gg T \\gg K`).
+       sum of voxels from all subjects, T - the number of samples, K - the
+       number of features (typically, :math:`V \\gg T \\gg K`), and N - the
+       number of subjects.
     """
 
     def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
@@ -575,10 +576,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
         objective = 0.0
         for m in range(subjects):
             objective += \
-                (np.linalg.norm(data[m] - w[m].dot(s), 'fro')**2)\
-                * (0.5 / data[m].shape[1])
+                np.linalg.norm(data[m] - w[m].dot(s), 'fro')**2
 
-        return objective
+        return objective * 0.5 / data[0].shape[1]
 
     def _compute_shared_response(self, data, w):
         """ Compute the shared response S
