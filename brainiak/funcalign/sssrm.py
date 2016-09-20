@@ -326,7 +326,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         theta, bias = self._update_classifier(data_sup, labels, w, classes)
 
         # calculate and print the objective function
-        if logger.isEnabledFor(20):
+        if logger.isEnabledFor(logging.INFO):
             objective = self._objective_function(data_align, data_sup, labels,
                                                  w, s, theta, bias)
             logger.info('Objective function %f' % objective)
@@ -339,7 +339,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             w = self._update_w(data_align, data_sup, labels, w, s, theta, bias)
 
             # Output the objective function
-            if logger.isEnabledFor(20):
+            if logger.isEnabledFor(logging.INFO):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating Wi  %f'
@@ -349,7 +349,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             s = SSSRM._compute_shared_response(data_align, w)
 
             # Output the objective function
-            if logger.isEnabledFor(20):
+            if logger.isEnabledFor(logging.INFO):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating S   %f'
@@ -359,7 +359,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             theta, bias = self._update_classifier(data_sup, labels, w, classes)
 
             # Output the objective function
-            if logger.isEnabledFor(20):
+            if logger.isEnabledFor(logging.INFO):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating MLR %f'
