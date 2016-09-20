@@ -80,9 +80,6 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
 
-    verbose : boolean, default: False
-        Verbose mode flag.
-
 
     Attributes
     ----------
@@ -114,13 +111,12 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     """
 
     def __init__(self, n_iter=10, features=50, gamma=1.0, cost=0.5,
-                 rand_seed=0, verbose=False):
+                 rand_seed=0):
         self.n_iter = n_iter
         self.features = features
         self.gamma = gamma
         self.cost = cost
         self.rand_seed = rand_seed
-        self.verbose = verbose
         return
 
     def fit(self, X, y, Z):
@@ -142,7 +138,6 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             for training the MLR classifier.
 
         """
-
         logger.info('Starting SS-SRM')
 
         # Check that the cost value is in range (0.0,1.0)
@@ -331,7 +326,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         theta, bias = self._update_classifier(data_sup, labels, w, classes)
 
         # calculate and print the objective function
-        if self.verbose:
+        if logger.isEnabledFor(20):
             objective = self._objective_function(data_align, data_sup, labels,
                                                  w, s, theta, bias)
             logger.info('Objective function %f' % objective)
@@ -344,7 +339,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             w = self._update_w(data_align, data_sup, labels, w, s, theta, bias)
 
             # Output the objective function
-            if self.verbose:
+            if logger.isEnabledFor(20):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating Wi  %f'
@@ -354,7 +349,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             s = SSSRM._compute_shared_response(data_align, w)
 
             # Output the objective function
-            if self.verbose:
+            if logger.isEnabledFor(20):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating S   %f'
@@ -364,7 +359,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             theta, bias = self._update_classifier(data_sup, labels, w, classes)
 
             # Output the objective function
-            if self.verbose:
+            if logger.isEnabledFor(20):
                 objective = self._objective_function(data_align, data_sup,
                                                      labels, w, s, theta, bias)
                 logger.info('Objective function after updating MLR %f'
@@ -485,8 +480,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                            broadcastable=(True, False))
 
         for subject in range(subjects):
-            if self.verbose:
-                logger.info('Subject Wi %d' % subject)
+            logger.info('Subject Wi %d' % subject)
             # Solve for subject i
             # Create the theano function
             w_th = T.matrix(name='W', dtype=theano.config.floatX)
