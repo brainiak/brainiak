@@ -59,7 +59,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     l2 regularization) in a semi-supervised manner:
 
     .. math:: X_i \\approx W_i S ,~for~all~i=1\dots N
+
     and
+
     .. math:: f(W_i^T Z_i)=y_i ,~for~all~i=1\dots N
 
     Parameters

@@ -139,10 +139,10 @@ def sumexp_stable(data):
 def concatenate_list(l, axis=0):
     """Construct a numpy array by stacking arrays in a list
 
-    Parameter
+    Parameters
     ----------
 
-    data : list of arrays, arrays have same shape in all but one dimenstion or
+    data : list of arrays, arrays have same shape in all but one dimension or
     elements are None
         The list of arrays to be concatenated.
 
@@ -155,7 +155,6 @@ def concatenate_list(l, axis=0):
 
     data_stacked : array
         The resulting concatenated array.
-
     """
     # Get the indexes of the arrays in the list
     mask = []
