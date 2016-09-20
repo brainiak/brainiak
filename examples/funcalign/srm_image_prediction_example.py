@@ -32,7 +32,7 @@ for subject in range(subjects):
 
 # Run SRM with the movie data
 help(brainiak.funcalign.srm.SRM)
-srm = brainiak.funcalign.srm.SRM(n_iter=10, features=50, verbose=True)
+srm = brainiak.funcalign.srm.SRM(n_iter=10, features=50)
 srm.fit(movie_data)
 
 # We define a function to present the output of the experiment.
@@ -119,7 +119,7 @@ print("SRM: The average accuracy among all subjects is {0:f} +/- {1:f}".format(n
 
 # Now we repeat the experiment with the Deterministic SRM
 # Fit the model
-srm = brainiak.funcalign.srm.DetSRM(n_iter=10, features=50, verbose=True)
+srm = brainiak.funcalign.srm.DetSRM(n_iter=10, features=50)
 srm.fit(movie_data)
 
 # Transform the image stimuli data
