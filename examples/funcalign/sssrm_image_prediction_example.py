@@ -79,7 +79,7 @@ for block in range(8):
         labels_validation[s] = labels[idx_validation]
 
     # Run SS-SRM with the movie data and training image data
-    model = brainiak.funcalign.sssrm.SSSRM(n_iter=10, features=50, gamma=1.0, cost=0.2, verbose=True)
+    model = brainiak.funcalign.sssrm.SSSRM(n_iter=10, features=50, gamma=1.0, cost=0.2)
     model.fit(movie_data, labels_train, image_data_train)
 
     # Predict on the validation samples and check results
