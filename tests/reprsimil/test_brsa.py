@@ -47,7 +47,7 @@ def test_fit():
     design.n_TR = design.n_TR * 4
     
     
-    n_V = 300
+    n_V = 200
     n_C = np.size(design.design_used,axis=1) 
     n_T = design.n_TR
 
@@ -152,14 +152,14 @@ def test_fit():
     dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
                                                                 YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
                                                                 l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitU incorrect'
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
     
     vec = np.zeros(np.size(param0_fitU))
     vec[n_l] = 1
     dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
                                                                 YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
                                                                 l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitU incorrect'
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
     
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
@@ -170,7 +170,7 @@ def test_fit():
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitV incorrect'
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
     
     vec = np.zeros(np.size(param0_fitV))
     vec[n_V-1] = 1
@@ -178,7 +178,7 @@ def test_fit():
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitV incorrect'
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
 
     vec = np.zeros(np.size(param0_fitV))
     vec[n_V] = 1
@@ -186,7 +186,7 @@ def test_fit():
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitV incorrect'
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
 
     # Testing without GP prior.
     brsa = BRSA()
