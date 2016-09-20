@@ -165,8 +165,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         y : not used
         """
-        if self.verbose:
-            logger.info('Starting Probabilistic SRM')
+        logger.info('Starting Probabilistic SRM')
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -357,8 +356,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
-            if self.verbose:
-                logger.info('Iteration %d' % (iteration + 1))
+            logger.info('Iteration %d' % (iteration + 1))
 
             # E-step:
 
@@ -416,7 +414,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 rho2[subject] += trace_sigma_s
                 rho2[subject] /= samples * voxels[subject]
 
-            if self.verbose:
+            if logger.isEnabledFor(20):
                 # Calculate and log the current log-likelihood for checking
                 # convergence
                 loglike = self._likelihood(
@@ -493,8 +491,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         y : not used
         """
-        if self.verbose:
-            logger.info('Starting Deterministic SRM')
+        logger.info('Starting Deterministic SRM')
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -636,15 +633,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # voxels with the number of voxels in each subject.
         w, _ = _init_w_transforms(data, self.features)
         shared_response = self._compute_shared_response(data, w)
-        if self.verbose:
+        if logger.isEnabledFor(20):
             # Calculate the current objective function value
             objective = self._objective_function(data, w, shared_response)
             logger.info('Objective function %f' % objective)
 
         # Main loop of the algorithm
         for iteration in range(self.n_iter):
-            if self.verbose:
-                logger.info('Iteration %d' % (iteration + 1))
+            logger.info('Iteration %d' % (iteration + 1))
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
@@ -658,7 +654,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             # Update the shared response:
             shared_response = self._compute_shared_response(data, w)
 
-            if self.verbose:
+            if logger.isEnabledFor(20):
                 # Calculate the current objective function value
                 objective = self._objective_function(data, w, shared_response)
                 logger.info('Objective function %f' % objective)
