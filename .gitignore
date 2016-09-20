@@ -21,3 +21,5 @@ htmlcov
 .ipynb_checkpoints
 junit-*.xml
 __pycache__
+
+brainiak/fcma/cython_blas.c

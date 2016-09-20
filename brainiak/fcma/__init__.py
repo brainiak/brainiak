@@ -12,17 +12,3 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 """Full correlation matrix analysis"""
-
-import pyximport
-from mpi4py import MPI
-pyximport.install()
-
-a = 'uninstalled'
-# make the cython building execute only once
-if MPI.COMM_WORLD.Get_rank() == 0:
-    from . import cython_blas as blas
-    blas.installed()
-    a = 'installed'
-# tell everybody the building is done
-# functions as a barrier
-a = MPI.COMM_WORLD.bcast(a, root=0)
