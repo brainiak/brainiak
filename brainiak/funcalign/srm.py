@@ -109,9 +109,6 @@ class SRM(BaseEstimator, TransformerMixin):
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
 
-    verbose : boolean, default: False
-        Verbose mode flag.
-
 
     Attributes
     ----------
@@ -148,11 +145,10 @@ class SRM(BaseEstimator, TransformerMixin):
        K - the number of features (typically, :math:`V \\gg T \\gg K`).
     """
 
-    def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
+    def __init__(self, n_iter=10, features=50, rand_seed=0):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
-        self.verbose = verbose
         return
 
     def fit(self, X, y=None):
@@ -446,9 +442,6 @@ class DetSRM(BaseEstimator, TransformerMixin):
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
 
-    verbose : boolean, default: False
-        Verbose mode flag.
-
 
     Attributes
     ----------
@@ -475,11 +468,10 @@ class DetSRM(BaseEstimator, TransformerMixin):
        number of subjects.
     """
 
-    def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
+    def __init__(self, n_iter=10, features=50, rand_seed=0):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
-        self.verbose = verbose
         return
 
     def fit(self, X, y=None):
