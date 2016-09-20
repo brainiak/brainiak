@@ -16,21 +16,26 @@ from scipy.stats import stats
 from sklearn.metrics import confusion_matrix
 from sklearn.svm import NuSVC
 import numpy as np
+import brainiak.funcalign.srm
 
 # Load the input data that contains the movie stimuli for unsupervised training with SRM
-movie_data = scipy.io.loadmat('data/movie_data.mat')
+movie_file = scipy.io.loadmat('data/movie_data.mat')
+movie_data_left = movie_file['movie_data_lh']
+movie_data_right = movie_file['movie_data_rh']
+subjects = movie_data_left.shape[2]
 
 # Convert data to a list of arrays matching SRM input.
 # Each element is a matrix of voxels by TRs.
-movie_data = list(movie_data['movie_data_lh'])
-subjects = len(movie_data)
+# Also, concatenate data from both hemispheres in the brain.
+movie_data = []
+for s in range(subjects):
+    movie_data.append(np.concatenate([movie_data_left[:, :, s], movie_data_right[:, :, s]], axis=0))
 
 # Z-score the data
 for subject in range(subjects):
     movie_data[subject] = stats.zscore(movie_data[subject],axis=1,ddof=1)
 
 # Run SRM with the movie data
-import brainiak.funcalign.srm
 help(brainiak.funcalign.srm.SRM)
 srm = brainiak.funcalign.srm.SRM(n_iter=10, features=50, verbose=True)
 srm.fit(movie_data)
@@ -61,10 +66,16 @@ def plot_confusion_matrix(cm, title="Confusion Matrix"):
     plt.show()
 
 # Load the input data that contains the image stimuli and its labels for training a classifier
-image_data = scipy.io.loadmat('data/image_data.mat')
+image_file = scipy.io.loadmat('data/image_data.mat')
+image_data_left = image_file['image_data_lh']
+image_data_right = image_file['image_data_rh']
+
 # Convert data to a list of arrays matching SRM input.
 # Each element is a matrix of voxels by TRs.
-image_data = list(image_data['image_data_lh'])
+# Also, concatenate data from both hemispheres in the brain.
+image_data = []
+for s in range(subjects):
+    image_data.append(np.concatenate([image_data_left[:, :, s], image_data_right[:, :, s]], axis=0))
 
 assert image_data[0].shape[0] == movie_data[0].shape[0], "Number of voxels in movie data and image data do not match!"
 

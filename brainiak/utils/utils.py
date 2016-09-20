@@ -100,3 +100,69 @@ def fast_inv(a):
     except np.linalg.linalg.LinAlgError:
         logging.exception('Error from np.linalg.solve')
         raise
+
+
+def sumexp_stable(data):
+    """Compute the sum of exponents for a list of samples
+
+    Parameters
+    ----------
+
+    data : array, shape=[features, samples]
+        A data array containing samples.
+
+
+    Returns
+    -------
+
+    result_sum : array, shape=[samples,]
+        The sum of exponents for each sample divided by the exponent
+        of the maximum feature value in the sample.
+
+    max_value : array, shape=[samples,]
+        The maximum feature value for each sample.
+
+    result_exp : array, shape=[features, samples]
+        The exponent of each element in each sample divided by the exponent
+        of the maximum feature value in the sample.
+
+    ..note::
+    This function is more stable than computing the sum(exp(v)).
+    It useful for computing the softmax_i(v)=exp(v_i)/sum(exp(v)) function.
+    """
+    max_value = data.max(axis=0)
+    result_exp = np.exp(data - max_value)
+    result_sum = np.sum(result_exp, axis=0)
+    return result_sum, max_value, result_exp
+
+
+def concatenate_list(l, axis=0):
+    """Construct a numpy array by stacking arrays in a list
+
+    Parameter
+    ----------
+
+    data : list of arrays, arrays have same shape in all but one dimenstion or
+    elements are None
+        The list of arrays to be concatenated.
+
+    axis : int, default = 0
+        Axis for the concatenation
+
+
+    Returns
+    -------
+
+    data_stacked : array
+        The resulting concatenated array.
+
+    """
+    # Get the indexes of the arrays in the list
+    mask = []
+    for i in range(len(l)):
+        if l[i] is not None:
+            mask.append(i)
+
+    # Concatenate them
+    l_stacked = np.concatenate([l[i] for i in mask], axis=axis)
+    return l_stacked

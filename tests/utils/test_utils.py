@@ -42,3 +42,29 @@ def test_fast_inv():
     with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
         fast_inv(a)
     assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
+
+
+def test_sumexp():
+    from brainiak.utils.utils import sumexp_stable
+    import numpy as np
+
+    data = np.array([[1, 1],[0, 1]])
+    sums, maxs, exps = sumexp_stable(data)
+    assert sums.size == data.shape[1], "Invalid sum(exp(v)) computation (wrong # samples in sums)"
+    assert exps.shape[0] == data.shape[0], "Invalid exp(v) computation (wrong # features)"
+    assert exps.shape[1] == data.shape[1], "Invalid exp(v) computation (wrong # samples)"
+    assert maxs.size == data.shape[1], "Invalid max computation (wrong # samples in maxs)"
+
+
+def test_concatenate_list():
+    from brainiak.utils.utils import concatenate_list
+    import numpy as np
+    l = [None] * 5
+
+    l[1] = np.array([0, 1, 2])
+    l[3] = np.array([3, 4])
+    try:
+        r = concatenate_list(l, axis=0)
+    except:
+        assert True, "Could not concatenate a list"
+    assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"

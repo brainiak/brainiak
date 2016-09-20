@@ -81,7 +81,7 @@ def _init_w_transforms(data, features):
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
         voxels[subject] = data[subject].shape[0]
-        rnd_matrix = np.mat(np.random.random((voxels[subject], features)))
+        rnd_matrix = np.random.random((voxels[subject], features))
         q, r = np.linalg.qr(rnd_matrix)
         w.append(q)
 
