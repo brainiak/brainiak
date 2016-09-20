@@ -69,6 +69,8 @@ def test_can_instantiate():
         assert s.w_[subject].shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
         ortho = np.linalg.norm(s.w_[subject].T.dot(s.w_[subject]) - np.eye(s.w_[subject].shape[1]), 'fro')
         assert ortho < 1e-7, "A Wi mapping is not orthonormal in SRM."
+        difference = np.linalg.norm(X[subject] - s.w_[subject].dot(s.s_), 'fro')
+        assert difference < 1e-2, "Model seems incorrectly computed."
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
 
@@ -155,6 +157,8 @@ def test_det_srm():
         assert model.w_[subject].shape[1] == features, "Invalid computation of DetSRM! (wrong # features in W)"
         ortho = np.linalg.norm(model.w_[subject].T.dot(model.w_[subject]) - np.eye(model.w_[subject].shape[1]), 'fro')
         assert ortho < 1e-7, "A Wi mapping is not orthonormal in DetSRM."
+        difference = np.linalg.norm(X[subject] - model.w_[subject].dot(model.s_), 'fro')
+        assert difference < 1e-2, "Model seems incorrectly computed."
     assert model.s_.shape[0] == features, "Invalid computation of DetSRM! (wrong # features in S)"
     assert model.s_.shape[1] == samples, "Invalid computation of DetSRM! (wrong # samples in S)"
 
