@@ -106,6 +106,10 @@ def test_sssrm():
         model_bad.fit(X, y, Z)
     print("Test: running SSSRM with wrong gamma")
 
+    # Set the logging level to INFO
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
     # Check that runs with 2 subject
     model.fit(X, y, Z2)
     print("Test: fitting SSSRM successfully")
