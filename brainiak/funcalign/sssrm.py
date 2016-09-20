@@ -142,8 +142,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             for training the MLR classifier.
 
         """
-        if self.verbose:
-            logger.info('Starting SS-SRM')
+
+        logger.info('Starting SS-SRM')
 
         # Check that the cost value is in range (0.0,1.0)
         if 0.0 >= self.cost or self.cost >= 1.0:
@@ -154,19 +154,12 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             raise ValueError("Gamma parameter should be positive.")
 
         # Check the number of subjects
-        if len(X) <= 1:
-            raise ValueError("There are not enough subjects in the alignment "
-                             "data ({0:d}) to train the model.".format(len(X)))
-        if len(y) <= 1:
-            raise ValueError("There are not enough subjects in the labels y "
-                             "({0:d}) to train the model.".format(len(y)))
-
-        if len(Z) <= 1:
-            raise ValueError("There are not enough subjects in the labeled Z "
-                             "data ({0:d}) to train the model.".format(len(Z)))
+        if len(X) <= 1 or len(y) <= 1 or len(Z) <= 1:
+            raise ValueError("There are not enough subjects in the input "
+                             "data to train the model.")
 
         if not (len(X) == len(y)) or not (len(X) == len(Z)):
-            raise ValueError("Different number of subjects in data")
+            raise ValueError("Different number of subjects in data.")
 
         # Check for input data sizes
         if X[0].shape[1] < self.features:
@@ -175,19 +168,17 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                 "{0:d} features.".format(self.features))
 
         # Check if all subjects have same number of TRs for alignment
+        # and if alignment and classification data have the same number of
+        # voxels per subject. Also check that there labels for all the classif.
+        # sample
         number_trs = X[0].shape[1]
         number_subjects = len(X)
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
+            assert_all_finite(Z[subject])
             if X[subject].shape[1] != number_trs:
                 raise ValueError("Different number of alignment samples "
                                  "between subjects.")
-
-        # Check if alignment and classification data have the same number of
-        # voxels per subject. Also check that there labels for all the classif.
-        # sample
-        for subject in range(number_subjects):
-            assert_all_finite(Z[subject])
             if X[subject].shape[0] != Z[subject].shape[0]:
                 raise ValueError("Different number of voxels between alignment"
                                  " and classification data (subject {0:d})"
@@ -347,8 +338,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         # Main loop:
         for iteration in range(self.n_iter):
-            if self.verbose:
-                logger.info('Iteration %d' % (iteration + 1))
+            logger.info('Iteration %d' % (iteration + 1))
 
             # Update the mappings Wi
             w = self._update_w(data_align, data_sup, labels, w, s, theta, bias)
