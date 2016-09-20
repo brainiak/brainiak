@@ -116,6 +116,8 @@ def test_sssrm():
         assert model.w_[subject].shape[1] == features, "Invalid computation of SSSRM! (wrong # features in W)"
         ortho = np.linalg.norm(model.w_[subject].T.dot(model.w_[subject]) - np.eye(model.w_[subject].shape[1]), 'fro')
         assert ortho < 1e-7, "A Wi mapping is not orthonormal in SSSRM."
+        difference = np.linalg.norm(X[subject] - model.w_[subject].dot(model.s_), 'fro')
+        assert difference < 1e-2, "Model seems incorrectly computed."
     assert model.s_.shape[0] == features, "Invalid computation of SSSRM! (wrong # features in S)"
     assert model.s_.shape[1] == align_samples, "Invalid computation of SSSRM! (wrong # samples in S)"
 
