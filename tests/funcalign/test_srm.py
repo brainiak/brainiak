@@ -67,7 +67,7 @@ def test_can_instantiate():
     for subject in range(subjects):
         assert s.w_[subject].shape[0] == voxels, "Invalid computation of SRM! (wrong # voxels in W)"
         assert s.w_[subject].shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
-        ortho = np.linalg.norm(model.w_[subject].T.dot(model.w_[subject]) - np.eye(model.w_[subject].shape[1]), 'fro')
+        ortho = np.linalg.norm(s.w_[subject].T.dot(s.w_[subject]) - np.eye(s.w_[subject].shape[1]), 'fro')
         assert ortho < 1e-7, "A Wi mapping is not orthonormal in SRM."
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
