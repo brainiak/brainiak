@@ -144,25 +144,8 @@ def test_fit():
     param0_fitV[n_V-1] += np.log(smooth_width)*2
     param0_fitV[n_V] += np.log(inten_kernel)*2
     l_idx = np.tril_indices(n_C)
-    # perturb = 1e-8
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
-    # param1_fitU = param0_fitU.copy()
-    # param1_fitU[0] = param1_fitU[0]+perturb
-    # ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitU(param1_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-    #             XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
-    # num_diff = ll1-ll0
-    # ana_diff = deriv0[0]*perturb
-    # assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.02, "Gradient of L is not right"
-    
-    
-    # param1_fitU = param0_fitU.copy()
-    # param1_fitU[n_l] = param1_fitU[n_l]+perturb
-    # ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitU(param1_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-    #             XTY, XTDY, XTFY, np.log(snr)*2, l_idx,n_C,n_T,n_V,n_C)
-    # num_diff = ll1-ll0
-    # ana_diff = deriv0[n_l]*perturb
-    # assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.02, "Gradient of AR(1) coefficient reparametrization is not right"
     
     vec = np.zeros(np.size(param0_fitU))
     vec[0] = 1
@@ -177,10 +160,6 @@ def test_fit():
                                                                 YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
                                                                 l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitU incorrect'
-#     assert np.allclose(derivative(lambda x: brsa._loglike_y_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
-#                                                                        YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
-#                                                                        l_idx,n_C,n_T,n_V,n_C)[1],
-#                               param0_fitU, dx=1e-8), deriv0), 'gradient of fitU incorrect'
     
     ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
@@ -200,7 +179,7 @@ def test_fit():
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitV incorrect'
-    
+
     vec = np.zeros(np.size(param0_fitV))
     vec[n_V] = 1
     dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
@@ -208,40 +187,12 @@ def test_fit():
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.02), 'gradient of fitV incorrect'
-    # param1_fitV = param0_fitV.copy()
-    # param1_fitV[0] = param1_fitV[0]+perturb
-    # ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-    #             XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-    #             dist2,inten_diff2,100,100)
-    # num_diff = ll1-ll0
-    # ana_diff = deriv0[0]*perturb
-    # assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.02, "Gradient of log_SNR2 parameter is not right"
-    
-#     param1_fitV = param0_fitV.copy()
-#     param1_fitV[n_V-1] = param1_fitV[n_V-1]+perturb
-#     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-#                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-#                 dist2,inten_diff2,100,100)
-#     num_diff = ll1-ll0
-#     ana_diff = deriv0[n_V-1]*perturb
-#     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.02, "Gradient of GP spatial lengths scale parameter is not right"
-    
-#     param1_fitV = param0_fitV.copy()
-#     param1_fitV[n_V] = param1_fitV[n_V]+perturb
-#     ll1, deriv1 = brsa._loglike_y_AR1_diagV_fitV(param1_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-#                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-#                 dist2,inten_diff2,100,100)
-#     num_diff = ll1-ll0
-#     ana_diff = deriv0[n_V]*perturb
-#     assert np.abs(num_diff-ana_diff)/np.abs(ana_diff) < 0.02, "Gradient of GP intensity lengths scale parameter is not right"
-    
-    
-    
+
     # Testing without GP prior.
     brsa = BRSA()
 
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets)
-    
+
     # Check that result is significantly correlated with the ideal covariance matrix
     u_b = brsa.U_[1:,1:]
     u_i = ideal_cov[1:,1:]

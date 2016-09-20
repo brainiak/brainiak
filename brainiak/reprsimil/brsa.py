@@ -1091,12 +1091,12 @@ class BRSA(BaseEstimator):
         #
         # L_l is the lower triangular part of L, a1 is tan(rho1*pi/2),
         # where rho1 is the autoregressive coefficient in each voxel
-        # We can optionally include Gaussion Process prior to log(s2).
-        # This term is not included in _fitU, because log(s2)
+        # We can optionally include Gaussion Process prior to log(SNR).
+        # This term is not included in _fitU, because log(SNR)
         # are fixed in _fitU.
-        # GP_space and GP_inten are binary, indicating whether we want to
+        # GP_space and GP_inten are Boolean, indicating whether we want to
         # include GP kernels either on voxel coordinates or intensity.
-        # dist2 and inten_dist2 are the square of spatial distances and
+        # dist2 and inten_dist2 are the squares of spatial distances and
         # intensity differences ([n_voxel x n_voxel]. space_smooth_range
         # and inten_smooth_range are the range we believe the GP length
         # scale should reside in. They are used in additional half-cauchy
@@ -1157,7 +1157,7 @@ class BRSA(BaseEstimator):
             - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 - n_T * 0.5
         # Log likelihood of data given parameters, without the GP prior.
         deriv_log_SNR2 = (-rank + np.trace(LAMBDA, axis1=1, axis2=2)) * 0.5\
-            + YTAY / (sigma2 * 2.0) - n_C * 0.5 \
+            + YTAY / (sigma2 * 2.0) - n_T * 0.5 \
             - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA_LT,
                         XTAX, YTAXL_LAMBDA_LT)\
             / (sigma2 * 2.0) * (SNR2**2.0)
