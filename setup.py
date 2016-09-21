@@ -56,7 +56,6 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
-        language='c++',
     ),
     Extension(
         'brainiak.fcma.fcma_extension',
@@ -66,12 +65,10 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
-        language='c++',
     ),
     Extension(
         'brainiak.fcma.cython_blas',
         ['brainiak/fcma/cython_blas.pyx'],
-        language='c',
     ),
 ]
 
@@ -131,7 +128,8 @@ class BuildExt(build_ext):
         for ext in self.extensions:
             ext.extra_compile_args = opts
             ext.extra_link_args = opts
-            if ext.language == 'c++':
+            lang = ext.language or self.compiler.detect_language(ext.sources)
+            if lang == 'c++':
                 ext.extra_compile_args.append(cpp_flag(self.compiler))
                 ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)

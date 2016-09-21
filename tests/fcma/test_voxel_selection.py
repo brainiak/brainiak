@@ -35,10 +35,11 @@ def create_epoch():
     return mat
 
 def test_voxel_selection():
-    fake_raw_data = [create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch()]
+    #fake_raw_data = [create_epoch(), create_epoch(),
+    #                 create_epoch(), create_epoch(),
+    #                 create_epoch(), create_epoch(),
+    #                 create_epoch(), create_epoch()]
+    fake_raw_data = np.load('tests/fcma/raw_data.npytest')
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
     vs = VoxelSelector(fake_raw_data, 4, labels, 2)
@@ -52,7 +53,8 @@ def test_voxel_selection():
         assert np.array_equal(results, expected_results), \
             'voxel selection does not provide correct results'
     # test scipy normalization
-    fake_corr = prng.rand(1, 4, 5).astype(np.float32)
+    #fake_corr = prng.rand(1, 4, 5).astype(np.float32)
+    fake_corr = np.load('tests/fcma/corr.npytest')
     fake_corr = vs._correlationNormalization(fake_corr)
     if MPI.COMM_WORLD.Get_rank() == 0:
         expected_fake_corr = [[[1.19203866, 0.18862808, -0.54350245,
@@ -66,3 +68,6 @@ def test_voxel_selection():
         assert np.allclose(fake_corr, expected_fake_corr), \
             'within-subject normalization does not provide correct results'
     return results, fake_corr
+
+if __name__ == '__main__':
+    test_voxel_selection()
