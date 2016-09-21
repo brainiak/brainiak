@@ -188,7 +188,7 @@ def prepareData(data_dir, extension, mask_file, epoch_file):
 
 """
 example running command:
-mpirun -np 2 python run.py /Users/yidawang/data/face_scene/raw nii.gz /Users/yidawang/data/face_scene/mask.nii.gz
+mpirun -np 2 python voxel_selection.py /Users/yidawang/data/face_scene/raw nii.gz /Users/yidawang/data/face_scene/mask.nii.gz
                         data/fs_epoch_labels.npy 12 18
 """
 if __name__ == '__main__':
