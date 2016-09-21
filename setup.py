@@ -116,7 +116,7 @@ class BuildExt(build_ext):
     # Other uses of ICC (e.g., cc binary linked to icc) are not supported
     if (('CC' in os.environ and 'icc' in os.environ['CC'])
             or 'icc' in sysconfig.get_config_var('CC')):
-        c_opts += ['-lirc', '-lintlc']
+        c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
         c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
