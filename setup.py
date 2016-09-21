@@ -125,10 +125,12 @@ class BuildExt(build_ext):
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' %
                         self.distribution.get_version())
-            opts.append(cpp_flag(self.compiler))
         for ext in self.extensions:
             ext.extra_compile_args = opts
             ext.extra_link_args = opts
+            if ext.language is 'c++':
+                ext.extra_compile_args.append(cpp_flag(self.compiler))
+                ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
 
 setup(
@@ -152,8 +154,5 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
-    package_data = {
-        'brainiak.fcma': ['*.pyx', '*.pyxbld'],
-    },
     zip_safe=False,
 )
