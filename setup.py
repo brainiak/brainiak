@@ -56,6 +56,7 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
+        language='c++',
     ),
     Extension(
         'brainiak.fcma.fcma_extension',
@@ -65,10 +66,12 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
+        language='c++',
     ),
     Extension(
         'brainiak.fcma.cython_blas',
         ['brainiak/fcma/cython_blas.pyx'],
+        language='c',
     ),
 ]
 
