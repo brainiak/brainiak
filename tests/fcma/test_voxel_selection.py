@@ -15,6 +15,7 @@
 from brainiak.fcma.voxelselector import VoxelSelector
 from scipy.stats.mstats import zscore
 from sklearn import svm
+from sklearn.linear_model import LogisticRegression
 import numpy as np
 import math
 from mpi4py import MPI
@@ -66,8 +67,17 @@ def test_voxel_selection():
             output[tuple[0]] = int(8*tuple[1])
         expected_output = [7, 4, 6, 4, 4]
         assert np.allclose(output, expected_output, atol=1), \
-            'voxel selection does not provide correct results'
-    return results, fake_corr
+            'voxel selection via SVM does not provide correct results'
+    # for cross validation, use logistic regression
+    clf = LogisticRegression()
+    results = vs.run(clf)
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        output = [None] * len(results)
+        for tuple in results:
+            output[tuple[0]] = int(8*tuple[1])
+        expected_output = [6, 3, 6, 4, 4]
+        assert np.allclose(output, expected_output, atol=1), \
+            'voxel selection via SVM does not provide correct results'
 
 if __name__ == '__main__':
     test_voxel_selection()
