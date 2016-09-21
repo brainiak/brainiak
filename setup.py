@@ -5,6 +5,7 @@ from setuptools.command.build_ext import build_ext
 import os
 import sys
 import setuptools
+from copy import deepcopy
 
 __version__ = '0.2'
 
@@ -126,8 +127,8 @@ class BuildExt(build_ext):
             opts.append('-DVERSION_INFO="%s"' %
                         self.distribution.get_version())
         for ext in self.extensions:
-            ext.extra_compile_args = opts
-            ext.extra_link_args = opts
+            ext.extra_compile_args = deepcopy(opts)
+            ext.extra_link_args = deepcopy(opts)
             lang = ext.language or self.compiler.detect_language(ext.sources)
             if lang == 'c++':
                 ext.extra_compile_args.append(cpp_flag(self.compiler))
