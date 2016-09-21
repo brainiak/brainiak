@@ -41,7 +41,7 @@ def test_voxel_selection():
                      create_epoch(), create_epoch()]
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
-    vs = VoxelSelector(fake_raw_data, 4, labels, 2)
+    vs = VoxelSelector(fake_raw_data, 4, labels, 2, voxel_unit=1)
     # test scipy normalization
     fake_corr = prng.rand(1, 4, 5).astype(np.float32)
     fake_corr = vs._correlationNormalization(fake_corr)
