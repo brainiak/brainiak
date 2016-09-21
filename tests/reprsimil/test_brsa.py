@@ -41,7 +41,7 @@ def test_fit():
     import numdifftools as nd
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     # Load an example design matrix
-    design = utils.read_design(fname=file_path)
+    design = utils.ReadDesign(fname=file_path)
     # concatenate it by 4 times, mimicking 4 runs of itenditcal timing
     design.design_used = np.tile(design.design_used[:,0:17],[4,1])
     design.n_TR = design.n_TR * 4
@@ -112,7 +112,7 @@ def test_fit():
     scan_onsets = np.linspace(0,design.n_TR,num=5)
 
 
-    # Testing with GP prior.
+    # Test fitting with GP prior.
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
 
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets,
@@ -123,7 +123,7 @@ def test_fit():
     u_i = ideal_cov[1:,1:]
     p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
-    # check that the recovered SNR makes sense
+    # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
     assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
@@ -135,7 +135,7 @@ def test_fit():
         "intensity length scale of GP deviates too much"
 
     
-    # test if gradient is correct
+    # test if the gradients are correct
     XTY,XTDY,XTFY,YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX = brsa._prepare_data(design.design_used,Y,n_T,n_V,scan_onsets)
     n_l = n_C*(n_C+1)/2
     param0_fitU = np.random.randn(n_l+n_V) * 0.1
@@ -144,29 +144,29 @@ def test_fit():
     param0_fitV[n_V-1] += np.log(smooth_width)*2
     param0_fitV[n_V] += np.log(inten_kernel)*2
     l_idx = np.tril_indices(n_C)
-    ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+    ll0, deriv0 = brsa._loglike_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
     
     vec = np.zeros(np.size(param0_fitU))
     vec[0] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
                                                                 YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
                                                                 l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
     
     vec = np.zeros(np.size(param0_fitU))
     vec[n_l] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
                                                                 YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
                                                                 l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
     
-    ll0, deriv0 = brsa._loglike_y_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+    ll0, deriv0 = brsa._loglike_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                 XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
                 dist2,inten_diff2,100,100)
     vec = np.zeros(np.size(param0_fitV))
     vec[0] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
@@ -174,7 +174,7 @@ def test_fit():
     
     vec = np.zeros(np.size(param0_fitV))
     vec[n_V-1] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
@@ -182,15 +182,14 @@ def test_fit():
 
     vec = np.zeros(np.size(param0_fitV))
     vec[n_V] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_y_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
                                                                      XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
                                                                      l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
                                                                      100, 100)[0], param0_fitV, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
 
-    # Testing without GP prior.
+    # Test fitting without GP prior.
     brsa = BRSA()
-
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets)
 
     # Check that result is significantly correlated with the ideal covariance matrix
@@ -198,7 +197,7 @@ def test_fit():
     u_i = ideal_cov[1:,1:]
     p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
-    # check that the recovered SNR makes sense
+    # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
     assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
@@ -207,7 +206,7 @@ def test_fit():
     # GP parameters are not set if not requested
 
 
-    # Testing GP over just spatial coordinates.
+    # Test fitting with GP over just spatial coordinates.
     brsa = BRSA(GP_space=True)
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets, coords=coords)
     # Check that result is significantly correlated with the ideal covariance matrix
@@ -215,7 +214,7 @@ def test_fit():
     u_i = ideal_cov[1:,1:]
     p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b,k=-1)],u_i[np.tril_indices_from(u_i,k=-1)])[1]
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
-    # check that the recovered SNR makes sense
+    # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
     assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"

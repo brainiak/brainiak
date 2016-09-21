@@ -53,12 +53,12 @@ def test_cov2corr():
         "Converting from covariance matrix to correlation incorrect"
 
 
-def test_read_design():
-    from brainiak.utils.utils import read_design
+def test_ReadDesign():
+    from brainiak.utils.utils import ReadDesign
     import numpy as np
     import os.path
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
-    design = read_design(fname=file_path)
+    design = ReadDesign(fname=file_path)
     assert design, 'Failed to read design matrix'
-    read = read_design()
+    read = ReadDesign()
     assert read, 'Failed to initialize an instance of the class'

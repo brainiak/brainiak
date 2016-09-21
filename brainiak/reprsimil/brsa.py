@@ -704,7 +704,7 @@ class BRSA(BaseEstimator):
         # point estimates of betas and fitting residuals without assuming
         # the Bayesian model underlying RSA.
 
-        # There are several possible ways of initialization.
+        # There are several possible ways of initializing the covariance.
         # (1) start from the point estimation of covariance
 
         # cov_point_est = np.cov(beta_hat)
@@ -745,7 +745,7 @@ class BRSA(BaseEstimator):
 
         # Fit it.
         res = scipy.optimize.minimize(
-            self._loglike_y_U_AR1_singpara, param0,
+            self._loglike_AR1_singpara, param0,
             args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                   XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, rank),
             method=self.optimizer, jac=True, tol=self.tol,
@@ -789,7 +789,7 @@ class BRSA(BaseEstimator):
         for it in range(0, init_iter):
             # fit V, reflected in the log(SNR^2) of each voxel
             res_fitV = scipy.optimize.minimize(
-                self._loglike_y_AR1_diagV_fitV, param0_fitV,
+                self._loglike_AR1_diagV_fitV, param0_fitV,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_vec_U_chlsk_l_AR1,
                       current_a1, l_idx, n_C, n_T, n_V, rank,
@@ -823,7 +823,7 @@ class BRSA(BaseEstimator):
                 current_vec_U_chlsk_l_AR1
             param0_fitU[idx_param_fitU['a1']] = current_a1
             res_fitU = scipy.optimize.minimize(
-                self._loglike_y_AR1_diagV_fitU, param0_fitU,
+                self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C,
                       n_T, n_V, rank),
@@ -882,7 +882,7 @@ class BRSA(BaseEstimator):
             # fit V
 
             res_fitV = scipy.optimize.minimize(
-                self._loglike_y_AR1_diagV_fitV, param0_fitV, args=(
+                self._loglike_AR1_diagV_fitV, param0_fitV, args=(
                     XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, XTY,
                     XTDY, XTFY, current_vec_U_chlsk_l_AR1, current_a1,
                     l_idx, n_C, n_T, n_V, rank, GP_space, GP_inten,
@@ -914,7 +914,7 @@ class BRSA(BaseEstimator):
             param0_fitU[idx_param_fitU['a1']] = current_a1
 
             res_fitU = scipy.optimize.minimize(
-                self._loglike_y_AR1_diagV_fitU, param0_fitU,
+                self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C, n_T, n_V,
                       rank),
@@ -951,9 +951,9 @@ class BRSA(BaseEstimator):
     # We fit two parts of the parameters iteratively.
     # The following are the corresponding negative log likelihood functions.
 
-    def _loglike_y_AR1_diagV_fitU(self, param, XTX, XTDX, XTFX, YTY_diag,
-                                  YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                  log_SNR2, l_idx, n_C, n_T, n_V, rank):
+    def _loglike_AR1_diagV_fitU(self, param, XTX, XTDX, XTFX, YTY_diag,
+                                YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
+                                log_SNR2, l_idx, n_C, n_T, n_V, rank):
         # This function calculates the log likelihood of data given cholesky
         # decomposition of U and AR(1) parameters of noise as free parameters.
         # Free parameters are in param.
@@ -1071,12 +1071,12 @@ class BRSA(BaseEstimator):
 
         return -LL, -deriv
 
-    def _loglike_y_AR1_diagV_fitV(self, param, XTX, XTDX, XTFX, YTY_diag,
-                                  YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                  L_l, a1, l_idx, n_C, n_T, n_V, rank=None,
-                                  GP_space=False, GP_inten=False, dist2=None,
-                                  inten_dist2=None, space_smooth_range=None,
-                                  inten_smooth_range=None):
+    def _loglike_AR1_diagV_fitV(self, param, XTX, XTDX, XTFX, YTY_diag,
+                                YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
+                                L_l, a1, l_idx, n_C, n_T, n_V, rank=None,
+                                GP_space=False, GP_inten=False, dist2=None,
+                                inten_dist2=None, space_smooth_range=None,
+                                inten_smooth_range=None):
 
         # This function calculates the log likelihood of data given
         # the log of the square of pseudo signal to noise ratio in each voxel.
@@ -1258,9 +1258,9 @@ class BRSA(BaseEstimator):
 
         return -LL, -deriv
 
-    def _loglike_y_U_AR1_singpara(self, param, XTX, XTDX, XTFX, YTY_diag,
-                                  YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                  l_idx, n_C, n_T, n_V, rank=None):
+    def _loglike_AR1_singpara(self, param, XTX, XTDX, XTFX, YTY_diag,
+                              YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
+                              l_idx, n_C, n_T, n_V, rank=None):
         # In this version, we assume that beta is independent
         # between voxels and noise is also independent.
         # singpara version uses single parameter of sigma^2 and rho1
