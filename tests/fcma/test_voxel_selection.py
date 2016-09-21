@@ -43,15 +43,6 @@ def test_voxel_selection():
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
     vs = VoxelSelector(fake_raw_data, 4, labels, 2)
-    # for cross validation, use SVM with precomputed kernel
-    # no shrinking, set C=1
-    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    results = vs.run(clf)
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        expected_results = [(0, 0.75), (2, 0.625), (1, 0.5),
-                            (3, 0.5), (4, 0.375)]
-        assert np.array_equal(results, expected_results), \
-            'voxel selection does not provide correct results'
     # test scipy normalization
     #fake_corr = prng.rand(1, 4, 5).astype(np.float32)
     fake_corr = np.load('tests/fcma/corr.npytest')
@@ -67,6 +58,15 @@ def test_voxel_selection():
                                 -0.78406328, -0.83182675]]]
         assert np.allclose(fake_corr, expected_fake_corr), \
             'within-subject normalization does not provide correct results'
+    # for cross validation, use SVM with precomputed kernel
+    # no shrinking, set C=1
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    results = vs.run(clf)
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        expected_results = [(0, 0.75), (2, 0.625), (1, 0.5),
+                            (3, 0.5), (4, 0.375)]
+        assert np.array_equal(results, expected_results), \
+            'voxel selection does not provide correct results'
     return results, fake_corr
 
 if __name__ == '__main__':
