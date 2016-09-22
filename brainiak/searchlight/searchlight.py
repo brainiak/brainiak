@@ -1,0 +1,203 @@
+#  Copyright 2016 Intel Corporation
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+
+"""Distributed searchlight
+Given a function and a list of volumes, this applies the function
+to all voxels. 
+"""
+
+# Author: Michael Anderson
+
+__all__ = [
+    "Searchlight",
+]
+
+
+from mpi4py import MPI
+import numpy as np
+
+class Searchlight:
+  """ Class for searchlight """
+
+  def __init__(self):
+    pass
+
+  def _get_subarray(self, data, idx, rad):
+    """ Return a subarray with the same list structure
+
+    Parameters
+    ----------
+    data: volumetric data, list of 4D numpy arrays
+
+    idx: center of searchlight
+
+    rad: searchlight radius
+
+    """
+
+    def listSlice(l):
+      if(isinstance(l, list)):
+        return [listSlice(el) for el in l]
+      else:
+        return l[:,idx[0]-rad:idx[0]+rad+1,
+                   idx[1]-rad:idx[1]+rad+1,
+                   idx[2]-rad:idx[2]+rad+1]
+
+    return listSlice(data)
+
+  def _get_submask(self, mask, idx, rad):
+    """ Return a subarray with the same list structure
+
+    Parameters
+    ----------
+    mask: binary mask, a 3D numpy array
+
+    idx: center of searchlight
+
+    rad: searchlight radius
+
+    """
+
+    return mask[idx[0]-rad:idx[0]+rad+1,
+               idx[1]-rad:idx[1]+rad+1,
+               idx[2]-rad:idx[2]+rad+1]
+
+
+  def _dynamic_tasking(self, tasks, data, mask, fn, rad):
+    """ Distribute tasks dynamically to ranks 1-size
+
+    Parameters
+    ----------
+    tasks: searchlight centers, a list of tuples
+
+    data: volumetric data, list of 4D numpy arrays
+
+    mask: binary mask, a 3D numpy array
+
+    fn: searchlight function
+
+    rad: searchlight radius
+
+    """
+  
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    results = []
+  
+    if rank == 0:
+
+      # If there are no workers, then do everything here
+      if size == 1:
+        for idx in tasks:
+          results += [(idx,fn(self._get_subarray(data,idx,rad), 
+                              self._get_submask(mask,idx,rad)))]
+      # Assign tasks to workers
+      else:
+        num_active = 0
+    
+        # Send wait for requests from workers
+        for idx in tasks:
+          (dst_rank,result) = comm.recv(source=MPI.ANY_SOURCE)
+    
+          # Add result to output array
+          if result is not None:
+            results += [result]
+            num_active -= 1
+      
+          # Send a valid task
+          comm.send((idx, self._get_subarray(data,idx,rad), 
+                          self._get_submask(mask,idx,rad)), dest=dst_rank)
+          num_active += 1
+        
+        # wait for all to finish
+        while num_active > 0:
+          (dst_rank,result) = comm.recv(source=MPI.ANY_SOURCE)
+          
+          # Add result to output array
+          if result is not None:
+            results += [result]
+            num_active -= 1
+    
+        # Send each an empty task
+        for r in range(1, size):
+          comm.send((-1,[],[]), dest=r)
+  
+    if rank != 0:
+      # Request task (empty result)
+      comm.send((rank,None), dest=0)
+    
+      # Infinite loop
+      while True:
+    
+        # Receive task
+        (idx, d, m) = comm.recv(source=0)
+    
+        # If task is empty then break loop
+        if(idx == -1):
+          break
+    
+        result = fn(d,m)
+    
+        # Send result
+        comm.send((rank,(idx, result)), dest=0)
+  
+    return results
+
+  # Partition the mask and create tasks
+  def run(self, data, mask, fn, rad=1):
+    """ Run searchlight 
+
+    Applies a function to each voxel present in the mask.
+
+    Parameters
+    ---------
+    data: volumetric data, list of 4D numpy arrays
+
+    mask: binary mask, a 3D numpy array
+
+    fn: searchlight function
+
+    rad: searchlight radius
+    """
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    tasks = []
+    if rank == 0:
+  
+      # Create tasks
+      for i in range(rad, mask.shape[0]-rad):
+        for j in range(rad, mask.shape[1]-rad):
+          for k in range(rad, mask.shape[2]-rad):
+            if mask[i,j,k]:
+              tasks += [(i,j,k)]
+  
+    # Run dynamic tasking
+    outputs = self._dynamic_tasking(tasks, data, mask, fn, rad)
+  
+    # Create output volume
+    output = None
+    if rank == 0:
+      output = np.empty(mask.shape, dtype=object)
+  
+      for o in outputs:
+        output[o[0]] = o[1]
+  
+    return output
+  
