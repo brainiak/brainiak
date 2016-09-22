@@ -23,6 +23,10 @@ Creates random data and fits the event segmentation
 model on each 3x3 voxel region. 
 Then tests on more random data and plots
 the results. 
+
+Citation: Discovering event structure in continuous narrative perception 
+and memory Christopher Baldassano, Janice Chen, Asieh Zadbood, 
+Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 """
 
 

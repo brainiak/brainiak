@@ -23,27 +23,47 @@ to all voxels.
 __all__ = [
     "Searchlight",
 ]
+#logger = logging.getLogger(__name__)
 
 
 from mpi4py import MPI
 import numpy as np
 
 class Searchlight:
-  """ Class for searchlight """
+  """ Class for searchlight. 
+      A searchlight is a computation that is applied in a sliding
+      window to subsets of voxels across a volume. The radius of the
+      searchlight specifies how many voxels are involved in each
+      computation. A user-provided function is applied to all voxels 
+      within the radius, provided that the mask was non-zero at that
+      point in the volume. The ouput of the searchlight analysis is
+      another volume which contains the user-provided function's 
+      output at each point.
+
+      Parameters
+      ----------
+      None
+
+      Attributes
+      ----------
+      None
+  """
 
   def __init__(self):
     pass
 
   def _get_subarray(self, data, idx, rad):
-    """ Return a subarray with the same list structure
+    """ Return a subarray with radius 'rad', centered around 'idx' with the
+        same list structure as 'data'.
 
     Parameters
     ----------
-    data: volumetric data, list of 4D numpy arrays
+    data: A list of 4D numpy.ndarray objects which must have at least one element.
+          The computation is applied to this data.
 
-    idx: center of searchlight
+    idx: Three-element tuple containing the current center of the searchlight
 
-    rad: searchlight radius
+    rad: Odd positive integer indicating the radius of the searchlight cube.
 
     """
 
@@ -58,15 +78,16 @@ class Searchlight:
     return listSlice(data)
 
   def _get_submask(self, mask, idx, rad):
-    """ Return a subarray with the same list structure
+    """ Return a subarray of the mask centered around 'idx'
 
     Parameters
     ----------
-    mask: binary mask, a 3D numpy array
+    mask: A 3D numpy.ndarray object with type np.bool indicating which 
+          voxels are active in the searchlight operation. 
 
-    idx: center of searchlight
+    idx: Three-element tuple containing the current center of the searchlight
 
-    rad: searchlight radius
+    rad: Odd positive integer indicating the radius of the searchlight cube.
 
     """
 
@@ -82,13 +103,22 @@ class Searchlight:
     ----------
     tasks: searchlight centers, a list of tuples
 
-    data: volumetric data, list of 4D numpy arrays
+    data: A list of 4D numpy.ndarray objects which must have at least one element.
+          The computation is applied to this data.
 
-    mask: binary mask, a 3D numpy array
+    mask: A 3D numpy.ndarray object with type np.bool indicating which 
+          voxels are active in the searchlight operation. 
 
-    fn: searchlight function
+    fn: A user-provided function which is applied to the data in a searchlight.
+        This user-defined function must accept 2 parameters:
+          data: A list of 4D numpy.ndarray objects which has the same structure as
+                the 'data' parameter to the searchlight, but only includes voxels
+                within a 'rad' radius from the current searchlight center
+          mask: A 3D numpy.ndarray object with type np.bool indicating which
+                includes voxels within a 'rad' radius from the current
+                searchlight center
 
-    rad: searchlight radius
+    rad: Odd positive integer indicating the radius of the searchlight cube.
 
     """
   
@@ -165,13 +195,22 @@ class Searchlight:
 
     Parameters
     ---------
-    data: volumetric data, list of 4D numpy arrays
+    data: A list of 4D numpy.ndarray objects which must have at least one element.
+          The computation is applied to this data.
 
-    mask: binary mask, a 3D numpy array
+    mask: A 3D numpy.ndarray object with type np.bool indicating which 
+          voxels are active in the searchlight operation. 
 
-    fn: searchlight function
+    fn: A user-provided function which is applied to the data in a searchlight.
+        This user-defined function must accept 2 parameters:
+          data: A list of 4D numpy.ndarray objects which has the same structure as
+                the 'data' parameter to the searchlight, but only includes voxels
+                within a 'rad' radius from the current searchlight center
+          mask: A 3D numpy.ndarray object with type np.bool indicating which
+                includes voxels within a 'rad' radius from the current
+                searchlight center
 
-    rad: searchlight radius
+    rad: Odd positive integer indicating the radius of the searchlight cube.
     """
 
     comm = MPI.COMM_WORLD
@@ -180,7 +219,7 @@ class Searchlight:
 
     tasks = []
     if rank == 0:
-  
+      
       # Create tasks
       for i in range(rad, mask.shape[0]-rad):
         for j in range(rad, mask.shape[1]-rad):

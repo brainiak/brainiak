@@ -16,12 +16,13 @@
 from mpi4py import MPI
 import numpy as np
 import brainiak.searchlight.searchlight
+import pytest
 
 def test_create_searchlight():
   sl = brainiak.searchlight.searchlight.Searchlight()
   assert sl, "Invalid searchlight instance"
 
-def test_simple_searchlight():
+def test_two_subject_rad_1():
 
   def fn(a, mask):
     return np.mean(a[0]) + np.mean(a[1])
@@ -48,3 +49,62 @@ def test_simple_searchlight():
       for j in range(R,N-R):
         for k in range(R,K-R):
           assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
+
+def test_one_subject_rad_0():
+
+  def fn(a, mask):
+    return np.mean(a[0])
+
+  M=5
+  N=7
+  K=12
+  D=10
+  R=1
+
+  data = None
+  mask = None
+  if MPI.COMM_WORLD.Get_rank() == 0:
+    data = [np.ones((D,M,N,K))]
+    mask = np.ones((M,N,K))
+
+  sl = brainiak.searchlight.searchlight.Searchlight()
+  output = sl.run(data, mask, fn, R)
+
+  # Check output
+  EPS = 1e-5
+  if MPI.COMM_WORLD.Get_rank() == 0:
+    for i in range(R,M-R):
+      for j in range(R,N-R):
+        for k in range(R,K-R):
+          assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
+
+def test_null_fn():
+
+  fn = None
+
+  M=5
+  N=7
+  K=12
+  D=10
+  R=1
+
+  data = None
+  mask = None
+  if MPI.COMM_WORLD.Get_rank() == 0:
+    data = [np.ones((D,M,N,K))]
+    mask = np.ones((M,N,K))
+
+  sl = brainiak.searchlight.searchlight.Searchlight()
+  with pytest.raises(TypeError):
+    output = sl.run(data, mask, fn, R)
+
+    # Check output
+    EPS = 1e-5
+    if MPI.COMM_WORLD.Get_rank() == 0:
+      for i in range(R,M-R):
+        for j in range(R,N-R):
+          for k in range(R,K-R):
+            assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
+
+
+
