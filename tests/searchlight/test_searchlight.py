@@ -108,3 +108,34 @@ def test_null_fn():
 
 
 
+def test_negative_radius():
+
+  def fn(a, mask):
+    return np.mean(a[0])
+
+  M=5
+  N=7
+  K=12
+  D=10
+  R=-1
+
+  data = None
+  mask = None
+  if MPI.COMM_WORLD.Get_rank() == 0:
+    data = [np.ones((D,M,N,K))]
+    mask = np.ones((M,N,K))
+
+  sl = brainiak.searchlight.searchlight.Searchlight()
+  with pytest.raises(IndexError):
+    output = sl.run(data, mask, fn, R)
+
+    # Check output
+    EPS = 1e-5
+    if MPI.COMM_WORLD.Get_rank() == 0:
+      for i in range(R,M-R):
+        for j in range(R,N-R):
+          for k in range(R,K-R):
+            assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
+
+
+
