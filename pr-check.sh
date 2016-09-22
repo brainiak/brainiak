@@ -122,6 +122,7 @@ pip3 install $ignore_installed -U -e . || \
 
 # build documentation
 cd docs
+export THEANO_FLAGS='device=cpu,floatX=float64'
 git clean -Xf .
 if [ ! -z $SLURM_NODELIST ]
 then
