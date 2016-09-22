@@ -75,6 +75,7 @@ function exit_with_error_and_venv {
 
 if [ $(which conda) ]
 then
+    export PYTHONNOUSERSITE=True
     create_venv=create_conda_venv
     activate_venv=activate_conda_venv
     deactivate_venv=deactivate_conda_venv
@@ -121,7 +122,12 @@ pip3 install $ignore_installed -U -e . || \
 
 # build documentation
 cd docs
-make || {
+git clean -Xf .
+if [ ! -z $SLURM_NODELIST ]
+then
+    make_wrapper="srun -n 1"
+fi
+$make_wrapper make || {
     cd -
     exit_with_error_and_venv "make docs failed"
 }

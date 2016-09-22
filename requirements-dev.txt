@@ -1,8 +1,8 @@
+coverage
 flake8
 flake8-print
+numdifftools
 pytest
-pytest-cov
-pytest-cython
 restructuredtext-lint
 sphinx
 sphinx_rtd_theme

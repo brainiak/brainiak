@@ -1,5 +1,3 @@
-#!/bin/bash
-
 #  Copyright 2016 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,9 +11,4 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-set -e
-set -o pipefail
-
-flake8 --config setup.cfg brainiak
-rst-lint *.rst | { grep -v "is clean.$" || true; }
+"""Full correlation matrix analysis"""

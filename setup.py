@@ -1,8 +1,11 @@
+from distutils import sysconfig
+
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import os
 import sys
 import setuptools
+from copy import deepcopy
 
 __version__ = '0.2'
 
@@ -28,10 +31,22 @@ class get_pybind_include(object):
     def __init__(self, user=False):
         self.user = user
 
+    # Required by Cython
+    def __add__(self, x):
+        import pybind11
+        return pybind11.get_include(self.user) + x
+
     def __str__(self):
         import pybind11
         return pybind11.get_include(self.user)
 
+    def endswith(self, x):
+        import pybind11
+        return pybind11.get_include(self.user).endswith(x)
+
+    def startswith(self, x):
+        import pybind11
+        return pybind11.get_include(self.user).startswith(x)
 
 ext_modules = [
     Extension(
@@ -42,6 +57,19 @@ ext_modules = [
             get_pybind_include(),
             get_pybind_include(user=True)
         ],
+    ),
+    Extension(
+        'brainiak.fcma.fcma_extension',
+        ['brainiak/fcma/src/fcma_extension.cc'],
+        include_dirs=[
+            # Path to pybind11 headers
+            get_pybind_include(),
+            get_pybind_include(user=True)
+        ],
+    ),
+    Extension(
+        'brainiak.fcma.cython_blas',
+        ['brainiak/fcma/cython_blas.pyx'],
     ),
 ]
 
@@ -82,6 +110,12 @@ class BuildExt(build_ext):
         'unix': ['-g0', '-fopenmp'],
     }
 
+    # FIXME Workaround for using the Intel compiler by setting the CC env var
+    # Other uses of ICC (e.g., cc binary linked to icc) are not supported
+    if (('CC' in os.environ and 'icc' in os.environ['CC'])
+            or 'icc' in sysconfig.get_config_var('CC')):
+        c_opts['unix'] += ['-lirc', '-lintlc']
+
     if sys.platform == 'darwin':
         c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
                            '-ftemplate-depth-1024']
@@ -92,12 +126,13 @@ class BuildExt(build_ext):
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' %
                         self.distribution.get_version())
-            opts.append(cpp_flag(self.compiler))
-            if has_flag(self.compiler, '-fvisibility=hidden'):
-                opts.append('-fvisibility=hidden')
         for ext in self.extensions:
-            ext.extra_compile_args = opts
-            ext.extra_link_args = opts
+            ext.extra_compile_args = deepcopy(opts)
+            ext.extra_link_args = deepcopy(opts)
+            lang = ext.language or self.compiler.detect_language(ext.sources)
+            if lang == 'c++':
+                ext.extra_compile_args.append(cpp_flag(self.compiler))
+                ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
 
 setup(

@@ -42,3 +42,23 @@ def test_fast_inv():
     with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
         fast_inv(a)
     assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
+
+
+def test_cov2corr():
+    from brainiak.utils.utils import cov2corr
+    import numpy as np
+    cov = np.array([[4,3,0],[3,9,0],[0,0,1]])
+    corr = cov2corr(cov)
+    assert np.isclose(corr, np.array([[1,0.5,0],[0.5,1,0],[0,0,1]])).all(),\
+        "Converting from covariance matrix to correlation incorrect"
+
+
+def test_ReadDesign():
+    from brainiak.utils.utils import ReadDesign
+    import numpy as np
+    import os.path
+    file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
+    design = ReadDesign(fname=file_path)
+    assert design, 'Failed to read design matrix'
+    read = ReadDesign()
+    assert read, 'Failed to initialize an instance of the class'
