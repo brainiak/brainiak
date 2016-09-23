@@ -306,7 +306,6 @@ class EventSegment(BaseEstimator):
         y = utils.masked_log(_x)
         return y.reshape(xshape)
 
-
     def find_events(self, testing_data, var=None, scramble=False):
         """Applies learned event segmentation to new testing dataset
 
