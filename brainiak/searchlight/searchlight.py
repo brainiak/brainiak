@@ -294,7 +294,7 @@ class Searchlight(TransformerMixin):
         X: A tuple containing two objects:
 
           data: A list of 4D numpy.ndarray objects which must have at least
-          one element. The computation is applied to this data. This needs 
+          one element. The computation is applied to this data. This needs
           only to be present on rank 0.
 
           mask: A 3D numpy.ndarray object with type np.bool indicating which
