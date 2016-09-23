@@ -294,13 +294,16 @@ class Searchlight(TransformerMixin):
         X: A tuple containing two objects:
 
           data: A list of 4D numpy.ndarray objects which must have at least
-          one element. The computation is applied to this data.
+          one element. The computation is applied to this data. This needs 
+          only to be present on rank 0.
 
           mask: A 3D numpy.ndarray object with type np.bool indicating which
-          voxels are active in the searchlight operation.
+          voxels are active in the searchlight operation. This needs
+          only to be present on rank 0
 
         y: An object of any pickle-able type which is included
-        as a parameter to each invocation of the user-specified function
+        as a parameter to each invocation of the user-specified function.
+        This needs only to be present on rank 0
 
         Returns
         ----------
@@ -309,7 +312,7 @@ class Searchlight(TransformerMixin):
         will be the same size as the input mask. The values around the
         boundary (from 0 to rad, and from dim-rad to dim) will be
         None. Also, points where the input mask is "false" will be
-        None in the output array.
+        None in the output array. Results returned only on rank 0.
         """
 
         (data, mask) = X
