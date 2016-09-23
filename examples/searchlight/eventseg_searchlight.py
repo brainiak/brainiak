@@ -81,10 +81,10 @@ def fitFn(a, mask):
     return np.argmax(gamma, axis=1)
 
 # Create searchlight
-sl = brainiak.searchlight.searchlight.Searchlight()
+sl = brainiak.searchlight.searchlight.Searchlight(1, fitFn)
 
 # Run searchlight
-output = sl.run(slData, np.ones(num_voxels, dtype=np.bool), fitFn, 1)
+output = sl.run(slData, np.ones(num_voxels, dtype=np.bool))
 
 # Plot the results
 if rank == 0:
@@ -98,5 +98,5 @@ if rank == 0:
 
     plt.xlabel('Timepoints')
     plt.ylabel('Event label')
-    #plt.savefig('fig.png')
+    plt.savefig('fig.png')
     plt.show()

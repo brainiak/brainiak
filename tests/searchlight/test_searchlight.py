@@ -19,7 +19,7 @@ import brainiak.searchlight.searchlight
 import pytest
 
 def test_create_searchlight():
-    sl = brainiak.searchlight.searchlight.Searchlight()
+    sl = brainiak.searchlight.searchlight.Searchlight(1,None)
     assert sl, "Invalid searchlight instance"
 
 def test_two_subject_rad_1():
@@ -39,8 +39,8 @@ def test_two_subject_rad_1():
         data = [0.5*np.ones((D,M,N,K)), 0.5*np.ones((D,M,N,K))]
         mask = np.ones((M,N,K))
 
-    sl = brainiak.searchlight.searchlight.Searchlight()
-    output = sl.run(data, mask, fn, R)
+    sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
+    output = sl.run(data, mask)
 
     # Check output
     EPS = 1e-5
@@ -67,8 +67,8 @@ def test_one_subject_rad_0():
         data = [np.ones((D,M,N,K))]
         mask = np.ones((M,N,K))
 
-    sl = brainiak.searchlight.searchlight.Searchlight()
-    output = sl.run(data, mask, fn, R)
+    sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
+    output = sl.run(data, mask)
 
     # Check output
     EPS = 1e-5
@@ -77,36 +77,6 @@ def test_one_subject_rad_0():
             for j in range(R,N-R):
                 for k in range(R,K-R):
                     assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
-
-def test_null_fn():
-
-    fn = None
-
-    M=5
-    N=7
-    K=12
-    D=10
-    R=1
-
-    data = None
-    mask = None
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        data = [np.ones((D,M,N,K))]
-        mask = np.ones((M,N,K))
-
-    sl = brainiak.searchlight.searchlight.Searchlight()
-    with pytest.raises(TypeError):
-        output = sl.run(data, mask, fn, R)
-
-        # Check output
-        EPS = 1e-5
-        if MPI.COMM_WORLD.Get_rank() == 0:
-            for i in range(R,M-R):
-                for j in range(R,N-R):
-                    for k in range(R,K-R):
-                        assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
-
-
 
 def test_negative_radius():
 
@@ -125,9 +95,9 @@ def test_negative_radius():
         data = [np.ones((D,M,N,K))]
         mask = np.ones((M,N,K))
 
-    sl = brainiak.searchlight.searchlight.Searchlight()
+    sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
     with pytest.raises(IndexError):
-        output = sl.run(data, mask, fn, R)
+        output = sl.run(data, mask)
 
         # Check output
         EPS = 1e-5
@@ -136,6 +106,5 @@ def test_negative_radius():
                 for j in range(R,N-R):
                     for k in range(R,K-R):
                         assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
-
 
 

@@ -42,19 +42,52 @@ class Searchlight:
 
     Parameters
     ----------
-    None
+
+    rad: Positive integer indicating the radius of the searchlight
+         cube.
+
+    fn: A user-provided function which is applied to the data in a
+    searchlight.
+        This user-specified function must accept 2 parameters:
+            data: A list of 4D numpy.ndarray objects which has the same
+            structure as the 'data' parameter to the searchlight, but
+            only includes voxels within a 'rad' radius from the current
+            searchlight center
+
+            mask: A 3D numpy.ndarray object with type np.bool indicating
+            which includes voxels within a 'rad' radius from the current
+            searchlight center
 
     Attributes
     ----------
     None
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, rad, fn):
+        """ Constructor for searchlight.
 
-    def _get_subarray(self, data, idx, rad):
+        rad: Positive integer indicating the radius of the searchlight
+                cube.
+
+        fn: A user-provided function which is applied to the data in a
+        searchlight.
+            This user-specified function must accept 2 parameters:
+                data: A list of 4D numpy.ndarray objects which has the same
+                structure as the 'data' parameter to the searchlight, but
+                only includes voxels within a 'rad' radius from the current
+                searchlight center
+
+                mask: A 3D numpy.ndarray object with type np.bool indicating
+                which includes voxels within a 'rad' radius from the current
+                searchlight center
+        """
+
+        self.rad = rad
+        self.fn = fn
+
+    def _get_subarray(self, data, idx):
         """ Return a subarray with radius 'rad'
-        
+
         The subarray is centered around 'idx' with the
         same list structure as 'data'.
 
@@ -66,11 +99,8 @@ class Searchlight:
         idx: Three-element tuple containing the current center of the
         searchlight
 
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
-        ------- 
+        -------
         A list of 4D numpy ndarrays (subarrays)
 
         """
@@ -79,13 +109,13 @@ class Searchlight:
             if(isinstance(l, list)):
                 return [_list_slice(el) for el in l]
             else:
-                return l[:, idx[0] - rad:idx[0] + rad + 1,
-                         idx[1] - rad:idx[1] + rad + 1,
-                         idx[2] - rad:idx[2] + rad + 1]
+                return l[:, idx[0] - self.rad:idx[0] + self.rad + 1,
+                         idx[1] - self.rad:idx[1] + self.rad + 1,
+                         idx[2] - self.rad:idx[2] + self.rad + 1]
 
         return _list_slice(data)
 
-    def _get_submask(self, mask, idx, rad):
+    def _get_submask(self, mask, idx):
         """ Return a subarray of the mask centered around 'idx'
 
         Parameters
@@ -96,20 +126,17 @@ class Searchlight:
         idx: Three-element tuple containing the current center of the
         searchlight
 
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
         ------
         A 3D numpy ndarray (subarray)
 
         """
 
-        return mask[idx[0] - rad:idx[0] + rad + 1,
-                    idx[1] - rad:idx[1] + rad + 1,
-                    idx[2] - rad:idx[2] + rad + 1]
+        return mask[idx[0] - self.rad:idx[0] + self.rad + 1,
+                    idx[1] - self.rad:idx[1] + self.rad + 1,
+                    idx[2] - self.rad:idx[2] + self.rad + 1]
 
-    def _do_master(self, tasks, data, mask, fn, rad):
+    def _do_master(self, tasks, data, mask):
         """ Distribute tasks dynamically to ranks 1-size (master)
 
         Parameters
@@ -122,23 +149,9 @@ class Searchlight:
         mask: A 3D numpy.ndarray object with type np.bool indicating which
         voxels are active in the searchlight operation.
 
-        fn: A user-provided function which is applied to the data in a
-        searchlight.
-            This user-specified function must accept 2 parameters:
-                data: A list of 4D numpy.ndarray objects which has the same
-                structure as the 'data' parameter to the searchlight, but
-                only includes voxels within a 'rad' radius from the current
-                searchlight center
-                mask: A 3D numpy.ndarray object with type np.bool indicating
-                which includes voxels within a 'rad' radius from the current
-                searchlight center
-
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
         -------
-        A 3D numpy ndarray containing the outputs of the function at 
+        A 3D numpy ndarray containing the outputs of the function at
         each voxel.
 
         """
@@ -150,8 +163,8 @@ class Searchlight:
         # If there are no workers, then do everything here
         if size == 1:
             for idx in tasks:
-                results += [(idx, fn(self._get_subarray(data, idx, rad),
-                                     self._get_submask(mask, idx, rad)))]
+                results += [(idx, self.fn(self._get_subarray(data, idx),
+                                          self._get_submask(mask, idx)))]
         # Assign tasks to workers
         else:
             num_active = 0
@@ -166,8 +179,8 @@ class Searchlight:
                     num_active -= 1
 
                 # Send a valid task
-                comm.send((idx, self._get_subarray(data, idx, rad),
-                           self._get_submask(mask, idx, rad)), dest=dst_rank)
+                comm.send((idx, self._get_subarray(data, idx),
+                           self._get_submask(mask, idx)), dest=dst_rank)
                 num_active += 1
 
             # wait for all to finish
@@ -185,7 +198,7 @@ class Searchlight:
 
         return results
 
-    def _do_worker(self, tasks, data, mask, fn, rad):
+    def _do_worker(self, tasks, data, mask):
         """ Distribute tasks dynamically to ranks 1-size (worker)
 
         Parameters
@@ -209,9 +222,6 @@ class Searchlight:
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
 
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
         -------
         None
@@ -234,12 +244,12 @@ class Searchlight:
             if(idx == -1):
                 break
 
-            result = fn(d, m)
+            result = self.fn(d, m)
 
             # Send result
             comm.send((rank, (idx, result)), dest=0)
 
-    def _dynamic_tasking(self, tasks, data, mask, fn, rad):
+    def _dynamic_tasking(self, tasks, data, mask):
         """ Distribute tasks dynamically to ranks 1-size
 
         Parameters
@@ -263,9 +273,6 @@ class Searchlight:
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
 
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
         -------
         results: A 3D numpy.ndarray object with the outputs of each
@@ -279,15 +286,15 @@ class Searchlight:
         results = []
 
         if rank == 0:
-            results = self._do_master(tasks, data, mask, fn, rad)
+            results = self._do_master(tasks, data, mask)
 
         if rank != 0:
-            self._do_worker(tasks, data, mask, fn, rad)
+            self._do_worker(tasks, data, mask)
 
         return results
 
     # Partition the mask and create tasks
-    def run(self, data, mask, fn, rad=1):
+    def run(self, data, mask):
         """ Run searchlight according to mask
 
         Applies a function to each voxel present in the mask.
@@ -311,9 +318,6 @@ class Searchlight:
           includes voxels within a 'rad' radius from the current
           searchlight center
 
-        rad: Positive integer indicating the radius of the searchlight
-        cube.
-
         Returns
         ----------
         output: A 3D numpy ndarray containing the return value from each
@@ -331,14 +335,14 @@ class Searchlight:
         if rank == 0:
 
             # Create tasks
-            for i in range(rad, mask.shape[0] - rad):
-                for j in range(rad, mask.shape[1] - rad):
-                    for k in range(rad, mask.shape[2] - rad):
+            for i in range(self.rad, mask.shape[0] - self.rad):
+                for j in range(self.rad, mask.shape[1] - self.rad):
+                    for k in range(self.rad, mask.shape[2] - self.rad):
                         if mask[i, j, k]:
                             tasks += [(i, j, k)]
 
         # Run dynamic tasking
-        outputs = self._dynamic_tasking(tasks, data, mask, fn, rad)
+        outputs = self._dynamic_tasking(tasks, data, mask)
 
         # Create output volume
         output = None
