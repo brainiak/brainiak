@@ -67,15 +67,15 @@ class Searchlight:
 
     """
 
-    def listSlice(l):
+    def _list_slice(l):
       if(isinstance(l, list)):
-        return [listSlice(el) for el in l]
+        return [_list_slice(el) for el in l]
       else:
         return l[:,idx[0]-rad:idx[0]+rad+1,
                    idx[1]-rad:idx[1]+rad+1,
                    idx[2]-rad:idx[2]+rad+1]
 
-    return listSlice(data)
+    return _list_slice(data)
 
   def _get_submask(self, mask, idx, rad):
     """ Return a subarray of the mask centered around 'idx'
