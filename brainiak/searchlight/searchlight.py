@@ -16,6 +16,7 @@ from mpi4py import MPI
 import numpy as np
 
 """Distributed searchlight
+
 Given a function and a list of volumes, this applies the function
 to all voxels.
 """
@@ -29,6 +30,7 @@ __all__ = [
 
 class Searchlight:
     """ Class for searchlight.
+
     A searchlight is a computation that is applied in a sliding
     window to subsets of voxels across a volume. The radius of the
     searchlight specifies how many voxels are involved in each
@@ -51,8 +53,10 @@ class Searchlight:
         pass
 
     def _get_subarray(self, data, idx, rad):
-        """ Return a subarray with radius 'rad', centered around 'idx' with the
-                same list structure as 'data'.
+        """ Return a subarray with radius 'rad'
+        
+        The subarray is centered around 'idx' with the
+        same list structure as 'data'.
 
         Parameters
         ----------
@@ -62,8 +66,12 @@ class Searchlight:
         idx: Three-element tuple containing the current center of the
         searchlight
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        ------- 
+        A list of 4D numpy ndarrays (subarrays)
 
         """
 
@@ -88,8 +96,12 @@ class Searchlight:
         idx: Three-element tuple containing the current center of the
         searchlight
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        ------
+        A 3D numpy ndarray (subarray)
 
         """
 
@@ -121,8 +133,13 @@ class Searchlight:
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        -------
+        A 3D numpy ndarray containing the outputs of the function at 
+        each voxel.
 
         """
 
@@ -192,8 +209,12 @@ class Searchlight:
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        -------
+        None
 
         """
 
@@ -242,8 +263,13 @@ class Searchlight:
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        -------
+        results: A 3D numpy.ndarray object with the outputs of each
+        function invocation
 
         """
 
@@ -262,7 +288,7 @@ class Searchlight:
 
     # Partition the mask and create tasks
     def run(self, data, mask, fn, rad=1):
-        """ Run searchlight
+        """ Run searchlight according to mask
 
         Applies a function to each voxel present in the mask.
 
@@ -285,7 +311,7 @@ class Searchlight:
           includes voxels within a 'rad' radius from the current
           searchlight center
 
-        rad: Odd positive integer indicating the radius of the searchlight
+        rad: Positive integer indicating the radius of the searchlight
         cube.
 
         Returns
