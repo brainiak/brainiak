@@ -24,7 +24,7 @@ def test_create_searchlight():
 
 def test_two_subject_rad_1():
 
-    def fn(a, mask):
+    def fn(a, mask, bcast_var):
         return np.mean(a[0]) + np.mean(a[1])
 
     M=5
@@ -52,7 +52,7 @@ def test_two_subject_rad_1():
 
 def test_one_subject_rad_0():
 
-    def fn(a, mask):
+    def fn(a, mask, bcast_var):
         return np.mean(a[0])
 
     M=5
@@ -80,7 +80,7 @@ def test_one_subject_rad_0():
 
 def test_negative_radius():
 
-    def fn(a, mask):
+    def fn(a, mask, bcast_var):
         return np.mean(a[0])
 
     M=5
@@ -106,5 +106,33 @@ def test_negative_radius():
                 for j in range(R,N-R):
                     for k in range(R,K-R):
                         assert abs(output[i,j,k] - 1.0) < EPS, "Invalid output " + str((i,j,k))
+
+def test_bcast():
+
+    def fn(a, mask, bcast_var):
+        return np.mean(a[0]) + np.mean(a[1]) + bcast_var
+
+    M=5
+    N=7
+    K=12
+    D=10
+    R=1
+
+    data = None
+    mask = None
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        data = [0.5*np.ones((D,M,N,K)), 0.5*np.ones((D,M,N,K))]
+        mask = np.ones((M,N,K))
+
+    sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
+    output = sl.run(data, mask, 1.0)
+
+    # Check output
+    EPS = 1e-5
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        for i in range(R,M-R):
+            for j in range(R,N-R):
+                for k in range(R,K-R):
+                    assert abs(output[i,j,k] - 2.0) < EPS, "Invalid output " + str((i,j,k))
 
 

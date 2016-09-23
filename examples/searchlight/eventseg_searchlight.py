@@ -64,7 +64,7 @@ if rank == 0:
     slData = [probData, testData]
 
 # Searchlight function fits training data and tests on test data
-def fitFn(a, mask):
+def fitFn(a, mask, bcast_var):
 
     # Create EventSegmentation class
     es = brainiak.eventseg.event.EventSegment(num_events)

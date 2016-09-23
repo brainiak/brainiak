@@ -136,7 +136,7 @@ class Searchlight:
                     idx[1] - self.rad:idx[1] + self.rad + 1,
                     idx[2] - self.rad:idx[2] + self.rad + 1]
 
-    def _do_master(self, tasks, data, mask):
+    def _do_master(self, tasks, data, mask, bcast_var):
         """ Distribute tasks dynamically to ranks 1-size (master)
 
         Parameters
@@ -148,6 +148,9 @@ class Searchlight:
 
         mask: A 3D numpy.ndarray object with type np.bool indicating which
         voxels are active in the searchlight operation.
+
+        bcast_var: An object of any pickle-able type which is included
+        as a parameter to each invocation of the user-specified function
 
         Returns
         -------
@@ -164,7 +167,8 @@ class Searchlight:
         if size == 1:
             for idx in tasks:
                 results += [(idx, self.fn(self._get_subarray(data, idx),
-                                          self._get_submask(mask, idx)))]
+                                          self._get_submask(mask, idx),
+                                          bcast_var))]
         # Assign tasks to workers
         else:
             num_active = 0
@@ -198,7 +202,7 @@ class Searchlight:
 
         return results
 
-    def _do_worker(self, tasks, data, mask):
+    def _do_worker(self, tasks, data, mask, bcast_var):
         """ Distribute tasks dynamically to ranks 1-size (worker)
 
         Parameters
@@ -211,16 +215,8 @@ class Searchlight:
         mask: A 3D numpy.ndarray object with type np.bool indicating which
         voxels are active in the searchlight operation.
 
-        fn: A user-provided function which is applied to the data in a
-        searchlight.
-            This user-specified function must accept 2 parameters:
-                data: A list of 4D numpy.ndarray objects which has the same
-                structure as the 'data' parameter to the searchlight, but
-                only includes voxels within a 'rad' radius from the current
-                searchlight center
-                mask: A 3D numpy.ndarray object with type np.bool indicating
-                which includes voxels within a 'rad' radius from the current
-                searchlight center
+        bcast_var: An object of any pickle-able type which is included
+        as a parameter to each invocation of the user-specified function
 
         Returns
         -------
@@ -244,12 +240,12 @@ class Searchlight:
             if(idx == -1):
                 break
 
-            result = self.fn(d, m)
+            result = self.fn(d, m, bcast_var)
 
             # Send result
             comm.send((rank, (idx, result)), dest=0)
 
-    def _dynamic_tasking(self, tasks, data, mask):
+    def _dynamic_tasking(self, tasks, data, mask, bcast_var):
         """ Distribute tasks dynamically to ranks 1-size
 
         Parameters
@@ -262,16 +258,8 @@ class Searchlight:
         mask: A 3D numpy.ndarray object with type np.bool indicating which
         voxels are active in the searchlight operation.
 
-        fn: A user-provided function which is applied to the data in a
-        searchlight.
-            This user-specified function must accept 2 parameters:
-                data: A list of 4D numpy.ndarray objects which has the same
-                structure as the 'data' parameter to the searchlight, but
-                only includes voxels within a 'rad' radius from the current
-                searchlight center
-                mask: A 3D numpy.ndarray object with type np.bool indicating
-                which includes voxels within a 'rad' radius from the current
-                searchlight center
+        bcast_var: An object of any pickle-able type which is included
+        as a parameter to each invocation of the user-specified function
 
         Returns
         -------
@@ -283,18 +271,20 @@ class Searchlight:
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
+        bcast_var = comm.bcast(bcast_var, root=0)
+
         results = []
 
         if rank == 0:
-            results = self._do_master(tasks, data, mask)
+            results = self._do_master(tasks, data, mask, bcast_var)
 
         if rank != 0:
-            self._do_worker(tasks, data, mask)
+            self._do_worker(tasks, data, mask, bcast_var)
 
         return results
 
     # Partition the mask and create tasks
-    def run(self, data, mask):
+    def run(self, data, mask, bcast_var=None):
         """ Run searchlight according to mask
 
         Applies a function to each voxel present in the mask.
@@ -305,18 +295,10 @@ class Searchlight:
         element. The computation is applied to this data.
 
         mask: A 3D numpy.ndarray object with type np.bool indicating which
-                    voxels are active in the searchlight operation.
+        voxels are active in the searchlight operation.
 
-        fn: A user-provided function which is applied to the data in a
-        searchlight.
-        This user-specified function must accept 2 parameters:
-          data: A list of 4D numpy.ndarray objects which has the same
-          structure as the 'data' parameter to the searchlight, but only
-          includes voxels within a 'rad' radius from the current searchlight
-          center
-          mask: A 3D numpy.ndarray object with type np.bool indicating which
-          includes voxels within a 'rad' radius from the current
-          searchlight center
+        bcast_var: An object of any pickle-able type which is included
+        as a parameter to each invocation of the user-specified function
 
         Returns
         ----------
@@ -342,7 +324,7 @@ class Searchlight:
                             tasks += [(i, j, k)]
 
         # Run dynamic tasking
-        outputs = self._dynamic_tasking(tasks, data, mask)
+        outputs = self._dynamic_tasking(tasks, data, mask, bcast_var)
 
         # Create output volume
         output = None
