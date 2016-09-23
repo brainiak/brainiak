@@ -27,6 +27,7 @@ import logging
 import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
+import brainiak.eventseg.utils as utils
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +300,27 @@ class EventSegment(BaseEstimator):
         log_ma: ndarray of floats
             log of x, with x<=0 values replaced with -inf
         """
+
+        xshape = x.shape
+        _x = x.flatten()
+        y = utils.masked_log(_x)
+        return y.reshape(xshape)
+
+
+    def _log_old(self, x):
+        """Modified version of np.log that manually sets values <=0 to -inf
+
+        Parameters
+        ----------
+        x: ndarray of floats
+            Input to the log function
+
+        Returns
+        -------
+        log_ma: ndarray of floats
+            log of x, with x<=0 values replaced with -inf
+        """
+
         log_ma = np.ma.log(x).filled(float("-inf"))
         return log_ma
 

@@ -71,6 +71,10 @@ ext_modules = [
         'brainiak.fcma.cython_blas',
         ['brainiak/fcma/cython_blas.pyx'],
     ),
+    Extension(
+        'brainiak.eventseg.utils',
+        ['brainiak/eventseg/_utils.pyx'],
+    ),
 ]
 
 
