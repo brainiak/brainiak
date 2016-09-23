@@ -14,6 +14,7 @@
 
 from mpi4py import MPI
 import numpy as np
+from sklearn.base import TransformerMixin
 
 """Distributed searchlight
 
@@ -28,7 +29,7 @@ __all__ = [
 ]
 
 
-class Searchlight:
+class Searchlight(TransformerMixin):
     """ Class for searchlight.
 
     A searchlight is a computation that is applied in a sliding
@@ -283,26 +284,27 @@ class Searchlight:
 
         return results
 
-    # Partition the mask and create tasks
-    def run(self, data, mask, bcast_var=None):
+    def fit_transform(self, X, y=None):
         """ Run searchlight according to mask
 
         Applies a function to each voxel present in the mask.
 
         Parameters
         ---------
-        data: A list of 4D numpy.ndarray objects which must have at least one
-        element. The computation is applied to this data.
+        X: A tuple containing two objects:
 
-        mask: A 3D numpy.ndarray object with type np.bool indicating which
-        voxels are active in the searchlight operation.
+          data: A list of 4D numpy.ndarray objects which must have at least
+          one element. The computation is applied to this data.
 
-        bcast_var: An object of any pickle-able type which is included
+          mask: A 3D numpy.ndarray object with type np.bool indicating which
+          voxels are active in the searchlight operation.
+
+        y: An object of any pickle-able type which is included
         as a parameter to each invocation of the user-specified function
 
         Returns
         ----------
-        output: A 3D numpy ndarray containing the return value from each
+        X_new: A 3D numpy ndarray containing the return value from each
         invocation of the user-specified function. The output array
         will be the same size as the input mask. The values around the
         boundary (from 0 to rad, and from dim-rad to dim) will be
@@ -310,6 +312,8 @@ class Searchlight:
         None in the output array.
         """
 
+        (data, mask) = X
+        bcast_var = y
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 

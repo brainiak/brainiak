@@ -84,7 +84,7 @@ def fitFn(a, mask, bcast_var):
 sl = brainiak.searchlight.searchlight.Searchlight(1, fitFn)
 
 # Run searchlight
-output = sl.run(slData, np.ones(num_voxels, dtype=np.bool))
+output = sl.fit_transform((slData, np.ones(num_voxels, dtype=np.bool)))
 
 # Plot the results
 if rank == 0:
