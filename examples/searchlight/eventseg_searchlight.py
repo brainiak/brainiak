@@ -4,7 +4,7 @@
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
+#               http://www.apache.org/licenses/LICENSE-2.0
 #
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,40 +45,40 @@ size = comm.Get_size()
 # Rank 0 generates random data
 slData = None
 if rank == 0:
-  # sample labels
-  labels = np.repeat(range(0,num_events),trs_per_event)
+    # sample labels
+    labels = np.repeat(range(0,num_events),trs_per_event)
 
-  # sample data
-  def randomTR(seed, nvoxels):
-    np.random.seed(seed)
-    return np.random.random(nvoxels)
+    # sample data
+    def randomTR(seed, nvoxels):
+        np.random.seed(seed)
+        return np.random.random(nvoxels)
 
-  simData = [randomTR(seed,num_voxels) for seed in range(0, num_events)]
+    simData = [randomTR(seed,num_voxels) for seed in range(0, num_events)]
 
-  def noisyTR(tr, noise):
-    return (1.0-noise) * tr + noise * np.random.random(tr.shape)
+    def noisyTR(tr, noise):
+        return (1.0-noise) * tr + noise * np.random.random(tr.shape)
 
-  probData = np.array([noisyTR(simData[label], train_data_noise) for label in labels])
-  testData = np.array([noisyTR(simData[label], test_data_noise) for label in labels])
+    probData = np.array([noisyTR(simData[label], train_data_noise) for label in labels])
+    testData = np.array([noisyTR(simData[label], test_data_noise) for label in labels])
 
-  slData = [probData, testData]
+    slData = [probData, testData]
 
 # Searchlight function fits training data and tests on test data
 def fitFn(a, mask):
 
-  # Create EventSegmentation class
-  es = brainiak.eventseg.event.EventSegment(num_events)
+    # Create EventSegmentation class
+    es = brainiak.eventseg.event.EventSegment(num_events)
 
-  # Flatten train and test data
-  trainData = a[0][:,mask]
-  testData = a[1][:,mask]
+    # Flatten train and test data
+    trainData = a[0][:,mask]
+    testData = a[1][:,mask]
 
-  # Train and test
-  es.fit(trainData)
+    # Train and test
+    es.fit(trainData)
 
-  # Return test predictions
-  gamma, LL = es.find_events(testData)
-  return np.argmax(gamma, axis=1)
+    # Return test predictions
+    gamma, LL = es.find_events(testData)
+    return np.argmax(gamma, axis=1)
 
 # Create searchlight
 sl = brainiak.searchlight.searchlight.Searchlight()
@@ -88,15 +88,15 @@ output = sl.run(slData, np.ones(num_voxels, dtype=np.bool), fitFn, 1)
 
 # Plot the results
 if rank == 0:
-  plt.figure()
-  plt.subplot(1, 1, 1)
+    plt.figure()
+    plt.subplot(1, 1, 1)
 
-  for i in range(1, num_voxels[0]-1):
-    for j in range(1, num_voxels[1]-1):
-      for k in range(1, num_voxels[2]-1):
-        plt.plot(output[i,j,k])
+    for i in range(1, num_voxels[0]-1):
+        for j in range(1, num_voxels[1]-1):
+            for k in range(1, num_voxels[2]-1):
+                plt.plot(output[i,j,k])
 
-  plt.xlabel('Timepoints')
-  plt.ylabel('Event label')
-  #plt.savefig('fig.png')
-  plt.show()
+    plt.xlabel('Timepoints')
+    plt.ylabel('Event label')
+    #plt.savefig('fig.png')
+    plt.show()
