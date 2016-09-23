@@ -30,24 +30,24 @@ from mpi4py import MPI
 import numpy as np
 
 class Searchlight:
-  """ Class for searchlight. 
-      A searchlight is a computation that is applied in a sliding
-      window to subsets of voxels across a volume. The radius of the
-      searchlight specifies how many voxels are involved in each
-      computation. A user-provided function is applied to all voxels 
-      within the radius, provided that the mask was non-zero at that
-      point in the volume. The ouput of the searchlight analysis is
-      another volume which contains the user-provided function's 
-      output at each point.
+    """ Class for searchlight. 
+    A searchlight is a computation that is applied in a sliding
+    window to subsets of voxels across a volume. The radius of the
+    searchlight specifies how many voxels are involved in each
+    computation. A user-provided function is applied to all voxels 
+    within the radius, provided that the mask was non-zero at that
+    point in the volume. The ouput of the searchlight analysis is
+    another volume which contains the user-provided function's 
+    output at each point.
 
-      Parameters
-      ----------
-      None
+    Parameters
+    ----------
+    None
 
-      Attributes
-      ----------
-      None
-  """
+    Attributes
+    ----------
+    None
+    """
 
   def __init__(self):
     pass
