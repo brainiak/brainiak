@@ -39,9 +39,11 @@ generate pull requests to submit your code for inclusion in the project.
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
 
-All pull requests will be automatically tested as described below, so make sure
-you test them yourself before submitting them::
+All pull requests will be automatically tested as described below using the
+``pr-check.sh`` script, so make sure you test them yourself before submitting
+them::
 
+  # do not run this if using Anaconda; instead, look at pr-check.sh
   # optional, but highly recommended: create a virtualenv to isolate tests
   virtualenv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
@@ -63,7 +65,7 @@ you test them yourself before submitting them::
   make
   cd -
 
-  # optional: remove virtualenv
+  # optional: remove virtualenv, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
