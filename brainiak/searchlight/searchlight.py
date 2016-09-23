@@ -112,7 +112,7 @@ class Searchlight:
 
         fn: A user-provided function which is applied to the data in a
         searchlight.
-            This user-defined function must accept 2 parameters:
+            This user-specified function must accept 2 parameters:
                 data: A list of 4D numpy.ndarray objects which has the same
                 structure as the 'data' parameter to the searchlight, but
                 only includes voxels within a 'rad' radius from the current
@@ -183,7 +183,7 @@ class Searchlight:
 
         fn: A user-provided function which is applied to the data in a
         searchlight.
-            This user-defined function must accept 2 parameters:
+            This user-specified function must accept 2 parameters:
                 data: A list of 4D numpy.ndarray objects which has the same
                 structure as the 'data' parameter to the searchlight, but
                 only includes voxels within a 'rad' radius from the current
@@ -233,7 +233,7 @@ class Searchlight:
 
         fn: A user-provided function which is applied to the data in a
         searchlight.
-            This user-defined function must accept 2 parameters:
+            This user-specified function must accept 2 parameters:
                 data: A list of 4D numpy.ndarray objects which has the same
                 structure as the 'data' parameter to the searchlight, but
                 only includes voxels within a 'rad' radius from the current
@@ -276,7 +276,7 @@ class Searchlight:
 
         fn: A user-provided function which is applied to the data in a
         searchlight.
-        This user-defined function must accept 2 parameters:
+        This user-specified function must accept 2 parameters:
           data: A list of 4D numpy.ndarray objects which has the same
           structure as the 'data' parameter to the searchlight, but only
           includes voxels within a 'rad' radius from the current searchlight
@@ -287,6 +287,15 @@ class Searchlight:
 
         rad: Odd positive integer indicating the radius of the searchlight
         cube.
+
+        Returns
+        ----------
+        output: A 3D numpy ndarray containing the return value from each
+        invocation of the user-specified function. The output array
+        will be the same size as the input mask. The values around the
+        boundary (from 0 to rad, and from dim-rad to dim) will be
+        None. Also, points where the input mask is "false" will be
+        None in the output array.
         """
 
         comm = MPI.COMM_WORLD
