@@ -307,23 +307,6 @@ class EventSegment(BaseEstimator):
         return y.reshape(xshape)
 
 
-    def _log_old(self, x):
-        """Modified version of np.log that manually sets values <=0 to -inf
-
-        Parameters
-        ----------
-        x: ndarray of floats
-            Input to the log function
-
-        Returns
-        -------
-        log_ma: ndarray of floats
-            log of x, with x<=0 values replaced with -inf
-        """
-
-        log_ma = np.ma.log(x).filled(float("-inf"))
-        return log_ma
-
     def find_events(self, testing_data, var=None, scramble=False):
         """Applies learned event segmentation to new testing dataset
 
