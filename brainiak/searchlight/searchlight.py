@@ -172,16 +172,16 @@ class Searchlight(TransformerMixin):
                                           bcast_var))]
         # Assign tasks to workers
         else:
-            num_active = 0
+            num_active = size-1
 
             # Send wait for requests from workers
             for idx in tasks:
                 (dst_rank, result) = comm.recv(source=MPI.ANY_SOURCE)
+                num_active -= 1
 
                 # Add result to output array
                 if result is not None:
                     results += [result]
-                    num_active -= 1
 
                 # Send a valid task
                 comm.send((idx, self._get_subarray(data, idx),
@@ -191,11 +191,11 @@ class Searchlight(TransformerMixin):
             # wait for all to finish
             while num_active > 0:
                 (dst_rank, result) = comm.recv(source=MPI.ANY_SOURCE)
+                num_active -= 1
 
                 # Add result to output array
                 if result is not None:
                     results += [result]
-                    num_active -= 1
 
             # Send each an empty task
             for r in range(1, size):
