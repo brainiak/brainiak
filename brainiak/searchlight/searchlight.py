@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import logging
 from mpi4py import MPI
 import numpy as np
 from sklearn.base import TransformerMixin
@@ -27,6 +28,8 @@ to all voxels.
 __all__ = [
     "Searchlight",
 ]
+
+logger = logging.getLogger(__name__)
 
 
 class Searchlight(TransformerMixin):
@@ -166,6 +169,7 @@ class Searchlight(TransformerMixin):
 
         # If there are no workers, then do everything here
         if size == 1:
+            logger.info('Doing searchlight computation on Rank 0')
             for idx in tasks:
                 results += [(idx, self.fn(self._get_subarray(data, idx),
                                           self._get_submask(mask, idx),
@@ -173,6 +177,7 @@ class Searchlight(TransformerMixin):
         # Assign tasks to workers
         else:
             num_active = size-1
+            logger.info('Num active: ' + str(num_active))
 
             # Send wait for requests from workers
             for idx in tasks:
@@ -184,12 +189,15 @@ class Searchlight(TransformerMixin):
                     results += [result]
 
                 # Send a valid task
+                logger.info('Sending task ' + str(idx) +
+                            ' to rank ' + str(dst_rank))
                 comm.send((idx, self._get_subarray(data, idx),
                            self._get_submask(mask, idx)), dest=dst_rank)
                 num_active += 1
 
             # wait for all to finish
             while num_active > 0:
+                logger.info('Waiting for ' + str(num_active))
                 (dst_rank, result) = comm.recv(source=MPI.ANY_SOURCE)
                 num_active -= 1
 
@@ -314,6 +322,7 @@ class Searchlight(TransformerMixin):
         None. Also, points where the input mask is "false" will be
         None in the output array. Results returned only on rank 0.
         """
+        logger.info('Starting Distributed Searchlight')
 
         (data, mask) = X
         bcast_var = y
