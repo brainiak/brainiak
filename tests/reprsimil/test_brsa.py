@@ -22,8 +22,6 @@ def test_can_instantiate():
     s = brainiak.reprsimil.brsa.BRSA()
     assert s, "Invalid BRSA instance!"
 
-    
-
     voxels = 100
     samples = 500
     features = 3
@@ -39,24 +37,24 @@ def test_fit():
     import numpy as np
     import os.path
     import numdifftools as nd
+    # np.random.seed(0)
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     # Load an example design matrix
     design = utils.ReadDesign(fname=file_path)
     # concatenate it by 4 times, mimicking 4 runs of itenditcal timing
     design.design_used = np.tile(design.design_used[:,0:17],[4,1])
     design.n_TR = design.n_TR * 4
-    
-    
+
+    # start simulating some data
     n_V = 200
     n_C = np.size(design.design_used,axis=1) 
     n_T = design.n_TR
 
-    
     noise_bot = 0.5
     noise_top = 1.5
     noise_level = np.random.rand(n_V)*(noise_top-noise_bot)+noise_bot
     # noise level is random.
-    
+
     # AR(1) coefficient
     rho1_top = 0.8
     rho1_bot = -0.2
@@ -67,7 +65,7 @@ def test_fit():
     noise[0,:] = np.random.randn(n_V) * noise_level / np.sqrt(1-rho1**2)
     for i_t in range(1,n_T):
         noise[i_t,:] = noise[i_t-1,:] * rho1 +  np.random.randn(n_V) * noise_level
-    
+
     # ideal covariance matrix
     ideal_cov = np.zeros([n_C,n_C])
     ideal_cov = np.eye(n_C)*0.6
@@ -93,7 +91,7 @@ def test_fit():
     coords = np.arange(0,n_V)[:,None]
 
     dist2 = np.square(coords-coords.T)
-    
+
     inten_tile = np.tile(inten,[n_V,1])
     inten_diff2 = (inten_tile-inten_tile.T)**2
 
@@ -104,8 +102,8 @@ def test_fit():
     sqrt_v = noise_level*snr
     betas_simulated = np.dot(L_full,np.random.randn(n_C,n_V)) * sqrt_v
     signal = np.dot(design.design_used,betas_simulated)
-    
-    
+
+    # Adding noise to signal as data
     Y = signal + noise
 
 
@@ -113,7 +111,7 @@ def test_fit():
 
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 20)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=True,n_iter = 200)
 
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets,
              coords=coords, inten=inten)
@@ -128,65 +126,112 @@ def test_fit():
     assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
 
-    assert np.abs(brsa.bGP_ - tau) / tau < 0.3, "standard deviation of GP deviates too much"
-    assert np.abs(brsa.lGPspace_ - smooth_width) / smooth_width < 0.5,\
+    assert np.abs(np.log(brsa.bGP_) - np.log(tau)) < np.log(2), "standard deviation of GP deviates too much"
+    assert np.abs(np.log(brsa.lGPspace_) - np.log(smooth_width)) < np.log(3),\
         "spatial length scale of GP deviates too much"
-    assert np.abs(brsa.lGPinten_ - inten_kernel) / inten_kernel < 0.5,\
+    assert np.abs(np.log(brsa.lGPinten_) - np.log(inten_kernel)) < np.log(3),\
         "intensity length scale of GP deviates too much"
+    # Unfortunately we do not have a proof of how close the fitted GP parameters should be to the
+    # true GP parameters. So the bounds set here are a bit arbitrary.
 
-    
     # test if the gradients are correct
     XTY,XTDY,XTFY,YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX = brsa._prepare_data(design.design_used,Y,n_T,n_V,scan_onsets)
-    n_l = n_C*(n_C+1)/2
+    l_idx = np.tril_indices(n_C)
+    n_l = np.size(l_idx[0])
+
+    idx_param_sing, idx_param_fitU, idx_param_fitV = brsa._build_index_param(n_l, n_V, 2)
+
+    # Initial parameters are correct parameters with some perturbation
     param0_fitU = np.random.randn(n_l+n_V) * 0.1
     param0_fitV = np.random.randn(n_V+1) * 0.1
     param0_fitV[:n_V-1] += np.log(snr[:n_V-1])*2
     param0_fitV[n_V-1] += np.log(smooth_width)*2
     param0_fitV[n_V] += np.log(inten_kernel)*2
-    l_idx = np.tril_indices(n_C)
-    ll0, deriv0 = brsa._loglike_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,n_C)
-    
-    vec = np.zeros(np.size(param0_fitU))
-    vec[0] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
-                                                                YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
-                                                                l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
-    
-    vec = np.zeros(np.size(param0_fitU))
-    vec[n_l] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
-                                                                YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
-                                                                l_idx,n_C,n_T,n_V,n_C)[0], param0_fitU, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitU incorrect'
-    
-    ll0, deriv0 = brsa._loglike_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2), l_idx,n_C,n_T,n_V,n_C,True,True,\
-                dist2,inten_diff2,100,100)
-    vec = np.zeros(np.size(param0_fitV))
-    vec[0] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                                                                     XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
-                                                                     l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
-                                                                     100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
-    
-    vec = np.zeros(np.size(param0_fitV))
-    vec[n_V-1] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                                                                     XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
-                                                                     l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
-                                                                     100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
 
+    # log likelihood and derivative at the initial parameters
+    ll0, deriv0 = brsa._loglike_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
+                XTY, XTDY, XTFY, np.log(snr)*2,  l_idx,n_C,n_T,n_V,idx_param_fitU,n_C)
+
+    # We test if the numerical and analytical gradient wrt to the first element of Cholesky factor is correct
+    vec = np.zeros(np.size(param0_fitU))
+    vec[idx_param_fitU['Cholesky'][0]] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
+                                                                YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
+                                                                l_idx,n_C,n_T,n_V,idx_param_fitU,n_C)[0], param0_fitU, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU wrt Cholesky factor incorrect'
+
+    # We test the gradient wrt the reparametrization of AR(1) coefficient of noise.
+    vec = np.zeros(np.size(param0_fitU))
+    vec[idx_param_fitU['a1'][0]] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
+                                                                YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
+                                                                l_idx,n_C,n_T,n_V,idx_param_fitU,n_C)[0], param0_fitU, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU wrt to AR(1) coefficient incorrect'
+
+    # Test on a random direction
+    vec = np.random.randn(np.size(param0_fitU))
+    vec = ver / np.linalg.norm(vec)
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag,\
+                                                                YTFY_diag, XTY, XTDY, XTFY, np.log(snr)*2,\
+                                                                l_idx,n_C,n_T,n_V,idx_param_fitU,n_C)[0], param0_fitU, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU incorrect'
+
+    # We test the gradient of _fitV wrt to log(SNR^2) assuming no GP prior.
+    ll0, deriv0 = brsa._loglike_AR1_diagV_fitV(param0_fitV[idx_param_fitV['log_SNR2']],
+                                               XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                               XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                               l_idx,n_C,n_T,n_V,idx_param_fitV,n_C,False,False)
+    vec = np.zeros(np.size(param0_fitV[idx_param_fitV['log_SNR2']]))
+    vec[idx_param_fitV['log_SNR2'][0]] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                                                   l_idx, n_C, n_T, n_V, idx_param_fitV, n_C, False, False)[0],
+                            param0_fitV[idx_param_fitV['log_SNR2']], vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitV wrt log(SNR2) incorrect for model without GP'
+
+    # We test the gradient of _fitV wrt to log(SNR^2) assuming GP prior.
+    ll0, deriv0 = brsa._loglike_AR1_diagV_fitV(param0_fitV, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                               XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                               l_idx,n_C,n_T,n_V,idx_param_fitV,n_C,True,True,
+                                               dist2,inten_diff2,100,100)
     vec = np.zeros(np.size(param0_fitV))
-    vec[n_V] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, \
-                                                                     XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),\
-                                                                     l_idx, n_C, n_T, n_V, n_C, True, True, dist2, inten_diff2,\
-                                                                     100, 100)[0], param0_fitV, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.05), 'gradient of fitV incorrect'
+    vec[idx_param_fitV['log_SNR2'][0]] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                                                   l_idx, n_C, n_T, n_V, idx_param_fitV, n_C, True, True,
+                                                                   dist2, inten_diff2,
+                                                                   100, 100)[0], param0_fitV, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitV srt log(SNR2) incorrect for model with GP'
+
+    # We test the graident wrt spatial length scale parameter of GP prior
+    vec = np.zeros(np.size(param0_fitV))
+    vec[idx_param_fitV['c_space']] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                                                   l_idx, n_C, n_T, n_V, idx_param_fitV, n_C, True, True,
+                                                                   dist2, inten_diff2,
+                                                                   100, 100)[0], param0_fitV, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitV wrt spatial length scale of GP incorrect'
+
+    # We test the graident wrt intensity length scale parameter of GP prior
+    vec = np.zeros(np.size(param0_fitV))
+    vec[idx_param_fitV['c_inten']] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                                                   l_idx, n_C, n_T, n_V, idx_param_fitV, n_C, True, True,
+                                                                   dist2, inten_diff2,
+                                                                   100, 100)[0], param0_fitV, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitV wrt intensity length scale of GP incorrect'
+
+    # We test the graident on a random direction
+    vec = np.random.randn(np.size(param0_fitV))
+    vec = vec / np.linalg.norm(vec)
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitV(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, L_full[l_idx], np.tan(rho1*np.pi/2),
+                                                                   l_idx, n_C, n_T, n_V, idx_param_fitV, n_C, True, True,
+                                                                   dist2, inten_diff2,
+                                                                   100, 100)[0], param0_fitV, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitV incorrect'
 
     # Test fitting without GP prior.
     brsa = BRSA()
@@ -205,7 +250,6 @@ def test_fit():
         'the BRSA object should not have parameters of GP if GP is not requested.'
     # GP parameters are not set if not requested
 
-
     # Test fitting with GP over just spatial coordinates.
     brsa = BRSA(GP_space=True)
     brsa.fit(X=Y, design=design.design_used, scan_onsets=scan_onsets, coords=coords)
@@ -221,5 +265,3 @@ def test_fit():
     assert not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
     # GP parameters are not set if not requested
-    
-    
