@@ -17,6 +17,7 @@ from sklearn import svm
 import sys
 import logging
 from file_io import prepareData
+import numpy as np
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -37,4 +38,8 @@ if __name__ == '__main__':
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     clf = Classifier(epochs_per_subj, use_clf)
-    clf.fit(raw_data, labels)
+    training_data = raw_data[0:204]
+    test_data = raw_data[204:]
+    clf.fit(training_data, labels[0:204])
+    print(clf.predict(test_data))
+    print(np.asanyarray(labels[204:]))

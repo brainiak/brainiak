@@ -58,6 +58,8 @@ class Classifier(BaseEstimator):
                  clf=None):
         self.epochs_per_subj = epochs_per_subj
         self.clf = clf
+        self.training_data = None
+        self.num_voxels = -1
         return
 
     def fit(self, X, y):
@@ -65,22 +67,24 @@ class Classifier(BaseEstimator):
         Parameters:
         ----------
         X: a list of numpy array in shape [nun_TRs, num_voxels]
+           assuming all elements of X has the same num_voxels value
         Y: labels, len(X) equals len(Y)
 
         Returns:
+        -------
         self: return the object itself
         """
         time1 = time.time()
         assert len(X) == len(y), \
             'the number of samples does not match the number labels'
         num_samples = len(X)
-        num_TRs = X[0].shape[0]
-        num_voxels = X[0].shape[1]
+        num_voxels = X[0].shape[1]  # see assumption above
         corr_data = np.zeros((num_samples, num_voxels, num_voxels),
                              np.float32, order='C')
         # compute correlation
         count = 0
         for data in X:
+            num_TRs = data.shape[0]
             #blas.compute_single_self_correlation('L', 'N',
             #                                     num_voxels,
             #                                     num_TRs,
@@ -97,15 +101,15 @@ class Classifier(BaseEstimator):
                                                  0.0, corr_data,
                                                  num_voxels, count)
             count += 1
-        logger.info(
+        logger.debug(
             'correlation computation done'
         )
-        # normalization if necessary
+        # normalize if necessary
         if self.epochs_per_subj > 0:
             corr_data = corr_data.reshape(1, num_samples, num_voxels*num_voxels)
             fcma_extension.normalization(corr_data, self.epochs_per_subj)
             corr_data = corr_data.reshape(num_samples, num_voxels, num_voxels)
-            logger.info(
+            logger.debug(
                 'normalization done'
             )
         # training
@@ -120,14 +124,89 @@ class Classifier(BaseEstimator):
                                        0, num_voxels * num_voxels,
                                        0.0, kernel_matrix, num_samples)
             data = kernel_matrix
-            logger.info(
+            # training data is in shape [num_samples, num_voxels * num_voxels]
+            self.training_data = corr_data.reshape(num_samples, num_voxels * num_voxels)
+            logger.debug(
                 'kernel computation done'
             )
         else:
-            data = corr_data
+            data = corr_data.reshape(num_samples, num_voxels * num_voxels)
+        self.num_voxels = num_voxels
         self.clf = self.clf.fit(data, y)
         time2 = time.time()
         logger.info(
             'training done, takes %.2f s' %
             (time2 - time1)
         )
+
+    def predict(self, X):
+        """
+        Parameters:
+        ----------
+        X: a list of numpy array in shape [nun_TRs, num_voxels]
+            len(X) equals num_samples
+            if num_samples > 0: normalization is done on all subjects
+            num_voxels equals the one used in the model
+
+        Returns:
+        -------
+        y_pred: the predicted label of X, in shape [num_samples,]
+        """
+        time1 = time.time()
+        num_samples = len(X)
+        assert num_samples > 0, \
+            'at least one sample is needed'
+        corr_data = np.zeros((num_samples, self.num_voxels, self.num_voxels),
+                             np.float32, order='C')
+        # compute correlation
+        count = 0
+        for data in X:
+            num_TRs = data.shape[0]
+            num_voxels = data.shape[1]
+            assert self.num_voxels == num_voxels, \
+                'the number of voxels provided by X does not match the number of voxels' \
+                'defined in the model'
+            blas.compute_single_self_correlation2('N', 'T',
+                                                  num_voxels,
+                                                  num_voxels,
+                                                  num_TRs,
+                                                  1.0, data,
+                                                  num_voxels, num_voxels,
+                                                  0.0, corr_data,
+                                                  num_voxels, count)
+            count += 1
+        logger.debug(
+            'correlation computation done'
+        )
+        # normalize if necessary
+        if num_samples > 1:
+            corr_data = corr_data.reshape(1, num_samples, num_voxels*num_voxels)
+            fcma_extension.normalization(corr_data, num_samples)
+            corr_data = corr_data.reshape(num_samples, num_voxels, num_voxels)
+            logger.debug(
+                'normalization done'
+            )
+        # predict
+        if isinstance(self.clf, sklearn.svm.SVC) \
+                and self.clf.kernel == 'precomputed':
+            assert self.training_data is not None, \
+                'when using precomputed kernel of SVM, ' \
+                'all training data must be provided'
+            num_training_samples = self.training_data.shape[1]
+            #data = np.zeros((num_samples, num_training_samples), np.float32, order='C')
+            corr_data = corr_data.reshape(num_samples, num_voxels * num_voxels)
+            # compute the similarity matrix using corr_data and training_data
+            data = np.dot(corr_data, self.training_data.transpose())
+            print(data.shape, corr_data.shape, self.training_data.shape)
+            logger.info(
+                'similarity matrix computation done'
+            )
+        else:
+            data = corr_data.reshape(num_samples, num_voxels*num_voxels)
+        y_pred = self.clf.predict(data)
+        time2 = time.time()
+        logger.info(
+            'prediction done, takes %.2f s' %
+            (time2 - time1)
+        )
+        return y_pred
