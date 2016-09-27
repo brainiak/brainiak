@@ -100,7 +100,7 @@ def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a
     cdef float[:, :, ::1] C
     C = py_c
     blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
-               &A[0, py_start_voxel], &ldb, &beta, &C[0, py_start_epoch,0], &ldc)
+               &A[0, py_start_voxel], &ldb, &beta, &C[0, py_start_epoch, 0], &ldc)
 
 def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, int py_start_voxel, py_lda,
                           py_beta, py_c, py_ldc):
@@ -221,7 +221,7 @@ def compute_single_self_correlation(py_uplo, py_trans, py_n, py_k, py_alpha, py_
     blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[0, 0], &lda,
                &beta, &C[py_start_sample, 0, 0], &ldc)
     # complete the other half of the kernel matrix
-    if (py_uplo=='L'):
+    if (py_uplo == 'L'):
         for j in range(py_c.shape[1]):
             for k in range(j):
                 py_c[py_start_sample, j, k] = py_c[py_start_sample, k, j]
@@ -229,3 +229,29 @@ def compute_single_self_correlation(py_uplo, py_trans, py_n, py_k, py_alpha, py_
         for j in range(py_c.shape[1]):
             for k in range(j):
                 py_c[py_start_sample, k, j] = py_c[py_start_sample, j, k]
+
+def compute_single_self_correlation2(py_trans_a, py_trans_b, py_m, py_n, py_k, py_alpha, py_a, py_lda,
+                                     py_ldb, py_beta, py_c, py_ldc, int py_start_sample):
+    """
+    assumption: py_ldc == py_n
+    """
+    cdef bytes by_trans_a=py_trans_a.encode()
+    cdef bytes by_trans_b=py_trans_b.encode()
+    cdef char* trans_a = by_trans_a
+    cdef char* trans_b = by_trans_b
+    cdef int M, N, K, lda, ldb, ldc
+    M = py_m
+    N = py_n
+    K = py_k
+    lda = py_lda
+    ldb = py_ldb
+    ldc = py_ldc
+    cdef float alpha, beta
+    alpha = py_alpha
+    beta = py_beta
+    cdef float[:, ::1] A
+    A = py_a
+    cdef float[:, :, ::1] C
+    C = py_c
+    blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
+               &A[0, 0], &ldb, &beta, &C[py_start_sample, 0, 0], &ldc)

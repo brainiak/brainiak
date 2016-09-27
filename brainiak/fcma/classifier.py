@@ -81,12 +81,20 @@ class Classifier(BaseEstimator):
         # compute correlation
         count = 0
         for data in X:
-            blas.compute_single_self_correlation('L', 'N',
+            #blas.compute_single_self_correlation('L', 'N',
+            #                                     num_voxels,
+            #                                     num_TRs,
+            #                                    1.0, data,
+            #                                     num_voxels, 0.0,
+            #                                     corr_data,
+            #                                     num_voxels, count)
+            blas.compute_single_self_correlation2('N', 'T',
+                                                 num_voxels,
                                                  num_voxels,
                                                  num_TRs,
                                                  1.0, data,
-                                                 num_voxels, 0.0,
-                                                 corr_data,
+                                                 num_voxels, num_voxels,
+                                                 0.0, corr_data,
                                                  num_voxels, count)
             count += 1
         logger.info(

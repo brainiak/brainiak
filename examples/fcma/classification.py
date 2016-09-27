@@ -24,6 +24,9 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
+
+# python classification.py /Users/yidawang/data/face_scene/raw nii.gz
+#     /Users/yidawang/data/face_scene/prefrontal_top_mask.nii.gz data/fs_epoch_labels.npy 12
 if __name__ == '__main__':
     data_dir = sys.argv[1]
     extension = sys.argv[2]
