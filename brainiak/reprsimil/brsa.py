@@ -1271,6 +1271,13 @@ class BRSA(BaseEstimator):
                     l2_inten**0.5, scale=inten_smooth_range)
                 deriv_c_inten -= 1 / (l2_inten + inten_smooth_range**2)\
                     * dl2_dc_inten
+        else:
+            LL += np.sum(scipy.stats.norm.logpdf(log_SNR2 / 2.0,
+                                                 scale=self.tau_range))
+            # If GP prior is not requested, we still want to regularize on
+            # the magnitude of log(SNR).
+            deriv_log_SNR2 += - log_SNR2 / self.tau_range**2 / 4.0
+
         deriv = np.zeros(np.size(param))
         deriv[idx_param_fitV['log_SNR2']] = \
             deriv_log_SNR2[0:n_V - 1] - deriv_log_SNR2[n_V - 1]
