@@ -197,7 +197,35 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, int py_
             for k in range(j):
                 py_c[k, j] = py_c[j, k]
 
-def installed():
+def compute_single_self_correlation(py_uplo, py_trans, py_n, py_k, py_alpha, py_a, py_lda,
+                                    py_beta, py_c, py_ldc, int py_start_sample):
     """
-    This is an empty method for installing cython_blas library
+    assumption: py_ldc == py_n
     """
+    cdef bytes by_uplo=py_uplo.encode()
+    cdef bytes by_trans=py_trans.encode()
+    cdef char* uplo = by_uplo
+    cdef char* trans = by_trans
+    cdef int N, K, lda, ldc
+    N = py_n
+    K = py_k
+    lda = py_lda
+    ldc = py_ldc
+    cdef float alpha, beta
+    alpha = py_alpha
+    beta = py_beta
+    cdef float[:, ::1] A
+    A = py_a
+    cdef float[:, :, ::1] C
+    C = py_c
+    blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[0, 0], &lda,
+               &beta, &C[py_start_sample, 0, 0], &ldc)
+    # complete the other half of the kernel matrix
+    if (py_uplo=='L'):
+        for j in range(py_c.shape[1]):
+            for k in range(j):
+                py_c[py_start_sample, j, k] = py_c[py_start_sample, k, j]
+    else:
+        for j in range(py_c.shape[1]):
+            for k in range(j):
+                py_c[py_start_sample, k, j] = py_c[py_start_sample, j, k]
