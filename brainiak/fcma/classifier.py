@@ -192,12 +192,25 @@ class Classifier(BaseEstimator):
             assert self.training_data is not None, \
                 'when using precomputed kernel of SVM, ' \
                 'all training data must be provided'
-            num_training_samples = self.training_data.shape[1]
-            #data = np.zeros((num_samples, num_training_samples), np.float32, order='C')
+            num_training_samples = self.training_data.shape[0]
+            data = np.zeros((num_samples, num_training_samples), np.float32, order='C')
             corr_data = corr_data.reshape(num_samples, num_voxels * num_voxels)
             # compute the similarity matrix using corr_data and training_data
-            data = np.dot(corr_data, self.training_data.transpose())
-            print(data.shape, corr_data.shape, self.training_data.shape)
+            data2 = np.dot(corr_data, self.training_data.transpose())
+            print('shapes:', data.shape, corr_data.shape, self.training_data.shape)
+            blas.compute_single_matrix_multiplication('T', 'N',
+                                                      num_training_samples,
+                                                      num_samples,
+                                                      num_voxels * num_voxels,
+                                                      1.0,
+                                                      self.training_data, num_voxels * num_voxels,
+                                                      corr_data, num_voxels * num_voxels,
+                                                      0.0,
+                                                      data, num_training_samples)
+            print(self.training_data.dtype, corr_data.dtype, data.dtype, data2.dtype)
+            print(data[0,0], data2[0,0])
+            assert np.allclose(data, data2, atol=1e-3), \
+                'error!!!'
             logger.info(
                 'similarity matrix computation done'
             )
