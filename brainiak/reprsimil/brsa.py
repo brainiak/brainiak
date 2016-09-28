@@ -131,6 +131,8 @@ class BRSA(BaseEstimator):
         We use 'BFGS' as a default. Users can try other optimizer
         coming with scipy.optimize.minimize, or a custom
         optimizer.
+    rand_seed : int, default: 0
+        Seed for initializing the random number generator.
 
     Attributes
     ----------
@@ -167,7 +169,7 @@ class BRSA(BaseEstimator):
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
             tol=2e-3, verbose=False, pad_DC=False, epsilon=0.0001,
             space_smooth_range=None, inten_smooth_range=None,
-            tau_range=5.0, init_iter=20, optimizer='BFGS'):
+            tau_range=5.0, init_iter=20, optimizer='BFGS', rand_seed=0):
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
@@ -190,6 +192,7 @@ class BRSA(BaseEstimator):
         # When imposing smoothness prior, fit the model without this
         # prior for this number of iterations.
         self.optimizer = optimizer
+        self.rand_seed = rand_seed
         return
 
     def fit(self, X, design, scan_onsets=None, coords=None,
@@ -248,7 +251,8 @@ class BRSA(BaseEstimator):
         assert_all_finite(design)
         assert design.ndim == 2,\
             'The design matrix should be 2 dimension ndarray'
-        assert np.all(np.std(design, axis=0) >= 0) or self.pad_DC,\
+        assert (not np.all(np.std(design, axis=0) > 0) and self.pad_DC)\
+            or not self.pad_DC, \
             'You already included DC component in the '\
             'design matrix. Please set pad_DC as False'
         assert np.size(design, axis=0) == np.size(X, axis=0),\
@@ -494,6 +498,8 @@ class BRSA(BaseEstimator):
         n_C = np.size(X, axis=1)
         l_idx = np.tril_indices(n_C)
 
+        np.random.seed(self.rand_seed)
+        # setting random seed
         t_start = time.time()
 
         if rank is not None:
@@ -699,6 +705,8 @@ class BRSA(BaseEstimator):
             auto-correlation). The SNR is implicitly assumed to be 1
             for all voxels.
         """
+        logger.debug('Initial fitting assuming single parameter of '
+                     'noise for all voxels')
         beta_hat = np.linalg.lstsq(X, Y)[0]
         residual = Y - np.dot(X, beta_hat)
         # point estimates of betas and fitting residuals without assuming
@@ -792,7 +800,8 @@ class BRSA(BaseEstimator):
                 self._loglike_AR1_diagV_fitV, param0_fitV,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_vec_U_chlsk_l_AR1,
-                      current_a1, l_idx, n_C, n_T, n_V, rank,
+                      current_a1, l_idx, n_C, n_T, n_V,
+                      idx_param_fitV, rank,
                       False, False),
                 method=self.optimizer, jac=True, tol=tol,
                 options={'xtol': tol, 'disp': self.verbose,
@@ -804,7 +813,7 @@ class BRSA(BaseEstimator):
             norm_fitVchange = np.linalg.norm(res_fitV.x - param0_fitV)
             logger.debug('norm of parameter change after fitting V: '
                          '{}'.format(norm_fitVchange))
-            logger.debug('E[log(SNR2)^2]:', np.mean(current_logSNR2**2))
+            logger.debug('E[log(SNR2)^2]:'.format(np.mean(current_logSNR2**2)))
 
             # The below lines are for debugging purpose.
             # If any voxel's log(SNR^2) gets to non-finite number,
@@ -826,7 +835,7 @@ class BRSA(BaseEstimator):
                 self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C,
-                      n_T, n_V, rank),
+                      n_T, n_V, idx_param_fitU, rank),
                 method=self.optimizer, jac=True, tol=tol,
                 options={'xtol': tol, 'disp': self.verbose,
                          'maxiter': 3})
@@ -885,8 +894,8 @@ class BRSA(BaseEstimator):
                 self._loglike_AR1_diagV_fitV, param0_fitV, args=(
                     XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag, XTY,
                     XTDY, XTFY, current_vec_U_chlsk_l_AR1, current_a1,
-                    l_idx, n_C, n_T, n_V, rank, GP_space, GP_inten,
-                    dist2, inten_diff2,
+                    l_idx, n_C, n_T, n_V, idx_param_fitV, rank,
+                    GP_space, GP_inten, dist2, inten_diff2,
                     space_smooth_range, inten_smooth_range),
                 method=self.optimizer, jac=True,
                 tol=tol,  # 10**(-2 - 2 / n_iter * (it + 1)),
@@ -917,7 +926,7 @@ class BRSA(BaseEstimator):
                 self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                       XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C, n_T, n_V,
-                      rank),
+                      idx_param_fitU, rank),
                 method=self.optimizer, jac=True,
                 tol=tol,
                 options={'xtol': tol,
@@ -953,7 +962,8 @@ class BRSA(BaseEstimator):
 
     def _loglike_AR1_diagV_fitU(self, param, XTX, XTDX, XTFX, YTY_diag,
                                 YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                log_SNR2, l_idx, n_C, n_T, n_V, rank):
+                                log_SNR2, l_idx, n_C, n_T, n_V,
+                                idx_param_fitU, rank):
         # This function calculates the log likelihood of data given cholesky
         # decomposition of U and AR(1) parameters of noise as free parameters.
         # Free parameters are in param.
@@ -986,15 +996,15 @@ class BRSA(BaseEstimator):
 
         LL = 0.0  # log likelihood
 
-        n_l = np.size(l_idx[0])
+        # n_l = np.size(l_idx[0])
         # the number of parameters in the index of lower-triangular matrix
         # This indexing allows for parametrizing only
         # part of the lower triangular matrix (non-full rank covariance matrix)
         L = np.zeros([n_C, rank])
         # lower triagular matrix L, cholesky decomposition of U
-        L[l_idx] = param[0:n_l]
+        L[l_idx] = param[idx_param_fitU['Cholesky']]
 
-        a1 = param[n_l:n_l + n_V]
+        a1 = param[idx_param_fitU['a1']]
         rho1 = 2.0 / np.pi * np.arctan(a1)  # auto-regressive coefficients
 
         SNR2 = np.exp(log_SNR2)
@@ -1066,16 +1076,17 @@ class BRSA(BaseEstimator):
         # dimension: space,
 
         deriv = np.zeros(np.size(param))
-        deriv[0:n_l] = deriv_L[l_idx]
-        deriv[n_l:n_l + n_V] = deriv_a1
+        deriv[idx_param_fitU['Cholesky']] = deriv_L[l_idx]
+        deriv[idx_param_fitU['a1']] = deriv_a1
 
         return -LL, -deriv
 
     def _loglike_AR1_diagV_fitV(self, param, XTX, XTDX, XTFX, YTY_diag,
                                 YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                L_l, a1, l_idx, n_C, n_T, n_V, rank=None,
-                                GP_space=False, GP_inten=False, dist2=None,
-                                inten_dist2=None, space_smooth_range=None,
+                                L_l, a1, l_idx, n_C, n_T, n_V, idx_param_fitV,
+                                rank=None, GP_space=False, GP_inten=False,
+                                dist2=None, inten_dist2=None,
+                                space_smooth_range=None,
                                 inten_smooth_range=None):
 
         # This function calculates the log likelihood of data given
@@ -1111,7 +1122,7 @@ class BRSA(BaseEstimator):
         L[l_idx] = L_l
 
         log_SNR2 = np.empty(n_V)
-        log_SNR2[0:n_V - 1] = param[0:n_V - 1]
+        log_SNR2[0:n_V - 1] = param[idx_param_fitV['log_SNR2']]
         log_SNR2[-1] = -np.sum(log_SNR2[0:n_V - 1])
         # This is following the restriction that SNR's have geometric mean
         # of 1. That is why they are called pseudo-SNR. This restriction
@@ -1128,6 +1139,7 @@ class BRSA(BaseEstimator):
         rho1 = 2.0 / np.pi * np.arctan(a1)
         # AR(1) coefficient, dimension: space
         YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
+        # dimension: space,
         XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
             * XTDX[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * XTFX[np.newaxis, :, :]
@@ -1160,12 +1172,12 @@ class BRSA(BaseEstimator):
             + YTAY / (sigma2 * 2.0) - n_T * 0.5 \
             - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA_LT,
                         XTAX, YTAXL_LAMBDA_LT)\
-            / (sigma2 * 2.0) * (SNR2**2.0)
+            / (sigma2 * 2.0) * (SNR2**2)
 
         if GP_space:
             # Imposing GP prior on log(SNR) at least over
             # spatial coordinates
-            c_space = param[n_V - 1]
+            c_space = param[idx_param_fitV['c_space']]
             l2_space = np.exp(c_space)
             # The square of the length scale of the GP kernel defined on
             # the spatial coordinates of voxels
@@ -1173,7 +1185,7 @@ class BRSA(BaseEstimator):
             # partial derivative of l^2 over b
 
             if GP_inten:
-                c_inten = param[n_V]
+                c_inten = param[idx_param_fitV['c_inten']]
                 l2_inten = np.exp(c_inten)
                 # The square of the length scale of the GP kernel defined
                 # on the image intensity of voxels
@@ -1202,59 +1214,77 @@ class BRSA(BaseEstimator):
             log_SNR_invK_tilde_log_SNR = np.dot(log_SNR2,
                                                 invK_tilde_log_SNR) / 2
 
-            tau2 = log_SNR_invK_tilde_log_SNR / n_V
+            # ML estimate of the variance of the Gaussian Process given
+            # other parameters.
+            tau2 = (log_SNR_invK_tilde_log_SNR - n_V * self.tau_range**2
+                    + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
+                              * self.tau_range**2
+                              * log_SNR_invK_tilde_log_SNR
+                              + log_SNR_invK_tilde_log_SNR**2))\
+                / 2 / (n_V + 2)
+            # Note that this derivation is based on the assumption that
+            # half-Cauchy prior on the standard deviation of the GP is
+            # imposed. If a different prior is imposed, this term needs
+            # to be changed accordingly.
 
             # GP prior terms added to the log likelihood
-            LL = LL - 0.5 - log_det_K_tilde / 2.0 \
-                - n_V / 2.0 * np.log(tau2) - np.log(2 * np.pi) * n_V / 2.0
+            LL = LL - log_det_K_tilde / 2.0 - n_V / 2.0 * np.log(tau2) \
+                - np.log(2 * np.pi) * n_V / 2.0 \
+                - log_SNR_invK_tilde_log_SNR / tau2 / 2
 
-            deriv_log_SNR2 -= invK_tilde_log_SNR / tau2 / 2
+            deriv_log_SNR2 -= invK_tilde_log_SNR / tau2 / 2.0
+            # Note that the derivative to log(SNR) is
+            # invK_tilde_log_SNR / tau2, but we are calculating the
+            # derivative to log(SNR^2)
 
             dK_tilde_dl2_space = dist2 * (K_major) / 2.0 \
                 / l2_space**2
-            dtau2_dl2_space = - np.dot(np.dot(invK_tilde_log_SNR.T,
-                                              dK_tilde_dl2_space),
-                                       invK_tilde_log_SNR) / n_V
+
             deriv_c_space = \
-                - n_V * 0.5 * dtau2_dl2_space * dl2_dc_space / tau2 \
-                - 0.5 * np.sum(inv_K_tilde * dK_tilde_dl2_space) * dl2_dc_space
+                (np.dot(np.dot(invK_tilde_log_SNR, dK_tilde_dl2_space),
+                        invK_tilde_log_SNR) / tau2 / 2.0
+                 - np.sum(inv_K_tilde * dK_tilde_dl2_space) / 2.0)\
+                * dl2_dc_space
 
             # Prior on the length scales
             LL += scipy.stats.halfcauchy.logpdf(
                 l2_space**0.5, scale=space_smooth_range)
-            deriv_c_space -= 2 * l2_space**0.5 / \
-                (l2_space + space_smooth_range**2) * dl2_dc_space
+            deriv_c_space -= 1 / (l2_space + space_smooth_range**2)\
+                * dl2_dc_space
 
             # Prior on the standar deviation of GP
             LL += scipy.stats.halfcauchy.logpdf(
                 tau2**0.5, scale=self.tau_range)
-            deriv_c_space -= 2 * tau2**0.5 / \
-                (tau2 + self.tau_range**2) * dtau2_dl2_space * dl2_dc_space
+            # Note that the form of the maximum likelihood estimate
+            # of tau2 depends on the form of prior imposed.
 
             if GP_inten:
                 dK_tilde_dl2_inten = inten_dist2 * K_major \
                     / 2.0 / l2_inten**2
-                dtau2_dl2_inten = - np.dot(np.dot(invK_tilde_log_SNR.T,
-                                                  dK_tilde_dl2_inten),
-                                           invK_tilde_log_SNR) / n_V
-                deriv_c_inten = - n_V * 0.5 * dtau2_dl2_inten\
-                    * dl2_dc_inten / tau2 \
-                    - 0.5 * np.sum(inv_K_tilde * dK_tilde_dl2_inten)\
+                deriv_c_inten = \
+                    (np.dot(np.dot(invK_tilde_log_SNR, dK_tilde_dl2_inten),
+                            invK_tilde_log_SNR) / tau2 / 2.0
+                     - np.sum(inv_K_tilde * dK_tilde_dl2_inten) / 2.0)\
                     * dl2_dc_inten
                 # Prior on the length scale
                 LL += scipy.stats.halfcauchy.logpdf(
                     l2_inten**0.5, scale=inten_smooth_range)
-                deriv_c_inten -= 2 * l2_inten**0.5 /\
-                    (l2_inten + inten_smooth_range**2) * dl2_dc_inten
-                # additional gradient due to prior on tau
-                deriv_c_inten -= 2 * tau2**0.5 / (tau2 + self.tau_range**2)\
-                    * dtau2_dl2_inten * dl2_dc_inten
+                deriv_c_inten -= 1 / (l2_inten + inten_smooth_range**2)\
+                    * dl2_dc_inten
+        else:
+            LL += np.sum(scipy.stats.norm.logpdf(log_SNR2 / 2.0,
+                                                 scale=self.tau_range))
+            # If GP prior is not requested, we still want to regularize on
+            # the magnitude of log(SNR).
+            deriv_log_SNR2 += - log_SNR2 / self.tau_range**2 / 4.0
+
         deriv = np.zeros(np.size(param))
-        deriv[0:n_V - 1] = deriv_log_SNR2[0:n_V - 1] - deriv_log_SNR2[n_V - 1]
+        deriv[idx_param_fitV['log_SNR2']] = \
+            deriv_log_SNR2[0:n_V - 1] - deriv_log_SNR2[n_V - 1]
         if GP_space:
-            deriv[n_V - 1] = deriv_c_space
+            deriv[idx_param_fitV['c_space']] = deriv_c_space
             if GP_inten:
-                deriv[n_V] = deriv_c_inten
+                deriv[idx_param_fitV['c_inten']] = deriv_c_inten
 
         return -LL, -deriv
 
