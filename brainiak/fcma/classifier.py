@@ -51,6 +51,7 @@ class Classifier(BaseEstimator):
         self.clf = clf
         self.training_data = None
         self.num_voxels = -1
+        self.num_samples = -1
         return
 
     def fit(self, X, y):
@@ -137,6 +138,7 @@ class Classifier(BaseEstimator):
         else:
             data = corr_data.reshape(num_samples, num_voxels * num_voxels)
         self.num_voxels = num_voxels
+        self.num_samples = num_samples
         self.clf = self.clf.fit(data, y)
         time2 = time.time()
         logger.info(
