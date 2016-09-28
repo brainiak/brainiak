@@ -77,7 +77,7 @@ def test_voxel_selection():
             output[tuple[0]] = int(8*tuple[1])
         expected_output = [6, 3, 6, 4, 4]
         assert np.allclose(output, expected_output, atol=1), \
-            'voxel selection via SVM does not provide correct results'
+            'voxel selection via logistic regression does not provide correct results'
 
 if __name__ == '__main__':
     test_voxel_selection()
