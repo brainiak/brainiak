@@ -82,21 +82,22 @@ class Classifier(BaseEstimator):
         count = 0
         for data in X:
             num_TRs = data.shape[0]
-            # blas.compute_single_self_correlation('L', 'N',
+            # syrk performs slower in this case
+            # blas.compute_single_self_correlation_syrk('L', 'N',
             #                                     num_voxels,
             #                                     num_TRs,
             #                                    1.0, data,
             #                                     num_voxels, 0.0,
             #                                     corr_data,
             #                                     num_voxels, count)
-            blas.compute_single_self_correlation2('N', 'T',
-                                                  num_voxels,
-                                                  num_voxels,
-                                                  num_TRs,
-                                                  1.0, data,
-                                                  num_voxels, num_voxels,
-                                                  0.0, corr_data,
-                                                  num_voxels, count)
+            blas.compute_single_self_correlation_gemm('N', 'T',
+                                                      num_voxels,
+                                                      num_voxels,
+                                                      num_TRs,
+                                                      1.0, data,
+                                                      num_voxels, num_voxels,
+                                                      0.0, corr_data,
+                                                      num_voxels, count)
             count += 1
         logger.debug(
             'correlation computation done'
@@ -172,14 +173,14 @@ class Classifier(BaseEstimator):
             assert self.num_voxels == num_voxels, \
                 'the number of voxels provided by X does not match ' \
                 'the number of voxels defined in the model'
-            blas.compute_single_self_correlation2('N', 'T',
-                                                  num_voxels,
-                                                  num_voxels,
-                                                  num_TRs,
-                                                  1.0, data,
-                                                  num_voxels, num_voxels,
-                                                  0.0, corr_data,
-                                                  num_voxels, count)
+            blas.compute_single_self_correlation_gemm('N', 'T',
+                                                      num_voxels,
+                                                      num_voxels,
+                                                      num_TRs,
+                                                      1.0, data,
+                                                      num_voxels, num_voxels,
+                                                      0.0, corr_data,
+                                                      num_voxels, count)
             count += 1
         logger.debug(
             'correlation computation done'
