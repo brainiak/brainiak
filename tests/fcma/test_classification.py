@@ -41,28 +41,34 @@ def test_classification():
                      create_epoch(), create_epoch(),
                      create_epoch(), create_epoch(),
                      create_epoch(), create_epoch(),
+                     create_epoch(), create_epoch(),
+                     create_epoch(), create_epoch(),
+                     create_epoch(), create_epoch(),
+                     create_epoch(), create_epoch(),
                      create_epoch(), create_epoch()]
     labels = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-    # 3 subjects, 4 epochs per subject
+    # 4 subjects, 4 epochs per subject
     epochs_per_subj = 4
     # svm
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    training_data = fake_raw_data[0: 8]
+    training_data = fake_raw_data[0: 12]
     clf = Classifier(epochs_per_subj, svm_clf)
-    clf.fit(training_data, labels[0:8])
-    y_pred = clf.predict(fake_raw_data[8:])
-    expected_output = [0, 0, 1, 0]
+    clf.fit(training_data, labels)
+    y_pred = clf.predict(fake_raw_data[12:])
+    expected_output = [0, 1, 1, 0, 0, 0, 0, 1]
     hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
     assert hamming_distance <= 1, \
        'classification via SVM does not provide correct results'
     # logistic regression
     lr_clf = LogisticRegression()
     clf = Classifier(epochs_per_subj, lr_clf)
-    clf.fit(training_data, labels[0:8])
-    y_pred = clf.predict(fake_raw_data[8:])
+    clf.fit(training_data, labels[0:12])
+    y_pred = clf.predict(fake_raw_data[12:])
+    expected_output = [0, 1, 1, 0, 0, 1, 0, 1]
     hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
     assert hamming_distance <= 1, \
-        'classification via logistic regression does not provide correct results'
+        'classification via logistic regression ' \
+        'does not provide correct results'
 
 if __name__ == '__main__':
     test_classification()
