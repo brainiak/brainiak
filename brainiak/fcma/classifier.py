@@ -35,8 +35,6 @@ This implementation is based on the following publications:
 
 import numpy as np
 import time
-from mpi4py import MPI
-from scipy.stats.mstats import zscore
 from sklearn.base import BaseEstimator
 import sklearn
 from . import fcma_extension
@@ -138,6 +136,7 @@ class Classifier(BaseEstimator):
             'training done, takes %.2f s' %
             (time2 - time1)
         )
+        return self
 
     def predict(self, X):
         """
