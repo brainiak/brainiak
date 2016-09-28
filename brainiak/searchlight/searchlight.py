@@ -15,7 +15,6 @@
 import logging
 from mpi4py import MPI
 import numpy as np
-from sklearn.base import TransformerMixin
 
 """Distributed searchlight
 
@@ -32,7 +31,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class Searchlight(TransformerMixin):
+class Searchlight():
     """ Class for searchlight.
 
     A searchlight is a computation that is applied in a sliding
@@ -62,12 +61,14 @@ class Searchlight(TransformerMixin):
             which includes voxels within a 'rad' radius from the current
             searchlight center
 
+            returns: a pickle-able object
+
     Attributes
     ----------
     None
     """
 
-    def __init__(self, rad, fn):
+    def __init__(self, rad=1, fn=lambda x: x):
         """ Constructor for searchlight.
 
         rad: Positive integer indicating the radius of the searchlight
@@ -84,6 +85,8 @@ class Searchlight(TransformerMixin):
                 mask: A 3D numpy.ndarray object with type np.bool indicating
                 which includes voxels within a 'rad' radius from the current
                 searchlight center
+
+                returns: a pickle-able object
         """
 
         self.rad = rad
@@ -292,7 +295,7 @@ class Searchlight(TransformerMixin):
 
         return results
 
-    def fit_transform(self, X, y=None):
+    def run(self, X, bcast_var=None):
         """ Run searchlight according to mask
 
         Applies a function to each voxel present in the mask.
@@ -309,7 +312,7 @@ class Searchlight(TransformerMixin):
           voxels are active in the searchlight operation. This needs
           only to be present on rank 0
 
-        y: An object of any pickle-able type which is included
+        bcast_var: An object of any pickle-able type which is included
         as a parameter to each invocation of the user-specified function.
         This needs only to be present on rank 0
 
@@ -325,7 +328,6 @@ class Searchlight(TransformerMixin):
         logger.info('Starting Distributed Searchlight')
 
         (data, mask) = X
-        bcast_var = y
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 

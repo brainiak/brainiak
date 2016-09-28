@@ -12,12 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import numpy as np
-import brainiak.eventseg.event
-import brainiak.searchlight.searchlight
-import matplotlib.pyplot as plt
-from mpi4py import MPI
-
 """ Distributed searchlight for event segmentation.
 Creates random data and fits the event segmentation
 model on each 3x3 voxel region. 
@@ -29,6 +23,11 @@ and memory Christopher Baldassano, Janice Chen, Asieh Zadbood,
 Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 """
 
+import numpy as np
+import brainiak.eventseg.event
+import brainiak.searchlight.searchlight
+import matplotlib.pyplot as plt
+from mpi4py import MPI
 
 # Configuration
 num_events = 10
@@ -84,7 +83,7 @@ def fitFn(a, mask, bcast_var):
 sl = brainiak.searchlight.searchlight.Searchlight(1, fitFn)
 
 # Run searchlight
-output = sl.fit_transform((slData, np.ones(num_voxels, dtype=np.bool)))
+output = sl.run((slData, np.ones(num_voxels, dtype=np.bool)))
 
 # Plot the results
 if rank == 0:

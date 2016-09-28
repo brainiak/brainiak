@@ -40,7 +40,7 @@ def test_two_subject_rad_1():
         mask = np.ones((M,N,K))
 
     sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
-    output = sl.fit_transform((data, mask))
+    output = sl.run((data, mask))
 
     # Check output
     EPS = 1e-5
@@ -68,7 +68,7 @@ def test_one_subject_rad_0():
         mask = np.ones((M,N,K))
 
     sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
-    output = sl.fit_transform((data, mask))
+    output = sl.run((data, mask))
 
     # Check output
     EPS = 1e-5
@@ -96,7 +96,7 @@ def test_bcast():
         mask = np.ones((M,N,K))
 
     sl = brainiak.searchlight.searchlight.Searchlight(R, fn)
-    output = sl.fit_transform((data, mask), 1.0)
+    output = sl.run((data, mask), 1.0)
 
     # Check output
     EPS = 1e-5
