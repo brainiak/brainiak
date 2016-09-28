@@ -11,18 +11,24 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from sklearn.utils.validation import NotFittedError
 import pytest
 
-def test_sssrm():
+def test_instance():
     import os
     os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
-
-    import numpy as np
     import brainiak.funcalign.sssrm
 
     model = brainiak.funcalign.sssrm.SSSRM()
     assert model, "Invalid SSSRM instance!"
+
+
+def test_wrong_input():
+    import os
+    os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
+
+    from sklearn.utils.validation import NotFittedError
+    import numpy as np
+    import brainiak.funcalign.sssrm
 
     voxels = 100
     align_samples = 400
@@ -106,6 +112,55 @@ def test_sssrm():
         model_bad.fit(X, y, Z)
     print("Test: running SSSRM with wrong gamma")
 
+
+def test_sssrm():
+    import os
+    os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
+
+    from sklearn.utils.validation import NotFittedError
+    import numpy as np
+    import brainiak.funcalign.sssrm
+
+    voxels = 100
+    align_samples = 400
+    samples = 500
+    subjects = 2
+    features = 3
+    n_labels = 4
+
+    model = brainiak.funcalign.sssrm.SSSRM(n_iter=5, features=features, gamma=10.0, cost=0.1)
+    assert model, "Invalid SSSRM instance!"
+
+    # Create a Shared response S with K = 3
+    theta = np.linspace(-4 * np.pi, 4 * np.pi, samples)
+    z = np.linspace(-2, 2, samples)
+    r = z**2 + 1
+    x = r * np.sin(theta)
+    y = r * np.cos(theta)
+
+    S = np.vstack((x, y, z))
+    S_align = S[:, :align_samples]
+    S_classify = S[:, align_samples:]
+    X = []
+    Z = []
+    Z2 = []
+    y = []
+    Q, R = np.linalg.qr(np.random.random((voxels, features)))
+    X.append(Q.dot(S_align) + 0.1 * np.random.random((voxels, align_samples)))
+    Z.append(Q.dot(S_classify) + 0.1 * np.random.random((voxels, samples - align_samples)))
+    Z2.append(Q.dot(S_classify) + 0.1 * np.random.random((voxels, samples - align_samples)))
+    y.append(np.repeat(np.arange(n_labels), (samples - align_samples)/n_labels))
+
+    # Create more subjects align and classification data
+    for subject in range(1, subjects):
+        Q, R = np.linalg.qr(np.random.random((voxels, features)))
+        X.append(Q.dot(S_align) + 0.1 * np.random.random((voxels, align_samples)))
+        Z2.append(Q.dot(S_classify) + 0.1 * np.random.random((voxels, samples - align_samples)))
+
+    # Create more subjects labels data
+    for subject in range(1, subjects):
+        y.append(np.repeat(np.arange(n_labels), (samples - align_samples)/n_labels))
+
     # Set the logging level to INFO
     import logging
     logging.basicConfig(level=logging.INFO)
@@ -164,7 +219,6 @@ def test_sssrm():
 
     # Create one more subject
     Q, R = np.linalg.qr(np.random.random((voxels, features)))
-    W.append(Q)
     X.append(Q.dot(S_align) + 0.1 * np.random.random((voxels, align_samples)))
     Z2.append(Q.dot(S_classify) + 0.1 * np.random.random((voxels, samples - align_samples)))
 
