@@ -44,7 +44,7 @@ if __name__ == '__main__':
     training_data = raw_data[0:204]
     test_data = raw_data[204:]
     clf.fit(training_data, labels[0:204])
-    #joblib.dump(clf, 'model/logestic.pkl')
+    #joblib.dump(clf, 'model/logistic.pkl')
     #clf = joblib.load('model/svm.pkl')
     print(clf.predict(test_data))
     print(np.asanyarray(labels[204:]))
