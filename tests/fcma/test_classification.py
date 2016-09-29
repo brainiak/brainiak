@@ -24,10 +24,13 @@ from scipy.spatial.distance import hamming
 # specify the random state to fix the random numbers
 prng = RandomState(1234567890)
 
-def create_epoch():
+def create_epoch(idx):
     row = 12
     col = 5
     mat = prng.rand(row, col).astype(np.float32)
+    # impose a pattern to even epochs
+    if idx % 2 == 0:
+        mat = np.sort(mat, axis=0)
     mat = zscore(mat, axis=0, ddof=0)
     # if zscore fails (standard deviation is zero),
     # set all values to be zero
@@ -36,16 +39,7 @@ def create_epoch():
     return mat
 
 def test_classification():
-    fake_raw_data = [create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch()]
+    fake_raw_data = [create_epoch(i) for i in range(20)]
     labels = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
     # 4 subjects, 4 epochs per subject
     epochs_per_subj = 4
@@ -55,7 +49,7 @@ def test_classification():
     clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels)
     y_pred = clf.predict(fake_raw_data[12:])
-    expected_output = [0, 1, 1, 0, 0, 0, 0, 1]
+    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
     hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
     assert hamming_distance <= 1, \
        'classification via SVM does not provide correct results'
@@ -64,7 +58,6 @@ def test_classification():
     clf = Classifier(lr_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels[0:12])
     y_pred = clf.predict(fake_raw_data[12:])
-    expected_output = [0, 1, 1, 0, 0, 1, 0, 1]
     hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
     assert hamming_distance <= 1, \
         'classification via logistic regression ' \

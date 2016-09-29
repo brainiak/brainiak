@@ -74,24 +74,21 @@ class Classifier(BaseEstimator):
                  epochs_per_subj=0):
         self.clf = clf
         self.epochs_per_subj = epochs_per_subj
-        self.training_data = None
-        self.num_voxels = -1
-        self.num_samples = -1
         return
 
     def fit(self, X, y):
         """ use correlation data to train a model
 
-        the input data X is activity data filtered by top voxels
-        and prepared for correlation computation.
-        X needs to be first converted to correlation,
-        and then normalized within subject
+        first compute the correlation of the input data,
+        and then normalize within subject
         if more than one sample in one subject,
         and then fit to a model defined by self.clf.
 
         Parameters
         ----------
-        X: a list of numpy array in shape [nun_TRs, num_voxels]
+        X: a list of numpy array in shape [num_TRs, num_voxels]
+            X contains the activity data filtered by top voxels
+            and prepared for correlation computation.
             assuming all elements of X has the same num_voxels value
         y: labels, len(X) equals len(Y)
 
@@ -104,8 +101,8 @@ class Classifier(BaseEstimator):
             'the number of samples does not match the number labels'
         num_samples = len(X)
         num_voxels = X[0].shape[1]  # see assumption above
-        self.num_voxels = num_voxels
-        self.num_samples = num_samples
+        self.num_voxels_ = num_voxels
+        self.num_samples_ = num_samples
         corr_data = np.zeros((num_samples, num_voxels, num_voxels),
                              np.float32, order='C')
         # compute correlation
@@ -159,13 +156,15 @@ class Classifier(BaseEstimator):
                                        0.0, kernel_matrix, num_samples)
             data = kernel_matrix
             # training data is in shape [num_samples, num_voxels * num_voxels]
-            self.training_data = corr_data.reshape(num_samples,
-                                                   num_voxels * num_voxels)
+            self.training_data_ = corr_data.reshape(num_samples,
+                                                    num_voxels * num_voxels)
             logger.debug(
                 'kernel computation done'
             )
         else:
             data = corr_data.reshape(num_samples, num_voxels * num_voxels)
+            self.training_data_ = None
+
         self.clf = self.clf.fit(data, y)
         time2 = time.time()
         logger.info(
@@ -177,32 +176,32 @@ class Classifier(BaseEstimator):
     def predict(self, X):
         """ use a trained model to predict correlation data
 
-        the input data X is activity data filtered by top voxels
-        and prepared for correlation computation.
-        X needs to be first converted to correlation,
-        and then normalized across all samples in the list
+        first compute the correlation of the input data,
+        and then normalize across all samples in the list
         if len(X) > 1,
-        and then predicted via self.clf.
+        and then predict via self.clf.
 
         Parameters
         ----------
-        X: a list of numpy array in shape [nun_TRs, num_voxels]
-            len(X) equals num_test_samples
-            if num_test_samples > 0: normalization is done
+        X: a list of numpy array in shape [num_TRs, num_voxels]
+            X contains the activity data filtered by top voxels
+            and prepared for correlation computation.
+            len(X) is the number of test samples
+            if len(X) > 0: normalization is done
             on all test samples
-            num_voxels equals the one used in the model
+            num_voxels must be consistent with the one used in training
 
         Returns
         -------
-        y_pred: the predicted label of X, in shape [num_test_samples,]
+        y_pred: the predicted label of X, in shape [len(X),]
         """
         time1 = time.time()
         num_test_samples = len(X)
         assert num_test_samples > 0, \
             'at least one sample is needed'
         corr_data = np.zeros((num_test_samples,
-                              self.num_voxels,
-                              self.num_voxels),
+                              self.num_voxels_,
+                              self.num_voxels_),
                              np.float32,
                              order='C')
         # compute correlation
@@ -210,7 +209,7 @@ class Classifier(BaseEstimator):
         for data in X:
             num_TRs = data.shape[0]
             num_voxels = data.shape[1]
-            assert self.num_voxels == num_voxels, \
+            assert self.num_voxels_ == num_voxels, \
                 'the number of voxels provided by X does not match ' \
                 'the number of voxels defined in the model'
             blas.compute_single_self_correlation_gemm('N', 'T',
@@ -241,10 +240,10 @@ class Classifier(BaseEstimator):
         # predict
         if isinstance(self.clf, sklearn.svm.SVC) \
                 and self.clf.kernel == 'precomputed':
-            assert self.training_data is not None, \
+            assert self.training_data_ is not None, \
                 'when using precomputed kernel of SVM, ' \
                 'all training data must be provided'
-            num_training_samples = self.training_data.shape[0]
+            num_training_samples = self.training_data_.shape[0]
             data = np.zeros((num_test_samples, num_training_samples),
                             np.float32,
                             order='C')
@@ -256,7 +255,7 @@ class Classifier(BaseEstimator):
                                                       num_test_samples,
                                                       num_voxels * num_voxels,
                                                       1.0,
-                                                      self.training_data,
+                                                      self.training_data_,
                                                       num_voxels * num_voxels,
                                                       corr_data,
                                                       num_voxels * num_voxels,
