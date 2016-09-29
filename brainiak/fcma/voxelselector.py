@@ -37,7 +37,7 @@ import numpy as np
 import time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
-from sklearn import cross_validation
+from sklearn import model_selection
 import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
@@ -350,11 +350,11 @@ class VoxelSelector:
             else:
                 data = corr[i, :, :]
             # no shuffling in cv
-            skf = cross_validation.StratifiedKFold(self.labels,
-                                                   n_folds=self.num_folds,
-                                                   shuffle=False)
-            scores = cross_validation.cross_val_score(clf, data, self.labels,
-                                                      cv=skf, n_jobs=1)
+            skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
+                                                  shuffle=False)
+            scores = model_selection.cross_val_score(clf, data,
+                                                     y=self.labels,
+                                                     cv=skf, n_jobs=1)
             results.append((i + task[0], scores.mean()))
         time2 = time.time()
         logger.debug(
