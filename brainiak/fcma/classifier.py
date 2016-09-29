@@ -187,13 +187,12 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: a list of numpy array in shape [num_TRs, num_voxels]
+        X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
             X contains the activity data filtered by top voxels
             and prepared for correlation computation.
             len(X) is the number of test samples
             if len(X) > 0: normalization is done
             on all test samples
-            num_voxels must be consistent with the one used in training
 
         Returns
         -------

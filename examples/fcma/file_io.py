@@ -23,7 +23,7 @@ from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 
-def readActivityData(dir, file_extension, mask_file):
+def read_activity_data(dir, file_extension, mask_file):
     """ read data in NIfTI format and apply the spatial mask to them
 
     Parameters
@@ -76,7 +76,7 @@ def readActivityData(dir, file_extension, mask_file):
     return activity_data
 
 
-def separateEpochs(activity_data, epoch_list):
+def separate_epochs(activity_data, epoch_list):
     """ separate data into epochs of interest specified in epoch_list
     and z-score them for computing correlation
 
@@ -127,7 +127,7 @@ def separateEpochs(activity_data, epoch_list):
     return raw_data, labels
 
 
-def prepareData(data_dir, extension, mask_file, epoch_file):
+def prepare_data(data_dir, extension, mask_file, epoch_file):
     """ read the data in and generate epochs of interests,
     then broadcast to all workers
 
@@ -157,10 +157,10 @@ def prepareData(data_dir, extension, mask_file, epoch_file):
     labels = []
     raw_data = []
     if rank == 0:
-        activity_data = readActivityData(data_dir, extension, mask_file)
+        activity_data = read_activity_data(data_dir, extension, mask_file)
         # a list of numpy array in shape [condition, nEpochs, nTRs]
         epoch_list = np.load(epoch_file)
-        raw_data, labels = separateEpochs(activity_data, epoch_list)
+        raw_data, labels = separate_epochs(activity_data, epoch_list)
         time1 = time.time()
     raw_data_length = len(raw_data)
     raw_data_length = comm.bcast(raw_data_length, root=0)

@@ -17,7 +17,7 @@ from sklearn import svm
 import sys
 from mpi4py import MPI
 import logging
-from file_io import prepareData
+from file_io import prepare_data
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, labels = prepareData(data_dir, extension, mask_file, epoch_file)
+    raw_data, labels = prepare_data(data_dir, extension, mask_file, epoch_file)
     epochs_per_subj = int(sys.argv[5])
     num_subjs = int(sys.argv[6])
     vs = VoxelSelector(raw_data, epochs_per_subj, labels, num_subjs)

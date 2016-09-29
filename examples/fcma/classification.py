@@ -17,7 +17,7 @@ from sklearn import svm
 #from sklearn.linear_model import LogisticRegression
 import sys
 import logging
-from file_io import prepareData
+from file_io import prepare_data
 import numpy as np
 #from sklearn.externals import joblib
 
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, labels = prepareData(data_dir, extension, mask_file, epoch_file)
+    raw_data, labels = prepare_data(data_dir, extension, mask_file, epoch_file)
     epochs_per_subj = int(sys.argv[5])
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
