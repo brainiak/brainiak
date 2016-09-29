@@ -122,6 +122,7 @@ setup(
         'pybind11>=1.7',
     ],
     install_requires=[
+        'cython',
         'mpi4py',
         'numpy',
         'scikit-learn',
