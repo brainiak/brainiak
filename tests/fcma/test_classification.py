@@ -52,7 +52,7 @@ def test_classification():
     # svm
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     training_data = fake_raw_data[0: 12]
-    clf = Classifier(epochs_per_subj, svm_clf)
+    clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels)
     y_pred = clf.predict(fake_raw_data[12:])
     expected_output = [0, 1, 1, 0, 0, 0, 0, 1]
@@ -61,7 +61,7 @@ def test_classification():
        'classification via SVM does not provide correct results'
     # logistic regression
     lr_clf = LogisticRegression()
-    clf = Classifier(epochs_per_subj, lr_clf)
+    clf = Classifier(lr_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels[0:12])
     y_pred = clf.predict(fake_raw_data[12:])
     expected_output = [0, 1, 1, 0, 0, 1, 0, 1]

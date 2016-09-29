@@ -14,12 +14,12 @@
 
 from brainiak.fcma.classifier import Classifier
 from sklearn import svm
-from sklearn.linear_model import LogisticRegression
+#from sklearn.linear_model import LogisticRegression
 import sys
 import logging
 from file_io import prepareData
 import numpy as np
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -40,10 +40,11 @@ if __name__ == '__main__':
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     #use_clf = LogisticRegression()
-    clf = Classifier(epochs_per_subj, use_clf)
+    clf = Classifier(use_clf, epochs_per_subj=epochs_per_subj)
     training_data = raw_data[0:204]
     test_data = raw_data[204:]
     clf.fit(training_data, labels[0:204])
+    # joblib can be used for saving and loading models
     #joblib.dump(clf, 'model/logistic.pkl')
     #clf = joblib.load('model/svm.pkl')
     print(clf.predict(test_data))

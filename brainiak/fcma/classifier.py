@@ -40,15 +40,40 @@ __all__ = [
 
 
 class Classifier(BaseEstimator):
-    """
-    the data has been processed by top voxels
-    and prapared for correlation computation
+    """Correlation-based classification component of FCMA
+
+    Parameters
+    ----------
+
+    clf: class
+        The classifier used, normally a classifier class of sklearn
+
+    epochs_per_subj: int, default 0
+        The number of epochs of each subject
+        within-subject normalization will be performed during
+        classifier training if epochs_per_subj is specified
+        default 0 means no within-subject normalization
+
+    training_data: 2D numpy array in shape [num_samples, num_features]
+        default None
+        training_data is None except clf is SVM.SVC with precomputed kernel,
+        in which case training data is needed to compute
+        the similarity vector for each sample to be classified
+
+    num_voxels: int
+        The number of voxels per brain used in this classifier
+        this is defined by the applied mask, normally the top voxels
+        selected by FCMA voxel selection
+        num_voxels must be consistent in both training and classification
+
+    num_samples: int
+        The number of samples of the training set
     """
     def __init__(self,
-                 epochs_per_subj=0,
-                 clf=None):
-        self.epochs_per_subj = epochs_per_subj
+                 clf,
+                 epochs_per_subj=0):
         self.clf = clf
+        self.epochs_per_subj = epochs_per_subj
         self.training_data = None
         self.num_voxels = -1
         self.num_samples = -1
@@ -57,15 +82,17 @@ class Classifier(BaseEstimator):
     def fit(self, X, y):
         """ use correlation data to train a model
 
-        the input data X is activity data, which needs to be first
-        converted to correlation, and then normalized within subject
-        if more than one sample in one subject, and then fit to a model
-        defined by self.clf
+        the input data X is activity data filtered by top voxels
+        and prepared for correlation computation.
+        X needs to be first converted to correlation,
+        and then normalized within subject
+        if more than one sample in one subject,
+        and then fit to a model defined by self.clf.
 
         Parameters
         ----------
         X: a list of numpy array in shape [nun_TRs, num_voxels]
-           assuming all elements of X has the same num_voxels value
+            assuming all elements of X has the same num_voxels value
         y: labels, len(X) equals len(Y)
 
         Returns
@@ -77,6 +104,8 @@ class Classifier(BaseEstimator):
             'the number of samples does not match the number labels'
         num_samples = len(X)
         num_voxels = X[0].shape[1]  # see assumption above
+        self.num_voxels = num_voxels
+        self.num_samples = num_samples
         corr_data = np.zeros((num_samples, num_voxels, num_voxels),
                              np.float32, order='C')
         # compute correlation
@@ -107,7 +136,7 @@ class Classifier(BaseEstimator):
         if self.epochs_per_subj > 0:
             corr_data = corr_data.reshape(1,
                                           num_samples,
-                                          num_voxels*num_voxels)
+                                          num_voxels * num_voxels)
             fcma_extension.normalization(corr_data, self.epochs_per_subj)
             corr_data = corr_data.reshape(num_samples, num_voxels, num_voxels)
             logger.debug(
@@ -137,8 +166,6 @@ class Classifier(BaseEstimator):
             )
         else:
             data = corr_data.reshape(num_samples, num_voxels * num_voxels)
-        self.num_voxels = num_voxels
-        self.num_samples = num_samples
         self.clf = self.clf.fit(data, y)
         time2 = time.time()
         logger.info(
@@ -148,23 +175,34 @@ class Classifier(BaseEstimator):
         return self
 
     def predict(self, X):
-        """
+        """ use a trained model to predict correlation data
+
+        the input data X is activity data filtered by top voxels
+        and prepared for correlation computation.
+        X needs to be first converted to correlation,
+        and then normalized across all samples in the list
+        if len(X) > 1,
+        and then predicted via self.clf.
+
         Parameters
         ----------
         X: a list of numpy array in shape [nun_TRs, num_voxels]
-            len(X) equals num_samples
-            if num_samples > 0: normalization is done on all subjects
+            len(X) equals num_test_samples
+            if num_test_samples > 0: normalization is done
+            on all test samples
             num_voxels equals the one used in the model
 
         Returns
         -------
-        y_pred: the predicted label of X, in shape [num_samples,]
+        y_pred: the predicted label of X, in shape [num_test_samples,]
         """
         time1 = time.time()
-        num_samples = len(X)
-        assert num_samples > 0, \
+        num_test_samples = len(X)
+        assert num_test_samples > 0, \
             'at least one sample is needed'
-        corr_data = np.zeros((num_samples, self.num_voxels, self.num_voxels),
+        corr_data = np.zeros((num_test_samples,
+                              self.num_voxels,
+                              self.num_voxels),
                              np.float32,
                              order='C')
         # compute correlation
@@ -188,12 +226,15 @@ class Classifier(BaseEstimator):
             'correlation computation done'
         )
         # normalize if necessary
-        if num_samples > 1:
+        if num_test_samples > 1:
             corr_data = corr_data.reshape(1,
-                                          num_samples,
+                                          num_test_samples,
                                           num_voxels * num_voxels)
-            fcma_extension.normalization(corr_data, num_samples)
-            corr_data = corr_data.reshape(num_samples, num_voxels, num_voxels)
+            fcma_extension.normalization(corr_data,
+                                         num_test_samples)
+            corr_data = corr_data.reshape(num_test_samples,
+                                          num_voxels,
+                                          num_voxels)
             logger.debug(
                 'normalization done'
             )
@@ -204,14 +245,15 @@ class Classifier(BaseEstimator):
                 'when using precomputed kernel of SVM, ' \
                 'all training data must be provided'
             num_training_samples = self.training_data.shape[0]
-            data = np.zeros((num_samples, num_training_samples),
+            data = np.zeros((num_test_samples, num_training_samples),
                             np.float32,
                             order='C')
-            corr_data = corr_data.reshape(num_samples, num_voxels * num_voxels)
+            corr_data = corr_data.reshape(num_test_samples,
+                                          num_voxels * num_voxels)
             # compute the similarity matrix using corr_data and training_data
             blas.compute_single_matrix_multiplication('T', 'N',
                                                       num_training_samples,
-                                                      num_samples,
+                                                      num_test_samples,
                                                       num_voxels * num_voxels,
                                                       1.0,
                                                       self.training_data,
@@ -225,7 +267,8 @@ class Classifier(BaseEstimator):
                 'similarity matrix computation done'
             )
         else:
-            data = corr_data.reshape(num_samples, num_voxels*num_voxels)
+            data = corr_data.reshape(num_test_samples,
+                                     num_voxels * num_voxels)
         y_pred = self.clf.predict(data)
         time2 = time.time()
         logger.info(
