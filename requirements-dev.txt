@@ -4,5 +4,6 @@ flake8-print
 numdifftools
 pytest
 restructuredtext-lint
+setuptools_scm
 sphinx
 sphinx_rtd_theme
