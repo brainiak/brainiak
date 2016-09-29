@@ -142,7 +142,7 @@ setup(
         'cython',
         'mpi4py',
         'numpy',
-        'scikit-learn',
+        'scikit-learn>=0.18',
         'scipy',
         'pybind11>=1.7',
     ],
