@@ -54,19 +54,23 @@ class Classifier(BaseEstimator):
         classifier training if epochs_per_subj is specified
         default 0 means no within-subject normalization
 
-    training_data: 2D numpy array in shape [num_samples, num_features]
+
+    Attributes
+    ----------
+
+    training_data_: 2D numpy array in shape [num_samples, num_features]
         default None
         training_data is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
         the similarity vector for each sample to be classified
 
-    num_voxels: int
+    num_voxels_: int
         The number of voxels per brain used in this classifier
         this is defined by the applied mask, normally the top voxels
         selected by FCMA voxel selection
         num_voxels must be consistent in both training and classification
 
-    num_samples: int
+    num_samples_: int
         The number of samples of the training set
     """
     def __init__(self,
