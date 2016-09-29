@@ -136,7 +136,7 @@ class BuildExt(build_ext):
 setup(
     name='brainiak',
     use_scm_version=True,
-    setup_requiers=[
+    setup_requires=[
         'setuptools_scm',
     ],
     install_requires=[
