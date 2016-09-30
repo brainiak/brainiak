@@ -63,10 +63,9 @@ def test_concatenate_list():
 
     l[1] = np.array([0, 1, 2])
     l[3] = np.array([3, 4])
-    try:
-        r = concatenate_list(l, axis=0)
-    except:
-        assert True, "Could not concatenate a list"
+
+    r = concatenate_list(l, axis=0)
+
     assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"
 
 
