@@ -58,11 +58,11 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     data to train a Multinomial Logistic Regression (MLR) classifier (with
     l2 regularization) in a semi-supervised manner:
 
-    .. math:: X_i \\approx W_i S ,~for~all~i=1\dots N
+    .. math:: (1-\alpha) Loss_{SRM}(W_i,S;X_i)
+    .. math:: + \alpha/\gamma  Loss_{MLR}(\theta, bias; {(W_i^T*Z_i, y_i})
+    .. math:: + R(\theta)
 
-    and
-
-    .. math:: f(W_i^T Z_i)=y_i ,~for~all~i=1\dots N
+    (see Equations (1) and (4) in [Turek2016]_).
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     gamma : float, default: 1.0
         Regularization parameter for the classifier.
 
-    cost : float, default: 0.5
+    alpha : float, default: 0.5
         Balance parameter between the SRM term and the MLR term.
 
     rand_seed : int, default: 0
@@ -112,12 +112,12 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
        This is a single node version.
     """
 
-    def __init__(self, n_iter=10, features=50, gamma=1.0, cost=0.5,
+    def __init__(self, n_iter=10, features=50, gamma=1.0, alpha=0.5,
                  rand_seed=0):
         self.n_iter = n_iter
         self.features = features
         self.gamma = gamma
-        self.cost = cost
+        self.alpha = alpha
         self.rand_seed = rand_seed
         return
 
@@ -142,9 +142,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """
         logger.info('Starting SS-SRM')
 
-        # Check that the cost value is in range (0.0,1.0)
-        if 0.0 >= self.cost or self.cost >= 1.0:
-            raise ValueError("Cost parameter should be in range (0.0, 1.0)")
+        # Check that the alpha value is in range (0.0,1.0)
+        if 0.0 >= self.alpha or self.alpha >= 1.0:
+            raise ValueError("Alpha parameter should be in range (0.0, 1.0)")
 
         # Check that the regularizer value is positive
         if 0.0 >= self.gamma:
@@ -412,7 +412,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         total_samples_S = S.shared(total_samples)
         theta_th = T.matrix(name='theta', dtype=theano.config.floatX)
         bias_th = T.col(name='bias', dtype=theano.config.floatX)
-        constf2 = S.shared(self.cost / self.gamma, allow_downcast=True)
+        constf2 = S.shared(self.alpha / self.gamma, allow_downcast=True)
         weights_th = S.shared(weights)
 
         log_p_y_given_x = \
@@ -489,7 +489,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             data_srm_subject = \
                 S.shared(data_align[subject].astype(theano.config.floatX))
             constf1 = \
-                S.shared((1 - self.cost) * 0.5 / data_align[subject].shape[1],
+                S.shared((1 - self.alpha) * 0.5 / data_align[subject].shape[1],
                          allow_downcast=True)
             f1 = constf1 * T.sum((data_srm_subject - w_th.dot(s_th))**2)
 
@@ -498,7 +498,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                 data_sup_subject = \
                     S.shared(data_sup[subject].astype(theano.config.floatX))
                 labels_S = S.shared(labels[subject])
-                constf2 = S.shared(-self.cost / self.gamma
+                constf2 = S.shared(-self.alpha / self.gamma
                                    / data_sup[subject].shape[1],
                                    allow_downcast=True)
 
@@ -572,8 +572,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                             bias):
         """Compute the objective function of the Semi-Supervised SRM
 
-        .. math:: (1-C)*Loss_{SRM}(W_i,S;X_i)
-        .. math:: + C/\gamma * Loss_MLR(\theta, bias; {(W_i^T*Z_i, y_i})
+        .. math:: (1-\alpha)*Loss_{SRM}(W_i,S;X_i)
+        .. math:: + \alpha/\gamma * Loss_{MLR}(\theta, bias; {(W_i^T*Z_i, y_i})
         .. math:: + R(\theta)
 
         Parameters
@@ -617,7 +617,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         f_val = 0.0
         for subject in range(subjects):
             samples = data_align[subject].shape[1]
-            f_val += (1 - self.cost) * (0.5 / samples) \
+            f_val += (1 - self.alpha) * (0.5 / samples) \
                 * np.linalg.norm(data_align[subject] - w[subject].dot(s),
                                  'fro')**2
 
@@ -631,7 +631,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """Compute the objective function for one subject.
 
         .. math:: (1-C)*Loss_{SRM}_i(W_i,S;X_i)
-        .. math:: + C/\gamma * Loss_MLR_i(\theta, bias; {(W_i^T*Z_i, y_i})
+        .. math:: + C/\gamma * Loss_{MLR_i}(\theta, bias; {(W_i^T*Z_i, y_i})
         .. math:: + R(\theta)
 
         Parameters
@@ -669,7 +669,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         # Compute the SRM  loss
         f_val = 0.0
         samples = data_align.shape[1]
-        f_val += (1 - self.cost) * (0.5 / samples) \
+        f_val += (1 - self.alpha) * (0.5 / samples) \
             * np.linalg.norm(data_align - w.dot(s), 'fro')**2
 
         # Compute the MLR loss
@@ -717,7 +717,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         for sample in range(samples):
             label = labels[sample]
             aux += thetaT_wi_zi_plus_bias[label, sample]
-        return self.cost / samples / self.gamma * (sum_exp_values.sum() - aux)
+        return self.alpha / samples / self.gamma * (sum_exp_values.sum() - aux)
 
     def _loss_lr(self, data, labels, w, theta, bias):
         """Compute the Loss MLR (with the regularization)
