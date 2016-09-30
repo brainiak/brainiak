@@ -37,7 +37,7 @@ def test_wrong_input():
     features = 3
     n_labels = 4
 
-    model = brainiak.funcalign.sssrm.SSSRM(n_iter=5, features=features, gamma=10.0, cost=0.1)
+    model = brainiak.funcalign.sssrm.SSSRM(n_iter=5, features=features, gamma=10.0, alpha=0.1)
     assert model, "Invalid SSSRM instance!"
 
     # Create a Shared response S with K = 3
@@ -98,15 +98,15 @@ def test_wrong_input():
         model.fit(X, y, Z)
     print("Test: running SSSRM with 1 subject (classif.)")
 
-    # Check that cost is in (0,1) range
-    model_bad = brainiak.funcalign.sssrm.SSSRM(n_iter=1, features=features, gamma=10.0, cost=1.5)
+    # Check that alpha is in (0,1) range
+    model_bad = brainiak.funcalign.sssrm.SSSRM(n_iter=1, features=features, gamma=10.0, alpha=1.5)
     assert model_bad, "Invalid SSSRM instance!"
     with pytest.raises(ValueError) as excinfo:
         model_bad.fit(X, y, Z)
-    print("Test: running SSSRM with wrong cost")
+    print("Test: running SSSRM with wrong alpha")
 
     # Check that gamma is positive
-    model_bad = brainiak.funcalign.sssrm.SSSRM(n_iter=1, features=features, gamma=-0.1, cost=0.2)
+    model_bad = brainiak.funcalign.sssrm.SSSRM(n_iter=1, features=features, gamma=-0.1, alpha=0.2)
     assert model_bad, "Invalid SSSRM instance!"
     with pytest.raises(ValueError) as excinfo:
         model_bad.fit(X, y, Z)
@@ -128,7 +128,7 @@ def test_sssrm():
     features = 3
     n_labels = 4
 
-    model = brainiak.funcalign.sssrm.SSSRM(n_iter=5, features=features, gamma=10.0, cost=0.1)
+    model = brainiak.funcalign.sssrm.SSSRM(n_iter=5, features=features, gamma=10.0, alpha=0.1)
     assert model, "Invalid SSSRM instance!"
 
     # Create a Shared response S with K = 3
