@@ -79,7 +79,7 @@ class VoxelSelector:
         The number of folds to be conducted in the cross validation
 
     voxel_unit: int, default 100
-        The number of voxel assigned to a worker each time
+        The number of voxels assigned to a worker each time
 
     master_rank: int, default 0
         The process which serves as the master
