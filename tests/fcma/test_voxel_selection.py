@@ -36,10 +36,7 @@ def create_epoch():
     return mat
 
 def test_voxel_selection():
-    fake_raw_data = [create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch(),
-                     create_epoch(), create_epoch()]
+    fake_raw_data = [create_epoch() for i in range(8)]
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
     vs = VoxelSelector(fake_raw_data, 4, labels, 2, voxel_unit=1)
@@ -77,7 +74,7 @@ def test_voxel_selection():
             output[tuple[0]] = int(8*tuple[1])
         expected_output = [6, 3, 6, 4, 4]
         assert np.allclose(output, expected_output, atol=1), \
-            'voxel selection via SVM does not provide correct results'
+            'voxel selection via logistic regression does not provide correct results'
 
 if __name__ == '__main__':
     test_voxel_selection()
