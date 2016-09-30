@@ -233,7 +233,7 @@ class BRSA(BaseEstimator):
             some visual datasets.
         """
 
-        logger.debug('Running Bayesian RSA')
+        logger.info('Running Bayesian RSA')
 
         assert not self.GP_inten or (self.GP_inten and self.GP_space),\
             'You must speficiy GP_space to True'\
@@ -259,8 +259,8 @@ class BRSA(BaseEstimator):
             'Design matrix and data do not '\
             'have the same number of time points.'
         if self.pad_DC:
-            logger.debug('Padding one more column of 1 to '
-                         'the end of design matrix.')
+            logger.info('Padding one more column of 1 to '
+                        'the end of design matrix.')
             design = np.concatenate((design,
                                      np.ones([design.shape[0], 1])), axis=1)
         assert self.rank is None or self.rank <= design.shape[1],\
@@ -273,7 +273,7 @@ class BRSA(BaseEstimator):
 
         # check the size of coords and inten
         if self.GP_space:
-            logger.debug('Fitting with Gaussian Process prior on log(SNR)')
+            logger.info('Fitting with Gaussian Process prior on log(SNR)')
             assert coords is not None and coords.shape[0] == X.shape[1],\
                 'Spatial smoothness was requested by setting GP_space. '\
                 'But the voxel number of coords does not match that of '\
@@ -386,8 +386,8 @@ class BRSA(BaseEstimator):
             # of 0-99 are from the first scan, 100-199 are from the second,
             # 200-399 are from the third and 400-499 are from the fourth
             run_TRs = np.diff(np.append(scan_onsets, n_T))
-            logger.debug('I infer that the number of volumes'
-                         ' in each scan are: {}'.format(run_TRs))
+            logger.info('I infer that the number of volumes'
+                        ' in each scan are: {}'.format(run_TRs))
 
             D_ele = map(self._D_gen, run_TRs)
             F_ele = map(self._F_gen, run_TRs)
@@ -474,7 +474,7 @@ class BRSA(BaseEstimator):
         idx_param_fitV = {'log_SNR2': np.arange(n_V - 1),
                           'c_space': n_V - 1, 'c_inten': n_V,
                           'c_both': np.arange(n_V - 1, n_V - 1 + n_smooth)}
-        # for the likelihood functin when we fit V (reflected by SNR of
+        # for the likelihood function when we fit V (reflected by SNR of
         # each voxel)
         return idx_param_sing, idx_param_fitU, idx_param_fitV
 
@@ -506,21 +506,22 @@ class BRSA(BaseEstimator):
             # The rank of covariance matrix is specified
             idx_rank = np.where(l_idx[1] < rank)
             l_idx = (l_idx[0][idx_rank], l_idx[1][idx_rank])
-            logger.debug('Using the rank specified by the user: '
-                         '{}'.format(rank))
+            logger.info('Using the rank specified by the user: '
+                        '{}'.format(rank))
         else:
             rank = n_C
             # if not specified, we assume you want to
             # estimate a full rank matrix
-            logger.debug('Please be aware that you did not specify the rank'
-                         ' of covariance matrix you want to estimate.'
-                         'I will assume that the covariance matrix shared '
-                         'among voxels is of full rank.'
-                         'Rank = {}'.format(rank))
-            logger.debug('Please be aware that estimating a matrix of '
-                         'high rank can be very slow.'
-                         'If you have a good reason to specify a lower rank '
-                         'than the number of experiment conditions, do so.')
+            logger.warning('Please be aware that you did not specify the'
+                           ' rank of covariance matrix to estimate.'
+                           'I will assume that the covariance matrix '
+                           'shared among voxels is of full rank.'
+                           'Rank = {}'.format(rank))
+            logger.warning('Please be aware that estimating a matrix of '
+                           'high rank can be very slow.'
+                           'If you have a good reason to specify a rank '
+                           'lower than the number of experiment conditions,'
+                           ' do so.')
 
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
@@ -665,7 +666,7 @@ class BRSA(BaseEstimator):
                             / n_T)**0.5
 
         t_finish = time.time()
-        logger.debug(
+        logger.info(
             'total time of fitting: {} seconds'.format(t_finish - t_start))
         if GP_space:
             est_space_smooth_r = np.exp(current_GP[0] / 2.0)
@@ -705,8 +706,8 @@ class BRSA(BaseEstimator):
             auto-correlation). The SNR is implicitly assumed to be 1
             for all voxels.
         """
-        logger.debug('Initial fitting assuming single parameter of '
-                     'noise for all voxels')
+        logger.info('Initial fitting assuming single parameter of '
+                    'noise for all voxels')
         beta_hat = np.linalg.lstsq(X, Y)[0]
         residual = Y - np.dot(X, beta_hat)
         # point estimates of betas and fitting residuals without assuming
@@ -778,8 +779,8 @@ class BRSA(BaseEstimator):
             requested.
         """
         init_iter = self.init_iter
-        logger.debug('second fitting without GP prior'
-                     ' for {} times'.format(init_iter))
+        logger.info('second fitting without GP prior'
+                    ' for {} times'.format(init_iter))
 
         # Initial parameters
         param0_fitU = np.empty(
@@ -820,10 +821,10 @@ class BRSA(BaseEstimator):
             # something might be wrong -- could be that the data has
             # nothing to do with the design matrix.
             if np.any(np.logical_not(np.isfinite(current_logSNR2))):
-                logger.debug('Initial fitting: iteration {}'.format(it))
-                logger.debug('current log(SNR^2): '
-                             '{}'.format(current_logSNR2))
-                logger.debug('log(sigma^2) has non-finite number')
+                logger.warning('Initial fitting: iteration {}'.format(it))
+                logger.warning('current log(SNR^2): '
+                               '{}'.format(current_logSNR2))
+                logger.warning('log(sigma^2) has non-finite number')
 
             param0_fitV = res_fitV.x.copy()
 
@@ -865,8 +866,8 @@ class BRSA(BaseEstimator):
         """
         tol = self.tol
         n_iter = self.n_iter
-        logger.debug('Last step of fitting.'
-                     ' for maximum {} times'.format(n_iter))
+        logger.info('Last step of fitting.'
+                    ' for maximum {} times'.format(n_iter))
 
         # Initial parameters
         param0_fitU = np.empty(
