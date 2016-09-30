@@ -145,6 +145,8 @@ setup(
         'numpy',
         'scikit-learn>=0.18',
         'scipy',
+        'pymanopt',
+        'theano',
         'pybind11>=1.7',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
