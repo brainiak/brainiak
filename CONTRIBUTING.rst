@@ -39,8 +39,20 @@ generate pull requests to submit your code for inclusion in the project.
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
 
-All pull requests will be automatically tested as described below, so make sure
-you test them yourself before submitting them::
+All pull requests are automatically tested using the ``pr-check.sh`` script.
+You should test you contributions yourself on your computer using
+``pr-check.sh`` before creating a PR. The script performs several checks in a
+Python virtual environment, which is isolated from your normal Python
+environment for reproducibility.
+
+During development, you may wish to run some of the individual checks in
+``pr-check.sh`` repeatedly until you get everything right, without waiting for
+the virtual environment to be set up every time. You can run the individual
+checks from ``pr-check.sh`` using the steps bellow::
+
+  # do not run this if using Anaconda, because Anaconda is not compatible with
+  # virtualenv; instead, look at pr-check.sh to see how to run the individual
+  # checks that are part of pr-check.sh using Anaconda
 
   # optional, but highly recommended: create a virtualenv to isolate tests
   virtualenv ../brainiak_pr_venv
@@ -63,12 +75,13 @@ you test them yourself before submitting them::
   make
   cd -
 
-  # optional: remove virtualenv
+  # optional: remove virtualenv, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
-Alternatively, you can run ``pr-check.sh``, which does all of the above and
-supports ``conda`` in addition to ``virtualenv``.
+When you are ready to submit your PR, run ``pr-check.sh`` even if you were
+using the steps above to run the individual checks in ``pr-check.sh`` during
+development.
 
 
 Tools

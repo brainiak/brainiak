@@ -7,8 +7,6 @@ import sys
 import setuptools
 from copy import deepcopy
 
-__version__ = '0.2'
-
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
     "lower versions are not supported"
@@ -115,18 +113,21 @@ class BuildExt(build_ext):
 
 setup(
     name='brainiak',
-    version=__version__,
+    use_scm_version=True,
     setup_requires=[
         'cython',
         'numpy',
         'pybind11>=1.7',
+        'setuptools_scm',
     ],
     install_requires=[
         'cython',
         'mpi4py',
         'numpy',
-        'scikit-learn',
+        'scikit-learn>=0.18',
         'scipy',
+        'pymanopt',
+        'theano',
         'pybind11>=1.7',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
