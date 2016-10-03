@@ -447,7 +447,7 @@ class BRSA(BaseEstimator):
 
         return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
             XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, n_run
+            X0TY, X0TDY, X0TFY, X0, n_run
 
     def _make_sandwidge(self, XTX, XTDX, XTFX, rho1):
         return XTX - rho1 * XTDX + rho1**2 * XTFX
@@ -594,7 +594,7 @@ class BRSA(BaseEstimator):
 
         XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
             XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, n_run \
+            X0TY, X0TDY, X0TFY, X0, n_run \
             = self._prepare_data(X, Y, n_T, scan_onsets)
         # Prepare the data for fitting. These pre-calculated matrices
         # will be re-used a lot in evaluating likelihood function and
@@ -637,7 +637,9 @@ class BRSA(BaseEstimator):
         current_vec_U_chlsk_l_AR1, current_a1, current_logSigma2 = \
             self._initial_fit_singpara(
                 XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                XTY, XTDY, XTFY, X, Y, idx_param_sing,
+                XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                X, X0, Y, idx_param_sing,
                 l_idx, n_C, n_T, n_V, n_l, n_run, rank)
 
         current_logSNR2 = -current_logSigma2
@@ -771,7 +773,9 @@ class BRSA(BaseEstimator):
 
     def _initial_fit_singpara(self, XTX, XTDX, XTFX,
                               YTY_diag, YTDY_diag, YTFY_diag,
-                              XTY, XTDY, XTFY, X, Y, idx_param_sing,
+                              XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                              XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                              X, X0, Y, idx_param_sing,
                               l_idx, n_C, n_T, n_V, n_l, n_run, rank):
         """ Perform initial fitting of a simplified model, which assumes
             that all voxels share exactly the same temporal covariance
@@ -781,8 +785,9 @@ class BRSA(BaseEstimator):
         """
         logger.info('Initial fitting assuming single parameter of '
                     'noise for all voxels')
-        beta_hat = np.linalg.lstsq(X, Y)[0]
-        residual = Y - np.dot(X, beta_hat)
+        X_joint = np.concatenate((X0, X), axis=1)
+        beta_hat = np.linalg.lstsq(X_joint, Y)[0]
+        residual = Y - np.dot(X_joint, beta_hat)
         # point estimates of betas and fitting residuals without assuming
         # the Bayesian model underlying RSA.
 
@@ -829,7 +834,9 @@ class BRSA(BaseEstimator):
         res = scipy.optimize.minimize(
             self._loglike_AR1_singpara, param0,
             args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                  XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, n_run,
+                  XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                  XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                  l_idx, n_C, n_T, n_V, n_run,
                   idx_param_sing, rank),
             method=self.optimizer, jac=True, tol=self.tol,
             options={'disp': self.verbose})
@@ -1404,6 +1411,8 @@ class BRSA(BaseEstimator):
 
     def _loglike_AR1_singpara(self, param, XTX, XTDX, XTFX, YTY_diag,
                               YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
+                              X0TX0, X0TDX0, X0TFX0,
+                              XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
                               l_idx, n_C, n_T, n_V, n_run,
                               idx_param_sing, rank=None):
         # In this version, we assume that beta is independent

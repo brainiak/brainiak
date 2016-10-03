@@ -257,7 +257,7 @@ def test_gradient():
     # test if the gradients are correct
     XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
         XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-        X0TY, X0TDY, X0TFY, n_run_returned =\
+        X0TY, X0TDY, X0TFY, X0, n_run_returned =\
             brsa._prepare_data(design.design_used,Y,n_T,scan_onsets)
     assert n_run_returned == n_run, 'There is mistake in counting number of runs'
     assert np.ndim(XTY) == 2 and np.ndim(XTDY) == 2 and np.ndim(XTFY) == 2,\
@@ -272,6 +272,7 @@ def test_gradient():
         'Dimension of XTX0 etc. returned from _prepare_data is wrong'
     assert np.ndim(X0TY) == 2 and np.ndim(X0TDY) == 2 and np.ndim(X0TFY) == 2,\
         'Dimension of X0TY etc. returned from _prepare_data is wrong'
+    X0 = np.ones(n_T)
     l_idx = np.tril_indices(n_C)
     n_l = np.size(l_idx[0])
 
@@ -297,13 +298,17 @@ def test_gradient():
     
     # log likelihood and derivative of the _singpara function
     ll0, deriv0 = brsa._loglike_AR1_singpara(param0_sing, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                                             XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, n_run,
+                                             XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                                             XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, 
+                                             l_idx, n_C, n_T, n_V, n_run,
                                              idx_param_sing)
     # We test the gradient to the Cholesky factor
     vec = np.zeros(np.size(param0_sing))
     vec[idx_param_sing['Cholesky'][0]] = 1
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_singpara(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                                                                 XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, n_run,
+                                                                 XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                                                                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                                                 l_idx, n_C, n_T, n_V, n_run,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=0.01), 'gradient of singpara wrt Cholesky is incorrect'
@@ -312,7 +317,9 @@ def test_gradient():
     vec = np.zeros(np.size(param0_sing))
     vec[idx_param_sing['log_sigma2']] = 1
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_singpara(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                                                                 XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, n_run,
+                                                                 XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                                                                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                                                 l_idx, n_C, n_T, n_V, n_run,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=0.01), 'gradient of singpara wrt log(sigma2) is incorrect'
@@ -321,7 +328,9 @@ def test_gradient():
     vec = np.zeros(np.size(param0_sing))
     vec[idx_param_sing['a1']] = 1
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_singpara(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                                                                 XTY, XTDY, XTFY, l_idx, n_C, n_T, n_V, n_run,
+                                                                 XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                                                                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                                                 l_idx, n_C, n_T, n_V, n_run,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=0.01), 'gradient of singpara wrt a1 is incorrect'
