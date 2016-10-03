@@ -19,55 +19,22 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path
-
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
-
-    def __init__(self, user=False):
-        self.user = user
-
-    # Required by Cython
-    def __add__(self, x):
-        import pybind11
-        return pybind11.get_include(self.user) + x
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include(self.user)
-
-    def endswith(self, x):
-        import pybind11
-        return pybind11.get_include(self.user).endswith(x)
-
-    def startswith(self, x):
-        import pybind11
-        return pybind11.get_include(self.user).startswith(x)
-
 ext_modules = [
     Extension(
         'brainiak.factoranalysis.tfa_extension',
         ['brainiak/factoranalysis/tfa_extension.cpp'],
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
-            get_pybind_include(user=True)
-        ],
     ),
     Extension(
         'brainiak.fcma.fcma_extension',
         ['brainiak/fcma/src/fcma_extension.cc'],
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
-            get_pybind_include(user=True)
-        ],
     ),
     Extension(
         'brainiak.fcma.cython_blas',
         ['brainiak/fcma/cython_blas.pyx'],
+    ),
+    Extension(
+        'brainiak.eventseg.utils',
+        ['brainiak/eventseg/_utils.pyx'],
     ),
 ]
 
@@ -133,10 +100,24 @@ class BuildExt(build_ext):
                 ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
 
+    def finalize_options(self):
+        super().finalize_options()
+        import numpy
+        import pybind11
+        self.include_dirs.extend([
+            numpy.get_include(),
+            pybind11.get_include(user=True),
+            pybind11.get_include(),
+        ])
+
+
 setup(
     name='brainiak',
     use_scm_version=True,
     setup_requires=[
+        'cython',
+        'numpy',
+        'pybind11>=1.7',
         'setuptools_scm',
     ],
     install_requires=[
