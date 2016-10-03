@@ -273,7 +273,7 @@ class VoxelSelector:
         time2 = time.time()
         logger.debug(
             'correlation computation for %d voxels, takes %.2f s' %
-            ((task[1] - task[0]), (time2 - time1))
+            (task[1], (time2 - time1))
         )
         return corr
 
@@ -359,7 +359,7 @@ class VoxelSelector:
         time2 = time.time()
         logger.debug(
             'cross validation for %d voxels, takes %.2f s' %
-            ((task[1] - task[0]), (time2 - time1))
+            (task[1], (time2 - time1))
         )
         return results
 
@@ -397,7 +397,7 @@ class VoxelSelector:
         logger.debug(
             'within-subject normalization for %d voxels '
             'using C++, takes %.2f s' %
-            ((task[1] - task[0]), (time4 - time3))
+            (task[1], (time4 - time3))
         )
 
         # cross validation
