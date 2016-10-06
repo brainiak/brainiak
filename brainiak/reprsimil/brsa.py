@@ -92,15 +92,6 @@ class BRSA(BaseEstimator):
     tol: tolerance parameter passed to the minimizer.
     verbose : boolean, default: False
         Verbose mode flag.
-    pad_DC: boolean, default: False
-        A column of all 1's will be padded to end of the design matrix
-        to account for residual baseline component in the signal.
-        We recommend removing DC component in your data but still
-        set this as True. If you include a baseline column yourself,
-        then you should check this as False.
-        In future version, we will include a seperate input
-        argument for all regressors you are not interested in,
-        such as DC component and motion parameters.
     epsilon: a small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
         to ensure that the matrix is invertible.
@@ -121,7 +112,7 @@ class BRSA(BaseEstimator):
     tau_range: the reasonable range of the standard deviation
         of the Gaussian Process. Since the Gaussian Process is
         imposed on the log(SNR), this range should not be too
-        large. 5 is a pretty loose range. This parameter is
+        large. 10 is a pretty loose range. This parameter is
         used in a half-Cauchy prior on the standard deviation
     init_iter: how many initial iterations to fit the model
         without introducing the GP prior before fitting with it,
@@ -167,16 +158,15 @@ class BRSA(BaseEstimator):
 
     def __init__(
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
-            tol=2e-3, verbose=False, pad_DC=False, epsilon=0.0001,
+            tol=2e-3, verbose=False, epsilon=0.0001,
             space_smooth_range=None, inten_smooth_range=None,
-            tau_range=5.0, init_iter=20, optimizer='BFGS', rand_seed=0):
+            tau_range=10.0, init_iter=20, optimizer='BFGS', rand_seed=0):
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
         self.GP_inten = GP_inten
         self.tol = tol
         self.verbose = verbose
-        self.pad_DC = pad_DC
         self.epsilon = epsilon
         # This is a tiny ridge added to the Gaussian Process
         # covariance matrix template to gaurantee that it is invertible.
@@ -207,8 +197,10 @@ class BRSA(BaseEstimator):
             the time dimension after proper preprocessing (e.g. spatial
             alignment), and specify the onsets of each scan in scan_onsets.
         design: 2-D numpy array, shape=[time_points, conditions]
-            This is the design matrix. We will automatically pad a column
-            of all one's if pad_DC is True.
+            This is the design matrix. It should only include the hypothetic
+            response for task conditions. You do not need to include
+            regressors for a DC component or motion parameters, unless with
+            a strong reason.
         scan_onsets: optional, an 1-D numpy array, shape=[runs,]
             this specifies the indices of X which correspond to the onset
             of each scanning run. For example, if you have two experimental
@@ -251,18 +243,13 @@ class BRSA(BaseEstimator):
         assert_all_finite(design)
         assert design.ndim == 2,\
             'The design matrix should be 2 dimension ndarray'
-        assert (not np.all(np.std(design, axis=0) > 0) and self.pad_DC)\
-            or not self.pad_DC, \
-            'You already included DC component in the '\
-            'design matrix. Please set pad_DC as False'
+        assert np.linalg.matrix_rank(design) == design.shape[1], \
+            'Your design matrix has rank smaller than the number of'\
+            ' columns. Some columns can be explained by linear '\
+            'combination of other columns. Please check your design matrix.'
         assert np.size(design, axis=0) == np.size(X, axis=0),\
             'Design matrix and data do not '\
             'have the same number of time points.'
-        if self.pad_DC:
-            logger.info('Padding one more column of 1 to '
-                        'the end of design matrix.')
-            design = np.concatenate((design,
-                                     np.ones([design.shape[0], 1])), axis=1)
         assert self.rank is None or self.rank <= design.shape[1],\
             'Your design matrix has fewer columns than the rank you set'
 
@@ -321,9 +308,6 @@ class BRSA(BaseEstimator):
                 self._fit_RSA_UV(X=design, Y=X, scan_onsets=scan_onsets,
                                  coords=coords, inten=inten)
 
-        if self.pad_DC:
-            self.U_ = self.U_[:-1, :-1]
-            self.L_ = self.L_[:-1, :self.rank]
         self.C_ = utils.cov2corr(self.U_)
         return self
 
@@ -380,6 +364,7 @@ class BRSA(BaseEstimator):
             F[0, 0] = 0
             F[n_T - 1, n_T - 1] = 0
             n_run = 1
+            run_TRs = np.array([n_T])
         else:
             # Each value in the scan_onsets tells the index at which
             # a new scan starts. For example, if n_T = 500, and
@@ -414,8 +399,8 @@ class BRSA(BaseEstimator):
 
         X_base = []
         for r_l in run_TRs:
-            X_base = scipy.linalg.block_diag(X_base, np.ones(r_l))
-        res = np.linalg.lstsq(X_base.T, X)
+            X_base = scipy.linalg.block_diag(X_base, np.ones(r_l)[:, None])
+        res = np.linalg.lstsq(X_base, X)
         if np.any(np.isclose(res[1], 0)):
             raise ValueError('Your design matrix appears to have '
                              'included baseline time series.'
@@ -423,11 +408,11 @@ class BRSA(BaseEstimator):
                              ' columns in your design matrix are for '
                              ' conditions of interest.')
         if X0 is not None:
-            res0 = np.linalg.lstsq(X_base.T, X0)
+            res0 = np.linalg.lstsq(X_base, X0)
             if not np.any(np.isclose(res0[1], 0)):
                 # No columns in X0 can be explained by the
                 # baseline regressors. So we insert them.
-                X0 = np.insert(X0, 0, X_base.T, axis=1)
+                X0 = np.insert(X0, 0, X_base, axis=1)
             else:
                 logger.warning('Provided regressors for non-interesting '
                                'time series already include baseline. '
@@ -435,24 +420,25 @@ class BRSA(BaseEstimator):
         else:
             # If a set of regressors for non-interested signals is not
             # provided, then we simply include one baseline for each run.
-            X0 = X_base.T
+            X0 = X_base
             logger.info('You did not provide time seres of no interest '
                         'such as DC component. One trivial regressor of'
                         ' DC component is included for further modeling.'
                         ' The final covariance matrix won''t '
                         'reflet them.')
+        n_base = X0.shape[1]
         X0TX0, X0TDX0, X0TFX0 = self._make_templates(D, F, X0, X0)
         XTX0, XTDX0, XTFX0 = self._make_templates(D, F, X, X0)
         X0TY, X0TDY, X0TFY = self._make_templates(D, F, X0, Y)
 
         return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
             XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, n_run
+            X0TY, X0TDY, X0TFY, X0, n_run, n_base
 
     def _make_sandwidge(self, XTX, XTDX, XTFX, rho1):
         return XTX - rho1 * XTDX + rho1**2 * XTFX
 
-    def _make_sandwidge_grad(self, XTX, XTDX, XTFX, rho1):
+    def _make_sandwidge_grad(self, XTDX, XTFX, rho1):
         return - XTDX + 2 * rho1 * XTFX
 
     def _make_templates(self, D, F, X, Y):
@@ -463,26 +449,58 @@ class BRSA(BaseEstimator):
 
     def _calc_sandwidge(self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
                         XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-                        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, L, rho1):
+                        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                        L, rho1, n_V, n_base):
         # Calculate the sandwidge terms which put A between X, Y and X0
         # These terms are used a lot in the likelihood. But in the _fitV
         # step, they only need to be calculated once, since A is fixed.
         # In _fitU step, they need to be calculated at each iteration,
         # because rho1 changes.
         XTAY = self._make_sandwidge(XTY, XTDY, XTFY, rho1)
-        LTXTAY = np.dot(L.T, XTAY)
+        # dimension: feature*space
         YTAY = self._make_sandwidge(YTY_diag, YTDY_diag, YTFY_diag, rho1)
+        # dimension: space,
+        # A/sigma2 is the inverse of noise covariance matrix in each voxel.
+        # YTAY means Y'AY
         XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
             * XTDX[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * XTFX[np.newaxis, :, :]
+        # dimension: space*feature*feature
         X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
             * X0TDX0[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
+        # dimension: space*#baseline*#baseline
         XTAX0 = XTX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
             * XTDX0[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
+        # dimension: space*feature*#baseline
         X0TAY = self._make_sandwidge(X0TY, X0TDY, X0TFY, rho1)
-        return XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, LTXTAY
+        # dimension: #baseline*space
+        X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_base)[None, :, :])
+        # dimension: space*#baseline*#baseline
+        XTAcorrX = XTAX.copy()
+        # dimension: space*feature*feature
+        XTAcorrY = XTAY.copy()
+        # dimension: feature*space
+        for i_v in range(n_V):
+            XTAcorrX[i_v, :, :] -= \
+                np.dot(np.dot(XTAX0[i_v, :, :], X0TAX0_i[i_v, :, :]),
+                       XTAX0[i_v, :, :].T)
+            XTAcorrY[:, i_v] -= np.dot(np.dot(XTAX0[i_v, :, :],
+                                              X0TAX0_i[i_v, :, :]),
+                                       X0TAY[:, i_v])
+        XTAcorrXL = np.dot(XTAcorrX, L)
+        # dimension: space*feature*rank
+        LTXTAcorrXL = np.tensordot(XTAcorrXL, L, axes=(1, 0))
+        # dimension: rank*feature*rank
+        LTXTAcorrY = np.dot(L.T, XTAcorrY)
+        # dimension: rank*space
+        YTAcorrY = YTAY - np.sum(X0TAY * np.einsum('ijk,ki->ji',
+                                                   X0TAX0_i, X0TAY), axis=0)
+        # dimension: space
+
+        return XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
+            XTAcorrX, XTAcorrY, YTAcorrY, LTXTAcorrY, XTAcorrXL, LTXTAcorrXL
 
     def _calc_dist2_GP(self, coords=None, inten=None,
                        GP_space=False, GP_inten=False):
@@ -532,8 +550,7 @@ class BRSA(BaseEstimator):
         """ Build dictionaries to retrieve each parameter
             from the combined parameters.
         """
-        idx_param_sing = {'Cholesky': np.arange(n_l),
-                          'log_sigma2': n_l, 'a1': n_l + 1}
+        idx_param_sing = {'Cholesky': np.arange(n_l), 'a1': n_l}
         # for simplified fitting
         idx_param_fitU = {'Cholesky': np.arange(n_l),
                           'a1': np.arange(n_l, n_l + n_V)}
@@ -594,7 +611,7 @@ class BRSA(BaseEstimator):
 
         XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
             XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, n_run \
+            X0TY, X0TDY, X0TFY, X0, n_run, n_base \
             = self._prepare_data(X, Y, n_T, scan_onsets)
         # Prepare the data for fitting. These pre-calculated matrices
         # will be re-used a lot in evaluating likelihood function and
@@ -640,13 +657,13 @@ class BRSA(BaseEstimator):
                 XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
                 X, X0, Y, idx_param_sing,
-                l_idx, n_C, n_T, n_V, n_l, n_run, rank)
+                l_idx, n_C, n_T, n_V, n_l, n_run, n_base, rank)
 
         current_logSNR2 = -current_logSigma2
         norm_factor = np.mean(current_logSNR2)
         current_logSNR2 = current_logSNR2 - norm_factor
-        current_vec_U_chlsk_l_AR1 = current_vec_U_chlsk_l_AR1 \
-            * np.exp(norm_factor / 2.0)
+        # current_vec_U_chlsk_l_AR1 = current_vec_U_chlsk_l_AR1 \
+        #     * np.exp(norm_factor / 2.0)
 
         # Step 2 fitting, which only happens if
         # GP prior is requested
@@ -659,7 +676,7 @@ class BRSA(BaseEstimator):
                     current_vec_U_chlsk_l_AR1,
                     current_a1, current_logSNR2,
                     idx_param_fitU, idx_param_fitV,
-                    l_idx, n_C, n_T, n_V, n_l, n_run, rank)
+                    l_idx, n_C, n_T, n_V, n_l, n_run, n_base, rank)
 
             current_GP[0] = np.log(np.min(
                 dist2[np.tril_indices_from(dist2, k=-1)]))
@@ -695,7 +712,7 @@ class BRSA(BaseEstimator):
                 current_vec_U_chlsk_l_AR1,
                 current_a1, current_logSNR2, current_GP, n_smooth,
                 idx_param_fitU, idx_param_fitV,
-                l_idx, n_C, n_T, n_V, n_l, n_run, rank,
+                l_idx, n_C, n_T, n_V, n_l, n_run, n_base, rank,
                 GP_space, GP_inten, dist2, inten_diff2,
                 space_smooth_range, inten_smooth_range)
 
@@ -709,36 +726,24 @@ class BRSA(BaseEstimator):
         est_SNR_AR1_UV = np.exp(current_logSNR2 / 2.0)
 
         # Calculating est_sigma_AR1_UV
-        YTAY = YTY_diag - est_rho1_AR1_UV * YTDY_diag + \
-            est_rho1_AR1_UV**2 * YTFY_diag
-        XTAX = XTX[np.newaxis, :, :] \
-            - est_rho1_AR1_UV[:, np.newaxis, np.newaxis] \
-            * XTDX[np.newaxis, :, :] \
-            + est_rho1_AR1_UV[:, np.newaxis, np.newaxis]**2\
-            * XTFX[np.newaxis, :, :]
-        # dimension: space*feature*feature
-        XTAY = XTY - est_rho1_AR1_UV * XTDY + est_rho1_AR1_UV**2 * XTFY
-        # dimension: feature*space
-        LTXTAY = np.dot(estU_chlsk_l_AR1_UV.T, XTAY)
-        # dimension: rank*space
-
-        LAMBDA_i = np.zeros([n_V, rank, rank])
-        for i_v in range(n_V):
-            LAMBDA_i[i_v, :, :] = np.dot(np.dot(
-                estU_chlsk_l_AR1_UV.T, XTAX[i_v, :, :]), estU_chlsk_l_AR1_UV)\
-                * est_SNR_AR1_UV[i_v]**2
-        LAMBDA_i += np.eye(rank)
+        XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
+            XTAcorrX, XTAcorrY, YTAcorrY, LTXTAcorrY, XTAcorrXL, LTXTAcorrXL\
+            = self._calc_sandwidge(XTY, XTDY, XTFY,
+                                   YTY_diag, YTDY_diag, YTFY_diag,
+                                   XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
+                                   XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                   estU_chlsk_l_AR1_UV, est_rho1_AR1_UV,
+                                   n_V, n_base)
+        LAMBDA_i = LTXTAcorrXL * est_SNR_AR1_UV[:, None, None]**2 \
+            + np.eye(rank)
         # dimension: space*rank*rank
-        LAMBDA = np.linalg.inv(LAMBDA_i)
+        LAMBDA = np.linalg.solve(LAMBDA_i, np.identity(rank)[None, :, :])
         # dimension: space*rank*rank
-        YTAXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAY)
+        YTAcorrXL_LAMBDA = np.einsum('ji,ijk->ik', LTXTAcorrY, LAMBDA)
         # dimension: space*rank
-        YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA, estU_chlsk_l_AR1_UV.T)
-        # dimension: space*feature
-
-        est_sigma_AR1_UV = ((YTAY - est_SNR_AR1_UV**2 *
-                             np.sum(YTAXL_LAMBDA_LT * XTAY.T, axis=1))
-                            / n_T)**0.5
+        est_sigma_AR1_UV = ((YTAcorrY - np.sum(LTXTAcorrY
+                                              * YTAcorrXL_LAMBDA.T, axis=0)
+                            * est_SNR_AR1_UV**2) / (n_T - n_base)) ** 0.5
 
         t_finish = time.time()
         logger.info(
@@ -775,8 +780,8 @@ class BRSA(BaseEstimator):
                               YTY_diag, YTDY_diag, YTFY_diag,
                               XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                               XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                              X, X0, Y, idx_param_sing,
-                              l_idx, n_C, n_T, n_V, n_l, n_run, rank):
+                              X, X0, Y, idx_param_sing, l_idx,
+                              n_C, n_T, n_V, n_l, n_run, n_base, rank):
         """ Perform initial fitting of a simplified model, which assumes
             that all voxels share exactly the same temporal covariance
             matrix for their noise (the same noise variance and
@@ -828,7 +833,7 @@ class BRSA(BaseEstimator):
         # Then we fill each part of the original guess of parameters
         param0[idx_param_sing['Cholesky']] = current_vec_U_chlsk_l_AR1
         param0[idx_param_sing['a1']] = np.median(np.tan(rho1 * np.pi / 2))
-        param0[idx_param_sing['log_sigma2']] = np.median(log_sigma2)
+        # param0[idx_param_sing['log_sigma2']] = np.median(log_sigma2)
 
         # Fit it.
         res = scipy.optimize.minimize(
@@ -836,10 +841,10 @@ class BRSA(BaseEstimator):
             args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                   XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                   XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                  l_idx, n_C, n_T, n_V, n_run,
+                  l_idx, n_C, n_T, n_V, n_run, n_base,
                   idx_param_sing, rank),
             method=self.optimizer, jac=True, tol=self.tol,
-            options={'disp': self.verbose})
+            options={'disp': self.verbose, 'maxiter': 100})
         current_vec_U_chlsk_l_AR1 = res.x[idx_param_sing['Cholesky']]
         current_a1 = res.x[idx_param_sing['a1']] * np.ones(n_V)
         # log(sigma^2) assuming the data include no signal is returned,
@@ -856,7 +861,7 @@ class BRSA(BaseEstimator):
             current_vec_U_chlsk_l_AR1,
             current_a1, current_logSNR2,
             idx_param_fitU, idx_param_fitV,
-            l_idx, n_C, n_T, n_V, n_l, n_run, rank):
+            l_idx, n_C, n_T, n_V, n_l, n_run, n_base, rank):
         """ (optional) second step of fitting, full model but without
             GP prior on log(SNR). This is only used when GP is
             requested.
@@ -883,19 +888,24 @@ class BRSA(BaseEstimator):
             # fit V, reflected in the log(SNR^2) of each voxel
             rho1 = np.arctan(current_a1) * 2 / np.pi
             L[l_idx] = current_vec_U_chlsk_l_AR1
-            XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, LTXTAY = \
+            XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
+                XTAcorrX, XTAcorrY, YTAcorrY, \
+                LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
                 self._calc_sandwidge(XTY, XTDY, XTFY,
                                      YTY_diag, YTDY_diag, YTFY_diag,
                                      XTX, XTDX, XTFX,
                                      X0TX0, X0TDX0, X0TFX0,
                                      XTX0, XTDX0, XTFX0,
-                                     X0TY, X0TDY, X0TFY, L, rho1)
+                                     X0TY, X0TDY, X0TFY,
+                                     L, rho1, n_V, n_base)
             res_fitV = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitV, param0_fitV,
                 args=(XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY,
-                      LTXTAY, current_vec_U_chlsk_l_AR1,
+                      X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY,
+                      LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
+                      current_vec_U_chlsk_l_AR1,
                       current_a1, l_idx, n_C, n_T, n_V, n_run,
-                      idx_param_fitV, rank,
+                      n_base, idx_param_fitV, rank,
                       False, False),
                 method=self.optimizer, jac=True, tol=tol,
                 options={'xtol': tol, 'disp': self.verbose,
@@ -928,8 +938,10 @@ class BRSA(BaseEstimator):
             res_fitU = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                      XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C,
-                      n_T, n_V, n_run, idx_param_fitU, rank),
+                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                      current_logSNR2, l_idx, n_C,
+                      n_T, n_V, n_run, n_base, idx_param_fitU, rank),
                 method=self.optimizer, jac=True, tol=tol,
                 options={'xtol': tol, 'disp': self.verbose,
                          'maxiter': 3})
@@ -953,8 +965,8 @@ class BRSA(BaseEstimator):
             XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
             current_vec_U_chlsk_l_AR1,
             current_a1, current_logSNR2, current_GP, n_smooth,
-            idx_param_fitU, idx_param_fitV,
-            l_idx, n_C, n_T, n_V, n_l, n_run, rank, GP_space, GP_inten,
+            idx_param_fitU, idx_param_fitV, l_idx,
+            n_C, n_T, n_V, n_l, n_run, n_base, rank, GP_space, GP_inten,
             dist2, inten_diff2, space_smooth_range, inten_smooth_range):
         """ Last step of fitting. If GP is not requested, it will still
             fit.
@@ -988,18 +1000,24 @@ class BRSA(BaseEstimator):
             # fit V
             rho1 = np.arctan(current_a1) * 2 / np.pi
             L[l_idx] = current_vec_U_chlsk_l_AR1
-            XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, LTXTAY = \
+            XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
+                XTAcorrX, XTAcorrY, YTAcorrY, \
+                LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
                 self._calc_sandwidge(XTY, XTDY, XTFY,
                                      YTY_diag, YTDY_diag, YTFY_diag,
                                      XTX, XTDX, XTFX,
                                      X0TX0, X0TDX0, X0TFX0,
                                      XTX0, XTDX0, XTFX0,
-                                     X0TY, X0TDY, X0TFY, L, rho1)
+                                     X0TY, X0TDY, X0TFY,
+                                     L, rho1, n_V, n_base)
             res_fitV = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitV, param0_fitV, args=(
-                    XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, LTXTAY,
+                    XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i,
+                    XTAcorrX, XTAcorrY, YTAcorrY,
+                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                     current_vec_U_chlsk_l_AR1, current_a1,
-                    l_idx, n_C, n_T, n_V, n_run, idx_param_fitV, rank,
+                    l_idx, n_C, n_T, n_V, n_run, n_base,
+                    idx_param_fitV, rank,
                     GP_space, GP_inten, dist2, inten_diff2,
                     space_smooth_range, inten_smooth_range),
                 method=self.optimizer, jac=True,
@@ -1030,8 +1048,10 @@ class BRSA(BaseEstimator):
             res_fitU = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitU, param0_fitU,
                 args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                      XTY, XTDY, XTFY, current_logSNR2, l_idx, n_C, n_T, n_V,
-                      n_run, idx_param_fitU, rank),
+                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                      current_logSNR2, l_idx, n_C, n_T, n_V,
+                      n_run, n_base, idx_param_fitU, rank),
                 method=self.optimizer, jac=True,
                 tol=tol,
                 options={'xtol': tol,
@@ -1067,7 +1087,9 @@ class BRSA(BaseEstimator):
 
     def _loglike_AR1_diagV_fitU(self, param, XTX, XTDX, XTFX, YTY_diag,
                                 YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
-                                log_SNR2, l_idx, n_C, n_T, n_V, n_run,
+                                X0TX0, X0TDX0, X0TFX0,
+                                XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                log_SNR2, l_idx, n_C, n_T, n_V, n_run, n_base,
                                 idx_param_fitU, rank):
         # This function calculates the log likelihood of data given cholesky
         # decomposition of U and AR(1) parameters of noise as free parameters.
@@ -1099,10 +1121,6 @@ class BRSA(BaseEstimator):
         # Such parametrization avoids the need of boundaries
         # for parameters.
 
-        # n_l = np.size(l_idx[0])
-        # the number of parameters in the index of lower-triangular matrix
-        # This indexing allows for parametrizing only
-        # part of the lower triangular matrix (non-full rank covariance matrix)
         L = np.zeros([n_C, rank])
         # lower triagular matrix L, cholesky decomposition of U
         L[l_idx] = param[idx_param_fitU['Cholesky']]
@@ -1114,78 +1132,113 @@ class BRSA(BaseEstimator):
         # each element of SNR2 is the ratio of the diagonal element on V
         # to the variance of the fresh noise in that voxel
 
-        YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
-        # dimension: space,
-        # A/sigma2 is the inverse of noise covariance matrix in each voxel.
-        # YTAY means Y'AY
-        XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis]\
-            * XTDX[np.newaxis, :, :] + rho1[:, np.newaxis, np.newaxis]**2\
-            * XTFX[np.newaxis, :, :]
-        # dimension: space*feature*feature
-        XTAY = XTY - rho1 * XTDY + rho1**2 * XTFY
-        # dimension: feature*space
-        LTXTAY = np.dot(L.T, XTAY)
-        # dimension: rank*space
-        # LAMBDA_i = np.zeros([n_V, rank, rank])
-        # for i_v in range(n_V):
-        #     LAMBDA_i[i_v, :, :] = np.dot(np.dot(L.T, XTAX[i_v, :, :]), L)\
-        #         * SNR2[i_v]
-        # LAMBDA_i += np.eye(rank)
-        # LTXTAXL = np.empty([n_V, rank, rank])
-        # for i_v in range(n_V):
-        #     LTXTAXL[i_v, :, :] = np.dot(np.dot(L.T, XTAX[i_v, :, :]), L)
-        LTXTAXL = np.tensordot(np.dot(XTAX, L), L, axes=(1, 0))
-        LAMBDA_i = LTXTAXL * SNR2[:, None, None] + np.eye(rank)
+        XTAX, XTAY, YTAY, X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
+            XTAcorrX, XTAcorrY, YTAcorrY, \
+            LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
+            self._calc_sandwidge(XTY, XTDY, XTFY,
+                                 YTY_diag, YTDY_diag, YTFY_diag,
+                                 XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
+                                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                 L, rho1, n_V, n_base)
+
+        # Only starting from this point, SNR2 is involved
+        LAMBDA_i = LTXTAcorrXL * SNR2[:, None, None] + np.eye(rank)
         # dimension: space*rank*rank
-        LAMBDA = np.linalg.inv(LAMBDA_i)
+        LAMBDA = np.linalg.solve(LAMBDA_i, np.identity(rank)[None, :, :])
         # dimension: space*rank*rank
         # LAMBDA is essentially the inverse covariance matrix of the
         # posterior probability of alpha, which bears the relation with
         # beta by beta = L * alpha, and L is the Cholesky factor of the
         # shared covariance matrix U. refer to the explanation below
         # Equation 5 in the NIPS paper.
-        YTAXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAY)
+
+        # LAMBDA_LTXTAcorrY = np.einsum('ijk,ki->ji', LAMBDA_i, LTXTAcorrY)
+        YTAcorrXL_LAMBDA = np.einsum('ji,ijk->ik', LTXTAcorrY, LAMBDA)
         # dimension: space*rank
-        YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA, L.T)
-        # dimension: space*feature (feature can be larger than rank)
+        # # dimension: feature*space
+        sigma2 = (YTAcorrY - np.sum(LTXTAcorrY * YTAcorrXL_LAMBDA.T, axis=0)
+                  * SNR2) / (n_T - n_base)
 
-        # sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA_LT * XTAY.T, axis=1)) \
-        #     / n_T
-        sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA * LTXTAY.T, axis=1))\
-            / n_T
-        # dimension: space,
-
-        LL = -np.sum(np.log(sigma2)) * n_T * 0.5 \
+        LL = - np.sum(np.log(sigma2)) * (n_T - n_base) * 0.5 \
             + np.sum(np.log(1 - rho1**2)) * n_run * 0.5 \
+            - np.sum(np.log(np.linalg.det(X0TAX0))) * 0.5 \
             - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 \
-            - n_T / 2.0
-        # log likelihood
-        XTAXL = np.dot(XTAX, L)
-        # dimension: space*feature*rank
-        deriv_L = -np.einsum('ijk,ikl,i', XTAXL, LAMBDA, SNR2) \
-            - np.dot(np.einsum('ijk,ik->ji', XTAXL, YTAXL_LAMBDA) * SNR2**2
-                     / sigma2, YTAXL_LAMBDA) \
-            + np.dot(XTAY / sigma2 * SNR2, YTAXL_LAMBDA)
-        # - np.einsum('ijk,ik,il,i', XTAXL, YTAXL_LAMBDA, YTAXL_LAMBDA,
-        #           SNR2**2 / sigma2) \
+            - (n_T - n_base) * n_V * (1 + np.log(2 * np.pi)) * 0.5
+        if not np.isfinite(LL):
+            print('NaN detected!')
+            print(sigma2)
+            print(YTAcorrY)
+            print(LTXTAcorrY)
+            print(YTAcorrXL_LAMBDA)
+            print(SNR2)
+
+        YTAcorrXL_LAMBDA_LT = np.dot(YTAcorrXL_LAMBDA, L.T)
+        # dimension: space*feature (feature can be larger than rank)
+        deriv_L = -np.einsum('ijk,ikl,i', XTAcorrXL, LAMBDA, SNR2) \
+            - np.dot(np.einsum('ijk,ik->ji', XTAcorrXL, YTAcorrXL_LAMBDA)
+                     * SNR2**2 / sigma2, YTAcorrXL_LAMBDA) \
+            + np.dot(XTAcorrY / sigma2 * SNR2, YTAcorrXL_LAMBDA)
         # dimension: feature*rank
+
+        # The following are for calculating the derivative to a1
+        deriv_a1 = np.empty(n_V)
         dXTAX_drho1 = -XTDX + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX
         # dimension: space*feature*feature
-        dXTAY_drho1 = -XTDY + 2 * rho1 * XTFY
+        dXTAY_drho1 = self._make_sandwidge_grad(XTDY, XTFY, rho1)
         # dimension: feature*space
-        dYTAY_drho1 = -YTDY_diag + 2 * rho1 * YTFY_diag
+        dYTAY_drho1 = self._make_sandwidge_grad(YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
-        deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) * \
-            (-n_run * rho1 / (1 - rho1**2) -
-             np.einsum('...ij,...ji', np.dot(LAMBDA, L.T),
-                       np.dot(dXTAX_drho1, L)) * SNR2 / 2.0
-             + np.sum(dXTAY_drho1 * YTAXL_LAMBDA_LT.T, axis=0)
-             / sigma2 * SNR2
-             - np.einsum('...i,...ij,...j',
-                         YTAXL_LAMBDA_LT, dXTAX_drho1, YTAXL_LAMBDA_LT)
-             / sigma2 / 2.0 * (SNR2**2.0)
-             - dYTAY_drho1 / (sigma2 * 2.0))
-        # dimension: space,
+
+        dX0TAX0_drho1 = - X0TDX0 \
+            + 2 * rho1[:, np.newaxis, np.newaxis] * X0TFX0
+        # dimension: space*rank*rank
+        dXTAX0_drho1 = - XTDX0 \
+            + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX0
+        # dimension: space*feature*rank
+        dX0TAY_drho1 = self._make_sandwidge_grad(X0TDY, X0TFY, rho1)
+        # dimension: rank*space
+
+        # The following are executed for each voxel.
+        for i_v in range(n_V):
+            # All variables with _ele as suffix are for data of just one voxel
+            invX0TAX0_X0TAX_ele = np.dot(X0TAX0_i[i_v, :, :],
+                                         XTAX0[i_v, :, :].T)
+            invX0TAX0_X0TAY_ele = np.dot(X0TAX0_i[i_v, :, :], X0TAY[:, i_v])
+            dXTAX0_drho1_invX0TAX0_X0TAX_ele = np.dot(dXTAX0_drho1[i_v, :, :],
+                                                      invX0TAX0_X0TAX_ele)
+            # preparation for the variable below
+            dXTAcorrX_drho1_ele = dXTAX_drho1[i_v, :, :] \
+                - dXTAX0_drho1_invX0TAX0_X0TAX_ele \
+                - dXTAX0_drho1_invX0TAX0_X0TAX_ele.T \
+                + np.dot(np.dot(invX0TAX0_X0TAX_ele.T,
+                                dX0TAX0_drho1[i_v, :, :]),
+                         invX0TAX0_X0TAX_ele)
+            dXTAcorrY_drho1_ele = dXTAY_drho1[:, i_v] \
+                - np.dot(invX0TAX0_X0TAX_ele.T, dX0TAY_drho1[:, i_v]) \
+                - np.dot(dXTAX0_drho1[i_v, :, :], invX0TAX0_X0TAY_ele) \
+                + np.dot(np.dot(invX0TAX0_X0TAX_ele.T,
+                                dX0TAX0_drho1[i_v, :, :]),
+                         invX0TAX0_X0TAY_ele)
+            dYTAcorrY_drho1_ele = dYTAY_drho1[i_v] \
+                - np.dot(dX0TAY_drho1[:, i_v], invX0TAX0_X0TAY_ele) * 2\
+                + np.dot(np.dot(invX0TAX0_X0TAY_ele, dX0TAX0_drho1[i_v, :, :]),
+                         invX0TAX0_X0TAY_ele)
+            deriv_a1[i_v] = 2 / np.pi / (1 + a1[i_v]**2) \
+                * (- n_run * rho1[i_v] / (1 - rho1[i_v]**2)
+                   - np.einsum('ij,ij', X0TAX0_i[i_v, :, :],
+                               dX0TAX0_drho1[i_v, :, :]) * 0.5
+                   - np.einsum('ij,ij', LAMBDA[i_v, :, :],
+                               np.dot(np.dot(
+                                L.T, dXTAcorrX_drho1_ele), L))
+                   * (SNR2[i_v] * 0.5)
+                   - dYTAcorrY_drho1_ele * 0.5 / sigma2[i_v]
+                   + SNR2[i_v] / sigma2[i_v]
+                   * np.dot(dXTAcorrY_drho1_ele,
+                            YTAcorrXL_LAMBDA_LT[i_v, :])
+                   - (0.5 * SNR2[i_v]**2 / sigma2[i_v])
+                   * np.dot(np.dot(YTAcorrXL_LAMBDA_LT[i_v, :],
+                                   dXTAcorrX_drho1_ele),
+                            YTAcorrXL_LAMBDA_LT[i_v, :]))
 
         deriv = np.zeros(np.size(param))
         deriv[idx_param_fitU['Cholesky']] = deriv_L[l_idx]
@@ -1194,9 +1247,11 @@ class BRSA(BaseEstimator):
         return -LL, -deriv
 
     def _loglike_AR1_diagV_fitV(self, param, XTAX, XTAY, YTAY,
-                                X0TAX0, XTAX0, X0TAY, LTXTAY,
+                                X0TAX0, XTAX0, X0TAY, X0TAX0_i,
+                                XTAcorrX, XTAcorrY, YTAcorrY,
+                                LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                 L_l, a1, l_idx, n_C, n_T, n_V, n_run,
-                                idx_param_fitV, rank=None,
+                                n_base, idx_param_fitV, rank=None,
                                 GP_space=False, GP_inten=False,
                                 dist2=None, inten_dist2=None,
                                 space_smooth_range=None,
@@ -1248,53 +1303,34 @@ class BRSA(BaseEstimator):
         # If requested, a GP prior is imposed on log(SNR).
         rho1 = 2.0 / np.pi * np.arctan(a1)
         # AR(1) coefficient, dimension: space
-        # YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
-        # dimension: space,
-        # XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-        #     * XTDX[np.newaxis, :, :] \
-        #     + rho1[:, np.newaxis, np.newaxis]**2 * XTFX[np.newaxis, :, :]
-        # dimension: space*feature*feature
-        # XTAY = XTY - rho1 * XTDY + rho1**2 * XTFY
-        # dimension: feature*space
-        LTXTAY = np.dot(L.T, XTAY)
-        # dimension: rank*space
-        # LAMBDA_i = np.zeros([n_V, rank, rank])
-        # for i_v in range(n_V):
-        #     LAMBDA_i[i_v, :, :] = np.dot(np.dot(L.T, XTAX[i_v, :, :]), L) \
-        #         * SNR2[i_v]
-        # LAMBDA_i += np.eye(rank)
-        # LTXTAXL = np.empty([n_V, rank, rank])
-        # for i_v in range(n_V):
-        #     LTXTAXL[i_v, :, :] = np.dot(np.dot(L.T, XTAX[i_v, :, :]), L)
-        LTXTAXL = np.tensordot(np.dot(XTAX, L), L, axes=(1, 0))
-        LAMBDA_i = LTXTAXL * SNR2[:, None, None] + np.eye(rank)
+        LAMBDA_i = LTXTAcorrXL * SNR2[:, None, None] + np.eye(rank)
 
         # dimension: space*rank*rank
-        LAMBDA = np.linalg.inv(LAMBDA_i)
+        LAMBDA = np.linalg.solve(LAMBDA_i, np.identity(rank)[None, :, :])
         # dimension: space*rank*rank
-        YTAXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAY)
+        YTAcorrXL_LAMBDA = np.einsum('ijk,ki->ij', LAMBDA, LTXTAcorrY)
         # dimension: space*rank
-        # YTAXL_LAMBDA_LT = np.dot(YTAXL_LAMBDA, L.T)
-        # dimension: space*feature
-        # sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA_LT * XTAY.T, axis=1))\
-        #     / n_T
-        sigma2 = (YTAY - SNR2 * np.sum(YTAXL_LAMBDA * LTXTAY.T, axis=1))\
-            / n_T
+        sigma2 = (YTAcorrY
+                  - SNR2 * np.sum(YTAcorrXL_LAMBDA
+                                  * LTXTAcorrY.T, axis=1)) / (n_T - n_base)
         # dimension: space
 
-        LL = -np.sum(np.log(sigma2)) * n_T * 0.5\
+        LL = - (n_T - n_base) * np.log(2 * np.pi) * 0.5\
+            - np.sum(np.log(sigma2)) * (n_T - n_base) * 0.5\
             + np.sum(np.log(1 - rho1**2)) * n_run * 0.5\
-            - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 - n_T * 0.5
+            - np.sum(np.log(np.linalg.det(X0TAX0))) * 0.5\
+            - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5\
+            - (n_T - n_base) * n_V * 0.5
         # Log likelihood of data given parameters, without the GP prior.
         deriv_log_SNR2 = (-rank + np.trace(LAMBDA, axis1=1, axis2=2)) * 0.5\
-            + YTAY / (sigma2 * 2.0) - n_T * 0.5 \
-            - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA,
-                        LTXTAXL, YTAXL_LAMBDA)\
+            + YTAcorrY / (sigma2 * 2.0) - (n_T - n_base) * 0.5 \
+            - np.einsum('ij,ijk,ik->i', YTAcorrXL_LAMBDA,
+                        LTXTAcorrXL, YTAcorrXL_LAMBDA)\
             / (sigma2 * 2.0) * (SNR2**2)
-        # - np.einsum('ij,ijk,ik->i', YTAXL_LAMBDA_LT,
-        #             XTAX, YTAXL_LAMBDA_LT)\
         # Partial derivative of log likelihood over log(SNR^2)
         # dimension: space,
+        # The second term above is due to the equation for calculating
+        # sigma2
         if GP_space:
             # Imposing GP prior on log(SNR) at least over
             # spatial coordinates
@@ -1413,7 +1449,7 @@ class BRSA(BaseEstimator):
                               YTDY_diag, YTFY_diag, XTY, XTDY, XTFY,
                               X0TX0, X0TDX0, X0TFX0,
                               XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                              l_idx, n_C, n_T, n_V, n_run,
+                              l_idx, n_C, n_T, n_V, n_run, n_base,
                               idx_param_sing, rank=None):
         # In this version, we assume that beta is independent
         # between voxels and noise is also independent.
@@ -1432,62 +1468,84 @@ class BRSA(BaseEstimator):
         L = np.zeros([n_C, rank])
         L[l_idx] = param[idx_param_sing['Cholesky']]
 
-        log_sigma2 = param[idx_param_sing['log_sigma2']]
-        sigma2 = np.exp(log_sigma2)
         a1 = param[idx_param_sing['a1']]
         rho1 = 2.0 / np.pi * np.arctan(a1)
 
         XTAX = XTX - rho1 * XTDX + rho1**2 * XTFX
-        LAMBDA_i = np.eye(rank) +\
-            np.dot(np.dot(L.T, XTAX), L) / sigma2
+        X0TAX0 = X0TX0 - rho1 * X0TDX0 + rho1**2 * X0TFX0
+        XTAX0 = XTX0 - rho1 * XTDX0 + rho1**2 * XTFX0
+        XTAcorrX = XTAX - np.dot(XTAX0, np.linalg.solve(X0TAX0, XTAX0.T))
+        XTAcorrXL = np.dot(XTAcorrX, L)
+        LAMBDA_i = np.dot(np.dot(L.T, XTAcorrX), L) + np.eye(rank)
 
         XTAY = XTY - rho1 * XTDY + rho1**2 * XTFY
-        LTXTAY = np.dot(L.T, XTAY)
+        X0TAY = X0TY - rho1 * X0TDY + rho1**2 * X0TFY
+        XTAcorrY = XTAY - np.dot(XTAX0, np.linalg.solve(X0TAX0, X0TAY))
+        LTXTAcorrY = np.dot(L.T, XTAcorrY)
 
         YTAY = YTY_diag - rho1 * YTDY_diag + rho1**2 * YTFY_diag
+        YTAcorrY = YTAY \
+            - np.sum(X0TAY * np.linalg.solve(X0TAX0, X0TAY), axis=0)
 
-        LAMBDA_LTXTAY = np.linalg.solve(LAMBDA_i, LTXTAY)
-        L_LAMBDA_LTXTAY = np.dot(L, LAMBDA_LTXTAY)
+        LAMBDA_LTXTAcorrY = np.linalg.solve(LAMBDA_i, LTXTAcorrY)
+        L_LAMBDA_LTXTAcorrY = np.dot(L, LAMBDA_LTXTAcorrY)
 
-        LL = np.sum(LTXTAY * LAMBDA_LTXTAY) / (sigma2**2 * 2.0) \
-            - np.sum(YTAY) / (sigma2 * 2.0)
+        sigma2 = np.mean(YTAcorrY -
+                         np.sum(LTXTAcorrY * LAMBDA_LTXTAcorrY, axis=0))\
+            / (n_T - n_base)
+        LL = n_V * (-np.log(sigma2) * (n_T - n_base) * 0.5
+                    + np.log(1 - rho1**2) * n_run * 0.5
+                    - np.log(np.linalg.det(X0TAX0)) * 0.5
+                    - np.log(np.linalg.det(LAMBDA_i)) * 0.5)
 
-        deriv_L = np.dot(XTAY, LAMBDA_LTXTAY.T) / sigma2**2 \
-            - np.dot(np.dot(XTAX, L_LAMBDA_LTXTAY),
-                     LAMBDA_LTXTAY.T) / sigma2**3
+        deriv_L = np.dot(XTAcorrY, LAMBDA_LTXTAcorrY.T) / sigma2 \
+            - np.dot(np.dot(XTAcorrXL, LAMBDA_LTXTAcorrY),
+                     LAMBDA_LTXTAcorrY.T) / sigma2 \
+            - np.linalg.solve(LAMBDA_i, XTAcorrXL.T).T * n_V
 
-        deriv_log_sigma2 = np.sum(YTAY) / (sigma2 * 2.0) \
-            - np.sum(XTAY * L_LAMBDA_LTXTAY) / (sigma2**2) \
-            + np.sum(np.dot(XTAX, L_LAMBDA_LTXTAY)
-                     * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0)
+        # These terms are used to construct derivative to a1.
+        dXTAX_drho1 = - XTDX + 2 * rho1 * XTFX
+        dX0TAX0_drho1 = - X0TDX0 + 2 * rho1 * X0TFX0
+        dXTAX0_drho1 = - XTDX0 + 2 * rho1 * XTFX0
+        invX0TAX0_X0TAX = np.linalg.solve(X0TAX0, XTAX0.T)
+        dXTAX0_drho1_invX0TAX0_X0TAX = np.dot(dXTAX0_drho1, invX0TAX0_X0TAX)
+
+        dXTAcorrX_drho1 = dXTAX_drho1 - dXTAX0_drho1_invX0TAX0_X0TAX \
+            - dXTAX0_drho1_invX0TAX0_X0TAX.T \
+            + np.dot(np.dot(invX0TAX0_X0TAX.T, dX0TAX0_drho1),
+                     invX0TAX0_X0TAX)
+        dLTXTAcorrXL_drho1 = np.dot(np.dot(L.T, dXTAcorrX_drho1), L)
+
+        dYTAY_drho1 = - YTDY_diag + 2 * rho1 * YTFY_diag
+        dX0TAY_drho1 = - X0TDY + 2 * rho1 * X0TFY
+        invX0TAX0_X0TAY = np.linalg.solve(X0TAX0, X0TAY)
+        dYTAX0_drho1_invX0TAX0_X0TAY = np.sum(dX0TAY_drho1
+                                              * invX0TAX0_X0TAY, axis=0)
+
+        dYTAcorrY_drho1 = dYTAY_drho1 - dYTAX0_drho1_invX0TAX0_X0TAY * 2\
+            + np.sum(invX0TAX0_X0TAY *
+                     np.dot(dX0TAX0_drho1, invX0TAX0_X0TAY), axis=0)
+
+        dXTAY_drho1 = - XTDY + 2 * rho1 * XTFY
+        dXTAcorrY_drho1 = dXTAY_drho1 \
+            - np.dot(dXTAX0_drho1, invX0TAX0_X0TAY) \
+            - np.dot(invX0TAX0_X0TAX.T, dX0TAY_drho1) \
+            + np.dot(np.dot(invX0TAX0_X0TAX.T, dX0TAX0_drho1),
+                     invX0TAX0_X0TAY)
 
         deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) \
-            * (-n_run * rho1 / (1 - rho1**2)
-               + np.sum((-XTDY + 2 * rho1 * XTFY)
-                        * L_LAMBDA_LTXTAY) / (sigma2**2)
-               - np.sum(np.dot((-XTDX + 2 * rho1 * XTFX), L_LAMBDA_LTXTAY)
-                        * L_LAMBDA_LTXTAY) / (sigma2**3 * 2.0)
-               - np.sum(-YTDY_diag + 2 * rho1 * YTFY_diag) / (sigma2 * 2.0))
-
-        LL = LL + np.size(YTY_diag) * (-log_sigma2 * n_T * 0.5
-                                       + np.log(1 - rho1**2) * n_run * 0.5
-                                       - np.log(np.linalg.det(LAMBDA_i))
-                                       * 0.5)
-
-        deriv_L = deriv_L - np.linalg.solve(LAMBDA_i, np.dot(L.T, XTAX)).T\
-            / sigma2 * np.size(YTY_diag)
-        deriv_log_sigma2 = deriv_log_sigma2 \
-            + (rank - n_T - np.trace(np.linalg.inv(LAMBDA_i)))\
-            * 0.5 * np.size(YTY_diag)
-        deriv_a1 = deriv_a1 - np.trace(
-            np.linalg.solve(LAMBDA_i,
-                            np.dot(np.dot(L.T,
-                                          (-XTDX + 2 * rho1 * XTFX)), L)))\
-            / (sigma2 * 2) * np.size(YTY_diag)
+            * (n_V * (- n_run * rho1 / (1 - rho1**2)
+                      - 0.5 * np.trace(np.linalg.solve(
+                            X0TAX0, dX0TAX0_drho1))
+                      - 0.5 * np.trace(np.linalg.solve(
+                            LAMBDA_i, dLTXTAcorrXL_drho1)))
+               - 0.5 * np.sum(dYTAcorrY_drho1) / sigma2
+               + np.sum(dXTAcorrY_drho1 * L_LAMBDA_LTXTAcorrY) / sigma2
+               - 0.5 * np.sum(np.dot(dXTAcorrX_drho1, L_LAMBDA_LTXTAcorrY)
+                              * L_LAMBDA_LTXTAcorrY) / sigma2)
 
         deriv = np.zeros(np.size(param))
-        deriv[0:n_l] = deriv_L[l_idx]
-        deriv[n_l] = deriv_log_sigma2
-        deriv[n_l + 1] = deriv_a1
+        deriv[idx_param_sing['Cholesky']] = deriv_L[l_idx]
+        deriv[idx_param_sing['a1']] = deriv_a1
 
         return -LL, -deriv
