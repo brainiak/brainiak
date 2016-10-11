@@ -138,19 +138,24 @@ class ReadDesign:
         fname: string, the address of the file to read.
 
         include_orth: Boollean, whether to include "orthogonal" regressors in
-            the design matrix which are usually head motion parameters. All
-            the columns of design matrix are still going to be read in, but
-            the attribute cols_used will reflect whether these orthogonal
+            the nuisance regressors which are usually head motion parameters.
+            All the columns of design matrix are still going to be read in,
+            but the attribute cols_used will reflect whether these orthogonal
             regressors are to be included for furhter analysis.
+            Note that these are not entered into design_task attribute which
+            include only regressors related to task conditions.
 
         include_pols: Boollean, whether to include polynomial regressors in
-            the design matrix which are used to capture slow drift of signals.
-            This will be reflected in the indices in the attribute cols_used.
+            the nuisance regressors which are used to capture slow drift of
+            signals.
 
         Attributes
         ----------
 
         design: 2d array. The design matrix read in from the csv file.
+
+        design_task: 2d array. The part of design matrix corresponding to
+            task conditions.
 
         n_col: number of total columns in the design matrix.
 
@@ -168,7 +173,7 @@ class ReadDesign:
 
         StimLabels: list. The names of each column in the design matrix.
     """
-    def __init__(self, fname=None, include_orth=False, include_pols=False):
+    def __init__(self, fname=None, include_orth=True, include_pols=True):
         if fname is None:
             # fname is the name of the file to read in the design matrix
             self.design = np.zeros([0, 0])
@@ -188,18 +193,32 @@ class ReadDesign:
 
         self.include_orth = include_orth
         self.include_pols = include_pols
-        self.cols_used = np.where(self.column_types == 1)[0]
+        # The two flags above dictates whether columns corresponding to
+        # baseline drift modeled by polynomial functions of time and
+        # columns corresponding to other orthogonal signals (usually motion)
+        # are included in nuisance regressors.
+        self.cols_task = np.where(self.column_types == 1)[0]
+        self.design_task = self.design[:, self.cols_task]
+        if np.ndim(self.design_task) == 1:
+            self.design_task = self.design_task[:, None]
+        # part of the design matrix related to task conditions.
+        self.n_TR = np.size(self.design_task, axis=0)
+        self.cols_nuisance = np.array([])
         if self.include_orth:
-            self.cols_used = np.sort(
-                np.append(self.cols_used, np.where(self.column_types == 0)[0]))
+            self.cols_nuisance = np.int0(
+                np.sort(np.append(self.cols_nuisance,
+                                  np.where(self.column_types == 0)[0])))
         if self.include_pols:
-            self.cols_used = np.sort(np.append(
-                self.cols_used, np.where(self.column_types == -1)[0]))
-        self.design_used = self.design[:, self.cols_used]
-        if not self.include_pols:
-            # baseline is not included, then we add a column of all 1's
-            self.design_used = np.insert(self.design_used, 0, 1, axis=1)
-        self.n_TR = np.size(self.design_used, axis=0)
+            self.cols_nuisance = np.int0(
+                np.sort(np.append(self.cols_nuisance,
+                                  np.where(self.column_types == -1)[0])))
+        if np.size(self.cols_nuisance) > 0:
+            self.reg_nuisance = self.design[:, self.cols_nuisance]
+            if np.ndim(self.reg_nuisance) == 1:
+                self.reg_nuisance = self.reg_nuisance[:, None]
+        else:
+            self.reg_nuisance = None
+        # Nuisance regressors for motion, baseline, etc.
 
     def read_afni(self, fname):
         # Read design file written by AFNI
