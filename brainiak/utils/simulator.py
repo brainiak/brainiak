@@ -14,9 +14,35 @@
 
 """Brain Simulator
 
-Simulate neural data for a single subject. This involves specifying what
-feature_type of noise and signal will be present in the data, as well as basic
-properties like the number of voxels and TRs to be simulated
+Simulate neural data for a single subject.
+
+This code provides a set of functions necessary to produce realistic
+simulations of neural data.
+
+Steps:
+
+generate_signal
+Specify the volume (or volumes) which represent the signal in the neural data.
+
+generate_stimfunction
+Create a function to describe the stimulus onsets/durations
+
+double_gamma_hrf
+Convolve the stimulus function with the HRF to model when events are expected.
+
+apply_signal
+Combine the volume and the HRF
+
+generate_noise
+Create the noise for this run. This creates temporal, task and white noise.
+Various parameters can be tuned depending on need
+
+mask_brain
+Mask the volume to look like a volume. Based on MNI standard space
+
+plot_brain
+Show the brain as it unfolds over time with a given opacity.
+
 
  Authors: Cameron Ellis (Princeton) 2016
 """
@@ -26,9 +52,11 @@ import numpy as np
 import scipy.ndimage as ndimage
 import math
 from scipy import stats
+from pkg_resources import resource_stream
 
 __all__ = [
     "generate_signal",
+    "generate_stimfunction",
     "double_gamma_hrf",
     "apply_signal",
     "generate_noise",
@@ -345,21 +373,33 @@ def generate_stimfunction(onsets,
     if len(event_durations) == 1:
         event_durations = event_durations * len(onsets)
 
+    if (event_durations[0] / tr_duration).is_integer() is False:
+        logging.warning('Event durations are not a multiple of the TR '
+                        'duration, rounding down.')
+
+    if (onsets[0] / tr_duration).is_integer() is False:
+        logging.warning('Onsets are not a multiple of the TR duration, '
+                        'rounding down.')
+
     # Generate the time course as empty
     stimfunction = [0] * round(total_time / tr_duration)
 
     # Cycle through the onsets
     for onset_counter in list(range(0, len(onsets))):
         # Adjust for the resolution
-        onset_idx = round(onsets[onset_counter] / tr_duration)
+        onset_idx = int(np.floor(onsets[onset_counter] / tr_duration))
 
         # Adjust for the resolution
-        offset_idx = round((onsets[onset_counter] + event_durations[
-            onset_counter]) / tr_duration)
+        offset_idx = int(np.floor((onsets[onset_counter] + event_durations[
+            onset_counter]) / tr_duration))
 
         # For the appropriate indexes and duration, make this value 1
-        idxs = round(event_durations[onset_counter] / tr_duration)
-        stimfunction[onset_idx:offset_idx] = idxs * [1]
+        idx_number = round(event_durations[onset_counter] / tr_duration)
+        stimfunction[onset_idx:offset_idx] = idx_number * [1]
+
+    # Remove any indexes that are too long
+    if len(stimfunction) > total_time / tr_duration:
+        stimfunction = stimfunction[0:int(total_time / tr_duration)]
 
     return stimfunction
 
@@ -694,24 +734,6 @@ def _generate_noise_temporal_phys(timepoints,
     return noise_phys
 
 
-def _z_score(value):
-    """Z score a list
-
-    Parameters
-    ----------
-
-    value : list, float
-        Data to be z scored
-
-    Returns
-    ----------
-    list, float
-        Z scored data
-        """
-
-    return (np.mean(value) - value) / np.std(value)
-
-
 def _generate_noise_temporal(stimfunction,
                              tr_duration,
                              z_score=1,
@@ -797,10 +819,10 @@ def _generate_noise_temporal(stimfunction,
 
     # Do you want to z score it?
     if z_score == 1:
-        noise_task = _z_score(noise_task)
-        noise_phys = _z_score(noise_phys)
-        noise_drift = _z_score(noise_drift)
-        noise_autoregression = _z_score(noise_autoregression)
+        noise_task = stats.zscore(noise_task)
+        noise_phys = stats.zscore(noise_phys)
+        noise_drift = stats.zscore(noise_drift)
+        noise_autoregression = stats.zscore(noise_autoregression)
 
     # add the noise (it would have been nice to just add all of them in a
     # single line but this was causing formatting problems)
@@ -815,8 +837,14 @@ def _generate_noise_temporal(stimfunction,
 def _generate_noise_spatial(dimensions,
                             sigma=-4.0,
                             ):
-    """Generate code for Gaussian Random Fields. Based on code from
+    """Generate code for Gaussian Random Fields.
+    Adapted from code found here:
     http://andrewwalker.github.io/statefultransitions/post/gaussian-fields/
+    with permission from the author:
+    https://twitter.com/walkera101/status/785578499440377858. Original code
+    comes from http://mathematica.stackexchange.com/questions/4829
+    /efficiently-generating-n-d-gaussian-random-fields with a WTFPL (
+    http://www.wtfpl.net).
 
     Parameters
     ----------
@@ -924,7 +952,7 @@ def generate_noise(dimensions,
 
 
 def mask_brain(volume,
-               mask_name="brainiak/utils/grey_matter_mask.npy"):
+               mask_name="grey_matter_mask.npy"):
     """ Mask the simulated volume
 
     Parameters
@@ -942,8 +970,15 @@ def mask_brain(volume,
         The masked brain
     """
 
+    # If there is only one brain volume then make this a forth dimension
+    if len(volume.shape) == 3:
+        temp = np.zeros([volume.shape[0], volume.shape[1], volume.shape[2], 1])
+        temp[:, :, :, 0] = volume
+        volume = temp
+
     # Load in the mask
-    mask_raw = np.load(mask_name)
+    mask_raw = np.load(resource_stream(__name__, mask_name))
+    # mask_raw = np.load(mask_name)
 
     # Reshape the mask to be the size as the brain
     brain_dim = volume.shape
@@ -968,13 +1003,18 @@ def mask_brain(volume,
     return brain
 
 
-def plot_brain(brain,
+def plot_brain(fig,
+               brain,
                percentile=99,
-               starting_tr=0):
+               ):
     """ Display the brain that has been generated with a given threshold
 
     Parameters
     ----------
+
+    fig : matplotlib object
+        The figure to be displayed, generated from matplotlib. import
+        matplotlib.pyplot as plt; fig = plt.figure()
 
     brain : multidimensional array
         This is a 3d or 4d array with the neural data
@@ -983,76 +1023,39 @@ def plot_brain(brain,
         What percentage of voxels will be included? Based on the values
         supplied
 
-    starting_tr : int
-        What is the TR that this starts at
-
-
     """
 
-    import matplotlib.pyplot as plt
-    # This is necessary to make add_subplot work
-    from mpl_toolkits.mplot3d import Axes3D as temp
-
-    temp.__module__  # Do in order to remove the pep8 error generated above
-
-    fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    # If there is only one volume then add a fourth dimension to it
-    if len(brain.shape) == 3:
-        temp = np.zeros((brain.shape[0], brain.shape[1], brain.shape[2],
-                         1))  # Make a new matrix
-        temp[:, :, :, 0] = brain  # Insert the brain here
-        brain = temp  # rename
-
     # Threshold the data
+    threshold = np.percentile(brain.reshape(np.prod(brain.shape[0:3])),
+                              percentile)
 
-    brain_threshold_old = []
-    for tr_counter in list(range(starting_tr, brain.shape[3])):
+    # How many voxels exceed a threshold
+    brain_threshold = np.where(np.abs(brain) > threshold)
 
-        Threshold = np.percentile(
-            brain[:, :, :, tr_counter].reshape(np.prod(brain.shape[0:3])),
-            percentile)
+    brain_all = np.where(np.abs(brain) > 0)
 
-        # How many voxels exceed a threshold
-        brain_threshold = np.where(
-            np.abs(brain[:, :, :, tr_counter]) > Threshold)
+    # Clear the way
+    ax.clear()
 
-        brain_all = np.where(np.abs(brain[:, :, :, tr_counter]) > 0)
+    ax.set_xlim(0, brain.shape[0])
+    ax.set_ylim(0, brain.shape[1])
+    ax.set_zlim(0, brain.shape[2])
 
-        # Clear the way
-        ax.clear()
+    ax.scatter(brain_all[0],
+               brain_all[1],
+               brain_all[2],
+               zdir='z',
+               c='black',
+               s=10,
+               alpha=0.01)
 
-        ax.set_xlim(0, brain.shape[0])
-        ax.set_ylim(0, brain.shape[1])
-        ax.set_zlim(0, brain.shape[2])
+    ax.scatter(brain_threshold[0],
+               brain_threshold[1],
+               brain_threshold[2],
+               zdir='z',
+               c='red',
+               s=20)
 
-        ax.scatter(brain_all[0],
-                   brain_all[1],
-                   brain_all[2],
-                   zdir='z',
-                   c='black',
-                   s=10,
-                   alpha=0.01)
-
-        ax.scatter(brain_threshold[0],
-                   brain_threshold[1],
-                   brain_threshold[2],
-                   zdir='z',
-                   c='red',
-                   s=20)
-
-        if tr_counter > 0:
-            ax.scatter(brain_threshold_old[0],
-                       brain_threshold_old[1],
-                       brain_threshold_old[2],
-                       zdir='z',
-                       c='red',
-                       s=10)
-
-        # Store the most recent volume
-        brain_threshold_old = brain_threshold
-
-        # Wait for an input
-        print(tr_counter)
-        plt.pause(0.5)
+    return ax

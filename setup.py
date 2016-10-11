@@ -100,6 +100,8 @@ class BuildExt(build_ext):
             ext.extra_link_args = opts
         build_ext.build_extensions(self)
 
+__pkgdata__ = {u'brainiak/utils/grey_matter_mask': [u'*.npy']}
+
 setup(
     name='brainiak',
     version=__version__,
@@ -120,5 +122,6 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
+    package_data=__pkgdata__,
     zip_safe=False,
 )
