@@ -33,7 +33,7 @@ Linux
 
 Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
-    apt install build-essential cmake libgomp1 mpich python3-pip
+    apt install build-essential cmake libgomp1 mpich python3-dev python3-pip
 
 Install updated version of the following Python packages::
 
