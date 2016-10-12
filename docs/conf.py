@@ -17,6 +17,8 @@ import sys
 import os
 import shlex
 
+from setuptools_scm import get_version
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -64,7 +66,7 @@ author = 'Princeton Neuroscience Institute and Intel Corporation'
 # built documents.
 #
 # The short X.Y version.
-version = '0.1.0'
+version = get_version(root='..', relative_to=__file__)
 # The full version, including alpha/beta/rc tags.
 release = '0.1.0'
 

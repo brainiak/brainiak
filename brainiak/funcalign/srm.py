@@ -11,33 +11,39 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-"""Probabilistic Shared Response Model (SRM)
+"""Shared Response Model (SRM)
 
-This implementation is based on the following publications:
+The implementations are based on the following publications:
 
 .. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
    P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
    Advances in Neural Information Processing Systems (NIPS), 2015.
    http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
 
-.. [Anderson2016] "Scaling Up Machine Learning Algorithms For Multi-Subject
-   Neuroimaging Analysis",
+.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
+   Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
    Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
-   Kenneth A. Norman, under review, 2016.
+   Kenneth A. Norman, arXiv preprint, 2016.
+   https://arxiv.org/abs/1608.04647
 """
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek
 # (Intel Labs), 2015
 
+import logging
+
 import numpy as np
 import scipy
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
+from sklearn.utils.validation import NotFittedError
 
 __all__ = [
-    "SRM",
+    "SRM", "DetSRM"
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def _init_w_transforms(data, features):
@@ -76,14 +82,14 @@ def _init_w_transforms(data, features):
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
         voxels[subject] = data[subject].shape[0]
-        rnd_matrix = np.mat(np.random.random((voxels[subject], features)))
+        rnd_matrix = np.random.random((voxels[subject], features))
         q, r = np.linalg.qr(rnd_matrix)
         w.append(q)
 
     return w, voxels
 
 
-class SRM(BaseEstimator):
+class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM)
 
     Given multi-subject data, factorize it as a shared response S among all
@@ -102,9 +108,6 @@ class SRM(BaseEstimator):
 
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
-
-    verbose : boolean, default: False
-        Verbose mode flag.
 
 
     Attributes
@@ -136,17 +139,16 @@ class SRM(BaseEstimator):
 
        This is a single node version.
 
-       The run-time complexity is :math:`O(I (V T K + K^3))` and the memory
-       complexity is :math:`O(V T)` with I - the number of iterations, V - the
-       sum of voxels from all subjects, T - the number of samples, and K - the
-       number of features (typically, :math:`V \\gg T \\gg K`).
+       The run-time complexity is :math:`O(I (V T K + V K^2 + K^3))` and the
+       memory complexity is :math:`O(V T)` with I - the number of iterations,
+       V - the sum of voxels from all subjects, T - the number of samples, and
+       K - the number of features (typically, :math:`V \\gg T \\gg K`).
     """
 
-    def __init__(self, n_iter=10, features=50, rand_seed=0, verbose=False):
+    def __init__(self, n_iter=10, features=50, rand_seed=0):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
-        self.verbose = verbose
         return
 
     def fit(self, X, y=None):
@@ -159,8 +161,7 @@ class SRM(BaseEstimator):
 
         y : not used
         """
-        if self.verbose:
-            print('Running Probabilistic SRM')  # noqa FIXME
+        logger.info('Starting Probabilistic SRM')
 
         # Check the number of subjects
         if len(X) <= 1:
@@ -179,13 +180,45 @@ class SRM(BaseEstimator):
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError(
-                    "Different number of samples between subjects.")
+                raise ValueError("Different number of samples between subjects"
+                                 ".")
 
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
         return self
+
+    def transform(self, X, y=None):
+        """Use the model to transform matrix to Shared Response space
+
+        Parameters
+        ----------
+        X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
+            Each element in the list contains the fMRI data of one subject
+            note that number of voxels and samples can vary across subjects
+        y : not used (as it is unsupervised learning)
+
+
+        Returns
+        -------
+        s : list of 2D arrays, element i has shape=[features_i, samples_i]
+            Shared responses from input data (X)
+        """
+
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of subjects
+        if len(X) != len(self.w_):
+            raise ValueError("The number of subjects does not match the one"
+                             " in the model.")
+
+        s = [None] * len(X)
+        for subject in range(len(X)):
+            s[subject] = self.w_[subject].T.dot(X[subject])
+
+        return s
 
     def _init_structures(self, data, subjects):
         """Initializes data structures for SRM and preprocess the data.
@@ -319,8 +352,7 @@ class SRM(BaseEstimator):
 
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
-            if self.verbose:
-                print('Iteration %d' % (iteration + 1))  # noqa FIXME
+            logger.info('Iteration %d' % (iteration + 1))
 
             # E-step:
 
@@ -367,8 +399,6 @@ class SRM(BaseEstimator):
             # Update each subject's mapping transform W_i and error variance
             # rho_i^2
             for subject in range(subjects):
-                if self.verbose:
-                    print('.'),  # noqa FIXME
                 a_subject = x[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
@@ -380,13 +410,245 @@ class SRM(BaseEstimator):
                 rho2[subject] += trace_sigma_s
                 rho2[subject] /= samples * voxels[subject]
 
-            if self.verbose:
-                # Calculate and print the current log-likelihood for checking
+            if logger.isEnabledFor(logging.INFO):
+                # Calculate and log the current log-likelihood for checking
                 # convergence
                 loglike = self._likelihood(
                     chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
                     trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                     samples)
-                print('Objective function %f' % loglike)  # noqa FIXME
+                logger.info('Objective function %f' % loglike)
 
         return sigma_s, w, mu, rho2, shared_response
+
+
+class DetSRM(BaseEstimator, TransformerMixin):
+    """Deterministic Shared Response Model (DetSRM)
+
+    Given multi-subject data, factorize it as a shared response S among all
+    subjects and an orthogonal transform W per subject:
+
+    .. math:: X_i \\approx W_i S ,~for~all~i=1\dots N
+
+    Parameters
+    ----------
+
+    n_iter : int, default: 10
+        Number of iterations to run the algorithm.
+
+    features : int, default: 50
+        Number of features to compute.
+
+    rand_seed : int, default: 0
+        Seed for initializing the random number generator.
+
+
+    Attributes
+    ----------
+
+    w_ : list of array, element i has shape=[voxels_i, features]
+        The orthogonal transforms (mappings) for each subject.
+
+    s_ : array, shape=[features, samples]
+        The shared response.
+
+    .. note::
+       The number of voxels may be different between subjects. However, the
+       number of samples must be the same across subjects.
+
+       The Deterministic Shared Response Model is approximated using the
+       Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
+
+       This is a single node version.
+
+       The run-time complexity is :math:`O(I (V T K + V K^2))` and the memory
+       complexity is :math:`O(V T)` with I - the number of iterations, V - the
+       sum of voxels from all subjects, T - the number of samples, K - the
+       number of features (typically, :math:`V \\gg T \\gg K`), and N - the
+       number of subjects.
+    """
+
+    def __init__(self, n_iter=10, features=50, rand_seed=0):
+        self.n_iter = n_iter
+        self.features = features
+        self.rand_seed = rand_seed
+        return
+
+    def fit(self, X, y=None):
+        """Compute the Deterministic Shared Response Model
+
+        Parameters
+        ----------
+        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+        y : not used
+        """
+        logger.info('Starting Deterministic SRM')
+
+        # Check the number of subjects
+        if len(X) <= 1:
+            raise ValueError("There are not enough subjects "
+                             "({0:d}) to train the model.".format(len(X)))
+
+        # Check for input data sizes
+        if X[0].shape[1] < self.features:
+            raise ValueError(
+                "There are not enough samples to train the model with "
+                "{0:d} features.".format(self.features))
+
+        # Check if all subjects have same number of TRs
+        number_trs = X[0].shape[1]
+        number_subjects = len(X)
+        for subject in range(number_subjects):
+            assert_all_finite(X[subject])
+            if X[subject].shape[1] != number_trs:
+                raise ValueError("Different number of samples between subjects"
+                                 ".")
+
+        # Run SRM
+        self.w_, self.s_ = self._srm(X)
+
+        return self
+
+    def transform(self, X, y=None):
+        """Use the model to transform data to the Shared Response subspace
+
+        Parameters
+        ----------
+        X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
+            Each element in the list contains the fMRI data of one subject.
+
+        y : not used
+
+
+        Returns
+        -------
+        s : list of 2D arrays, element i has shape=[features_i, samples_i]
+            Shared responses from input data (X)
+        """
+
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of subjects
+        if len(X) != len(self.w_):
+            raise ValueError("The number of subjects does not match the one"
+                             " in the model.")
+
+        s = [None] * len(X)
+        for subject in range(len(X)):
+            s[subject] = self.w_[subject].T.dot(X[subject])
+
+        return s
+
+    def _objective_function(self, data, w, s):
+        """Calculate the objective function
+
+        Parameters
+        ----------
+
+        data : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+        w : list of 2D arrays, element i has shape=[voxels_i, features]
+            The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
+        s : array, shape=[features, samples]
+            The shared response
+
+        Returns
+        -------
+
+        objective : float
+            The objective function value.
+        """
+        subjects = len(data)
+        objective = 0.0
+        for m in range(subjects):
+            objective += \
+                np.linalg.norm(data[m] - w[m].dot(s), 'fro')**2
+
+        return objective * 0.5 / data[0].shape[1]
+
+    def _compute_shared_response(self, data, w):
+        """ Compute the shared response S
+
+        Parameters
+        ----------
+
+        data : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+        w : list of 2D arrays, element i has shape=[voxels_i, features]
+            The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
+        Returns
+        -------
+
+        s : array, shape=[features, samples]
+            The shared response for the subjects data with the mappings in w.
+        """
+        s = np.zeros((w[0].shape[1], data[0].shape[1]))
+        for m in range(len(w)):
+            s = s + w[m].T.dot(data[m])
+        s /= len(w)
+
+        return s
+
+    def _srm(self, data):
+        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+
+        Parameters
+        ----------
+
+        data : list of 2D arrays, element i has shape=[voxels_i, samples]
+            Each element in the list contains the fMRI data of one subject.
+
+
+        Returns
+        -------
+
+        w : list of array, element i has shape=[voxels_i, features]
+            The orthogonal transforms (mappings) :math:`W_i` for each subject.
+
+        s : array, shape=[features, samples]
+            The shared response.
+        """
+
+        subjects = len(data)
+
+        np.random.seed(self.rand_seed)
+
+        # Initialization step: initialize the outputs with initial values,
+        # voxels with the number of voxels in each subject.
+        w, _ = _init_w_transforms(data, self.features)
+        shared_response = self._compute_shared_response(data, w)
+        if logger.isEnabledFor(logging.INFO):
+            # Calculate the current objective function value
+            objective = self._objective_function(data, w, shared_response)
+            logger.info('Objective function %f' % objective)
+
+        # Main loop of the algorithm
+        for iteration in range(self.n_iter):
+            logger.info('Iteration %d' % (iteration + 1))
+
+            # Update each subject's mapping transform W_i:
+            for subject in range(subjects):
+                a_subject = data[subject].dot(shared_response.T)
+                perturbation = np.zeros(a_subject.shape)
+                np.fill_diagonal(perturbation, 0.001)
+                u_subject, _, v_subject = np.linalg.svd(
+                    a_subject + perturbation, full_matrices=False)
+                w[subject] = u_subject.dot(v_subject)
+
+            # Update the shared response:
+            shared_response = self._compute_shared_response(data, w)
+
+            if logger.isEnabledFor(logging.INFO):
+                # Calculate the current objective function value
+                objective = self._objective_function(data, w, shared_response)
+                logger.info('Objective function %f' % objective)
+
+        return w, shared_response

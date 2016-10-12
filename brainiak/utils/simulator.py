@@ -68,7 +68,9 @@ logger = logging.getLogger(__name__)
 
 
 def _generate_feature(feature_type, feature_size, signal_magnitude):
-    """Generate signal in specific regions of the brain with for a single
+    """Generate features corresponding to signal
+
+    Generate signal in specific regions of the brain with for a single
     volume. This will then be convolved with the HRF across time
 
     Parameters
@@ -175,7 +177,7 @@ def _generate_feature(feature_type, feature_size, signal_magnitude):
 
 
 def _insert_idxs(feature_centre, feature_size, dimensions):
-    """What are the coordinates of where to insert the signal?
+    """Returns the indexes of where to put the signal into Volume_Static
 
     Parameters
     ----------
@@ -242,7 +244,9 @@ def generate_signal(dimensions,
                     signal_magnitude,
                     signal_constant=1,
                     ):
-    """Generate signal in specific regions of the brain with for a single
+    """Generate volume containing signal
+
+    Generate signal in specific regions of the brain with for a single
     volume. This will then be convolved with the HRF across time
 
     Parameters
@@ -339,7 +343,8 @@ def generate_stimfunction(onsets,
                           total_time,
                           tr_duration,
                           ):
-    """
+    """Return the function for the onset of events
+
     When do stimuli onset, how long for and to what extent should you
     resolve the fMRI time course
 
@@ -410,7 +415,7 @@ def double_gamma_hrf(stimfunction,
                      response_dispersion=0.9,
                      undershoot_dispersion=0.9,
                      undershoot_scale=0.035):
-    """Model a double gamma HRF
+    """Return a double gamma HRF
 
     Parameters
     ----------
@@ -479,7 +484,8 @@ def double_gamma_hrf(stimfunction,
 
 def apply_signal(signal_function,
                  volume_static):
-    """Generate the scanner noise
+    """Apply the convolution and stimfunction
+
     Apply the convolution of the HRF and stimulus time course to the
     volume.
 
@@ -517,6 +523,7 @@ def _generate_noise_system(dimensions,
                            sigma=1.5,
                            ):
     """Generate the scanner noise
+
     Generate the noise that is typical of a scanner. This is comprised
     of two types of noise, Rician and Gaussian
 
@@ -554,6 +561,7 @@ def _generate_noise_temporal_task(stimfunction,
                                   motion_noise='gaussian',
                                   ):
     """Generate the signal dependent noise
+
     This noise depends on things like the signal or the timing of the
     experiment.
 
@@ -601,6 +609,7 @@ def _generate_noise_temporal_drift(trs,
                                    ):
 
     """Generate the drift noise
+
     According to AFNI (https://afni.nimh.nih.gov/pub/dist/doc/
     program_help/3dDeconvolve.html) the appropriate order of the
     polynomial to fit for temporal drift is calculated as follows
@@ -745,6 +754,7 @@ def _generate_noise_temporal(stimfunction,
                              physiological_sigma=15,
                              ):
     """Generate the signal dependent noise
+
     This noise depends on things like the signal or the timing of the
     experiment.
 
@@ -838,6 +848,7 @@ def _generate_noise_spatial(dimensions,
                             sigma=-4.0,
                             ):
     """Generate code for Gaussian Random Fields.
+
     Adapted from code found here:
     http://andrewwalker.github.io/statefultransitions/post/gaussian-fields/
     with permission from the author:
@@ -1022,6 +1033,11 @@ def plot_brain(fig,
     percentile : float
         What percentage of voxels will be included? Based on the values
         supplied
+
+    Returns
+    ----------
+    ax : matplotlib object
+        Object with the information to be plotted
 
     """
 

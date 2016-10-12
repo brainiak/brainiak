@@ -1,5 +1,3 @@
-#!/bin/bash
-
 #  Copyright 2016 Intel Corporation
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
-set -o pipefail
 
-flake8 --config setup.cfg brainiak
-rst-lint *.rst | { grep -v "is clean.$" || true; }
+from libc.math cimport log
+import numpy as np
+cimport numpy as np
+
+def masked_log(x):
+    """x is a 1D numpy array"""
+    """returns -Inf for x <=0 and log(x) otherwise"""
+    y = np.empty(x.shape, dtype=x.dtype)
+    lim = x.shape[0]
+    for i in range(lim):
+      if x[i] <= 0:
+        y[i] = float('-inf')
+      else:
+        y[i] = log(x[i])
+    return y
+

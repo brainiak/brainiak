@@ -1,9 +1,9 @@
-cython
+coverage
 flake8
 flake8-print
+numdifftools
 pytest
-pytest-cov
-pytest-cython
 restructuredtext-lint
+setuptools_scm
 sphinx
 sphinx_rtd_theme
