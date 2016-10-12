@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""Brain Simulator test script
+"""fMRI Simulator test script
 
 Test script for generating a run of a participant's data.
 
@@ -20,7 +20,7 @@ Test script for generating a run of a participant's data.
 """
 import numpy as np
 import math
-from brainiak.utils import simulator as sim
+from brainiak.utils import fmrisim as sim
 
 
 def test_generate_signal():

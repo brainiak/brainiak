@@ -12,9 +12,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""Brain Simulator
+"""fMRI Simulator
 
-Simulate neural data for a single subject.
+Simulate fMRI data for a single subject.
 
 This code provides a set of functions necessary to produce realistic
 simulations of neural data.
@@ -963,7 +963,7 @@ def generate_noise(dimensions,
 
 
 def mask_brain(volume,
-               mask_name="grey_matter_mask.npy"):
+               mask_name=None):
     """ Mask the simulated volume
 
     Parameters
@@ -981,15 +981,17 @@ def mask_brain(volume,
         The masked brain
     """
 
+    # Load in the mask
+    if mask_name is None:
+        mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
+    else:
+        mask_raw = np.load(mask_name)
+
     # If there is only one brain volume then make this a forth dimension
     if len(volume.shape) == 3:
         temp = np.zeros([volume.shape[0], volume.shape[1], volume.shape[2], 1])
         temp[:, :, :, 0] = volume
         volume = temp
-
-    # Load in the mask
-    mask_raw = np.load(resource_stream(__name__, mask_name))
-    # mask_raw = np.load(mask_name)
 
     # Reshape the mask to be the size as the brain
     brain_dim = volume.shape

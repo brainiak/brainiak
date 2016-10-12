@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""Brain Simulator example script
+"""fMRI Simulator example script
 
 Example script to generate a run of a participant's data. This generates
 data representing a pair of conditions that are then combined
@@ -22,13 +22,11 @@ data representing a pair of conditions that are then combined
 import logging
 
 import numpy as np
-from brainiak.utils import simulator as sim
+from brainiak.utils import fmrisim as sim
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D as temp
+from mpl_toolkits.mplot3d import Axes3D # noqa: F401
 
 logger = logging.getLogger(__name__)
-
-temp.__module__  # Do in order to remove the pep8 error generated above
 
 # Inputs for generate_signal
 dimensions = np.array([64, 64, 36]) # What is the size of the brain
@@ -83,14 +81,14 @@ stimfunction_B = sim.generate_stimfunction(onsets=onsets_B,
                                            tr_duration=tr_duration,
                                            )
 
-# Create the signal function
+# Convolve the HRF with the stimulus sequence
 signal_function_A = sim.double_gamma_hrf(stimfunction=stimfunction_A,
                                          )
 
 signal_function_B = sim.double_gamma_hrf(stimfunction=stimfunction_B,
                                          )
 
-# Convolve the HRF with the stimulus sequence
+# Multiply the HRF timecourse with the signal
 signal_A = sim.apply_signal(signal_function=signal_function_A,
                             volume_static=volume_static_A,
                             )
