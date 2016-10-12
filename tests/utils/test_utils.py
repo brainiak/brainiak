@@ -85,7 +85,7 @@ def test_ReadDesign():
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     design = ReadDesign(fname=file_path, include_orth=False, include_pols=False)
     assert design, 'Failed to read design matrix'
-    assert design.reg_nuiance is None, \
+    assert design.reg_nuisance is None, \
         'Nuiance regressor is not None when include_orth and include_pols are'\
         ' both set to False'
     read = ReadDesign()
@@ -95,6 +95,6 @@ def test_ReadDesign():
         'Mistake in counting the number of nuiance regressors'
     assert np.size(design.cols_task) == 17, \
         'Mistake in counting the number of task conditions'
-    assert np.shape(design.reg_nuiance)[0] == np.shape(design.design_task)[0],\
+    assert np.shape(design.reg_nuisance)[0] == np.shape(design.design_task)[0],\
         'The number of time points in nuiance regressor does not match'\
         ' that of task response'

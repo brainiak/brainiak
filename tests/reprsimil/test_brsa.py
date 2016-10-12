@@ -137,12 +137,12 @@ def test_fit():
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
+    assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     p = scipy.stats.pearsonr(brsa.sigma_,noise_level)[1]
-    assert p < 0.01, "Fitted noise level does not correlate with simualted noise level!"
+    assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
     p = scipy.stats.pearsonr(brsa.rho_,rho1)[1]
-    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simualted values!"
+    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
 
 
     # Test fitting with lower rank and without GP prior
@@ -156,12 +156,12 @@ def test_fit():
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
+    assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     p = scipy.stats.pearsonr(brsa.sigma_,noise_level)[1]
-    assert p < 0.01, "Fitted noise level does not correlate with simualted noise level!"
+    assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
     p = scipy.stats.pearsonr(brsa.rho_,rho1)[1]
-    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simualted values!"
+    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
 
     assert not hasattr(brsa,'bGP_') and not hasattr(brsa,'lGPspace_') and not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of GP if GP is not requested.'
@@ -180,12 +180,12 @@ def test_fit():
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
     # check that the recovered SNRs makes sense
     p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    assert p < 0.01, "Fitted SNR does not correlate with simualted SNR!"
+    assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
     assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
     p = scipy.stats.pearsonr(brsa.sigma_,noise_level)[1]
-    assert p < 0.01, "Fitted noise level does not correlate with simualted noise level!"
+    assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
     p = scipy.stats.pearsonr(brsa.rho_,rho1)[1]
-    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simualted values!"
+    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
     assert not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
     # GP parameters are not set if not requested
@@ -241,9 +241,6 @@ def test_gradient():
 
     # generating signal
     snr_level = 5.0 # test with high SNR
-    # snr = np.random.rand(n_V)*(snr_top-snr_bot)+snr_bot
-    # Notice that accurately speaking this is not snr. the magnitude of signal depends
-    # not only on beta but also on x.
     inten = np.random.randn(n_V) * 20.0
 
     # parameters of Gaussian process to generate pseuso SNR
@@ -262,6 +259,8 @@ def test_gradient():
 
     L = np.linalg.cholesky(K)
     snr = np.exp(np.dot(L,np.random.randn(n_V))) * snr_level
+    # Notice that accurately speaking this is not snr. the magnitude of signal depends
+    # not only on beta but also on x.
     sqrt_v = noise_level*snr
     betas_simulated = np.dot(L_full,np.random.randn(n_C,n_V)) * sqrt_v
     signal = np.dot(design.design_task,betas_simulated)
@@ -269,9 +268,7 @@ def test_gradient():
     # Adding noise to signal as data
     Y = signal + noise
 
-
     scan_onsets = np.linspace(0,design.n_TR,num=n_run+1)
-
 
     # Test fitting with GP prior.
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,rank=n_C)
@@ -296,9 +293,6 @@ def test_gradient():
         'Dimension of X0TY etc. returned from _prepare_data is wrong'
     X0 = np.ones(n_T)
     l_idx = np.tril_indices(n_C)
-    # rank = n_C - 1
-    # idx_rank = np.where(l_idx[1] < rank)
-    # l_idx = (l_idx[0][idx_rank], l_idx[1][idx_rank])
     n_l = np.size(l_idx[0])
 
     # Make sure all the fields are in the indices.
@@ -315,7 +309,6 @@ def test_gradient():
     param0_fitU = np.random.randn(n_l+n_V) * 0.1
     param0_fitV = np.random.randn(n_V+1) * 0.1
     param0_sing = np.random.randn(n_l+1) * 0.1
-    # param0_sing[idx_param_sing['log_sigma2']] += np.mean(np.log(noise_level)) * 2
     param0_sing[idx_param_sing['a1']] += np.mean(np.tan(rho1 * np.pi / 2))
     param0_fitV[idx_param_fitV['log_SNR2']] += np.log(snr[:n_V-1])*2
     param0_fitV[idx_param_fitV['c_space']] += np.log(smooth_width)*2
