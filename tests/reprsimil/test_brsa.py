@@ -117,7 +117,7 @@ def test_fit():
 
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuiance=False)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuisance=False)
 
     # We also test that it can detect baseline regressor included in the design matrix for task conditions
     wrong_design = np.insert(design.design_task, 0, 1, axis=1)
@@ -273,13 +273,19 @@ def test_gradient():
     # Test fitting with GP prior.
     brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,rank=n_C)
 
-    # test if the gradients are correct
-    XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-        XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-        X0TY, X0TDY, X0TFY, X0, n_run_returned, n_base =\
-            brsa._prepare_data(design.design_task,Y,n_T,scan_onsets)
+    # Additionally, we test the generation of re-used terms.
+    X0 = np.ones(n_T)[:, None]
+    D, F, run_TRs, n_run_returned = brsa._prepare_DF(
+        n_T, scan_onsets=scan_onsets)
     assert n_run_returned == n_run, 'There is mistake in counting number of runs'
-    assert np.ndim(XTY) == 2 and np.ndim(XTDY) == 2 and np.ndim(XTFY) == 2,\
+    assert np.sum(run_TRs) == n_T, 'The segmentation of the total experiment duration is wrong'
+    XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
+        XTDX, XTFX = brsa._prepare_data_XY(design.design_task, Y, D, F)
+    X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+        X0TY, X0TDY, X0TFY, X0, n_base = brsa._prepare_data_XYX0(
+            design.design_task, Y, X0, D, F, run_TRs, no_DC=False)
+    assert np.shape(XTY) == (n_C, n_V) and np.shape(XTDY) == (n_C, n_V) \
+        and np.shape(XTFY) == (n_C, n_V),\
         'Dimension of XTY etc. returned from _prepare_data is wrong'
     assert np.ndim(YTY_diag) == 1 and np.ndim(YTDY_diag) == 1 and np.ndim(YTFY_diag) == 1,\
         'Dimension of YTY_diag etc. returned from _prepare_data is wrong'
@@ -291,9 +297,9 @@ def test_gradient():
         'Dimension of XTX0 etc. returned from _prepare_data is wrong'
     assert np.ndim(X0TY) == 2 and np.ndim(X0TDY) == 2 and np.ndim(X0TFY) == 2,\
         'Dimension of X0TY etc. returned from _prepare_data is wrong'
-    X0 = np.ones(n_T)
     l_idx = np.tril_indices(n_C)
     n_l = np.size(l_idx[0])
+
 
     # Make sure all the fields are in the indices.
     idx_param_sing, idx_param_fitU, idx_param_fitV = brsa._build_index_param(n_l, n_V, 2)
@@ -313,7 +319,8 @@ def test_gradient():
     param0_fitV[idx_param_fitV['log_SNR2']] += np.log(snr[:n_V-1])*2
     param0_fitV[idx_param_fitV['c_space']] += np.log(smooth_width)*2
     param0_fitV[idx_param_fitV['c_inten']] += np.log(inten_kernel)*2
-    
+
+    # test if the gradients are correct
     # log likelihood and derivative of the _singpara function
     ll0, deriv0 = brsa._loglike_AR1_singpara(param0_sing, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                              XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,

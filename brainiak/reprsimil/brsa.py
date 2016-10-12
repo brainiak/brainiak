@@ -78,24 +78,24 @@ class BRSA(BaseEstimator):
         (e.g., calculating the similarity matrix of responses to each event),
         you might want to start with specifying a lower rank and use metrics
         such as AIC or BIC to decide the optimal rank.
-    auto_nuiance: boolean, default: True
+    auto_nuisance: boolean, default: True
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
         we assume that a set of time courses not related to the task
         conditions are shared across voxels with unknown amplitudes.
         One approach is for users to provide time series which they consider
-        as nuiance but exist in the noise (such as head motion).
+        as nuisance but exist in the noise (such as head motion).
         The other way is to take the first n_nureg principal components
         in the residual after one fitting of the Bayesian RSA model, and use
         these components as the nuisance regressor.
-        If this flag is turned on, the nuiance regressor provided by the
+        If this flag is turned on, the nuisance regressor provided by the
         user is used only in the first round of fitting. The PCs from
         residuals will be used in the next round of fitting.
-        Note that nuiance regressor is not required from user. If it is
-        not provided, DC components for each run will be used as nuiance
+        Note that nuisance regressor is not required from user. If it is
+        not provided, DC components for each run will be used as nuisance
         regressor in the initial fitting.
     n_nureg: int, default: 6
-        Number of nuiance regressors to use in order to model signals
+        Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This parameter will not be effective in the first round of fitting.
     GP_space: boolean, default: False
@@ -178,7 +178,7 @@ class BRSA(BaseEstimator):
 
     def __init__(
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
-            tol=2e-3, auto_nuiance=True, n_nureg=6, verbose=False,
+            tol=2e-3, auto_nuisance=True, n_nureg=6, verbose=False,
             eta=0.0001, space_smooth_range=None, inten_smooth_range=None,
             tau_range=10.0, init_iter=20, optimizer='BFGS', rand_seed=0):
         self.n_iter = n_iter
@@ -186,7 +186,7 @@ class BRSA(BaseEstimator):
         self.GP_space = GP_space
         self.GP_inten = GP_inten
         self.tol = tol
-        self.auto_nuiance = auto_nuiance
+        self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         self.verbose = verbose
         self.eta = eta
@@ -207,7 +207,7 @@ class BRSA(BaseEstimator):
         self.rand_seed = rand_seed
         return
 
-    def fit(self, X, design, nuiance=None, scan_onsets=None, coords=None,
+    def fit(self, X, design, nuisance=None, scan_onsets=None, coords=None,
             inten=None):
         """Compute the Bayesian RSA
 
@@ -223,12 +223,12 @@ class BRSA(BaseEstimator):
             response for task conditions. You do not need to include
             regressors for a DC component or motion parameters, unless with
             a strong reason. If you want to model DC component or head motion,
-            you should include them in nuiance regressors.
+            you should include them in nuisance regressors.
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
             with one column across runs for each condition.
-        nuiance: optional, 2-D numpy array,
-            shape=[time_points, nuiance_factors]
+        nuisance: optional, 2-D numpy array,
+            shape=[time_points, nuisance_factors]
             The responses to these regressors will be marginalized out from
             each voxel, which means they are considered, but won't be assumed
             to share the same pseudo-SNR map with with the design matrix.
@@ -236,14 +236,14 @@ class BRSA(BaseEstimator):
             relative contribution of design matrix to each voxel.
             You can provide time courses such as those for head motion
             to this parameter.
-            Note that if auto_nuiance is set to True, this input
+            Note that if auto_nuisance is set to True, this input
             will only be used in the first round of fitting. The first
             n_nureg principal components of residual (excluding the response
-            to the design matrix) will be used as the nuiance regressor
+            to the design matrix) will be used as the nuisance regressor
             for the second round of fitting.
-            If auto_nuiance is set to False, the nuiance regressors supplied
+            If auto_nuisance is set to False, the nuisance regressors supplied
             by the users together with DC components will be used as
-            nuiance time series.
+            nuisance time series.
         scan_onsets: optional, an 1-D numpy array, shape=[runs,]
             This specifies the indices of X which correspond to the onset
             of each scanning run. For example, if you have two experimental
@@ -296,16 +296,18 @@ class BRSA(BaseEstimator):
         assert self.rank is None or self.rank <= design.shape[1],\
             'Your design matrix has fewer columns than the rank you set'
 
-        # Check the nuiance regressors.
-        if nuiance is not None:
-            assert_all_finite(nuiance)
-            assert np.linalg.matrix_rank(nuiance) == nuiance.shape[1], \
-                'The nuiance regressor has rank smaller than the number of'\
+        # Check the nuisance regressors.
+        if nuisance is not None:
+            assert_all_finite(nuisance)
+            assert nuisance.ndim == 2,\
+                'The nuisance regressor should be 2 dimension ndarray'
+            assert np.linalg.matrix_rank(nuisance) == nuisance.shape[1], \
+                'The nuisance regressor has rank smaller than the number of'\
                 'columns. Some columns can be explained by linear '\
-                'combination of other columns. Please check your nuiance' \
+                'combination of other columns. Please check your nuisance' \
                 'regressors.'
-            assert np.size(nuiance, axis=0) == np.size(X, axis=0), \
-                'Nuiance regressor and data do not have the same '\
+            assert np.size(nuisance, axis=0) == np.size(X, axis=0), \
+                'Nuisance regressor and data do not have the same '\
                 ' number of time points.'
         # check scan_onsets validity
         assert scan_onsets is None or\
@@ -348,7 +350,7 @@ class BRSA(BaseEstimator):
             # without imposing any Gaussian Process prior on log(SNR^2)
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
                 self.sigma_, self.rho_ = \
-                self._fit_RSA_UV(X=design, Y=X, X0=nuiance,
+                self._fit_RSA_UV(X=design, Y=X, X0=nuisance,
                                  scan_onsets=scan_onsets)
         elif not self.GP_inten:
             # If GP_space is requested, but GP_inten is not, a GP prior
@@ -356,7 +358,7 @@ class BRSA(BaseEstimator):
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
                 self.sigma_, self.rho_, self.lGPspace_, self.bGP_ \
                 = self._fit_RSA_UV(
-                    X=design, Y=X, X0=nuiance,
+                    X=design, Y=X, X0=nuisance,
                     scan_onsets=scan_onsets, coords=coords)
         else:
             # If both self.GP_space and self.GP_inten are True,
@@ -364,7 +366,7 @@ class BRSA(BaseEstimator):
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
                 self.sigma_, self.rho_, self.lGPspace_, self.bGP_,\
                 self.lGPinten_ = \
-                self._fit_RSA_UV(X=design, Y=X, X0=nuiance,
+                self._fit_RSA_UV(X=design, Y=X, X0=nuisance,
                                  scan_onsets=scan_onsets,
                                  coords=coords, inten=inten)
 
@@ -387,7 +389,7 @@ class BRSA(BaseEstimator):
     # For example, in X'AX = X'(I + rho1*D + rho1**2*F)X / sigma2,
     # the products X'X, X'DX, X'FX, etc. can always be re-used if they
     # are pre-calculated. Therefore, _D_gen and _F_gen constructs matrices
-    # D and F, and _prepare_data calculates these products that can be
+    # D and F, and _prepare_data_* calculates these products that can be
     # re-used. In principle, once parameters have been fitted for a
     # dataset, they can be updated for new incoming data by adding the
     # products X'X, X'DX, X'FX, X'Y etc. from new data to those from
@@ -409,16 +411,12 @@ class BRSA(BaseEstimator):
         else:
             return np.empty([0, 0])
 
-    def _prepare_data(self, X, Y, n_T, scan_onsets=None, X0=None, no_DC=True):
-        """Prepares different forms of products of design matrix X and data Y,
-        or between themselves. These products are reused a lot during fitting.
-        So we pre-calculate them. Because of the fact that these are reused,
-        it is in principle possible to update the fitting as new data come in,
-        by just incrementally adding the products of new data and
-        their corresponding part of design matrix
-        no_DC means not inserting regressors for DC components into nuiance
-        regressor. It will only take effect if X0 is not None.
-        """
+    def _prepare_DF(self, n_T, scan_onsets=None):
+        """ Prepare the essential template matrices D and F for
+            pre-calculating some terms to be re-used.
+            The inverse covariance matrix of AR(1) noise is
+            sigma^-2 * (I - rho1*D + rho1**2 * F).
+            And we denote A = I - rho1*D + rho1**2 * F"""
         if scan_onsets is None:
             # assume that all data are acquired within the same scan.
             D = np.diag(np.ones(n_T - 1), -1) + np.diag(np.ones(n_T - 1), 1)
@@ -450,7 +448,18 @@ class BRSA(BaseEstimator):
                 F = scipy.linalg.block_diag(F, f_ele)
             # D and F above are templates for constructing
             # the inverse of temporal covariance matrix of noise
+        return D, F, run_TRs, n_run
 
+    def _prepare_data_XY(self, X, Y, D, F):
+        """Prepares different forms of products of design matrix X
+            and data Y, or between themselves.
+            These products are re-used a lot during fitting.
+            So we pre-calculate them. Because these are reused,
+            it is in principle possible to update the fitting
+            as new data come in, by just incrementally adding
+            the products of new data and their corresponding parts
+            of design matrix to these pre-calculated terms.
+        """
         XTY, XTDY, XTFY = self._make_templates(D, F, X, Y)
 
         YTY_diag = np.sum(Y * Y, axis=0)
@@ -458,6 +467,19 @@ class BRSA(BaseEstimator):
         YTFY_diag = np.sum(Y * np.dot(F, Y), axis=0)
 
         XTX, XTDX, XTFX = self._make_templates(D, F, X, X)
+
+        return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
+            XTDX, XTFX
+
+    def _prepare_data_XYX0(self, X, Y, X0, D, F, run_TRs, no_DC=False):
+        """Prepares different forms of products between design matrix X or
+            data Y or nuisance regressors X0 and X0.
+            These products are re-used a lot during fitting.
+            So we pre-calculate them.
+            no_DC means not inserting regressors for DC components
+            into nuisance regressor.
+            It will only take effect if X0 is not None.
+        """
 
         X_base = []
         for r_l in run_TRs:
@@ -494,9 +516,8 @@ class BRSA(BaseEstimator):
         XTX0, XTDX0, XTFX0 = self._make_templates(D, F, X, X0)
         X0TY, X0TDY, X0TFY = self._make_templates(D, F, X0, Y)
 
-        return XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, n_run, n_base
+        return X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+            X0TY, X0TDY, X0TFY, X0, n_base
 
     def _make_sandwidge(self, XTX, XTDX, XTFX, rho1):
         return XTX - rho1 * XTDX + rho1**2 * XTFX
@@ -700,15 +721,18 @@ class BRSA(BaseEstimator):
 
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
+        D, F, run_TRs, n_run = self._prepare_DF(
+            n_T, scan_onsets=scan_onsets)
         XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, n_run, n_base \
-            = self._prepare_data(X, Y, n_T, scan_onsets=scan_onsets,
-                                 X0=X0, no_DC=False)
+            XTDX, XTFX = self._prepare_data_XY(X, Y, D, F)
+
+        X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+            X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
+                X, Y, X0, D, F, run_TRs, no_DC=False)
         # Prepare the data for fitting. These pre-calculated matrices
         # will be re-used a lot in evaluating likelihood function and
         # gradient.
-        # DC component will be added to the nuiance regressors.
+        # DC component will be added to the nuisance regressors.
         # In later steps, we do not need to add DC components again
 
         dist2, inten_diff2, space_smooth_range, inten_smooth_range,\
@@ -760,11 +784,10 @@ class BRSA(BaseEstimator):
         # Step 2 fitting, which only happens if
         # GP prior is requested
         if GP_space:
-            current_vec_U_chlsk_l, current_a1, current_logSNR2 \
+            current_vec_U_chlsk_l, current_a1, current_logSNR2, X0 \
                 = self._fit_diagV_noGP(
                     XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
-                    XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                    XTX, XTDX, XTFX, X, Y, X0, D, F, run_TRs,
                     current_vec_U_chlsk_l,
                     current_a1, current_logSNR2,
                     idx_param_fitU, idx_param_fitV,
@@ -794,14 +817,15 @@ class BRSA(BaseEstimator):
                 # which might render 5 percential to 0.
 
         # Step 3 fitting. GP prior is imposed if requested.
-        # In this step, unless auto_nuiance is set to False, X0
+        # In this step, unless auto_nuisance is set to False, X0
         # will be re-estimated from the residuals after each step
         # of fitting.
         logger.debug('indexing:{}'.format(idx_param_fitV))
         logger.debug('initial GP parameters:{}'.format(current_GP))
         current_vec_U_chlsk_l, current_a1, current_logSNR2,\
             current_GP, X0 = self._fit_diagV_GP(
-                X, Y, scan_onsets, X0,
+                XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
+                XTX, XTDX, XTFX, X, Y, X0, D, F, run_TRs,
                 current_vec_U_chlsk_l,
                 current_a1, current_logSNR2, current_GP, n_smooth,
                 idx_param_fitU, idx_param_fitV,
@@ -819,11 +843,9 @@ class BRSA(BaseEstimator):
 
         # Calculating est_sigma_AR1_UV, est_sigma_AR1_UV,
         # est_beta_AR1_UV and est_beta0_AR1_UV
-        XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, n_run, n_base \
-            = self._prepare_data(X, Y, n_T, scan_onsets=scan_onsets,
-                                 X0=X0, no_DC=True)
+        X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+            X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
+                X, Y, X0, D, F, run_TRs, no_DC=True)
 
         X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
             XTAcorrX, XTAcorrY, YTAcorrY, LTXTAcorrY, XTAcorrXL, LTXTAcorrXL\
@@ -958,8 +980,7 @@ class BRSA(BaseEstimator):
 
     def _fit_diagV_noGP(
             self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
-            XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-            XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+            XTX, XTDX, XTFX, X, Y, X0, D, F, run_TRs,
             current_vec_U_chlsk_l,
             current_a1, current_logSNR2,
             idx_param_fitU, idx_param_fitV,
@@ -987,12 +1008,10 @@ class BRSA(BaseEstimator):
         L = np.zeros((n_C, rank))
         tol = self.tol * 5
         for it in range(0, init_iter):
+            X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+                X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
+                    X, Y, X0, D, F, run_TRs, no_DC=True)
             # fit V, reflected in the log(SNR^2) of each voxel
-            # XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-            #     XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            #     X0TY, X0TDY, X0TFY, X0, n_run, n_base \
-            #     = self._prepare_data(X, Y, n_T, scan_onsets=scan_onsets,
-            #                          X0=X0)
             rho1 = np.arctan(current_a1) * 2 / np.pi
             L[l_idx] = current_vec_U_chlsk_l
             X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
@@ -1026,7 +1045,7 @@ class BRSA(BaseEstimator):
                          '{}'.format(norm_fitVchange))
             logger.debug('E[log(SNR2)^2]:'.format(np.mean(current_logSNR2**2)))
 
-            # The below lines are for debugging purpose.
+            # The lines below are for debugging purpose.
             # If any voxel's log(SNR^2) gets to non-finite number,
             # something might be wrong -- could be that the data has
             # nothing to do with the design matrix.
@@ -1060,14 +1079,28 @@ class BRSA(BaseEstimator):
                          '{}'.format(norm_fitUchange))
             param0_fitU = res_fitU.x.copy()
 
+            # Re-estimating X0 from residuals
+            current_SNR2 = np.exp(current_logSNR2)
+            if self.auto_nuisance:
+                LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, current_sigma2 \
+                    = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
+                                    X0TAX0, current_SNR2,
+                                    n_V, n_T, n_run, rank, n_base)
+                betas = current_sigma2**0.5 * current_SNR2 \
+                    * np.dot(L, YTAcorrXL_LAMBDA.T)
+                residuals = Y - np.dot(X, betas)
+                u, s, v = np.linalg.svd(residuals)
+                X0 = u[:, :self.n_nureg]
+
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
                     and norm_fitUchange / np.sqrt(param0_fitU.size) \
                     < tol:
                 break
-        return current_vec_U_chlsk_l, current_a1, current_logSNR2
+        return current_vec_U_chlsk_l, current_a1, current_logSNR2, X0
 
     def _fit_diagV_GP(
-            self, X, Y, scan_onsets, X0,
+            self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
+            XTX, XTDX, XTFX, X, Y, X0, D, F, run_TRs,
             current_vec_U_chlsk_l,
             current_a1, current_logSNR2, current_GP, n_smooth,
             idx_param_fitU, idx_param_fitV, l_idx,
@@ -1099,11 +1132,9 @@ class BRSA(BaseEstimator):
             param0_fitV[idx_param_fitV['c_both']] = current_GP.copy()
 
         for it in range(0, n_iter):
-            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
-                XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-                X0TY, X0TDY, X0TFY, X0, n_run, n_base \
-                = self._prepare_data(X, Y, n_T, scan_onsets=scan_onsets,
-                                     X0=X0, no_DC=True)
+            X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+                X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
+                    X, Y, X0, D, F, run_TRs, no_DC=True)
             # fit V
             rho1 = np.arctan(current_a1) * 2 / np.pi
             X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
@@ -1172,10 +1203,9 @@ class BRSA(BaseEstimator):
                          '{}'.format(norm_fitUchange))
             param0_fitU = res_fitU.x.copy()
 
-            current_SNR2 = np.exp(current_logSNR2)
-
             # Re-estimating X0 from residuals
-            if self.auto_nuiance:
+            current_SNR2 = np.exp(current_logSNR2)
+            if self.auto_nuisance:
                 LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, current_sigma2 \
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
