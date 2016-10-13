@@ -168,12 +168,6 @@ class BRSA(BaseEstimator):
     lGPinten_: scalar, only if GP_inten is True
         the length scale in fMRI intensity of the GP prior of log(SNR)
 
-    Notes
-    -----
-    The current version assumes noise is independent across voxels.
-    Real data typically has spatial correlation in noise.
-    This assumption might still introduce some bias in the result.
-    Spatial correlation will be included in a future version.
     """
 
     def __init__(
