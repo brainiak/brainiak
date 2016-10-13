@@ -37,7 +37,7 @@ import numpy as np
 import time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
-from sklearn import cross_validation
+from sklearn import model_selection
 import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
@@ -79,7 +79,7 @@ class VoxelSelector:
         The number of folds to be conducted in the cross validation
 
     voxel_unit: int, default 100
-        The number of voxel assigned to a worker each time
+        The number of voxels assigned to a worker each time
 
     master_rank: int, default 0
         The process which serves as the master
@@ -273,7 +273,7 @@ class VoxelSelector:
         time2 = time.time()
         logger.debug(
             'correlation computation for %d voxels, takes %.2f s' %
-            ((task[1] - task[0]), (time2 - time1))
+            (task[1], (time2 - time1))
         )
         return corr
 
@@ -350,16 +350,16 @@ class VoxelSelector:
             else:
                 data = corr[i, :, :]
             # no shuffling in cv
-            skf = cross_validation.StratifiedKFold(self.labels,
-                                                   n_folds=self.num_folds,
-                                                   shuffle=False)
-            scores = cross_validation.cross_val_score(clf, data, self.labels,
-                                                      cv=skf, n_jobs=1)
+            skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
+                                                  shuffle=False)
+            scores = model_selection.cross_val_score(clf, data,
+                                                     y=self.labels,
+                                                     cv=skf, n_jobs=1)
             results.append((i + task[0], scores.mean()))
         time2 = time.time()
         logger.debug(
             'cross validation for %d voxels, takes %.2f s' %
-            ((task[1] - task[0]), (time2 - time1))
+            (task[1], (time2 - time1))
         )
         return results
 
@@ -397,7 +397,7 @@ class VoxelSelector:
         logger.debug(
             'within-subject normalization for %d voxels '
             'using C++, takes %.2f s' %
-            ((task[1] - task[0]), (time4 - time3))
+            (task[1], (time4 - time3))
         )
 
         # cross validation

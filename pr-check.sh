@@ -105,6 +105,10 @@ $activate_venv $venv || {
     exit_with_error "virtualenv activation failed"
 }
 
+# install brainiak in editable mode (required for testing)
+pip3 install $ignore_installed -U -e . || \
+    exit_with_error_and_venv "pip3 failed to install BrainIAK"
+
 # install developer dependencies
 pip3 install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip3 failed to install requirements"
@@ -113,16 +117,13 @@ pip3 install $ignore_installed -U -r requirements-dev.txt || \
 ./run-checks.sh || \
     exit_with_error_and_venv "run-checks failed"
 
-# install brainiak in editable mode (required for testing)
-pip3 install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "pip3 failed to install BrainIAK"
-
 # run tests
 ./run-tests.sh || \
     exit_with_error_and_venv "run-tests failed"
 
 # build documentation
 cd docs
+export THEANO_FLAGS='device=cpu,floatX=float64'
 git clean -Xf .
 if [ ! -z $SLURM_NODELIST ]
 then
