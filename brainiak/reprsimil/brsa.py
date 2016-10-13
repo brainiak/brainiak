@@ -222,7 +222,7 @@ class BRSA(BaseEstimator):
             This is the design matrix. It should only include the hypothetic
             response for task conditions. You do not need to include
             regressors for a DC component or motion parameters, unless with
-            a strong reason. If you want to model DC component or head motion,
+            a strong reason. If you want to model head motion,
             you should include them in nuisance regressors.
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
@@ -231,7 +231,7 @@ class BRSA(BaseEstimator):
             shape=[time_points, nuisance_factors]
             The responses to these regressors will be marginalized out from
             each voxel, which means they are considered, but won't be assumed
-            to share the same pseudo-SNR map with with the design matrix.
+            to share the same pseudo-SNR map with the design matrix.
             Therefore, the pseudo-SNR map will only reflect the
             relative contribution of design matrix to each voxel.
             You can provide time courses such as those for head motion
@@ -308,7 +308,7 @@ class BRSA(BaseEstimator):
                 'regressors.'
             assert np.size(nuisance, axis=0) == np.size(X, axis=0), \
                 'Nuisance regressor and data do not have the same '\
-                ' number of time points.'
+                'number of time points.'
         # check scan_onsets validity
         assert scan_onsets is None or\
             (np.max(scan_onsets) <= X.shape[0] and np.min(scan_onsets) >= 0),\
@@ -774,7 +774,7 @@ class BRSA(BaseEstimator):
                 XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                 XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                X, X0, Y, idx_param_sing,
+                X, Y, X0, idx_param_sing,
                 l_idx, n_C, n_T, n_V, n_l, n_run, n_base, rank)
 
         current_logSNR2 = -current_logSigma2
@@ -905,7 +905,7 @@ class BRSA(BaseEstimator):
                               YTY_diag, YTDY_diag, YTFY_diag,
                               XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                               XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                              X, X0, Y, idx_param_sing, l_idx,
+                              X, Y, X0, idx_param_sing, l_idx,
                               n_C, n_T, n_V, n_l, n_run, n_base, rank):
         """ Perform initial fitting of a simplified model, which assumes
             that all voxels share exactly the same temporal covariance
