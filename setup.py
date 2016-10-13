@@ -100,6 +100,7 @@ class BuildExt(build_ext):
                 ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
 
+
     def finalize_options(self):
         super().finalize_options()
         import numpy
@@ -140,5 +141,6 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
+    package_data={'brainiak.utils': ['grey_matter_mask.npy']},
     zip_safe=False,
 )
