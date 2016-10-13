@@ -51,8 +51,8 @@ __all__ = [
 class BRSA(BaseEstimator):
     """Bayesian representational Similarity Analysis (BRSA)
 
-    Given the time series of preprocessed neural imaging data and
-    the hypothetical neural response (design matrix) to
+    Given the time series of neural imaging data in a region of interest
+    (ROI) and the hypothetical neural response (design matrix) to
     each experimental condition of interest,
     calculate the shared covariance matrix of
     the voxels(recording unit)' response to each condition,
@@ -167,6 +167,12 @@ class BRSA(BaseEstimator):
         the length scale of Gaussian Process prior of log(SNR)
     lGPinten_: scalar, only if GP_inten is True
         the length scale in fMRI intensity of the GP prior of log(SNR)
+    beta_: array, shape=[conditions, voxels]
+        The maximum a posterior estimation of the response amplitudes
+        of each voxel to each task condition.
+    beta0_: array, shape=[n_nureg, voxels]
+        The loading weights of each voxel for the shared time courses
+        not captured by the design matrix.
 
     """
 
