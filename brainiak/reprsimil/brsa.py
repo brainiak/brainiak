@@ -86,8 +86,8 @@ class BRSA(BaseEstimator):
         One approach is for users to provide time series which they consider
         as nuisance but exist in the noise (such as head motion).
         The other way is to take the first n_nureg principal components
-        in the residual after one fitting of the Bayesian RSA model, and use
-        these components as the nuisance regressor.
+        in the residual after subtracting the response to the design matrix
+        from the data, and use these components as the nuisance regressor.
         If this flag is turned on, the nuisance regressor provided by the
         user is used only in the first round of fitting. The PCs from
         residuals will be used in the next round of fitting.
