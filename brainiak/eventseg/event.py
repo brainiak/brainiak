@@ -19,7 +19,8 @@ learning the signature activity pattern of each event, the model can then be
 applied to other datasets to identify a corresponding sequence of events.
 
 Full details are available in the bioRxiv preprint:
-Christopher Baldassano, Janice Chen, Asieh Zadbood, Jonathan W Pillow, Uri Hasson, Kenneth A Norman
+Christopher Baldassano, Janice Chen, Asieh Zadbood,
+Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
 http://biorxiv.org/content/early/2016/10/14/081018
 """
