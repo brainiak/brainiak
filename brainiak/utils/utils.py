@@ -327,7 +327,7 @@ class ReadDesign:
                         int(split_by_at[1])
                     curr_idx += n_this_cond
                 elif len(split_by_at) == 1 and \
-                        not re.search('..', split_by_at[0]):
+                        not re.search('\..', split_by_at[0]):
                     # Just a number, and not the type like '1..4'
                     self.column_types[curr_idx] = int(split_by_at[0])
                     curr_idx += 1
