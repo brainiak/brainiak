@@ -497,7 +497,7 @@ class BRSA(BaseEstimator):
                 if not np.any(np.isclose(res0[1], 0)):
                     # No columns in X0 can be explained by the
                     # baseline regressors. So we insert them.
-                    X0 = np.concatenate(X_base, X0, axis=1)
+                    X0 = np.concatenate((X_base, X0), axis=1)
                 else:
                     logger.warning('Provided regressors for non-interesting '
                                    'time series already include baseline. '
