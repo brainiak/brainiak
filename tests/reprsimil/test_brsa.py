@@ -40,8 +40,8 @@ def test_fit():
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
     # Load an example design matrix
     design = utils.ReadDesign(fname=file_path)
-    
-    
+
+
     # concatenate it by 4 times, mimicking 4 runs of itenditcal timing
     design.design_task = np.tile(design.design_task[:,:-1],[4,1])
     design.n_TR = design.n_TR * 4
@@ -347,7 +347,9 @@ def test_gradient():
                                                                  l_idx, n_C, n_T, n_V, n_run, n_base,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
+
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=1e-5), 'gradient of singpara wrt a1 is incorrect'
+
 
     
     # log likelihood and derivative of the fitU function.
@@ -365,6 +367,7 @@ def test_gradient():
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
                                                                    np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_base,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
+
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt to AR(1) coefficient incorrect'
 
     # We test if the numerical and analytical gradient wrt to the first element of Cholesky factor is correct
@@ -377,6 +380,17 @@ def test_gradient():
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt Cholesky factor incorrect'
 
+
+    # We test if the numerical and analytical gradient wrt to the first element of Cholesky factor is correct
+    vec = np.zeros(np.size(param0_fitU))
+    vec[idx_param_fitU['Cholesky'][0]] = 1
+    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                                                                   XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                                                                   XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_base,
+                                                                   idx_param_fitU, n_C)[0], param0_fitU, vec)
+    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU wrt Cholesky factor incorrect'
+
     # Test on a random direction
     vec = np.random.randn(np.size(param0_fitU))
     vec = vec / np.linalg.norm(vec)
@@ -386,6 +400,7 @@ def test_gradient():
                                                                    np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_base,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU incorrect'
+
 
     # We test the gradient of _fitV wrt to log(SNR^2) assuming no GP prior.
     X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
