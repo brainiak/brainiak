@@ -596,9 +596,7 @@ class BRSA(BaseEstimator):
         LAMBDA_i = LTXTAcorrXL * SNR2[:, None, None] + np.eye(rank)
         # dimension: space*rank*rank
 
-
         LAMBDA = np.linalg.solve(LAMBDA_i, np.identity(rank)[None, :, :])
-
         # dimension: space*rank*rank
         # LAMBDA is essentially the inverse covariance matrix of the
         # posterior probability of alpha, which bears the relation with
@@ -1017,7 +1015,6 @@ class BRSA(BaseEstimator):
                 X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
                     X, Y, X0, D, F, run_TRs, no_DC=True)
 
-
             # fit U, the covariance matrix, together with AR(1) param
             param0_fitU[idx_param_fitU['Cholesky']] = \
                 current_vec_U_chlsk_l
@@ -1039,8 +1036,6 @@ class BRSA(BaseEstimator):
             logger.debug('norm of parameter change after fitting U: '
                          '{}'.format(norm_fitUchange))
             param0_fitU = res_fitU.x.copy()
-
-
 
             # fit V, reflected in the log(SNR^2) of each voxel
             rho1 = np.arctan(current_a1) * 2 / np.pi
@@ -1089,7 +1084,6 @@ class BRSA(BaseEstimator):
 
             param0_fitV = res_fitV.x.copy()
 
-
             # Re-estimating X0 from residuals
             current_SNR2 = np.exp(current_logSNR2)
             if self.auto_nuisance:
@@ -1099,21 +1093,7 @@ class BRSA(BaseEstimator):
                                     n_V, n_T, n_run, rank, n_base)
                 betas = current_sigma2**0.5 * current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y - np.dot(X, betas)
-                u, s, v = np.linalg.svd(residuals)
-                X0 = u[:, :self.n_nureg]
-
-
-            # Re-estimating X0 from residuals
-            current_SNR2 = np.exp(current_logSNR2)
-            if self.auto_nuisance:
-                LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, current_sigma2 \
-                    = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
-                                    X0TAX0, current_SNR2,
-                                    n_V, n_T, n_run, rank, n_base)
-                betas = current_sigma2**0.5 * current_SNR2 \
-                    * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y - np.dot(X, betas)
+                residuals = Y[:, :-1] - np.dot(X, betas[:, :-1])
                 u, s, v = np.linalg.svd(residuals)
                 X0 = u[:, :self.n_nureg]
 
@@ -1187,8 +1167,6 @@ class BRSA(BaseEstimator):
             logger.debug('norm of parameter change after fitting U: '
                          '{}'.format(norm_fitUchange))
             param0_fitU = res_fitU.x.copy()
-
-
 
             # fit V
             rho1 = np.arctan(current_a1) * 2 / np.pi
@@ -1322,8 +1300,8 @@ class BRSA(BaseEstimator):
 
         try:
             LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
-                = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY, X0TAX0,
-                                SNR2, n_V, n_T, n_run, rank, n_base)
+                = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
+                                X0TAX0, SNR2, n_V, n_T, n_run, rank, n_base)
         except:
             logger.debug('L: {}'.format(L))
             raise
@@ -1335,8 +1313,6 @@ class BRSA(BaseEstimator):
             logger.debug('LTXTAcorrY: {}'.format(LTXTAcorrY))
             logger.debug('YTAcorrXL_LAMBDA: {}'.format(YTAcorrXL_LAMBDA))
             logger.debug('SNR2: {}'.format(SNR2))
-
-
 
         YTAcorrXL_LAMBDA_LT = np.dot(YTAcorrXL_LAMBDA, L.T)
         # dimension: space*feature (feature can be larger than rank)
