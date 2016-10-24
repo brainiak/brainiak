@@ -1093,7 +1093,7 @@ class BRSA(BaseEstimator):
                                     n_V, n_T, n_run, rank, n_base)
                 betas = current_sigma2**0.5 * current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y[:, :-1] - np.dot(X, betas[:, :-1])
+                residuals = Y - np.dot(X, betas)
                 u, s, v = np.linalg.svd(residuals)
                 X0 = u[:, :self.n_nureg]
 
@@ -1218,7 +1218,7 @@ class BRSA(BaseEstimator):
                                     n_V, n_T, n_run, rank, n_base)
                 betas = current_sigma2**0.5 * current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y[:, :-1] - np.dot(X, betas[:, :-1])
+                residuals = Y - np.dot(X, betas)
                 u, s, v = np.linalg.svd(residuals)
                 X0 = u[:, :self.n_nureg]
 

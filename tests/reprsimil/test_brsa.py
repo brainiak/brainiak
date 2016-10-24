@@ -347,7 +347,6 @@ def test_gradient():
                                                                  l_idx, n_C, n_T, n_V, n_run, n_base,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
-
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=1e-5), 'gradient of singpara wrt a1 is incorrect'
 
 
@@ -367,7 +366,6 @@ def test_gradient():
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
                                                                    np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_base,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
-
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt to AR(1) coefficient incorrect'
 
     # We test if the numerical and analytical gradient wrt to the first element of Cholesky factor is correct
