@@ -60,13 +60,13 @@ class Classifier(BaseEstimator):
 
     training_data_: 2D numpy array in shape [num_samples, num_features]
         default None
-        training_data_ is None except clf is SVM.SVC with precomputed kernel,
+        training_data\_ is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
         the similarity vector for each sample to be classified
 
     test_data_: 2D numpy array in shape [num_samples, num_features]
         default None
-        test_data_ is set after a prediction is called,
+        test_data\_ is set after a prediction is called,
         so that the test data does not need to be regenerated in the
         subsequent operations, e.g. getting decision values of the prediction
 
@@ -97,7 +97,8 @@ class Classifier(BaseEstimator):
 
         Returns
         -------
-        corr_data: the correlation data in shape [len(X), num_voxels, num_voxels]
+        corr_data: the correlation data
+                    in shape [len(X), num_voxels, num_voxels]
         """
         num_samples = len(X)
         assert num_samples > 0, \
@@ -142,11 +143,13 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        corr_data: the correlation data in shape [num_samples, num_voxels, num_voxels]
+        corr_data: the correlation data
+                    in shape [num_samples, num_voxels, num_voxels]
 
         Returns
         -------
-        corr_data: the normalized correlation data in shape [num_samples, num_voxels, num_voxels]
+        corr_data: the normalized correlation data
+                    in shape [num_samples, num_voxels, num_voxels]
         """
         # normalize if necessary
         if norm_unit > 1:
@@ -243,7 +246,8 @@ class Classifier(BaseEstimator):
         # correlation computation
         corr_data = self._prepare_corerelation_data(X)
         # normalization
-        corr_data = self._normalize_correlation_data(corr_data, self.epochs_per_subj)
+        corr_data = self._normalize_correlation_data(corr_data,
+                                                     self.epochs_per_subj)
         # training
         if isinstance(self.clf, sklearn.svm.SVC) \
                 and self.clf.kernel == 'precomputed':
@@ -313,7 +317,7 @@ class Classifier(BaseEstimator):
             'prediction done, takes %.2f s' %
             (time2 - time1)
         )
-        return y_pred#, confidence
+        return y_pred
 
     def decision_function(self, X, has_test_data=False):
         """ output the decision value of the prediction
