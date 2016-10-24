@@ -246,8 +246,9 @@ class Classifier(BaseEstimator):
         # correlation computation
         corr_data = self._prepare_corerelation_data(X)
         # normalization
-        normalized_corr_data = self._normalize_correlation_data(corr_data,
-                                                     self.epochs_per_subj)
+        normalized_corr_data = self._normalize_correlation_data(
+            corr_data,
+            self.epochs_per_subj)
         # training
         if isinstance(self.clf, sklearn.svm.SVC) \
                 and self.clf.kernel == 'precomputed':
@@ -255,9 +256,10 @@ class Classifier(BaseEstimator):
                                      np.float32,
                                      order='C')
             # for using kernel matrix computation from voxel selection
-            normalized_corr_data = normalized_corr_data.reshape(1,
-                                          num_samples,
-                                          num_voxels * num_voxels)
+            normalized_corr_data = normalized_corr_data.reshape(
+                1,
+                num_samples,
+                num_voxels * num_voxels)
             blas.compute_kernel_matrix('L', 'T',
                                        num_samples, num_voxels * num_voxels,
                                        1.0, corr_data,
@@ -265,13 +267,15 @@ class Classifier(BaseEstimator):
                                        0.0, kernel_matrix, num_samples)
             data = kernel_matrix
             # training data is in shape [num_samples, num_voxels * num_voxels]
-            self.training_data_ = normalized_corr_data.reshape(num_samples,
-                                                    num_voxels * num_voxels)
+            self.training_data_ = normalized_corr_data.reshape(
+                num_samples,
+                num_voxels * num_voxels)
             logger.debug(
                 'kernel computation done'
             )
         else:
-            data = normalized_corr_data.reshape(num_samples, num_voxels * num_voxels)
+            data = normalized_corr_data.reshape(num_samples,
+                                                num_voxels * num_voxels)
             self.training_data_ = None
 
         self.clf = self.clf.fit(data, y)
@@ -307,7 +311,9 @@ class Classifier(BaseEstimator):
         # correlation computation
         corr_data = self._prepare_corerelation_data(X)
         # normalization
-        normalized_corr_data = self._normalize_correlation_data(corr_data, len(X))
+        normalized_corr_data = self._normalize_correlation_data(
+                                                                corr_data,
+                                                                len(X))
         # test data generation
         self.test_data_ = self._prepare_test_data(normalized_corr_data)
         # prediction
@@ -350,7 +356,9 @@ class Classifier(BaseEstimator):
             # correlation computation
             corr_data = self._prepare_corerelation_data(X)
             # normalization
-            normalized_corr_data = self._normalize_correlation_data(corr_data, len(X))
+            normalized_corr_data = self._normalize_correlation_data(
+                                                                    corr_data,
+                                                                    len(X))
             # test data generation
             self.test_data_ = self._prepare_test_data(normalized_corr_data)
         confidence = self.clf.decision_function(self.test_data_)
