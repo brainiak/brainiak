@@ -48,11 +48,6 @@ def test_classification():
     training_data = fake_raw_data[0: 12]
     clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels)
-    y_pred = clf.predict(fake_raw_data[12:])
-    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
-    hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
-    assert hamming_distance <= 1, \
-       'classification via SVM does not provide correct results'
     expected_confidence = np.array([-1.18234421, 0.97403604, -1.04005679, 
                                     0.92403019, -0.95567738, 1.11746593,
                                     -0.83275891, 0.9486868])
@@ -62,9 +57,13 @@ def test_classification():
     assert hamming_distance <= 1, \
         'decision function of SVM with recomputation ' \
         'does not provide correct results'
-    confidence = clf.decision_function(fake_raw_data[12:],
-                                       has_test_data=True)
-    hamming_distance = hamming(np.sign(expected_confidence), 
+    y_pred = clf.predict(fake_raw_data[12:])
+    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
+    hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
+    assert hamming_distance <= 1, \
+        'classification via SVM does not provide correct results'
+    confidence = clf.decision_function(fake_raw_data[12:])
+    hamming_distance = hamming(np.sign(expected_confidence),
 			       np.sign(confidence))
     assert hamming_distance <= 1, \
         'decision function of SVM without recomputation ' \
@@ -73,12 +72,6 @@ def test_classification():
     lr_clf = LogisticRegression()
     clf = Classifier(lr_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(training_data, labels[0:12])
-    y_pred = clf.predict(fake_raw_data[12:])
-    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
-    hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
-    assert hamming_distance <= 1, \
-        'classification via logistic regression ' \
-        'does not provide correct results'
     expected_confidence = np.array([-4.49666484, 3.73025553, -4.04181695, 
                                     3.73027436, -3.77043872, 4.42613412,
                                     -3.35616616, 3.77716609])
@@ -88,8 +81,13 @@ def test_classification():
     assert hamming_distance <= 1, \
         'decision function of logistic regression with recomputation ' \
         'does not provide correct results'
-    confidence = clf.decision_function(fake_raw_data[12:],
-                                       has_test_data=True)
+    y_pred = clf.predict(fake_raw_data[12:])
+    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
+    hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
+    assert hamming_distance <= 1, \
+        'classification via logistic regression ' \
+        'does not provide correct results'
+    confidence = clf.decision_function(fake_raw_data[12:])
     hamming_distance = hamming(np.sign(expected_confidence), 
 			       np.sign(confidence))
     assert hamming_distance <= 1, \

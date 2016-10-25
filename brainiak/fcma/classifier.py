@@ -64,6 +64,12 @@ class Classifier(BaseEstimator):
         in which case training data is needed to compute
         the similarity vector for each sample to be classified
 
+    test_raw_data_: a list of 2D array in shape [num_TRs, num_voxels]
+        default None
+        test_raw_data\_ is set after a prediction is called,
+        if the new input data equals test_raw_data\_,
+        test_data\_ can be reused
+
     test_data_: 2D numpy array in shape [num_samples, num_features]
         default None
         test_data\_ is set after a prediction is called,
@@ -74,7 +80,7 @@ class Classifier(BaseEstimator):
         The number of voxels per brain used in this classifier
         this is defined by the applied mask, normally the top voxels
         selected by FCMA voxel selection
-        num_voxels must be consistent in both training and classification
+        num_voxels\_ must be consistent in both training and classification
 
     num_samples_: int
         The number of samples of the training set
@@ -279,6 +285,8 @@ class Classifier(BaseEstimator):
             self.training_data_ = None
 
         self.clf = self.clf.fit(data, y)
+        self.test_raw_data_ = None
+        self.test_data_ = None
         time2 = time.time()
         logger.info(
             'training done, takes %.2f s' %
@@ -308,6 +316,7 @@ class Classifier(BaseEstimator):
         y_pred: the predicted label of X, in shape [len(X),]
         """
         time1 = time.time()
+        self.test_raw_data_ = X
         # correlation computation
         corr_data = self._prepare_corerelation_data(X)
         # normalization
@@ -325,10 +334,33 @@ class Classifier(BaseEstimator):
         )
         return y_pred
 
-    def decision_function(self, X, has_test_data=False):
+    def _is_equal_to_test_raw_data(self, X):
+        """ check if the new input data X is equal to the old one
+
+        compare X and self.test_raw_data_ if it exists
+
+        Parameters
+        ----------
+        X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
+            the input data to be checked
+
+        Returns
+        -------
+        a boolean value to indicate if X == self.test_raw_data_
+        """
+        if self.test_raw_data_ is None or len(X) != len(self.test_raw_data_):
+            return False
+        # this for loop is faster than
+        # doing np.array_equal(X, self.test_raw_data_) directly
+        for new, old in zip(X, self.test_raw_data_):
+            if not np.array_equal(new, old):
+                return False
+        return True
+
+    def decision_function(self, X):
         """ output the decision value of the prediction
 
-        if the test_data is not computed, i.e. predict is not called,
+        if X is not equal to self.test_raw_data\_, i.e. predict is not called,
         first generate the test_data
         after getting the test_data, get the decision value via self.clf.
 
@@ -340,18 +372,13 @@ class Classifier(BaseEstimator):
             len(X) is the number of test samples
             if len(X) > 1: normalization is done
             on all test samples
-        has_test_data: Boolean value, default False
-            specify if the test_data has been generated
 
         Returns
         -------
         confidence: the predictions confidence values of X, in shape [len(X),]
         """
-        if has_test_data:
-            assert len(X) == len(self.test_data_), \
-                'the number of samples of the input data X does not match ' \
-                'the number of samples of the test data'
-        else:
+        if not self._is_equal_to_test_raw_data(X):
+            self.test_raw_data_ = X
             # generate the test_data first
             # correlation computation
             corr_data = self._prepare_corerelation_data(X)
