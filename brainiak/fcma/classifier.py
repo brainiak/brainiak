@@ -154,22 +154,24 @@ class Classifier(BaseEstimator):
 
         Returns
         -------
-        corr_data: the normalized correlation data
+        normalized_corr_data: the normalized correlation data
                     in shape [num_samples, num_voxels, num_voxels]
         """
         # normalize if necessary
         if norm_unit > 1:
             num_samples = len(corr_data)
             num_voxels = self.num_voxels_
-            corr_data = corr_data.reshape(1,
-                                          num_samples,
-                                          num_voxels * num_voxels)
-            fcma_extension.normalization(corr_data, norm_unit)
-            corr_data = corr_data.reshape(num_samples, num_voxels, num_voxels)
+            normalized_corr_data = corr_data.reshape(1,
+                                                     num_samples,
+                                                     num_voxels * num_voxels)
+            fcma_extension.normalization(normalized_corr_data, norm_unit)
+            normalized_corr_data = normalized_corr_data.reshape(num_samples,
+                                                                num_voxels,
+                                                                num_voxels)
             logger.debug(
                 'normalization done'
             )
-        return corr_data
+        return normalized_corr_data
 
     def _prepare_test_data(self, corr_data):
         """ prepare the data to be applied to the predict function

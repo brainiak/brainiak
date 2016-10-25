@@ -48,5 +48,5 @@ if __name__ == '__main__':
     #joblib.dump(clf, 'model/logistic.pkl')
     #clf = joblib.load('model/svm.pkl')
     print(clf.predict(test_data))
-    print(clf.decision_function(test_data, has_test_data=True))
+    print(clf.decision_function(test_data))
     print(np.asanyarray(labels[204:]))
