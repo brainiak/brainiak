@@ -151,6 +151,9 @@ class Classifier(BaseEstimator):
         ----------
         corr_data: the correlation data
                     in shape [num_samples, num_voxels, num_voxels]
+        norm_unit: int
+                    the number of samples on which the normalization
+                    is performed
 
         Returns
         -------
