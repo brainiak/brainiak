@@ -171,6 +171,8 @@ class Classifier(BaseEstimator):
             logger.debug(
                 'normalization done'
             )
+        else:
+            normalized_corr_data = corr_data
         return normalized_corr_data
 
     def _prepare_test_data(self, corr_data):
