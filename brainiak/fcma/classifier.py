@@ -151,6 +151,9 @@ class Classifier(BaseEstimator):
         ----------
         corr_data: the correlation data
                     in shape [num_samples, num_voxels, num_voxels]
+        norm_unit: int
+                    the number of samples on which the normalization
+                    is performed
 
         Returns
         -------
@@ -171,6 +174,8 @@ class Classifier(BaseEstimator):
             logger.debug(
                 'normalization done'
             )
+        else:
+            normalized_corr_data = corr_data
         return normalized_corr_data
 
     def _prepare_test_data(self, corr_data):
