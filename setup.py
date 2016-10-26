@@ -33,7 +33,7 @@ ext_modules = [
         ['brainiak/fcma/cython_blas.pyx'],
     ),
     Extension(
-        'brainiak.eventseg.utils',
+        'brainiak.eventseg._utils',
         ['brainiak/eventseg/_utils.pyx'],
     ),
 ]
@@ -99,7 +99,6 @@ class BuildExt(build_ext):
                 ext.extra_compile_args.append(cpp_flag(self.compiler))
                 ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
-
 
     def finalize_options(self):
         super().finalize_options()

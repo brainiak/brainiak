@@ -33,7 +33,8 @@ import logging
 import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
-import brainiak.eventseg.utils as utils
+
+from . import _utils as utils
 
 logger = logging.getLogger(__name__)
 
