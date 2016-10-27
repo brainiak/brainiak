@@ -129,9 +129,11 @@ def sumexp_stable(data):
         The exponent of each element in each sample divided by the exponent
         of the maximum feature value in the sample.
 
-    ..note::
-    This function is more stable than computing the sum(exp(v)).
-    It useful for computing the softmax_i(v)=exp(v_i)/sum(exp(v)) function.
+    Note
+    ----
+
+        This function is more stable than computing the sum(exp(v)).
+        It useful for computing the softmax_i(v)=exp(v_i)/sum(exp(v)) function.
     """
     max_value = data.max(axis=0)
     result_exp = np.exp(data - max_value)
