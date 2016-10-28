@@ -98,7 +98,7 @@ class SRM(BaseEstimator, TransformerMixin):
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
 
-    .. math:: X_i \\approx W_i S, \\exists i=1 \\dots N
+    .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
 
     Parameters
     ----------
@@ -433,7 +433,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform W per subject:
 
-    .. math:: X_i \\approx W_i S, \\exists i=1 \\dots N
+    .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
 
     Parameters
     ----------
