@@ -506,9 +506,7 @@ class BRSA(BaseEstimator):
             # If a set of regressors for non-interested signals is not
             # provided, then we simply include one baseline for each run.
             X0 = X_base
-
             logger.info('You did not provide time series of no interest '
-
                         'such as DC component. One trivial regressor of'
                         ' DC component is included for further modeling.'
                         ' The final covariance matrix won''t '
@@ -1298,21 +1296,17 @@ class BRSA(BaseEstimator):
 
         # Only starting from this point, SNR2 is involved
 
-        try:
-            LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
-                = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
-                                X0TAX0, SNR2, n_V, n_T, n_run, rank, n_base)
-        except:
-            logger.debug('L: {}'.format(L))
-            raise
+        LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
+            = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
+                            X0TAX0, SNR2, n_V, n_T, n_run, rank, n_base)
         if not np.isfinite(LL):
-            logger.debug('NaN detected!')
-            logger.debug('LL: {}'.format(LL))
-            logger.debug('sigma2: {}'.format(sigma2))
-            logger.debug('YTAcorrY: {}'.format(YTAcorrY))
-            logger.debug('LTXTAcorrY: {}'.format(LTXTAcorrY))
-            logger.debug('YTAcorrXL_LAMBDA: {}'.format(YTAcorrXL_LAMBDA))
-            logger.debug('SNR2: {}'.format(SNR2))
+            logger.warning('NaN detected!')
+            logger.warning('LL: {}'.format(LL))
+            logger.warning('sigma2: {}'.format(sigma2))
+            logger.warning('YTAcorrY: {}'.format(YTAcorrY))
+            logger.warning('LTXTAcorrY: {}'.format(LTXTAcorrY))
+            logger.warning('YTAcorrXL_LAMBDA: {}'.format(YTAcorrXL_LAMBDA))
+            logger.warning('SNR2: {}'.format(SNR2))
 
         YTAcorrXL_LAMBDA_LT = np.dot(YTAcorrXL_LAMBDA, L.T)
         # dimension: space*feature (feature can be larger than rank)
