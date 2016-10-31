@@ -497,7 +497,7 @@ class BRSA(BaseEstimator):
                 if not np.any(np.isclose(res0[1], 0)):
                     # No columns in X0 can be explained by the
                     # baseline regressors. So we insert them.
-                    X0 = np.concatenate(X_base, X0, axis=1)
+                    X0 = np.concatenate((X_base, X0), axis=1)
                 else:
                     logger.warning('Provided regressors for non-interesting '
                                    'time series already include baseline. '
@@ -506,7 +506,7 @@ class BRSA(BaseEstimator):
             # If a set of regressors for non-interested signals is not
             # provided, then we simply include one baseline for each run.
             X0 = X_base
-            logger.info('You did not provide time seres of no interest '
+            logger.info('You did not provide time series of no interest '
                         'such as DC component. One trivial regressor of'
                         ' DC component is included for further modeling.'
                         ' The final covariance matrix won''t '
@@ -593,6 +593,7 @@ class BRSA(BaseEstimator):
         # in addition to a few other terms.
         LAMBDA_i = LTXTAcorrXL * SNR2[:, None, None] + np.eye(rank)
         # dimension: space*rank*rank
+
         LAMBDA = np.linalg.solve(LAMBDA_i, np.identity(rank)[None, :, :])
         # dimension: space*rank*rank
         # LAMBDA is essentially the inverse covariance matrix of the
@@ -1011,6 +1012,29 @@ class BRSA(BaseEstimator):
             X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
                 X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
                     X, Y, X0, D, F, run_TRs, no_DC=True)
+
+            # fit U, the covariance matrix, together with AR(1) param
+            param0_fitU[idx_param_fitU['Cholesky']] = \
+                current_vec_U_chlsk_l
+            param0_fitU[idx_param_fitU['a1']] = current_a1
+            res_fitU = scipy.optimize.minimize(
+                self._loglike_AR1_diagV_fitU, param0_fitU,
+                args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                      current_logSNR2, l_idx, n_C,
+                      n_T, n_V, n_run, n_base, idx_param_fitU, rank),
+                method=self.optimizer, jac=True, tol=tol,
+                options={'xtol': tol, 'disp': self.verbose,
+                         'maxiter': 4})
+            current_vec_U_chlsk_l = \
+                res_fitU.x[idx_param_fitU['Cholesky']]
+            current_a1 = res_fitU.x[idx_param_fitU['a1']]
+            norm_fitUchange = np.linalg.norm(res_fitU.x - param0_fitU)
+            logger.debug('norm of parameter change after fitting U: '
+                         '{}'.format(norm_fitUchange))
+            param0_fitU = res_fitU.x.copy()
+
             # fit V, reflected in the log(SNR^2) of each voxel
             rho1 = np.arctan(current_a1) * 2 / np.pi
             L[l_idx] = current_vec_U_chlsk_l
@@ -1043,7 +1067,8 @@ class BRSA(BaseEstimator):
             norm_fitVchange = np.linalg.norm(res_fitV.x - param0_fitV)
             logger.debug('norm of parameter change after fitting V: '
                          '{}'.format(norm_fitVchange))
-            logger.debug('E[log(SNR2)^2]:'.format(np.mean(current_logSNR2**2)))
+            logger.debug('E[log(SNR2)^2]: {}'.format(
+                    np.mean(current_logSNR2**2)))
 
             # The lines below are for debugging purpose.
             # If any voxel's log(SNR^2) gets to non-finite number,
@@ -1056,28 +1081,6 @@ class BRSA(BaseEstimator):
                 logger.warning('log(sigma^2) has non-finite number')
 
             param0_fitV = res_fitV.x.copy()
-
-            # fit U, the covariance matrix, together with AR(1) param
-            param0_fitU[idx_param_fitU['Cholesky']] = \
-                current_vec_U_chlsk_l
-            param0_fitU[idx_param_fitU['a1']] = current_a1
-            res_fitU = scipy.optimize.minimize(
-                self._loglike_AR1_diagV_fitU, param0_fitU,
-                args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
-                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                      current_logSNR2, l_idx, n_C,
-                      n_T, n_V, n_run, n_base, idx_param_fitU, rank),
-                method=self.optimizer, jac=True, tol=tol,
-                options={'xtol': tol, 'disp': self.verbose,
-                         'maxiter': 3})
-            current_vec_U_chlsk_l = \
-                res_fitU.x[idx_param_fitU['Cholesky']]
-            current_a1 = res_fitU.x[idx_param_fitU['a1']]
-            norm_fitUchange = np.linalg.norm(res_fitU.x - param0_fitU)
-            logger.debug('norm of parameter change after fitting U: '
-                         '{}'.format(norm_fitUchange))
-            param0_fitU = res_fitU.x.copy()
 
             # Re-estimating X0 from residuals
             current_SNR2 = np.exp(current_logSNR2)
@@ -1135,6 +1138,34 @@ class BRSA(BaseEstimator):
             X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
                 X0TY, X0TDY, X0TFY, X0, n_base = self._prepare_data_XYX0(
                     X, Y, X0, D, F, run_TRs, no_DC=True)
+
+            # fit U
+
+            param0_fitU[idx_param_fitU['Cholesky']] = \
+                current_vec_U_chlsk_l
+            param0_fitU[idx_param_fitU['a1']] = current_a1
+
+            res_fitU = scipy.optimize.minimize(
+                self._loglike_AR1_diagV_fitU, param0_fitU,
+                args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
+                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
+                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+                      current_logSNR2, l_idx, n_C, n_T, n_V,
+                      n_run, n_base, idx_param_fitU, rank),
+                method=self.optimizer, jac=True,
+                tol=tol,
+                options={'xtol': tol,
+                         'disp': self.verbose, 'maxiter': 6})
+            current_vec_U_chlsk_l = \
+                res_fitU.x[idx_param_fitU['Cholesky']]
+            current_a1 = res_fitU.x[idx_param_fitU['a1']]
+            L[l_idx] = current_vec_U_chlsk_l
+            fitUchange = res_fitU.x - param0_fitU
+            norm_fitUchange = np.linalg.norm(fitUchange)
+            logger.debug('norm of parameter change after fitting U: '
+                         '{}'.format(norm_fitUchange))
+            param0_fitU = res_fitU.x.copy()
+
             # fit V
             rho1 = np.arctan(current_a1) * 2 / np.pi
             X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
@@ -1175,33 +1206,6 @@ class BRSA(BaseEstimator):
                          '{}'.format(norm_fitVchange))
             logger.debug('E[log(SNR2)^2]: {}'.format(
                 np.mean(current_logSNR2**2)))
-
-            # fit U
-
-            param0_fitU[idx_param_fitU['Cholesky']] = \
-                current_vec_U_chlsk_l
-            param0_fitU[idx_param_fitU['a1']] = current_a1
-
-            res_fitU = scipy.optimize.minimize(
-                self._loglike_AR1_diagV_fitU, param0_fitU,
-                args=(XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                      XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
-                      XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                      current_logSNR2, l_idx, n_C, n_T, n_V,
-                      n_run, n_base, idx_param_fitU, rank),
-                method=self.optimizer, jac=True,
-                tol=tol,
-                options={'xtol': tol,
-                         'disp': self.verbose, 'maxiter': 6})
-            current_vec_U_chlsk_l = \
-                res_fitU.x[idx_param_fitU['Cholesky']]
-            current_a1 = res_fitU.x[idx_param_fitU['a1']]
-            L[l_idx] = current_vec_U_chlsk_l
-            fitUchange = res_fitU.x - param0_fitU
-            norm_fitUchange = np.linalg.norm(fitUchange)
-            logger.debug('norm of parameter change after fitting U: '
-                         '{}'.format(norm_fitUchange))
-            param0_fitU = res_fitU.x.copy()
 
             # Re-estimating X0 from residuals
             current_SNR2 = np.exp(current_logSNR2)
@@ -1291,16 +1295,18 @@ class BRSA(BaseEstimator):
                                  L, rho1, n_V, n_base)
 
         # Only starting from this point, SNR2 is involved
+
         LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
-            = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY, X0TAX0,
-                            SNR2, n_V, n_T, n_run, rank, n_base)
+            = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
+                            X0TAX0, SNR2, n_V, n_T, n_run, rank, n_base)
         if not np.isfinite(LL):
-            logger.debug('NaN detected!')
-            logger.debug(sigma2)
-            logger.debug(YTAcorrY)
-            logger.debug(LTXTAcorrY)
-            logger.debug(YTAcorrXL_LAMBDA)
-            logger.debug(SNR2)
+            logger.warning('NaN detected!')
+            logger.warning('LL: {}'.format(LL))
+            logger.warning('sigma2: {}'.format(sigma2))
+            logger.warning('YTAcorrY: {}'.format(YTAcorrY))
+            logger.warning('LTXTAcorrY: {}'.format(LTXTAcorrY))
+            logger.warning('YTAcorrXL_LAMBDA: {}'.format(YTAcorrXL_LAMBDA))
+            logger.warning('SNR2: {}'.format(SNR2))
 
         YTAcorrXL_LAMBDA_LT = np.dot(YTAcorrXL_LAMBDA, L.T)
         # dimension: space*feature (feature can be larger than rank)
