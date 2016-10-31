@@ -62,10 +62,10 @@ class BRSA(BaseEstimator):
     A correlation matrix converted from the covariance matrix
     will be provided as a quantification of neural representational similarity.
 
-    .. math:: \textbf{Y = \textbf{X} \cdot \mbox{\boldmath{$\beta$}}
-        + \mbox{\boldmath{$\eta$}}
-    .. math:: \mbox{\boldmath{$\beta$}}_i \sim \textbf{N}(0,(s_{i}
-        \sigma_{i})^2 \textbf{U})
+    .. math::
+        Y = X \\cdot \\beta + \\epsilon
+
+        \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
     Parameters
     ----------
