@@ -129,9 +129,11 @@ def sumexp_stable(data):
         The exponent of each element in each sample divided by the exponent
         of the maximum feature value in the sample.
 
-    ..note::
-    This function is more stable than computing the sum(exp(v)).
-    It useful for computing the softmax_i(v)=exp(v_i)/sum(exp(v)) function.
+    Note
+    ----
+
+        This function is more stable than computing the sum(exp(v)).
+        It useful for computing the softmax_i(v)=exp(v_i)/sum(exp(v)) function.
     """
     max_value = data.max(axis=0)
     result_exp = np.exp(data - max_value)
@@ -327,7 +329,7 @@ class ReadDesign:
                         int(split_by_at[1])
                     curr_idx += n_this_cond
                 elif len(split_by_at) == 1 and \
-                        not re.search('..', split_by_at[0]):
+                        not re.search('\..', split_by_at[0]):
                     # Just a number, and not the type like '1..4'
                     self.column_types[curr_idx] = int(split_by_at[0])
                     curr_idx += 1
