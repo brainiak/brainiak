@@ -58,9 +58,11 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     data to train a Multinomial Logistic Regression (MLR) classifier (with
     l2 regularization) in a semi-supervised manner:
 
-    .. math:: (1-\alpha) Loss_{SRM}(W_i,S;X_i)
-    .. math:: + \alpha/\gamma  Loss_{MLR}(\theta, bias; {(W_i^T*Z_i, y_i})
-    .. math:: + R(\theta)
+    .. math::
+        (1-\\alpha) Loss_{SRM}(W_i,S;X_i)
+        + \\alpha/\\gamma Loss_{MLR}(\\theta, bias; {(W_i^T \\times Z_i, y_i})
+        + R(\\theta)
+        :label: sssrm-eq
 
     (see Equations (1) and (4) in [Turek2016]_).
 
@@ -101,15 +103,17 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     classes_ : array of int, shape=[classes]
         Mapping table for each classes to original class label.
 
-    .. note::
-       The number of voxels may be different between subjects. However, the
-       number of samples for the alignment data must be the same across
-       subjects. The number of labeled samples per subject can be different.
+    Note
+    ----
 
-       The Semi-Supervised Shared Response Model is approximated using the
-       Block-Coordinate Descent (BCD) algorithm proposed in [Turek2016]_.
+        The number of voxels may be different between subjects. However, the
+        number of samples for the alignment data must be the same across
+        subjects. The number of labeled samples per subject can be different.
 
-       This is a single node version.
+        The Semi-Supervised Shared Response Model is approximated using the
+        Block-Coordinate Descent (BCD) algorithm proposed in [Turek2016]_.
+
+        This is a single node version.
     """
 
     def __init__(self, n_iter=10, features=50, gamma=1.0, alpha=0.5,
@@ -207,8 +211,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         new_y : list of arrays of int, each element has shape=[samples_i,]
             Mapped labels of the samples for each subject
 
-        ..note::
-        The mapping of the classes is saved in the attribute classes_.
+        Note
+        ----
+            The mapping of the classes is saved in the attribute classes_.
         """
         self.classes_ = unique_labels(utils.concatenate_list(y))
         new_y = [None] * len(y)
@@ -572,9 +577,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                             bias):
         """Compute the objective function of the Semi-Supervised SRM
 
-        .. math:: (1-\alpha)*Loss_{SRM}(W_i,S;X_i)
-        .. math:: + \alpha/\gamma * Loss_{MLR}(\theta, bias; {(W_i^T*Z_i, y_i})
-        .. math:: + R(\theta)
+        See :eq:`sssrm-eq`.
 
         Parameters
         ----------
