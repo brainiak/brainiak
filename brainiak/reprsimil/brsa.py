@@ -431,7 +431,7 @@ class BRSA(BaseEstimator):
             # scan_onsets = [0,100,200,400], this means that the time points
             # of 0-99 are from the first scan, 100-199 are from the second,
             # 200-399 are from the third and 400-499 are from the fourth
-            run_TRs = np.diff(np.append(scan_onsets, n_T))
+            run_TRs = np.int32(np.diff(np.append(scan_onsets, n_T)))
             run_TRs = np.delete(run_TRs, np.where(run_TRs == 0))
             n_run = run_TRs.size
             # delete run length of 0 in case of duplication in scan_onsets.
