@@ -141,5 +141,6 @@ setup(
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
     package_data={'brainiak.utils': ['grey_matter_mask.npy']},
+    python_requires='>=3.4',
     zip_safe=False,
 )
