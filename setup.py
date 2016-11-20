@@ -25,10 +25,6 @@ ext_modules = [
         ['brainiak/factoranalysis/tfa_extension.cpp'],
     ),
     Extension(
-        'brainiak.searchlight.example_fn',
-        ['brainiak/searchlight/example_fn.cpp'],
-    ),
-    Extension(
         'brainiak.fcma.fcma_extension',
         ['brainiak/fcma/src/fcma_extension.cc'],
     ),
