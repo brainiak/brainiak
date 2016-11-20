@@ -147,8 +147,7 @@ class Searchlight:
 
         region_fn: function to apply to each region:
 
-                Paramters
-                ---------
+                Parameters
 
                 subj: list of 4D arrays containing subset of subject data
 
@@ -160,7 +159,6 @@ class Searchlight:
 
 
                 Returns
-                -------
 
                 3D array which is the same size as the mask
                 input with padding removed
@@ -203,8 +201,7 @@ class Searchlight:
 
         voxel_fn: function to apply at each voxel
 
-                Paramters
-                ---------
+                Parameters
 
                 subj: list of 4D arrays containing subset of subject data
 
@@ -216,7 +213,6 @@ class Searchlight:
 
 
                 Returns
-                -------
 
                 Value of any pickle-able type
 
