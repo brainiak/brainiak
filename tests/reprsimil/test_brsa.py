@@ -166,7 +166,7 @@ def test_fit():
     assert not hasattr(brsa,'bGP_') and not hasattr(brsa,'lGPspace_') and not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of GP if GP is not requested.'
     # GP parameters are not set if not requested
-    assert brsa.beta0_.shape[0] == n_nureg, 'Shape of beta0 incorrect'
+    assert brsa.beta0_.shape[0] == n_nureg + 1, 'Shape of beta0 incorrect'
     p = scipy.stats.pearsonr(brsa.beta0_[0,:],np.mean(noise,axis=0))[1]
     assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
 
@@ -282,8 +282,9 @@ def test_gradient():
     XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
         XTDX, XTFX = brsa._prepare_data_XY(design.design_task, Y, D, F)
     X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-        X0TY, X0TDY, X0TFY, X0, n_base = brsa._prepare_data_XYX0(
-            design.design_task, Y, X0, D, F, run_TRs, no_DC=False)
+        X0TY, X0TDY, X0TFY, X0, X_base, n_X0, idx_DC \
+        = brsa._prepare_data_XYX0(
+            design.design_task, Y, X0, np.random.randn(n_T)[:, None], D, F, run_TRs, no_DC=False)
     assert np.shape(XTY) == (n_C, n_V) and np.shape(XTDY) == (n_C, n_V) \
         and np.shape(XTFY) == (n_C, n_V),\
         'Dimension of XTY etc. returned from _prepare_data is wrong'
@@ -297,6 +298,9 @@ def test_gradient():
         'Dimension of XTX0 etc. returned from _prepare_data is wrong'
     assert np.ndim(X0TY) == 2 and np.ndim(X0TDY) == 2 and np.ndim(X0TFY) == 2,\
         'Dimension of X0TY etc. returned from _prepare_data is wrong'
+    assert np.shape(X0) == (n_T, n_X0) and np.shape(X_base) == (n_T, np.size(idx_DC)) and np.max(idx_DC) < n_X0\
+        and  np.size(idx_DC) + 1 == n_X0,\
+        'Dimension of X0 or X_base, or n_X0 or indices of DC components are wrong.'
     l_idx = np.tril_indices(n_C)
     n_l = np.size(l_idx[0])
 
@@ -322,10 +326,11 @@ def test_gradient():
 
     # test if the gradients are correct
     # log likelihood and derivative of the _singpara function
+
     ll0, deriv0 = brsa._loglike_AR1_singpara(param0_sing, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                              XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                              XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, 
-                                             l_idx, n_C, n_T, n_V, n_run, n_base,
+                                             l_idx, n_C, n_T, n_V, n_run, n_X0,
                                              idx_param_sing)
     # We test the gradient to the Cholesky factor
     vec = np.zeros(np.size(param0_sing))
@@ -333,7 +338,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_singpara(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                  XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                  XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                 l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                 l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=1e-5), 'gradient of singpara wrt Cholesky is incorrect'
@@ -344,7 +349,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_singpara(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                  XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                  XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                 l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                 l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                  idx_param_sing)[0],
                             param0_sing, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=1e-5), 'gradient of singpara wrt a1 is incorrect'
@@ -355,7 +360,7 @@ def test_gradient():
     ll0, deriv0 = brsa._loglike_AR1_diagV_fitU(param0_fitU, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                               np.log(snr)*2, l_idx,n_C,n_T,n_V,n_run,n_base,idx_param_fitU,n_C)
+                                               np.log(snr)*2, l_idx,n_C,n_T,n_V,n_run,n_X0,idx_param_fitU,n_C)
 
     
     # We test the gradient wrt the reparametrization of AR(1) coefficient of noise.
@@ -364,7 +369,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                    XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt to AR(1) coefficient incorrect'
 
@@ -374,7 +379,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                    XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_base,
+                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_X0,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt Cholesky factor incorrect'
 
@@ -385,7 +390,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                    XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_base,
+                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_X0,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU wrt Cholesky factor incorrect'
 
@@ -395,7 +400,7 @@ def test_gradient():
     dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
                                                                    XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
                                                                    XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, 
-                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU incorrect'
 
@@ -409,12 +414,12 @@ def test_gradient():
                              X0TX0, X0TDX0, X0TFX0,
                              XTX0, XTDX0, XTFX0,
                              X0TY, X0TDY, X0TFY,
-                             L_full, rho1, n_V, n_base)
+                             L_full, rho1, n_V, n_X0)
     assert np.shape(XTAcorrX) == (n_V, n_C, n_C), 'Dimension of XTAcorrX is wrong by _calc_sandwidge()'
     assert XTAcorrY.shape == XTY.shape, 'Shape of XTAcorrY is wrong by _calc_sandwidge()'
     assert YTAcorrY.shape == YTY_diag.shape, 'Shape of YTAcorrY is wrong by _calc_sandwidge()'
-    assert np.shape(X0TAX0) == (n_V, n_base, n_base), 'Dimension of X0TAX0 is wrong by _calc_sandwidge()'
-    assert np.shape(XTAX0) == (n_V, n_C, n_base), 'Dimension of XTAX0 is wrong by _calc_sandwidge()'
+    assert np.shape(X0TAX0) == (n_V, n_X0, n_X0), 'Dimension of X0TAX0 is wrong by _calc_sandwidge()'
+    assert np.shape(XTAX0) == (n_V, n_C, n_X0), 'Dimension of XTAX0 is wrong by _calc_sandwidge()'
     assert X0TAY.shape == X0TY.shape, 'Shape of X0TAX0 is wrong by _calc_sandwidge()'
     assert np.all(np.isfinite(X0TAX0_i)), 'Inverse of X0TAX0 includes NaN or Inf'
     ll0, deriv0 = brsa._loglike_AR1_diagV_fitV(param0_fitV[idx_param_fitV['log_SNR2']],
@@ -422,7 +427,7 @@ def test_gradient():
                                                X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                L_full[l_idx], np.tan(rho1*np.pi/2),
-                                               l_idx,n_C,n_T,n_V,n_run,n_base,
+                                               l_idx,n_C,n_T,n_V,n_run,n_X0,
                                                idx_param_fitV,n_C,False,False)
     vec = np.zeros(np.size(param0_fitV[idx_param_fitV['log_SNR2']]))
     vec[idx_param_fitV['log_SNR2'][0]] = 1
@@ -430,7 +435,7 @@ def test_gradient():
                                                                    X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                                    L_full[l_idx], np.tan(rho1*np.pi/2),
-                                                                   l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitV, n_C, False, False)[0],
                             param0_fitV[idx_param_fitV['log_SNR2']], vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitV wrt log(SNR2) incorrect for model without GP'
@@ -440,7 +445,7 @@ def test_gradient():
                                                X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                L_full[l_idx], np.tan(rho1*np.pi/2),
-                                               l_idx,n_C,n_T,n_V,n_run,n_base,
+                                               l_idx,n_C,n_T,n_V,n_run,n_X0,
                                                idx_param_fitV,n_C,True,True,
                                                dist2,inten_diff2,100,100)
     vec = np.zeros(np.size(param0_fitV))
@@ -449,7 +454,7 @@ def test_gradient():
                                                                    X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                                    L_full[l_idx], np.tan(rho1*np.pi/2),
-                                                                   l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitV, n_C, True, True,
                                                                    dist2, inten_diff2,
                                                                    100, 100)[0], param0_fitV, vec)
@@ -462,7 +467,7 @@ def test_gradient():
                                                                    X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                                    L_full[l_idx], np.tan(rho1*np.pi/2),
-                                                                   l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitV, n_C, True, True,
                                                                    dist2, inten_diff2,
                                                                    100, 100)[0], param0_fitV, vec)
@@ -475,7 +480,7 @@ def test_gradient():
                                                                    X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                                    L_full[l_idx], np.tan(rho1*np.pi/2),
-                                                                   l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitV, n_C, True, True,
                                                                    dist2, inten_diff2,
                                                                    100, 100)[0], param0_fitV, vec)
@@ -488,7 +493,7 @@ def test_gradient():
                                                                    X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY, 
                                                                    LTXTAcorrY, XTAcorrXL, LTXTAcorrXL,
                                                                    L_full[l_idx], np.tan(rho1*np.pi/2),
-                                                                   l_idx, n_C, n_T, n_V, n_run, n_base,
+                                                                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                                                                    idx_param_fitV, n_C, True, True,
                                                                    dist2, inten_diff2,
                                                                    100, 100)[0], param0_fitV, vec)
