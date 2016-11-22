@@ -209,7 +209,7 @@ class Searchlight:
 
         subj: list of 4D arrays containing data for one or more subjects.
               Each entry of the list must contaion a 4D array on only one
-              MPI rank. 
+              MPI rank, and "None" on all other ranks.
 
         mask: 3D array with nonzero values at active vertices
 

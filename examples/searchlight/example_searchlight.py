@@ -19,6 +19,7 @@ import sys
 from brainiak.searchlight.searchlight import Searchlight
 
 """Distributed Searchlight Example
+example usage: mpirun -n 4 python3 example_searchlight.py
 """
 
 comm = MPI.COMM_WORLD
