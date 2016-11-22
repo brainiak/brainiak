@@ -26,8 +26,8 @@ __all__ = [
 
 class Searchlight:
     """Distributed Searchlight
-    
-    Run a user-defined function over each voxel in a multi-subject 
+
+    Run a user-defined function over each voxel in a multi-subject
     dataset.
 
     Optionally, users can define a block function which runs over
@@ -39,7 +39,7 @@ class Searchlight:
         Parameters
         ----------
 
-        sl_rad: radius, in voxels, of the sphere inscribed in the 
+        sl_rad: radius, in voxels, of the sphere inscribed in the
                    searchlight cube
 
         max_blk_edge: max edge length, in voxels, of the 3D block
@@ -97,7 +97,7 @@ class Searchlight:
                 for i in range(0, mask.shape[0], self.max_blk_edge)
                 for j in range(0, mask.shape[1], self.max_blk_edge)
                 for k in range(0, mask.shape[2], self.max_blk_edge)
-                if np.any( 
+                if np.any(
                 mask[i+self.sl_rad:i+self.sl_rad+self.max_blk_edge,
                      j+self.sl_rad:j+self.sl_rad+self.max_blk_edge,
                      k+self.sl_rad:k+self.sl_rad+self.max_blk_edge])]
@@ -125,15 +125,14 @@ class Searchlight:
         (pt, sz) = block
         if len(mat.shape) == 3:
             return mat[pt[0]:pt[0]+sz[0],
-                         pt[1]:pt[1]+sz[1],
-                         pt[2]:pt[2]+sz[2]].copy()
+                       pt[1]:pt[1]+sz[1],
+                       pt[2]:pt[2]+sz[2]].copy()
         elif len(mat.shape) == 4:
             return mat[:,
-                         pt[0]:pt[0]+sz[0],
-                         pt[1]:pt[1]+sz[1],
-                         pt[2]:pt[2]+sz[2]].copy()
+                       pt[0]:pt[0]+sz[0],
+                       pt[1]:pt[1]+sz[1],
+                       pt[2]:pt[2]+sz[2]].copy()
         else:
-            print('Error num dims')
             sys.exit(0)
 
     def _split_volume(self, mat, blocks):
@@ -153,7 +152,7 @@ class Searchlight:
         -------
 
         A list of the subarrays corresponding to each block
-          
+
         """
         return [self._get_block_data(mat, block) for block in blocks]
 
@@ -169,11 +168,10 @@ class Searchlight:
 
         Returns
         -------
-        
-        A list containing the data in a cyclic layout across ranks
-          
-        """
 
+        A list containing the data in a cyclic layout across ranks
+
+        """
 
         comm = MPI.COMM_WORLD
         rank = comm.rank
@@ -246,7 +244,6 @@ class Searchlight:
         """
 
         comm = MPI.COMM_WORLD
-        rank = comm.rank
         self.bcast_var = comm.bcast(bcast_var)
 
     def searchlight_block(self, block_fn):
@@ -263,7 +260,7 @@ class Searchlight:
 
                 mask: 3D array containing subset of mask data
 
-                sl_rad: radius, in voxels, of the sphere inscribed in the 
+                sl_rad: radius, in voxels, of the sphere inscribed in the
                 cube
 
                 bcast_var: shared data which is broadcast to all processes
@@ -316,7 +313,7 @@ class Searchlight:
 
                 mask: 3D array containing subset of mask data
 
-                sl_rad: radius, in voxels, of the sphere inscribed in the 
+                sl_rad: radius, in voxels, of the sphere inscribed in the
                 cube
 
                 bcast_var: shared data which is broadcast to all processes
@@ -326,7 +323,7 @@ class Searchlight:
 
                 Value of any pickle-able type
 
-        pool_size:    Number of parallel processes in shared memory 
+        pool_size:    Number of parallel processes in shared memory
                       process pool
 
         """

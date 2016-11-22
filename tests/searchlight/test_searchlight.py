@@ -16,7 +16,6 @@ import numpy as np
 from mpi4py import MPI
 import sys
 
-from brainiak.searchlight import example_fn
 from brainiak.searchlight.searchlight import Searchlight
 
 """Distributed Searchlight Test
