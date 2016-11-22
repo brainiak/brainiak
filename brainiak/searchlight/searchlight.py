@@ -111,7 +111,7 @@ class Searchlight:
         mat: a 3D or 4D volume
 
         block: a tuple containing block information:
-          - a triple containing the top left point of the block and
+          - a triple containing the lowest-coordinate voxel in the block
           - a triple containing the size in voxels of the block
 
         Returns
@@ -128,10 +128,10 @@ class Searchlight:
                        pt[1]:pt[1]+sz[1],
                        pt[2]:pt[2]+sz[2]].copy()
         elif len(mat.shape) == 4:
-            return mat[:,
-                       pt[0]:pt[0]+sz[0],
+            return mat[pt[0]:pt[0]+sz[0],
                        pt[1]:pt[1]+sz[1],
-                       pt[2]:pt[2]+sz[2]].copy()
+                       pt[2]:pt[2]+sz[2],
+                       :].copy()
         else:
             sys.exit(0)
 
@@ -199,13 +199,13 @@ class Searchlight:
 
         return subject_submatrices
 
-    def distribute(self, subj, mask):
-        """Distribute data to processes
+    def distribute(self, subjects, mask):
+        """Distribute data to MPI ranks
 
         Parameters
         ----------
 
-        subj: list of 4D arrays containing data for one or more subjects.
+        subjects : list of 4D arrays containing data for one or more subjects.
               Each entry of the list must be present on at most one rank,
               and the other ranks contain a "None" at this list location.
 
@@ -229,18 +229,18 @@ class Searchlight:
         rank = self.comm.rank
 
         # Get/set ownership
-        ownership = self._get_ownership(subj)
+        ownership = self._get_ownership(subjects)
         all_blocks = self._get_blocks(mask) if rank == 0 else None
         all_blocks = self.comm.bcast(all_blocks)
 
         # Divide data and mask
         splitsubj = [self._split_volume(s, all_blocks)
                      if s is not None else None
-                     for s in subj]
+                     for s in subjects]
         submasks = self._split_volume(mask, all_blocks)
 
         # Scatter points, data, and mask
-        self.pts = self._scatter_list(all_blocks, 0)
+        self.blocks = self._scatter_list(all_blocks, 0)
         self.submasks = self._scatter_list(submasks,  0)
         self.subproblems = [self._scatter_list(s, ownership[s_idx])
                             for (s_idx, s) in enumerate(splitsubj)]
@@ -291,7 +291,7 @@ class Searchlight:
         local_outputs = [(mypt[0],
                           block_fn([d[idx] for d in self.subproblems],
                           self.submasks[idx], self.sl_rad, self.bcast_var))
-                         for (idx, mypt) in enumerate(self.pts)]
+                         for (idx, mypt) in enumerate(self.blocks)]
 
         # Collect results
         global_outputs = self.comm.gather(local_outputs)
@@ -346,10 +346,10 @@ class Searchlight:
                                                           mysl_rad:-mysl_rad]
 
             import pathos.multiprocessing
-            inlist = [([ll[:,
-                           i:i+2*mysl_rad+1,
+            inlist = [([ll[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1]
+                           k:k+2*mysl_rad+1,
+                           :]
                         for ll in l],
                        msk[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,

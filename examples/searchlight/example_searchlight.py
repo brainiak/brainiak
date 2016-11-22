@@ -37,7 +37,7 @@ kernel_dim = 5
 weight = 1
 
 # Generate data
-data = np.random.random((ntr,dim,dim,dim)) if rank == 0 else None
+data = np.random.random((dim,dim,dim,ntr)) if rank == 0 else None
 mask = np.zeros((dim,dim,dim), dtype=np.bool)
 for i in range(dim):
   for j in range(dim):
@@ -61,9 +61,9 @@ if rank == 0:
 
   for (idx, l) in enumerate(labels):
     if l:
-      data[idx][pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim] += kernel * weight
+      data[pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim,idx] += kernel * weight
     else:
-      data[idx][pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim] -= kernel * weight
+      data[pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim,idx] -= kernel * weight
 
 # Create searchlight object
 sl = Searchlight(sl_rad=1, max_blk_edge=5)
@@ -77,7 +77,7 @@ def sfn(l, msk, myrad, bcast_var):
   import sklearn.svm
   import sklearn.model_selection
   classifier = sklearn.svm.SVC()
-  data = l[0][:,msk]
+  data = l[0][msk,:].T
   return np.mean(sklearn.model_selection.cross_val_score(classifier, data, bcast_var,n_jobs=1))
 
 # Run searchlight
