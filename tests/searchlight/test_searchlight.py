@@ -71,7 +71,7 @@ def test_correctness():
     sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
     sl.distribute(data, mask)
     sl.broadcast(mask)
-    global_outputs = sl.searchlight_voxel(sfn)
+    global_outputs = sl.run_searchlight(sfn)
   
     if rank == 0:
       for d0 in range(rad, global_outputs.shape[0]-rad):
@@ -107,7 +107,7 @@ def test_correctness():
     sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
     sl.distribute(data, mask)
     sl.broadcast(mask)
-    global_outputs = sl.searchlight_block(sfn)
+    global_outputs = sl.run_block_function(sfn)
   
     if rank == 0:
       for d0 in range(rad, global_outputs.shape[0]-rad):

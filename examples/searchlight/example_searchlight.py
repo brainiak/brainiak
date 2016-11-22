@@ -81,7 +81,7 @@ def sfn(l, msk, myrad, bcast_var):
   return np.mean(sklearn.model_selection.cross_val_score(classifier, data, bcast_var,n_jobs=1))
 
 # Run searchlight
-global_outputs = sl.searchlight_voxel(sfn)
+global_outputs = sl.run_searchlight(sfn)
 
 # Visualize result
 if rank == 0:

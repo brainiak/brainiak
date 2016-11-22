@@ -40,16 +40,17 @@ class Searchlight:
         ----------
 
         sl_rad: radius, in voxels, of the sphere inscribed in the
-                   searchlight cube
+                   searchlight cube, not counting the center voxel
 
         max_blk_edge: max edge length, in voxels, of the 3D block
 
         """
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
+        self.comm = MPI.COMM_WORLD
 
     def _get_ownership(self, data):
-        """Determine which processes own each subject
+        """Determine on which rank each subject currently resides
 
         Parameters
         ----------
@@ -61,11 +62,10 @@ class Searchlight:
 
         list of ranks indicating the owner of each subject
         """
-        comm = MPI.COMM_WORLD
-        rank = comm.rank
+        rank = self.comm.rank
 
         B = [(rank, idx) for (idx, c) in enumerate(data) if c is not None]
-        C = comm.allreduce(B)
+        C = self.comm.allreduce(B)
         ownership = [None] * len(data)
         for c in C:
             ownership[c[1]] = c[0]
@@ -120,7 +120,7 @@ class Searchlight:
         In the case of a 3D array, a 3D subarray at the block location
 
         In the case of a 4D array, a 4D subarray at the block location,
-        including the entire 0th dimension.
+        including the entire fourth dimension.
         """
         (pt, sz) = block
         if len(mat.shape) == 3:
@@ -173,11 +173,11 @@ class Searchlight:
 
         """
 
-        comm = MPI.COMM_WORLD
-        rank = comm.rank
-        size = comm.size
+        rank = self.comm.rank
+        size = self.comm.size
         subject_submatrices = []
-        nblocks = comm.bcast(len(data) if rank == owner else None, root=owner)
+        nblocks = self.comm.bcast(len(data)
+                                  if rank == owner else None, root=owner)
 
         # For each submatrix
         for idx in range(0, nblocks, size):
@@ -191,7 +191,7 @@ class Searchlight:
                     padded = padded + [None]*extra
 
             # Scatter submatrices to all processes
-            mytrans = comm.scatter(padded, root=owner)
+            mytrans = self.comm.scatter(padded, root=owner)
 
             # Contribute submatrix to subject list
             if mytrans is not None:
@@ -206,29 +206,41 @@ class Searchlight:
         ----------
 
         subj: list of 4D arrays containing data for one or more subjects.
-              Each entry of the list must contaion a 4D array on only one
-              MPI rank, and "None" on all other ranks.
+              Each entry of the list must be present on at most one rank,
+              and the other ranks contain a "None" at this list location.
 
-        mask: 3D array with nonzero values at active vertices
+              For example, for 3 ranks you may lay out the data in the
+              following manner:
+
+              Rank 0: [Subj0, None, None]
+              Rank 1: [None, Subj1, None]
+              Rank 2: [None, None, Subj2]
+
+              Or alternatively, you may lay out the data in this manner:
+
+              Rank 0: [Subj0, Subj1, Subj2]
+              Rank 1: [None, None, None]
+              Rank 2: [None, None, None]
+
+        mask: 3D array with "True" entries at active vertices
 
         """
         self.mask = mask
-        comm = MPI.COMM_WORLD
-        rank = comm.rank
+        rank = self.comm.rank
 
         # Get/set ownership
         ownership = self._get_ownership(subj)
-        full_pts = self._get_blocks(mask) if rank == 0 else None
-        full_pts = comm.bcast(full_pts)
+        all_blocks = self._get_blocks(mask) if rank == 0 else None
+        all_blocks = self.comm.bcast(all_blocks)
 
         # Divide data and mask
-        splitsubj = [self._split_volume(s, full_pts)
+        splitsubj = [self._split_volume(s, all_blocks)
                      if s is not None else None
                      for s in subj]
-        submasks = self._split_volume(mask, full_pts)
+        submasks = self._split_volume(mask, all_blocks)
 
         # Scatter points, data, and mask
-        self.pts = self._scatter_list(full_pts, 0)
+        self.pts = self._scatter_list(all_blocks, 0)
         self.submasks = self._scatter_list(submasks,  0)
         self.subproblems = [self._scatter_list(s, ownership[s_idx])
                             for (s_idx, s) in enumerate(splitsubj)]
@@ -243,10 +255,9 @@ class Searchlight:
 
         """
 
-        comm = MPI.COMM_WORLD
-        self.bcast_var = comm.bcast(bcast_var)
+        self.bcast_var = self.comm.bcast(bcast_var)
 
-    def searchlight_block(self, block_fn):
+    def run_block_function(self, block_fn):
         """Perform a function for each block in a volume.
 
         Parameters
@@ -256,7 +267,8 @@ class Searchlight:
 
                 Parameters
 
-                subj: list of 4D arrays containing subset of subject data
+                data: list of 4D arrays containing subset of subject data,
+                      which is padded with sl_rad voxels.
 
                 mask: 3D array containing subset of mask data
 
@@ -273,8 +285,7 @@ class Searchlight:
 
 
         """
-        comm = MPI.COMM_WORLD
-        rank = comm.rank
+        rank = self.comm.rank
 
         # Apply searchlight
         local_outputs = [(mypt[0],
@@ -283,7 +294,7 @@ class Searchlight:
                          for (idx, mypt) in enumerate(self.pts)]
 
         # Collect results
-        global_outputs = comm.gather(local_outputs)
+        global_outputs = self.comm.gather(local_outputs)
 
         # Coalesce results
         outmat = np.empty(self.mask.shape, dtype=np.object)
@@ -299,7 +310,7 @@ class Searchlight:
 
         return outmat
 
-    def searchlight_voxel(self, voxel_fn, pool_size=None):
+    def run_searchlight(self, voxel_fn, pool_size=None):
         """Perform a function at each active voxel
 
         Parameters
@@ -364,4 +375,4 @@ class Searchlight:
 
             return outmat
 
-        return self.searchlight_block(_singlenode_searchlight)
+        return self.run_block_function(_singlenode_searchlight)
