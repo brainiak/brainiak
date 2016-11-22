@@ -66,10 +66,11 @@ if rank == 0:
       data[idx][pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim] -= kernel * weight
 
 # Create searchlight object
-sl = Searchlight(rad=1, region_size=5)
+sl = Searchlight(sl_rad=1, max_blk_edge=5)
 
 # Distribute data to processes
 sl.distribute([data], mask)
+sl.broadcast(labels)
 
 # Define voxel function
 def sfn(l, msk, myrad, bcast_var):
@@ -80,7 +81,7 @@ def sfn(l, msk, myrad, bcast_var):
   return np.mean(sklearn.model_selection.cross_val_score(classifier, data, bcast_var,n_jobs=1))
 
 # Run searchlight
-global_outputs = sl.searchlight_voxel(sfn, labels)
+global_outputs = sl.searchlight_voxel(sfn)
 
 # Visualize result
 if rank == 0:

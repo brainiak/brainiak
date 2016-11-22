@@ -23,11 +23,11 @@ from brainiak.searchlight.searchlight import Searchlight
 """
 
 def test_instantiate():
-  sl = Searchlight(rad=5, region_size=10)
+  sl = Searchlight(sl_rad=5, max_blk_edge=10)
   assert sl
 
 def test_correctness():
-  def voxel_test(data, mask, region_size, rad):
+  def voxel_test(data, mask, max_blk_edge, rad):
     
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -69,9 +69,10 @@ def test_correctness():
       return midpt
     
   
-    sl = Searchlight(rad=rad, region_size=region_size)
+    sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
     sl.distribute(data, mask)
-    global_outputs = sl.searchlight_voxel(sfn, mask)
+    sl.broadcast(mask)
+    global_outputs = sl.searchlight_voxel(sfn)
   
     if rank == 0:
       for d0 in range(rad, global_outputs.shape[0]-rad):
@@ -81,7 +82,7 @@ def test_correctness():
               assert np.array_equal(np.array(global_outputs[d0,d1,d2]), np.array([d0,d1,d2]))
   
   
-  def region_test(data, mask, region_size, rad):
+  def block_test(data, mask, max_blk_edge, rad):
     
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -104,9 +105,10 @@ def test_correctness():
       outmat[~msk] = None
       return outmat[rad:-rad,rad:-rad,rad:-rad] 
     
-    sl = Searchlight(rad=rad, region_size=region_size)
+    sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
     sl.distribute(data, mask)
-    global_outputs = sl.searchlight_region(sfn, mask)
+    sl.broadcast(mask)
+    global_outputs = sl.searchlight_block(sfn)
   
     if rank == 0:
       for d0 in range(rad, global_outputs.shape[0]-rad):
@@ -116,20 +118,21 @@ def test_correctness():
               assert np.array_equal(np.array(global_outputs[d0,d1,d2]), np.array([0,d0,d1,d2]))
   
   # Create dataset
-  def do_test(dim0, dim1, dim2, ntr, nsubj, region_size, rad):
+  def do_test(dim0, dim1, dim2, ntr, nsubj, max_blk_edge, rad):
     comm = MPI.COMM_WORLD
     rank = comm.rank
     size = comm.size
     mask = np.random.choice([True, False], (dim0,dim1,dim2))
     data = [np.empty((ntr,dim0,dim1,dim2), dtype=np.object) if i % size == rank else None for i in range(0, nsubj)]
-    voxel_test(data, mask, region_size, rad)
-    region_test(data, mask, region_size, rad)
+    voxel_test(data, mask, max_blk_edge, rad)
+    block_test(data, mask, max_blk_edge, rad)
   
   
-  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, region_size=4, rad=1)
-  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=5, region_size=4, rad=1)
-  do_test(dim0=1, dim1=5, dim2=9, ntr=5, nsubj=5, region_size=4, rad=1)
-  do_test(dim0=0, dim1=10, dim2=8, ntr=5, nsubj=5, region_size=4, rad=1)
-  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, region_size=4, rad=2)
-  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, region_size=4, rad=3)
+  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=1)
+  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
+  do_test(dim0=1, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
+  do_test(dim0=0, dim1=10, dim2=8, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
+  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=2)
+  do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=3)
 
+test_correctness()
