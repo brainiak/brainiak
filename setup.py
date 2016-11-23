@@ -129,6 +129,7 @@ setup(
         'pymanopt',
         'theano',
         'pybind11>=1.7',
+        'pathos',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
