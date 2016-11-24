@@ -33,7 +33,7 @@ ext_modules = [
         ['brainiak/fcma/cython_blas.pyx'],
     ),
     Extension(
-        'brainiak.eventseg.utils',
+        'brainiak.eventseg._utils',
         ['brainiak/eventseg/_utils.pyx'],
     ),
 ]
@@ -100,7 +100,6 @@ class BuildExt(build_ext):
                 ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
 
-
     def finalize_options(self):
         super().finalize_options()
         import numpy
@@ -130,6 +129,7 @@ setup(
         'pymanopt',
         'theano',
         'pybind11>=1.7',
+        'pathos',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
@@ -142,5 +142,6 @@ setup(
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
     package_data={'brainiak.utils': ['grey_matter_mask.npy']},
+    python_requires='>=3.4',
     zip_safe=False,
 )

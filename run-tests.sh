@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
+set -ev
 
 pip freeze | grep -qi /brainiak || {
     echo "You must install brainiak in editable mode using \"pip install -e\""`
@@ -23,14 +23,24 @@ pip freeze | grep -qi /brainiak || {
 }
 
 mpi_command=mpiexec
-
 if [ ! -z $SLURM_NODELIST ]
 then
     mpi_command=srun
 fi
-
 $mpi_command -n 2 coverage run -m pytest
+
 coverage combine
-coverage report
+
+# Travis error workaround
+coverage_report=$(mktemp -u coverage_report_XXXXX) || {
+    echo "mktemp -u error" >&2;
+    exit 1;
+}
+coverage report > $coverage_report
+
 coverage html
 coverage xml
+
+set +e
+cat $coverage_report
+rm $coverage_report
