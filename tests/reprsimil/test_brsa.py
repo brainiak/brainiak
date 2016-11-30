@@ -29,6 +29,10 @@ def test_can_instantiate():
     s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tol=2e-3,\
                 eta=0.001,space_smooth_range=10.0,inten_smooth_range=100.0)
     assert s, "Invalid BRSA instance!"
+    
+    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, tol=2e-3,\
+                marginalize=True)
+    assert s, "Invalid BRSA instance!"
 
 def test_fit():
     from brainiak.reprsimil.brsa import BRSA
@@ -498,3 +502,18 @@ def test_gradient():
                                                                    dist2, inten_diff2,
                                                                    100, 100)[0], param0_fitV, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitV incorrect'
+
+
+def test_fit_marginalize():
+    import brainiak.reprsimil.brsa
+    import numpy as np
+    s = brainiak.reprsimil.brsa.BRSA()
+    assert s, "Invalid BRSA instance!"
+
+    voxels = 100
+    samples = 500
+    features = 3
+
+    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tol=2e-3,\
+                eta=0.001,space_smooth_range=10.0,inten_smooth_range=100.0)
+    assert s, "Invalid BRSA instance!"
