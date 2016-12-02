@@ -5,8 +5,11 @@
 *.swp
 *.lib
 *.o
+*.npy
+*.log
 
 brainiak.egg-info
+build
 .cache
 .coverage
 coverage.xml
@@ -17,3 +20,7 @@ htmlcov
 .idea
 .ipynb_checkpoints
 junit-*.xml
+__pycache__
+
+brainiak/fcma/cython_blas.c
+brainiak/eventseg/_utils.c

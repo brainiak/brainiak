@@ -1,7 +1,22 @@
 #!/bin/bash
+
+#  Copyright 2016 Intel Corporation
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
 # Check readiness for pull request
 
-set -e
+set -ev
 
 if [ ! -f brainiak/__init__.py ]
 then
@@ -54,12 +69,14 @@ function exit_with_error {
 function exit_with_error_and_venv {
     $deactivate_venv
     cd $basedir
+    rm -f .coverage.*
     $remove_venv $venv
     exit_with_error "$1"
 }
 
 if [ $(which conda) ]
 then
+    export PYTHONNOUSERSITE=True
     create_venv=create_conda_venv
     activate_venv=activate_conda_venv
     deactivate_venv=deactivate_conda_venv
@@ -88,6 +105,10 @@ $activate_venv $venv || {
     exit_with_error "virtualenv activation failed"
 }
 
+# install brainiak in editable mode (required for testing)
+pip3 install $ignore_installed -U -e . || \
+    exit_with_error_and_venv "pip3 failed to install BrainIAK"
+
 # install developer dependencies
 pip3 install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip3 failed to install requirements"
@@ -96,17 +117,19 @@ pip3 install $ignore_installed -U -r requirements-dev.txt || \
 ./run-checks.sh || \
     exit_with_error_and_venv "run-checks failed"
 
-# install brainiak in editable mode (required for testing)
-pip3 install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "pip3 failed to install BrainIAK"
-
 # run tests
 ./run-tests.sh || \
     exit_with_error_and_venv "run-tests failed"
 
 # build documentation
 cd docs
-make || {
+export THEANO_FLAGS='device=cpu,floatX=float64'
+git clean -Xf .
+if [ ! -z $SLURM_NODELIST ]
+then
+    make_wrapper="srun -n 1"
+fi
+$make_wrapper make || {
     cd -
     exit_with_error_and_venv "make docs failed"
 }

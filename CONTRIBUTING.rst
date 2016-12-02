@@ -28,16 +28,31 @@ in mind:
 
 
 
-How to Contribute
+How to contribute
 =================
 
-We use Pull Requests (PR's)
-(https://help.github.com/categories/collaborating-on-projects-using-pull-requests/)
-to make improvements to the repository. Please see the linked documentation for
-information about how to create your own fork of the project, and generate pull
-requests to submit your code for inclusion in the project. All pull requests
-will be automatically tested as described below, so make sure you test them
-yourself before submitting them::
+We use GitHub pull requests (PRs) to make improvements to the repository.
+Please see the `GitHub help for collaborating on projects using issues and pull
+requests`_ for information about how to create your own fork of the project and
+generate pull requests to submit your code for inclusion in the project.
+
+.. _GitHub help for collaborating on projects using issues and pull requests:
+   https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
+
+All pull requests are automatically tested using the ``pr-check.sh`` script.
+You should test you contributions yourself on your computer using
+``pr-check.sh`` before creating a PR. The script performs several checks in a
+Python virtual environment, which is isolated from your normal Python
+environment for reproducibility.
+
+During development, you may wish to run some of the individual checks in
+``pr-check.sh`` repeatedly until you get everything right, without waiting for
+the virtual environment to be set up every time. You can run the individual
+checks from ``pr-check.sh`` using the steps bellow::
+
+  # do not run this if using Anaconda, because Anaconda is not compatible with
+  # virtualenv; instead, look at pr-check.sh to see how to run the individual
+  # checks that are part of pr-check.sh using Anaconda
 
   # optional, but highly recommended: create a virtualenv to isolate tests
   virtualenv ../brainiak_pr_venv
@@ -60,32 +75,14 @@ yourself before submitting them::
   make
   cd -
 
-  # optional: remove virtualenv
+  # optional: remove virtualenv, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
-Alternatively, you can run ``pr-check.sh``, which does all of the above and
-supports ``conda`` in addition to ``virtualenv``.
+When you are ready to submit your PR, run ``pr-check.sh`` even if you were
+using the steps above to run the individual checks in ``pr-check.sh`` during
+development.
 
-
-Supported Configurations
-========================
-
-BrainIAK provides greatest performance benefits when compiled with the Intel
-C/C++ compiler, icc, though it will compile with both gcc and icc.
-
-We currently support Linux and MacOS X.
-
-The Intel Math Kernel Library (MKL) is required, as is MPI. We use MPICH for
-compiling. The Intel Data Analytics Acceleration Library (DAAL) is also
-required.
-
-* MKL and DAAL are both available to everyone under free community license at
-  this URL:
-  https://registrationcenter.intel.com/en/forms/?productid=2558&licensetype=2
-* The Intel C/C++ compiler is available for free to open source contributors
-  here:
-  https://registrationcenter.intel.com/en/forms/?licensetype=2&programID=opensource&productid=2302
 
 Tools
 =====
@@ -95,41 +92,26 @@ to use whatever you like to develop, but bear in mind that if you use the same
 tools as the rest of the group, more people will be able to help if something
 goes wrong.
 
-The development requirements are listed in ``requirements-dev.txt``. You can install them with::
+The development requirements are listed in ``requirements-dev.txt``. You can
+install them with::
 
   pip3 install -U -r requirements-dev.txt
+
 
 Standards
 =========
 
-* Python code should follow the SciKit-Learn coding standards
-  (http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines)
-  with the exception that we target Python 3 only.
+* Python code should follow the `Scikit-learn coding guidelines`_ with the
+  exception that we target Python 3 only.
+
+.. _Scikit-learn coding guidelines:
+   http://scikit-learn.org/stable/developers/contributing.html#coding-guidelines
+
 * Python docstrings should be formatted according to the NumPy docstring
   standard as implemented by the `Sphinx Napoleon extension`_ (see also the
   `Sphinx NumPy example`_). In particular, note that type annotations must
   follow `PEP 484`_. Please also read the `NumPy documentation guide`_, but
   note that we consider Sphinx authoritative.
-* C++ code should follow the Google C++ standards
-  (https://google.github.io/styleguide/cppguide.html)
-* All user-visible / public APIs should have technical documentation that
-  explains what the code does, what its parameters mean, and what its return
-  values can be, at a minimum. Run ``make`` in the ``docs`` directory to make
-  sure you can build the documentation; this requires ``sphinx_rtd_theme``.
-* All code should have repeatable automated unit tests, and most code should
-  have integration tests as well.
-* Where possible, transformations and classifiers should be made compatible
-  with Scikit-learn Pipelines by implementing fit, transform and 
-  fit_transform methods as described in the Scikit-learn documentation
-  (http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html)
-* Use ``logging`` to record debug messages with a logger obtained using::
-
-    logging.getLogger(__name__)
-
-  Use ``warnings`` to show warning messages to users. Do not use ``print``. See
-  the `Python Logging Tutorial`_ for details.
-* Use ``run-checks.sh`` to check your code before submitting a pull request. It
-  requires ``flake8``.
 
 .. _Sphinx Napoleon extension:
    http://www.sphinx-doc.org/en/stable/ext/napoleon.html
@@ -139,21 +121,52 @@ Standards
    https://www.python.org/dev/peps/pep-0484/
 .. _NumPy documentation guide:
    https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
+
+* C++ code should follow the `WebKit code style guidelines`_.
+
+.. _WebKit code style guidelines:
+   https://google.github.io/styleguide/cppguide.html
+
+* All code exposed through public APIs must have documentation that explains
+  what the code does, what its parameters mean, and what its return values can
+  be, at a minimum.
+
+* All code must have repeatable automated unit tests, and most code should
+  have integration tests as well.
+
+* Where possible, transformations and classifiers should be made compatible
+  with Scikit-learn Pipelines by implementing ``fit``, ``transform`` and 
+  ``fit_transform`` methods as described in the `Scikit-learn pipeline
+  documentation`_.
+
+.. _Scikit-learn pipeline documentation:
+   http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html
+
+* Use ``logging`` to record debug messages with a logger obtained using::
+
+    logging.getLogger(__name__)
+
+  Use ``warnings`` to show warning messages to users. Do not use ``print``. See
+  the `Python Logging Tutorial`_ for details.
+
 .. _Python Logging Tutorial:
    https://docs.python.org/3/howto/logging.html
+
 
 Testing
 =======
 
-Unit tests are small tests that execute very quickly, seconds or less. They
-are the first line of defense against software errors, and you must
-include some whenever you add code to BrainIAK. We use a tool called "pytest"
-to run tests; look at http://pytest.org/latest/contents.html for its
-documentation; you must also install ``pytest-cov``. You should put your tests
-in a ``test_*.py`` file in the test folder, following the structure of the
-``brainiak` folder. So for example, if you have your code in
+Unit tests are small tests that execute very quickly, seconds or less. They are
+the first line of defense against software errors, and you must include some
+whenever you add code to BrainIAK. We use a tool called "pytest" to run tests;
+please read the `Pytest documentation`_.  You should put your tests in a
+``test_*.py`` file in the test folder, following the structure of the
+``brainiak`` folder. So for example, if you have your code in
 ``brainiak/functional_alignment/srm.py`` you should have tests in
 ``tests/functional_alignment/test_srm.py``.
+
+.. _Pytest documentation:
+  http://pytest.org/latest/contents.html
 
 You must install the package in editable mode using the ``-e`` flag of ``pip3
 install`` before running the tests.
@@ -172,12 +185,14 @@ project root directory, the coverage program will fail to report the coverage
 of the installed code, because it will look for the code in the current
 directory, which is not executed.
 
-Folder Layout
+Folder layout
 =============
 
 Since BrainIAK is primarily published as a Python package, it is largely
-organized according to the guidelines for Python package distribution:
-http://python-packaging-user-guide.readthedocs.org/en/latest/distributing/
+organized according to the `Python Packaging User Guide`_.
+
+.. _Python Packaging User Guide:
+   https://packaging.python.org/distributing/
 
 Python code goes in the ``brainiak`` package, usually with a subpackage for
 each major research initiative. If an algorithm can be implemented in a single
