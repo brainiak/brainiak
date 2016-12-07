@@ -78,7 +78,10 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _generate_feature(feature_type, feature_size, signal_magnitude):
+def _generate_feature(feature_type,
+                      feature_size,
+                      signal_magnitude,
+                      thickness=1):
     """Generate features corresponding to signal
 
     Generate signal in specific regions of the brain with for a single
@@ -98,6 +101,9 @@ def _generate_feature(feature_type, feature_size, signal_magnitude):
         Set the signal size, a value of 1 means the signal is one standard
         deviation of the noise
 
+    thickness : int
+        How thick is the surface of the loop/cavity
+
     Returns
     ----------
 
@@ -105,6 +111,10 @@ def _generate_feature(feature_type, feature_size, signal_magnitude):
         The volume representing the signal to be outputed
 
     """
+
+    # If the size is equal to or less than 2 then all features are the same
+    if feature_size <= 2:
+        feature_type = 'cube'
 
     # What kind of signal is it?
     if feature_type == 'cube':
@@ -135,11 +145,15 @@ def _generate_feature(feature_type, feature_size, signal_magnitude):
         yymesh = (yy - ((feature_size - 1) / 2)) ** 2
         disk = xxmesh + yymesh
 
+        # What are the limits of the rings being made
+        outer_lim = disk[int((feature_size - 1) / 2), 0]
+        inner_lim = disk[int((feature_size - 1) / 2), thickness]
+
         # What is the outer disk
-        outer = disk < (feature_size - 1)
+        outer = disk <= outer_lim
 
         # What is the inner disk
-        inner = disk < (feature_size - 1) / 2
+        inner = disk <= inner_lim
 
         # Subtract the two disks to get a loop
         loop = outer != inner
@@ -165,14 +179,21 @@ def _generate_feature(feature_type, feature_size, signal_magnitude):
                   (yy - ((feature_size - 1) / 2)) ** 2 +
                   (zz - ((feature_size - 1) / 2)) ** 2)
 
+        # What are the limits of the rings being made
+        outer_lim = signal[int((feature_size - 1) / 2), int((feature_size -
+                                                             1) / 2), 0]
+        inner_lim = signal[int((feature_size - 1) / 2), int((feature_size -
+                                                             1) / 2),
+                           thickness]
+
         # Is the signal a sphere or a cavity?
         if feature_type == 'sphere':
-            signal = signal < (feature_size - 1)
+            signal = signal <= outer_lim
 
         else:
             # Get the inner and outer sphere
-            outer = signal < (feature_size - 1)
-            inner = signal < (feature_size - 1) / 2
+            outer = signal <= outer_lim
+            inner = signal <= inner_lim
 
             # Subtract the two disks to get a loop
             signal = outer != inner
