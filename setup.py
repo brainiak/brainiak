@@ -123,9 +123,11 @@ setup(
     install_requires=[
         'cython',
         'mpi4py',
+        'nibabel',
         'numpy',
         'scikit-learn>=0.18',
         'scipy',
+        'statsmodels',
         'pymanopt',
         'theano',
         'pybind11>=1.7',

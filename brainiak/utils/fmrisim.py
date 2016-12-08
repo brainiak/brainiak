@@ -1461,7 +1461,10 @@ def generate_noise(dimensions,
     if 'snr' not in noise_dict:
         noise_dict['snr'] = 30
     if 'spatial_sigma' not in noise_dict:
-        noise_dict['spatial_sigma'] = 0.015 / noise_dict['overall']
+        if noise_dict['overall'] == 0:
+            noise_dict['spatial_sigma'] = 0.015
+        else:
+            noise_dict['spatial_sigma'] = 0.015 / noise_dict['overall']
 
     # Print the mixing of the noise
     total_var = noise_dict['motion_sigma'] ** 2
@@ -1490,7 +1493,7 @@ def generate_noise(dimensions,
 
     # Get the mask of the brain and set it to be 3d
     if mask is None:
-        mask = np.ones(dimensions)
+        mask = np.ones(dimensions_tr)
 
     # Generate the noise
     noise_temporal = _generate_noise_temporal(stimfunction=stimfunction,
