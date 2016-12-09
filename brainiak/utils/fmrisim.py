@@ -240,15 +240,15 @@ def _insert_idxs(feature_centre, feature_size, dimensions):
     """
 
     # Set up the indexes within which to insert the signal
-    x_idx = [int(feature_centre[0] - (feature_size / 2)),
+    x_idx = [int(feature_centre[0] - (feature_size / 2)) + 1,
              int(feature_centre[0] - (feature_size / 2) +
-                 feature_size)]
-    y_idx = [int(feature_centre[1] - (feature_size / 2)),
+                 feature_size) + 1]
+    y_idx = [int(feature_centre[1] - (feature_size / 2)) + 1,
              int(feature_centre[1] - (feature_size / 2) +
-                 feature_size)]
-    z_idx = [int(feature_centre[2] - (feature_size / 2)),
+                 feature_size) + 1]
+    z_idx = [int(feature_centre[2] - (feature_size / 2)) + 1,
              int(feature_centre[2] - (feature_size / 2) +
-                 feature_size)]
+                 feature_size) + 1]
 
     # Check for out of bounds
     # Min Boundary
@@ -1405,41 +1405,19 @@ def mask_brain(volume,
     return mask
 
 
-def generate_noise(dimensions,
-                   stimfunction,
-                   tr_duration,
-                   mask=None,
-                   noise_dict={'overall': 0.1},
-                   ):
-    """ Generate the noise to be added to the signal.
-    Default noise parameters will create a noise volume with a standard
-    deviation of 0.1 (where the signal defaults to a value of 1). This has
-    built into estimates of how different types of noise mix. All noise
-    values can be set by the user
+def _noise_dict_update(noise_dict):
+    """
+    Update the noise dictionary parameters, in case any were missing
 
     Parameters
     ----------
-    dimensions : n length array, int
-        What is the shape of the volume to be generated
+    noise_dict : dict
 
-    stimfunction :  Iterable, bool
-        When do the stimuli events occur
-
-    tr_duration : float
-        What is the duration, in seconds, of each TR?
-
-    mask : 4d array, float
-        The mask of the brain volume, using
-
-    noise_dict : dictionary, float
-        This is a dictionary that must contain the key: overall. If there
-        are no other variables provided then it will default values
+    A dictionary specifying the types of noise in this experiment
 
     Returns
-    ----------
-
-    multidimensional array, float
-        Generates the noise volume for these parameters
+    -------
+    Updated dictionary
 
     """
 
@@ -1484,6 +1462,50 @@ def generate_noise(dimensions,
     # print('Physiological noise:\t' + tmp)
     # tmp = str(noise_dict['system_sigma'] ** 2 / total_var * 100)[0:5]
     # print('System noise:\t\t\t' + tmp)
+
+    return noise_dict
+
+
+def generate_noise(dimensions,
+                   stimfunction,
+                   tr_duration,
+                   mask=None,
+                   noise_dict={'overall': 0.1},
+                   ):
+    """ Generate the noise to be added to the signal.
+    Default noise parameters will create a noise volume with a standard
+    deviation of 0.1 (where the signal defaults to a value of 1). This has
+    built into estimates of how different types of noise mix. All noise
+    values can be set by the user
+
+    Parameters
+    ----------
+    dimensions : n length array, int
+        What is the shape of the volume to be generated
+
+    stimfunction :  Iterable, bool
+        When do the stimuli events occur
+
+    tr_duration : float
+        What is the duration, in seconds, of each TR?
+
+    mask : 4d array, float
+        The mask of the brain volume, using
+
+    noise_dict : dictionary, float
+        This is a dictionary that must contain the key: overall. If there
+        are no other variables provided then it will default values
+
+    Returns
+    ----------
+
+    multidimensional array, float
+        Generates the noise volume for these parameters
+
+    """
+
+    # Take in the noise dictionary and determine whether
+    noise_dict = _noise_dict_update(noise_dict)
 
     # What are the dimensions of the volume, including time
     dimensions_tr = (dimensions[0],

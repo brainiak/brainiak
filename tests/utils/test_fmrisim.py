@@ -22,14 +22,15 @@ import numpy as np
 import math
 from brainiak.utils import fmrisim as sim
 
+
 def test_generate_signal():
 
     # Inputs for generate_signal
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
-    feature_size = [2]
+    dimensions = np.array([10, 10, 10]) # What is the size of the brain
+    feature_size = [3]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[5, 5, 5]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
@@ -44,22 +45,22 @@ def test_generate_signal():
     assert np.max(volume_static) == signal_magnitude, "Check signal magnitude"
     assert np.sum(volume_static>0) == math.pow(feature_size[0], 3), "Check " \
                                                                     "feature size"
-    assert volume_static[32,32,18] == signal_magnitude, "Check signal location"
-    assert volume_static[32,32,10] == 0, "Check noise location"
+    assert volume_static[5, 5, 5] == signal_magnitude, "Check signal location"
+    assert volume_static[5, 5, 1] == 0, "Check noise location"
 
     feature_coordinates = np.array(
-        [[32, 32, 18], [32, 28, 18], [28, 32, 18]])
+        [[5, 5, 5], [3, 3, 3], [7, 7, 7]])
 
     volume_static = sim.generate_signal(dimensions=dimensions,
                                         feature_coordinates=feature_coordinates,
                                         feature_type=['loop', 'cavity',
                                                       'sphere'],
-                                        feature_size=[9],
+                                        feature_size=[3],
                                         signal_magnitude=signal_magnitude,
                                         )
-    assert volume_static[32, 32, 18] == 0, "Loop is empty"
-    assert volume_static[32, 28, 18] == 0, "Cavity is empty"
-    assert volume_static[28, 32, 18] != 0, "Sphere is not empty"
+    assert volume_static[5, 5, 5] == 0, "Loop is empty"
+    assert volume_static[3, 3, 3] == 0, "Cavity is empty"
+    assert volume_static[7, 7, 7] != 0, "Sphere is not empty"
 
 
 def test_generate_stimfunction():
@@ -152,12 +153,12 @@ def test_apply_signal():
 
 def test_generate_noise():
 
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
-    signal_magnitude = [30]
+        [[5, 5, 5]])
+    signal_magnitude = [1]
 
     # Generate a volume representing the location and quality of the signal
     volume_static = sim.generate_signal(dimensions=dimensions,
@@ -219,11 +220,11 @@ def test_generate_noise():
 def test_mask_brain():
 
     # Inputs for generate_signal
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10]) # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[4, 4, 4]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
@@ -236,14 +237,14 @@ def test_mask_brain():
 
     # Mask the volume to be the same shape as a brain
     mask = sim.mask_brain(volume)[:,:,:,0]
-    brain = volume * mask > 0
+    brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) == np.sum(volume != 0), "Masking did not work"
     assert brain[0, 0, 0] == 0, "Masking did not work"
-    assert brain[32, 32, 18] != 0, "Masking did not work"
+    assert brain[4, 4, 4] != 0, "Masking did not work"
 
     feature_coordinates = np.array(
-        [[3, 3, 3]])
+        [[1, 1, 1]])
 
     volume = sim.generate_signal(dimensions=dimensions,
                                  feature_coordinates=feature_coordinates,
@@ -254,6 +255,6 @@ def test_mask_brain():
 
     # Mask the volume to be the same shape as a brain
     mask = sim.mask_brain(volume)[:,:,:,0]
-    brain = volume * mask > 0
+    brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
