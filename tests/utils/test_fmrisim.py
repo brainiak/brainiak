@@ -104,11 +104,11 @@ def test_generate_stimfunction():
 
 def test_apply_signal():
 
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10]) # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[5, 5, 5]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal

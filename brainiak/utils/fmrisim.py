@@ -60,7 +60,7 @@ import math
 from itertools import product
 import nibabel
 from scipy import stats
-import statsmodels.api as sm
+import nitime.algorithms.autoregressive as ar
 from pkg_resources import resource_stream
 
 __all__ = [
@@ -807,7 +807,7 @@ def _calc_snr(volume,
 
 def _calc_autoregression(volume,
                          mask,
-                         ar_order=1,
+                         ar_order=2,
                          ):
     """ Calculate the autoregressive sigma of the data.
 
@@ -832,12 +832,8 @@ def _calc_autoregression(volume,
     # Calculate the time course
     timecourse = np.mean(volume[mask[:, :, :, 0] > 0], 0)
 
-    # Pull out the AR values (depends on order).
-    # Don't worry about I or MA values.
-    model = sm.tsa.ARIMA(timecourse, (ar_order, 0, 0))
-
-    # Ignore the intercept, the first entry
-    auto_reg_sigma = model.fit().params[1:]
+    # Pull out the AR values (depends on order)
+    auto_reg_sigma = ar.AR_est_YW(timecourse, ar_order)[0][1]
 
     # What is the size of the change in the time course
     drift_sigma = timecourse.std().tolist()
@@ -849,10 +845,10 @@ def calc_noise(volume,
                mask=None,
                ):
     """ Calculates the noise properties of the volume supplied.
-    This estimates what noise properties the volume has. The absolute size of
-    the autoregression, drift and system noise is not critical but rather
-    the relative amounts (because all temporal noise is z scored in the
-    average and multiplied by the 'overall' parameter).
+    This estimates what noise properties the volume has. For instance it
+    determines the spatial smoothness, the autoregressive noise, system
+    noise etc. Read the doc string for generate_noise to understand how
+    these different types of noise interact.
 
     Parameters
     ----------
