@@ -111,6 +111,7 @@ class BuildExt(build_ext):
         ])
 
 
+
 setup(
     name='brainiak',
     use_scm_version=True,
@@ -124,10 +125,10 @@ setup(
         'cython',
         'mpi4py',
         'nibabel',
+        'nitime',
         'numpy',
         'scikit-learn>=0.18',
         'scipy',
-        'statsmodels',
         'pymanopt',
         'theano',
         'pybind11>=1.7',

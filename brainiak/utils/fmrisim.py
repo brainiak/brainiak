@@ -486,7 +486,10 @@ def generate_stimfunction(onsets,
 def export_stimfunction(stimfunction,
                         filename,
                         ):
-    """ Output a three column text file (onset time, event duration and weight)
+    """ Output a tab separated timing file
+
+    This produces a three column tab separated text file, with the three
+    columns representing onset time, event duration and weight, respectively
 
     Useful if you want to run the simulated data through FEAT analyses
 

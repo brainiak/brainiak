@@ -26,7 +26,7 @@ from brainiak.utils import fmrisim as sim
 def test_generate_signal():
 
     # Inputs for generate_signal
-    dimensions = np.array([10, 10, 10]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [3]
     feature_type = ['cube']
     feature_coordinates = np.array(
@@ -34,33 +34,32 @@ def test_generate_signal():
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
-    assert np.all(volume_static.shape == dimensions), "Check signal shape"
-    assert np.max(volume_static) == signal_magnitude, "Check signal magnitude"
-    assert np.sum(volume_static>0) == math.pow(feature_size[0], 3), "Check " \
-                                                                    "feature size"
-    assert volume_static[5, 5, 5] == signal_magnitude, "Check signal location"
-    assert volume_static[5, 5, 1] == 0, "Check noise location"
+    assert np.all(volume.shape == dimensions), "Check signal shape"
+    assert np.max(volume) == signal_magnitude, "Check signal magnitude"
+    assert np.sum(volume>0) == math.pow(feature_size[0], 3), "Check feature " \
+                                                             "size"
+    assert volume[5, 5, 5] == signal_magnitude, "Check signal location"
+    assert volume[5, 5, 1] == 0, "Check noise location"
 
     feature_coordinates = np.array(
         [[5, 5, 5], [3, 3, 3], [7, 7, 7]])
 
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=['loop', 'cavity',
-                                                      'sphere'],
-                                        feature_size=[3],
-                                        signal_magnitude=signal_magnitude,
-                                        )
-    assert volume_static[5, 5, 5] == 0, "Loop is empty"
-    assert volume_static[3, 3, 3] == 0, "Cavity is empty"
-    assert volume_static[7, 7, 7] != 0, "Sphere is not empty"
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=['loop', 'cavity', 'sphere'],
+                                 feature_size=[3],
+                                 signal_magnitude=signal_magnitude,
+                                )
+    assert volume[5, 5, 5] == 0, "Loop is empty"
+    assert volume[3, 3, 3] == 0, "Cavity is empty"
+    assert volume[7, 7, 7] != 0, "Sphere is not empty"
 
 
 def test_generate_stimfunction():
@@ -78,10 +77,9 @@ def test_generate_stimfunction():
                                              )
 
     assert len(stimfunction) == duration * 1000, "stimfunction incorrect " \
-                                                        "length"
-    assert np.sum(stimfunction) == np.sum(event_durations * len(onsets)) * \
-                                   1000, "Event number"
-
+                                                 "length"
+    eventNumber = np.sum(event_durations * len(onsets)) * 1000
+    assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
     signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
@@ -104,7 +102,7 @@ def test_generate_stimfunction():
 
 def test_apply_signal():
 
-    dimensions = np.array([10, 10, 10]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
@@ -112,12 +110,12 @@ def test_apply_signal():
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
     # Inputs for generate_stimfunction
     onsets = [10, 30, 50, 70, 90]
@@ -137,7 +135,7 @@ def test_apply_signal():
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
     assert signal.shape == (dimensions[0], dimensions[1], dimensions[2],
@@ -145,7 +143,7 @@ def test_apply_signal():
                                                      "wrong size"
 
     signal = sim.apply_signal(signal_function=stimfunction,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
     assert np.any(signal == signal_magnitude), "The stimfunction is not binary"
@@ -161,12 +159,12 @@ def test_generate_noise():
     signal_magnitude = [1]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
     # Inputs for generate_stimfunction
     onsets = [10, 30, 50, 70, 90]
@@ -186,7 +184,7 @@ def test_generate_noise():
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
     # Generate the mask of the signal
