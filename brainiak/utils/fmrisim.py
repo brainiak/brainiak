@@ -54,14 +54,13 @@ Show the brain as it unfolds over time with a given opacity.
 """
 import logging
 
-import numpy as np
-import scipy.ndimage as ndimage
-import math
 from itertools import product
-import nibabel
-from scipy import stats
 import nitime.algorithms.autoregressive as ar
+import math
+import numpy as np
 from pkg_resources import resource_stream
+from scipy import stats
+import scipy.ndimage as ndimage
 
 __all__ = [
     "generate_signal",
@@ -855,7 +854,7 @@ def calc_noise(volume,
 
     Parameters
     ----------
-    volume : str or 4d numpy array, float
+    volume : 4d numpy array, float
         Take in a functional volume (either the file name or the numpy
         array) to be used to estimate the noise properties of this
 
@@ -873,12 +872,6 @@ def calc_noise(volume,
 
     # Preset
     noise_dict = {}
-
-    # If a string name is provided then load this file and pull out the
-    # nifti into a numpy array
-    if isinstance(volume, str):
-        nifti = nibabel.load(volume)  # Load the file
-        volume = nifti.get_data()  # Pull out the data
 
     # Create the mask
     if mask is None:
