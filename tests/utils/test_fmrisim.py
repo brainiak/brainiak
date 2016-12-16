@@ -256,3 +256,50 @@ def test_mask_brain():
     brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
+
+
+def test_calc_noise():
+
+    # Inputs for functions
+    onsets = [10, 30, 50, 70, 90]
+    event_durations = [6]
+    tr_duration = 2
+    duration = 100
+    dimensions_tr = np.array([10, 10, 10, duration/tr_duration])
+
+    # Preset the noise dict
+    nd_orig = {'auto_reg_sigma': 1,
+               'drift_sigma': 0.5,
+               'overall': 0.1,
+               'snr': 30,
+               'spatial_sigma': 0.15,
+               'system_sigma': 1,
+               }
+
+    # Create the time course for the signal to be generated
+    stimfunction = sim.generate_stimfunction(onsets=onsets,
+                                             event_durations=event_durations,
+                                             total_time=duration,
+                                             )
+
+    # Mask the volume to be the same shape as a brain
+    mask = sim.mask_brain(dimensions_tr)
+    noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
+                               stimfunction=stimfunction,
+                               tr_duration=tr_duration,
+                               mask=mask,
+                               noise_dict=nd_orig,
+                               )
+
+    # Calculate the noise
+    nd_calc = sim.calc_noise(noise, mask)
+
+    assert abs(nd_calc['overall'] - nd_orig['overall']) < 0.1, 'overall ' \
+                                                               'calculated ' \
+                                                               'incorrectly'
+
+    assert abs(nd_calc['snr'] - nd_orig['snr']) < 10, 'snr calculated ' \
+                                                      'incorrectly'
+
+    assert abs(nd_calc['system_sigma'] - nd_orig['system_sigma']) < 1, \
+        'snr calculated incorrectly'
