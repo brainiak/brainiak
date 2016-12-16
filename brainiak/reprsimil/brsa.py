@@ -2569,7 +2569,7 @@ class GBRSA(BRSA):
         cov_point_est = cov_point_est / len(Y)
         current_vec_U_chlsk_l = 1 / np.mean(std_residual)\
             * np.linalg.cholesky(cov_point_est +
-                                 np.eye(n_C) * 1e-2)[l_idx]
+                                 np.eye(n_C) * 1e-1)[l_idx]
 
         # We add a tiny diagonal element to the point
         # estimation of covariance, just in case
@@ -2762,7 +2762,7 @@ class GBRSA(BRSA):
         # 0.5*log(det(LAMBDA_i))
         # dimension: n_grid
         L_LAMBDA = np.empty((n_grid, n_C, rank))
-        L_LAMBDA_LT = np.empty((n_grid, rank, rank))
+        L_LAMBDA_LT = np.empty((n_grid, n_C, n_C))
         s2YTAcorrXL_LAMBDA_LTXTAcorrY = np.empty((n_grid, n_V))
         # dimension: space * n_grid
         
