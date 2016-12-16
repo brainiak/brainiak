@@ -18,10 +18,11 @@
 
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",
-    M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
-    Neural Information Processing Systems 29, 2016.
-    A preprint is available at
-    https://doi.org/10.1101/073932
+    M. Cai, N. Schuck, J. Pillow, Y. Niv,
+    Advances in Neural Information Processing Systems 29, 2016, 4952--4960
+    Available at:
+    http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing
+    -bias-in-neural-representational-similarity-analysis.pdf
 """
 
 # Authors: Mingbo Cai
@@ -46,7 +47,7 @@ warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BRSA", "MBRSA"
+    "BRSA", "GBRSA"
 ]
 
 
@@ -229,8 +230,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         verbose=False, eta=0.0001,
         space_smooth_range=None, inten_smooth_range=None,
         tau_range=5.0, tau2_prior='invGamma', init_iter=20, optimizer='BFGS',
-        rand_seed=0, anneal_speed=5, prior_ts_cov='Full',
-        marginalize=False):
+        rand_seed=0, anneal_speed=5, prior_ts_cov='Full'):
 
         self.n_iter = n_iter
         self.rank = rank
@@ -334,16 +334,6 @@ class BRSA(BaseEstimator, TransformerMixin):
             but with the same tissue type. The Gaussian Process
             is experimental and has shown good performance on
             some visual datasets.
-        SNR_bins: optional, integer. Default: 11
-            The number of bins to divide the region of [0, 1] for pseudo-SNR.
-            This only takes effect for fitting the marginalized version.
-            If set to 11, discrete numbers of (0, 0.1, ..., 1) will be used
-            to numerically integrate pseudo-SNR from 0 to 1.
-        rho_bins: optional, integer. Default: 10
-            The number of bins to divide the region of (-1, 1) for rho.
-            This only takes effect for fitting the marginalized version.
-            If set to 10, discrete numbers of (-0.9, -0.7, ..., 0.9) will
-            be used to numerically integrate rho from -1 to 1.
         """
 
         logger.info('Running Bayesian RSA')
@@ -423,17 +413,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         # However, in fit(), we keep the tradition of scikit-learn that
         # X is the input data to fit and y, a reserved name not used, is
         # the label to map to from X.
-        if self.marginalize:
-            assert SNR_bins > 3 and rho_bins > 3, \
-                'At least 3 bins are required to perform the numerical'\
-                ' integration over SNR and rho'
-            self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.X0_ = \
-                self._fit_RSA_marginalized(
-                    X=design, Y=X, X_base=nuisance,
-                    scan_onsets=scan_onsets, SNR_bins=SNR_bins,
-                    rho_bins=rho_bins)
-        elif not self.GP_space:
+
+        if not self.GP_space:
             # If GP_space is not requested, then the model is fitted
             # without imposing any Gaussian Process prior on log(SNR^2)
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
@@ -705,8 +686,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             X_base = X_DC
             idx_DC = np.arange(0, X_base.shape[1])
             logger.info('You did not provide time series of no interest '
-                        'such as DC component. One trivial regressor of'
-                        ' DC component is included for further modeling.'
+                        'such as DC component. Trivial regressors of'
+                        ' DC component are included for further modeling.'
                         ' The final covariance matrix won''t '
                         'reflet them.')
         if X_res is None:
@@ -787,57 +768,6 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         return X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
             XTAcorrX, XTAcorrY, YTAcorrY, LTXTAcorrY, XTAcorrXL, LTXTAcorrXL
-
-    def _calc_sandwidge_marginalized(
-        self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
-        XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-        rho1, n_V, n_X0):
-        # Calculate the sandwidge terms which put Acorr between X, Y and X0
-        # These terms are used a lot in the likelihood. This function
-        # is used for the marginalized version.
-        XTAY = XTY - rho1[:, None, None] * XTDY \
-            + rho1[:, None, None]**2 * XTFY
-        # dimension: #rho*feature*space
-        YTAY_diag = YTY_diag - rho1[:, None] * YTDY_diag \
-            + rho1[:, None]**2 * YTFY_diag
-        # dimension: #rho*feature*space,
-        # A/sigma2 is the inverse of noise covariance matrix in each voxel.
-        # YTAY means Y'AY
-        XTAX = XTX - rho1[:, None, None] * XTDX \
-            + rho1[:, None, None]**2 * XTFX
-        # dimension: n_rho*feature*feature
-        X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * X0TDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
-        # dimension: #rho*#baseline*#baseline
-        XTAX0 = XTX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * XTDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
-        # dimension: n_rho*feature*#baseline
-        X0TAY = X0TY - rho1[:, None, None] * X0TDY \
-            + rho1[:, None, None]**2 * X0TFY
-        # dimension: #rho*#baseline*space
-        X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
-        # dimension: #rho*#baseline*#baseline
-        XTAcorrX = XTAX
-        # dimension: #rho*feature*feature
-        XTAcorrY = XTAY
-        # dimension: #rho*feature*space
-        YTAcorrY_diag = YTAY_diag
-        for i_r in range(np.size(rho1)):
-            XTAcorrX[i_r, :, :] -= \
-                np.dot(np.dot(XTAX0[i_r, :, :], X0TAX0_i[i_r, :, :]),
-                       XTAX0[i_r, :, :].T)
-            XTAcorrY[i_r, :, :] -= np.dot(np.dot(XTAX0[i_r, :, :],
-                                                 X0TAX0_i[i_r, :, :]),
-                                          X0TAY[i_r, :, :])
-            YTAcorrY_diag[i_r, :] -= np.sum(
-                X0TAY[i_r, :, :] * np.dot(X0TAX0_i[i_r, :, :],
-                                          X0TAY[i_r, :, :]), axis=0)
-
-        return X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, \
-            X0TAY, XTAX0 
 
     def _calc_LL(self, rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY, X0TAX0, SNR2,
                  n_V, n_T, n_run, rank, n_X0):
@@ -1448,6 +1378,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         return np.dot(L, L.T), L, s_post, \
             beta_post, beta0_post, sigma_post, \
             rho_post, X0
+
     def _transform(self, Y, scan_onsets):
         """ Given the data Y and the response amplitudes beta and beta0
             estimated in the fit step, estimate the corresponding X and X0.
@@ -1700,7 +1631,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                                     n_V, n_T, n_run, rank, n_X0)
                 betas = current_sigma2**0.5 * current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y - np.dot(X, betas)
+                beta0s = np.einsum(
+                    'ijk,ki->ji', X0TAX0_i,
+                    (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
+                residuals = Y - np.dot(X, betas) - np.dot(
+                    X_base, beta0s[:np.shape(X_base)[1], :])
                 # u, s, v = np.linalg.svd(residuals)
                 # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
                 X_res = self.nureg_method.fit_transform(residuals)
@@ -1830,7 +1765,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                                     n_V, n_T, n_run, rank, n_X0)
                 betas = current_sigma2**0.5 * current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                residuals = Y - np.dot(X, betas)
+                beta0s = np.einsum(
+                    'ijk,ki->ji', X0TAX0_i,
+                    (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
+                residuals = Y - np.dot(X, betas) - np.dot(
+                    X_base, beta0s[:np.shape(X_base)[1], :])
                 # u, s, v = np.linalg.svd(residuals)
                 # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
                 X_res = self.nureg_method.fit_transform(residuals)
@@ -2406,7 +2345,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         
         return -LL_total, -grad_L[l_idx]
 
-class MBRSA(BRSA):
+class GBRSA(BRSA):
     """Marginalized Bayesian representational Similarity Analysis (BRSA)
 
     Given the time series of neural imaging data in a region of interest
@@ -2419,7 +2358,7 @@ class MBRSA(BRSA):
     of each voxel to this shared covariance matrix.
     A correlation matrix converted from the covariance matrix
     will be provided as a quantification of neural representational similarity.
-    This tool is very similar to BRSA. The only difference being that
+    This tool is very similar to BRSA. The only difference is that
     in the fitting process, the SNR and noise parameters are marginalized
     for each voxel. Therefore, this tool should be faster than BRSA
     when analyzing an ROI of hundreds to thousands voxels. It does not
@@ -2568,7 +2507,6 @@ class MBRSA(BRSA):
 
         self.n_iter = n_iter
         self.rank = rank
-        self.tol = tol
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         if nureg_method == 'FA':
@@ -2587,15 +2525,15 @@ class MBRSA(BRSA):
         self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
         self.prior_ts_cov = prior_ts_cov
+        self.tol = tol
         self.verbose = verbose
         self.optimizer = optimizer
         self.rand_seed = rand_seed
         self.anneal_speed = anneal_speed
         return
 
-    def fit(self, X, design, nuisance=None, scan_onsets=None, coords=None,
-            inten=None, SNR_bins=11, rho_bins=10):
-        """Compute the Bayesian RSA
+    def fit(self, X, design, nuisance=None, scan_onsets=None):
+        """Compute the Marginalized Bayesian RSA
 
         Parameters
         ----------
@@ -2639,91 +2577,109 @@ class MBRSA(BRSA):
             assume all data are from the same run.
             The effect of them is to make the inverse matrix
             of the temporal covariance matrix of noise block-diagonal.
-        coords: optional, 2-D numpy array, shape=[voxels,3]
-            This is the coordinate of each voxel,
-            used for implementing Gaussian Process prior.
-        inten: optional, 1-D numpy array, shape=[voxel,]
-            This is the average fMRI intensity in each voxel.
-            It should be calculated from your data without any preprocessing
-            such as z-scoring. Because it should reflect
-            whether a voxel is bright (grey matter) or dark (white matter).
-            A Gaussian Process kernel defined on both coordinate and intensity
-            imposes a smoothness prior on adjcent voxels
-            but with the same tissue type. The Gaussian Process
-            is experimental and has shown good performance on
-            some visual datasets.
         """
 
-        logger.info('Running Bayesian RSA')
-
-        assert not self.GP_inten or (self.GP_inten and self.GP_space),\
-            'You must speficiy GP_space to True'\
-            'if you want to use GP_inten'
+        logger.info('Running Marginalized Bayesian RSA')
 
         # Check input data
         assert_all_finite(X)
-        assert X.ndim == 2, 'The data should be 2 dimension ndarray'
-
-        assert np.all(np.std(X, axis=0) > 0),\
-            'The time courses of some voxels do not change at all.'\
-            ' Please make sure all voxels are within the brain'
+        if type(X) is np.ndarray:
+            X = [X]
+        assert type(X) is list, 'Input data X must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+        for i, x in enumerate(X):
+            assert x.ndim == 2, 'Each participants'' data should be '
+            '2 dimension ndarray'
+            assert np.all(np.std(x, axis=0) > 0),\
+                'The time courses of some voxels in participant {} '\
+                'do not change at all. Please make sure all voxels '\
+                'are within the brain'.format(i)
+        # This program allows to fit a single subject. But to have a consistent
+        # data structure, we make sure X and design are both lists.
 
         # check design matrix
         assert_all_finite(design)
-        assert design.ndim == 2,\
-            'The design matrix should be 2 dimension ndarray'
-        assert np.linalg.matrix_rank(design) == design.shape[1], \
-            'Your design matrix has rank smaller than the number of'\
-            ' columns. Some columns can be explained by linear '\
-            'combination of other columns. Please check your design matrix.'
-        assert np.size(design, axis=0) == np.size(X, axis=0),\
-            'Design matrix and data do not '\
-            'have the same number of time points.'
-        assert self.rank is None or self.rank <= design.shape[1],\
-            'Your design matrix has fewer columns than the rank you set'
+        if type(design) is np.ndarray:
+            design = [design] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one design matrix. '
+                               'I assume that the design matrix '
+                               'is shared across all subjects.')
+        assert type(design) is list, 'design matrix must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+
+        for i, d in enumerate(design):
+            assert d.ndim == 2,\
+                'The design matrix should be 2 dimension ndarray'
+            assert np.linalg.matrix_rank(d) == d.shape[1], \
+                'Your design matrix of subject {} has rank ' \
+                'smaller than the number of columns. Some columns '\
+                'can be explained by linear combination of other columns.'\
+                'Please check your design matrix.'.format(i)
+            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
+                'Design matrix and data of subject {} do not '\
+                'have the same number of time points.'.format(i)
+            assert self.rank is None or self.rank <= d.shape[1],\
+                'Your design matrix of subject {} '\
+                'has fewer columns than the rank you set'.format(i)
+            if i == 0:
+                n_C = np.shape(d)[1]
+            else:
+                assert n_C == np.shape(d)[1], \
+                    'In Group Bayesian RSA, all subjects should have the '\
+                    'set of experiment conditions, thus the same number '\
+                    'of columns in design matrix'
 
         # Check the nuisance regressors.
         if nuisance is not None:
             assert_all_finite(nuisance)
-            assert nuisance.ndim == 2,\
-                'The nuisance regressor should be 2 dimension ndarray'
-            assert np.linalg.matrix_rank(nuisance) == nuisance.shape[1], \
-                'The nuisance regressor has rank smaller than the number of'\
-                'columns. Some columns can be explained by linear '\
-                'combination of other columns. Please check your nuisance' \
-                'regressors.'
-            assert np.size(nuisance, axis=0) == np.size(X, axis=0), \
-                'Nuisance regressor and data do not have the same '\
-                'number of time points.'
+            if type(nuisance) is np.ndarray:
+                nuisance = [nuisance] * len(X)
+                if len(X) > 1:
+                    logger.warning('ATTENTION! There are multiple subjects '
+                                   'while there is only one nuisance matrix. '
+                                   'I assume that the nuisance matrix '
+                                   'is shared across all subjects. '
+                                   'Please double check.')
+            assert type(nuisance) is list, \
+                'nuisance matrix must be either a list '\
+                'with each entry for one participant, or an numpy arrary '\
+                'for single participant.'
+            for i, n in enumerate(nuisance):
+                if n is not None:
+                    assert n.ndim == 2,\
+                        'The nuisance regressor should be '\
+                        '2 dimension ndarray or None'
+                    assert np.linalg.matrix_rank(n) == n.shape[1], \
+                        'The nuisance regressor of subject {} has rank '\
+                        'smaller than the number of columns.'\
+                        'Some columns can be explained by linear '\
+                        'combination of other columns. Please check your nuisance' \
+                        'regressors.'.format(i)
+                    assert np.size(n, axis=0) == np.size(X, axis=0), \
+                        'Nuisance regressor and data do not have the same '\
+                        'number of time points.'
+        else:
+            nuisance = [nuisance] * len(X)
+            logger.info('None was provided for nuisance matrix. Replicating '
+                        'it for all subjects.')
         # check scan_onsets validity
-        assert scan_onsets is None or\
-            (np.max(scan_onsets) <= X.shape[0] and np.min(scan_onsets) >= 0),\
-            'Some scan onsets provided are out of the range of time points.'
-
-        # check the size of coords and inten
-        if self.GP_space:
-            logger.info('Fitting with Gaussian Process prior on log(SNR)')
-            assert coords is not None and coords.shape[0] == X.shape[1],\
-                'Spatial smoothness was requested by setting GP_space. '\
-                'But the voxel number of coords does not match that of '\
-                'data X, or voxel coordinates are not provided. '\
-                'Please make sure that coords is in the shape of '\
-                '[ n_voxel x 3].'
-            assert coords.ndim == 2,\
-                'The coordinate matrix should be a 2-d array'
-            if self.GP_inten:
-                assert inten is not None and inten.shape[0] == X.shape[1],\
-                    'The voxel number of intensity does not '\
-                    'match that of data X, or intensity not provided.'
-                assert np.var(inten) > 0,\
-                    'All voxels have the same intensity.'
-        if (not self.GP_space and coords is not None) or\
-                (not self.GP_inten and inten is not None):
-            logger.warning('Coordinates or image intensity provided'
-                           ' but GP_space or GP_inten is not set '
-                           'to True. The coordinates or intensity are'
-                           ' ignored.')
-        # Run Bayesian RSA
+        if scan_onsets is None or type(scan_onsets) is np.ndarray:
+            scan_onsets = [scan_onsets] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one set of scan_onsets. '
+                               'I assume that it is the same for all subjects. '
+                               'Please double check')
+        for i, s in enumerate(scan_onsets):
+            assert s is None or\
+                (np.max(s) <= X[i].shape[0] and np.min(s) >= 0),\
+                'Some scan onsets of subject {} provided are '\
+                'out of the range of time points.'.format(i)
+        # Run Marginalized Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
         # generative model that data Y is generated by mixing the response
@@ -2731,41 +2687,547 @@ class MBRSA(BRSA):
         # However, in fit(), we keep the tradition of scikit-learn that
         # X is the input data to fit and y, a reserved name not used, is
         # the label to map to from X.
-        if self.marginalize:
-            assert SNR_bins > 3 and rho_bins > 3, \
-                'At least 3 bins are required to perform the numerical'\
-                ' integration over SNR and rho'
-            self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.X0_ = \
-                self._fit_RSA_marginalized(
-                    X=design, Y=X, X_base=nuisance,
-                    scan_onsets=scan_onsets, SNR_bins=SNR_bins,
-                    rho_bins=rho_bins)
-        elif not self.GP_space:
-            # If GP_space is not requested, then the model is fitted
-            # without imposing any Gaussian Process prior on log(SNR^2)
-            self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, _, _, _, self.X0_ = \
-                self._fit_RSA_UV(X=design, Y=X, X_base=nuisance,
-                                 scan_onsets=scan_onsets)
-        elif not self.GP_inten:
-            # If GP_space is requested, but GP_inten is not, a GP prior
-            # based on spatial locations of voxels will be imposed.
-            self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.lGPspace_, self.bGP_, _, \
-                self.X0_ = self._fit_RSA_UV(
-                    X=design, Y=X, X_base=nuisance,
-                    scan_onsets=scan_onsets, coords=coords)
-        else:
-            # If both self.GP_space and self.GP_inten are True,
-            # a GP prior based on both location and intensity is imposed.
-            self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.lGPspace_, self.bGP_,\
-                self.lGPinten_, self.X0_ = \
-                self._fit_RSA_UV(X=design, Y=X, X_base=nuisance,
-                                 scan_onsets=scan_onsets,
-                                 coords=coords, inten=inten)
+        assert self.SNR_bins >= 5 and self.rho_bins >= 5, \
+            'At least 5 bins are required to perform the numerical'\
+            ' integration over SNR and rho'
+        assert self.logS_range * 6 / self.SNR_bins < 0.5, \
+            'The minimum grid of log(SNR) should not be smaller than 0.5.'\
+            ' Please consider increasing SNR_bins or reducing logS_range'
+        self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
+            self.sigma_, self.rho_, self.X0_ = \
+            self._fit_RSA_marginalized(
+                X=design, Y=X, X_base=nuisance,
+                scan_onsets=scan_onsets)
 
         self.C_ = utils.cov2corr(self.U_)
         self.design_ = design.copy()
         return self
+
+    def _calc_sandwidge_marginalized(
+        self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
+        XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
+        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+        rho1, n_V, n_X0):
+        # Calculate the sandwidge terms which put Acorr between X, Y and X0
+        # These terms are used a lot in the likelihood. This function
+        # is used for the marginalized version.
+        XTAY = XTY - rho1[:, None, None] * XTDY \
+            + rho1[:, None, None]**2 * XTFY
+        # dimension: #rho*feature*space
+        YTAY_diag = YTY_diag - rho1[:, None] * YTDY_diag \
+            + rho1[:, None]**2 * YTFY_diag
+        # dimension: #rho*feature*space,
+        # A/sigma2 is the inverse of noise covariance matrix in each voxel.
+        # YTAY means Y'AY
+        XTAX = XTX - rho1[:, None, None] * XTDX \
+            + rho1[:, None, None]**2 * XTFX
+        # dimension: n_rho*feature*feature
+        X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
+            * X0TDX0[np.newaxis, :, :] \
+            + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
+        # dimension: #rho*#baseline*#baseline
+        XTAX0 = XTX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
+            * XTDX0[np.newaxis, :, :] \
+            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
+        # dimension: n_rho*feature*#baseline
+        X0TAY = X0TY - rho1[:, None, None] * X0TDY \
+            + rho1[:, None, None]**2 * X0TFY
+        # dimension: #rho*#baseline*space
+        X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
+        # dimension: #rho*#baseline*#baseline
+        XTAcorrX = XTAX
+        # dimension: #rho*feature*feature
+        XTAcorrY = XTAY
+        # dimension: #rho*feature*space
+        YTAcorrY_diag = YTAY_diag
+        for i_r in range(np.size(rho1)):
+            XTAcorrX[i_r, :, :] -= \
+                np.dot(np.dot(XTAX0[i_r, :, :], X0TAX0_i[i_r, :, :]),
+                       XTAX0[i_r, :, :].T)
+            XTAcorrY[i_r, :, :] -= np.dot(np.dot(XTAX0[i_r, :, :],
+                                                 X0TAX0_i[i_r, :, :]),
+                                          X0TAY[i_r, :, :])
+            YTAcorrY_diag[i_r, :] -= np.sum(
+                X0TAY[i_r, :, :] * np.dot(X0TAX0_i[i_r, :, :],
+                                          X0TAY[i_r, :, :]), axis=0)
+
+        return X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, \
+            X0TAY, XTAX0 
+
+    def _fit_RSA_marginalized(self, X, Y, X_base,
+                                 scan_onsets=None):
+        """ The major utility of fitting Bayesian RSA
+            (marginalized version).
+            Note that there is a naming change of variable. X in fit()
+            is changed to Y here, and design in fit() is changed to X here.
+            This is because we follow the tradition that X expresses the
+            variable defined (controlled) by the experimenter, i.e., the
+            time course of experimental conditions convolved by an HRF,
+            and Y expresses data.
+            However, in wrapper function fit(), we follow the naming
+            routine of scikit-learn.
+        """
+        rank = self.rank
+        n_V = [np.size(y, axis=1) for y in Y]
+        n_T = [np.size(y, axis=0) for y in Y]
+        n_C = np.size(X[0], axis=1)
+        l_idx = np.tril_indices(n_C)
+
+        np.random.seed(self.rand_seed)
+        logger.debug('Random seed set to {}.'.format(self.rand_seed))
+        # setting random seed
+        t_start = time.time()
+
+        if rank is not None:
+            # The rank of covariance matrix is specified
+            idx_rank = np.where(l_idx[1] < rank)
+            l_idx = (l_idx[0][idx_rank], l_idx[1][idx_rank])
+            logger.info('Using the rank specified by the user: '
+                        '{}'.format(rank))
+        else:
+            rank = n_C
+            # if not specified, we assume you want to
+            # estimate a full rank matrix
+            logger.warning('Please be aware that you did not specify the'
+                           ' rank of covariance matrix to estimate.'
+                           'I will assume that the covariance matrix '
+                           'shared among voxels is of full rank.'
+                           'Rank = {}'.format(rank))
+            logger.warning('Please be aware that estimating a matrix of '
+                           'high rank can be very slow.'
+                           'If you have a good reason to specify a rank '
+                           'lower than the number of experiment conditions,'
+                           ' do so.')
+        t_start = time.time()
+        logger.info('Starting to fit the model. Maximum iteration: '
+                    '{}.'.format(self.n_iter))
+
+        n_l = np.size(l_idx[0])  # the number of parameters for L
+
+        # log_SNR_grids, SNR_weights \
+        #     = np.polynomial.hermite.hermgauss(SNR_bins)
+        # SNR_weights = SNR_weights / np.pi**0.5
+        # SNR_grids = np.exp(log_SNR_grids * self.logS_range * 2**.5)
+        log_SNR_grids = ((np.arange(self.SNR_bins) 
+                          - (self.SNR_bins - 1) / 2)) \
+            / self.SNR_bins * self.logS_range * 6
+        SNR_grids = np.exp(log_SNR_grids)
+        log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
+            / self.SNR_bins
+        SNR_weights = np.empty(self.SNR_bins)
+        SNR_weights[1:-1] = np.diff(
+            scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
+                                 scale=self.logS_range))
+        SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
+                                             scale=self.logS_range)
+        SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
+                                                  scale=self.logS_range)
+        logger.info('The grids of pseudo-SNR used for numerical integration '
+                    'is {}.'.format(SNR_grids))
+        assert np.isclose(np.sum(SNR_weights), 1), \
+            'The weights for log SNR do not sum to 1!'
+        if np.max(SNR_grids) > 1e10:
+            logger.warning('ATTENTION!! The range of grids of pseudo-SNR'
+                           ' to be marginalized is too large. Please '
+                           'consider reducing logS_range to 1 or 2')
+        # SNR_grids = np.arange(SNR_bins) / (SNR_bins - 1)
+        # SNR_weights = np.ones(SNR_bins) / (SNR_bins - 1)
+        # SNR_weights[0] = 0.5 / (SNR_bins - 1)
+        # SNR_weights[-1] = 0.5 / (SNR_bins - 1)
+        rho_grids = np.arange(self.rho_bins) * 2  / self.rho_bins - 1 \
+            + 1 / self.rho_bins
+        rho_weights = np.ones(self.rho_bins) / self.rho_bins
+        logger.info('The grids of rho used to do numerical integration '
+                    'is {}.'.format(rho_grids))
+        n_grid = self.SNR_bins * self.rho_bins
+        log_weights = np.reshape(
+            np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+        all_rho_grids = np.reshape(np.repeat(
+                rho_grids[None, :], self.SNR_bins, axis=0), n_grid)
+        all_SNR_grids = np.reshape(np.repeat(
+                SNR_grids[:, None], self.rho_bins, axis=1), n_grid)
+        # Prepare the data for fitting. These pre-calculated matrices
+        # will be re-used a lot in evaluating likelihood function and
+        # gradient.
+        D = [None] * len(Y)
+        F = [None] * len(Y)
+        run_TRs = [None] * len(Y)
+        n_run = [None] * len(Y)
+        XTY = [None] * len(Y)
+        XTDY = [None] * len(Y)
+        XTFY = [None] * len(Y)
+        YTY_diag = [None] * len(Y)
+        YTDY_diag = [None] * len(Y)
+        YTFY_diag = [None] * len(Y)
+        XTX = [None] * len(Y)
+        XTDX = [None] * len(Y)
+        XTFX = [None] * len(Y)
+
+        X0TX0 = [None] * len(Y)
+        X0TDX0 = [None] * len(Y)
+        X0TFX0 = [None] * len(Y)
+        XTX0 = [None] * len(Y)
+        XTDX0 = [None] * len(Y)
+        XTFX0 = [None] * len(Y)
+        X0TY = [None] * len(Y)
+        X0TDY = [None] * len(Y)
+        X0TFY = [None] * len(Y)
+        X0 = [None] * len(Y)
+        X_res = [None] * len(Y)
+        n_X0 = [None] * len(Y)
+        idx_DC = [None] * len(Y)
+
+        for subj in range(len(Y)):
+            D[subj], F[subj], run_TRs[subj], n_run[subj] = self._prepare_DF(
+                n_T[subj], scan_onsets=scan_onsets[subj])
+            XTY[subj], XTDY[subj], XTFY[subj], YTY_diag[subj], \
+                YTDY_diag[subj], YTFY_diag[subj], XTX[subj], XTDX[subj], \
+                XTFX[subj] = self._prepare_data_XY(
+                    X[subj], Y[subj], D[subj], F[subj])
+            # The contents above stay fixed during fitting.
+
+            # Initializing X0 as DC baseline
+            # DC component will be added to the nuisance regressors.
+            # In later steps, we do not need to add DC components again
+        
+            X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj], XTDX0[subj], \
+                XTFX0[subj], X0TY[subj], X0TDY[subj], X0TFY[subj], X0[subj], \
+                X_base[subj], n_X0[subj], idx_DC[subj] = \
+                self._prepare_data_XYX0(
+                    X[subj], Y[subj], X_base[subj], None, D[subj], F[subj],
+                    run_TRs[subj], no_DC=False)
+
+        # Initialization for L. 
+        cov_point_est = np.zeros((n_C, n_C))
+        std_residual = np.empty(len(Y))
+        # There are several possible ways of initializing the covariance.
+            # (1) start from the point estimation of covariance
+
+        for subj in range(len(Y)):
+            
+            X_joint = np.concatenate((X0[subj], X[subj]), axis=1)
+            beta_hat = np.linalg.lstsq(X_joint, Y[subj])[0]
+            residual = Y[subj] - np.dot(X_joint, beta_hat)
+            # point estimates of betas and fitting residuals without assuming
+            # the Bayesian model underlying RSA.
+
+            cov_point_est += np.cov(beta_hat[n_X0[subj]:, :])
+            std_residual[subj] = np.std(residual)
+        cov_point_est = cov_point_est / len(Y)
+        current_vec_U_chlsk_l = 1 / np.mean(std_residual)\
+            * np.linalg.cholesky(cov_point_est +
+                                 np.eye(n_C) * 1e-2)[l_idx]
+
+        # We add a tiny diagonal element to the point
+        # estimation of covariance, just in case
+        # the user provides data in which
+        # n_V is smaller than n_C
+
+        # (2) start from identity matrix
+
+        # current_vec_U_chlsk_l = np.eye(n_C)[l_idx]
+
+        # (3) random initialization
+
+        # current_vec_U_chlsk_l = np.random.randn(n_l)
+        # vectorized version of L, Cholesky factor of U, the shared
+        # covariance matrix of betas across voxels.
+        L = np.zeros((n_C, rank))
+        L[l_idx] = current_vec_U_chlsk_l
+
+        X0TAX0 = [None] * len(Y)
+        X0TAX0_i = [None] * len(Y)
+        XTAcorrX = [None] * len(Y)
+        s2XTAcorrX = [None] * len(Y)
+        YTAcorrY_diag = [None] * len(Y)
+        XTAcorrY = [None] * len(Y)
+        sXTAcorrY = [None] * len(Y)
+        X0TAY = [None] * len(Y)
+        XTAX0 = [None] * len(Y)
+        log_fixed_terms = [None] * len(Y)
+        half_log_det_X0TAX0 = [None] * len(Y)
+        s_post = [None] * len(Y)
+        rho_post = [None] * len(Y)
+        sigma_post = [None] * len(Y)
+        beta_post = [None] * len(Y)
+        beta0_post = [None] * len(Y)
+        # The contents below can be updated during fitting.
+        # e.g., X0 will be re-estimated
+        for it in range(self.n_iter):
+            # Re-estimate part of X0: X_res
+            for subj in range(len(Y)):
+                if self.auto_nuisance and it > 1:
+                    residuals = Y[subj] - np.dot(X[subj], beta_post[subj]) \
+                        - np.dot(X_base[subj],
+                                 beta0_post[subj][:np.shape(X_base[subj])[1], :])
+                    X_res[subj] = self.nureg_method.fit_transform(residuals)
+                    X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
+                        XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
+                        X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
+                        self._prepare_data_XYX0(
+                            X[subj], Y[subj], X_base[subj], X_res[subj], 
+                            D[subj], F[subj], run_TRs[subj], no_DC=True)
+                X0TAX0[subj], X0TAX0_i[subj], XTAcorrX[subj],  XTAcorrY[subj],\
+                    YTAcorrY_diag[subj], X0TAY[subj], XTAX0[subj] \
+                    = self._calc_sandwidge_marginalized(
+                        XTY[subj], XTDY[subj], XTFY[subj], YTY_diag[subj],
+                        YTDY_diag[subj], YTFY_diag[subj], XTX[subj], XTDX[subj],
+                        XTFX[subj], X0TX0[subj], X0TDX0[subj], X0TFX0[subj],
+                        XTX0[subj], XTDX0[subj], XTFX0[subj], X0TY[subj],
+                        X0TDY[subj], X0TFY[subj], rho_grids, n_V[subj], n_X0[subj])
+                log_fixed_terms[subj] = - (n_T[subj] - n_X0[subj]) \
+                    / 2 * np.log(2 * np.pi) + n_run[subj] \
+                    / 2 * np.log(1 - all_rho_grids**2) \
+                    + scipy.special.gammaln((n_T[subj] - n_X0[subj] - 2) / 2) \
+                    + (n_T[subj] - n_X0[subj] - 2) / 2 * np.log(2)
+                # These are terms in the log likelihood that do not
+                # depend on L. Notice that the last term comes from 
+                # ther term of marginalizing sigma. We take the 2 in
+                # the denominator out. Accordingly, the "denominator"
+                # variable in the _raw_loglike_grids() function is not
+                # divided by 2
+
+                # Now we expand to another dimension including SNR
+                # and collapse the dimension again.
+                half_log_det_X0TAX0[subj] = np.reshape(
+                    np.repeat(np.log(np.linalg.det(X0TAX0[subj]))[None, :] / 2,
+                              self.SNR_bins, axis=0), n_grid)
+                X0TAX0[subj] = np.reshape(np.repeat(X0TAX0[subj][None, :, :, :],
+                                                    self.SNR_bins, axis=0),
+                                          (n_grid, n_X0[subj], n_X0[subj]))
+                X0TAX0_i[subj] = np.reshape(np.repeat(X0TAX0_i[subj][None, :, :, :],
+                                                      self.SNR_bins, axis=0),
+                                            (n_grid, n_X0[subj], n_X0[subj]))
+                s2XTAcorrX[subj] = np.reshape(
+                    SNR_grids[:, None, None, None]**2 * XTAcorrX[subj],
+                    (n_grid, n_C, n_C))
+                YTAcorrY_diag[subj] = np.reshape(np.repeat(
+                        YTAcorrY_diag[subj][None, :, :], self.SNR_bins, axis=0),
+                                                 (n_grid, n_V[subj]))
+                sXTAcorrY[subj] = np.reshape(SNR_grids[:, None, None, None]
+                                             * XTAcorrY[subj],
+                                             (n_grid, n_C, n_V[subj]))
+                X0TAY[subj] = np.reshape(np.repeat(X0TAY[subj][None, :, :, :],
+                                                   self.SNR_bins, axis=0),
+                                         (n_grid, n_X0[subj], n_V[subj]))
+                XTAX0[subj] = np.reshape(np.repeat(XTAX0[subj][None, :, :, :],
+                                                   self.SNR_bins, axis=0),
+                                         (n_grid, n_C, n_X0[subj]))
+
+            res = scipy.optimize.minimize(
+                self._sum_loglike_marginalized, current_vec_U_chlsk_l
+                + np.random.randn(n_l) * np.linalg.norm(current_vec_U_chlsk_l)
+                / n_l**0.5 * np.exp(-it / self.n_iter * self.anneal_speed - 1),
+                args=(s2XTAcorrX, YTAcorrY_diag, sXTAcorrY,
+                      half_log_det_X0TAX0,
+                      log_weights, log_fixed_terms,
+                      l_idx, n_C, n_T, n_V, n_X0,
+                      n_grid, rank),
+                method=self.optimizer, jac=True, tol=self.tol,
+                options={'xtol': self.tol, 'disp': self.verbose,
+                         'maxiter': 10})
+            param_change = res.x - current_vec_U_chlsk_l
+            current_vec_U_chlsk_l = res.x.copy()
+
+            # Estimating a few parameters.
+            L[l_idx] = current_vec_U_chlsk_l
+            for subj in range(len(Y)):
+                LL_raw, denominator, L_LAMBDA, L_LAMBDA_LT = self._raw_loglike_grids(
+                    L, s2XTAcorrX[subj], YTAcorrY_diag[subj], sXTAcorrY[subj],
+                    half_log_det_X0TAX0[subj], log_weights, log_fixed_terms[subj],
+                    n_C, n_T[subj], n_V[subj], n_X0[subj], n_grid, rank)
+                result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+                weight_post = result_exp / result_sum
+                s_post[subj] = np.sum(all_SNR_grids[:, None] * weight_post, axis=0)
+                # Mean-posterior estimate of SNR.
+                rho_post[subj] = np.sum(all_rho_grids[:, None] * weight_post, axis=0)
+                # Mean-posterior estimate of rho.
+                sigma_means = denominator ** 0.5 \
+                    * (np.exp(scipy.special.gammaln((n_T[subj] - n_X0[subj] - 3) / 2)
+                              - scipy.special.gammaln((n_T[subj] - n_X0[subj] - 2) / 2))
+                       / 2**0.5)
+                sigma_post[subj] = np.sum(sigma_means * weight_post, axis=0)
+                # sigma_post = np.sum(denominator ** 0.5 * weight_post, axis=0)\
+                #     * (np.exp(scipy.special.gammaln((n_T - n_X0 - 3) / 2)
+                #               - scipy.special.gammaln((n_T - n_X0 - 2) / 2))
+                #        / 2**0.5)
+                # Mean-posterior estimate of sigma^2, then taken the square root.
+                # The mean of inverse-Gamma distribution is beta/(alpha-1)
+                # The mode is beta/(alpha+1). Notice that beta here does not
+                # refer to the brain activation, but the scale parameter of
+                # inverse-Gamma distribution. In the _UV version, we use the
+                # maximum likelihood estimate of sigma^2. So we divide by
+                # (alpha+1), which is (n_T - n_X0).
+                beta_post[subj] = np.zeros((n_C, n_V[subj]))
+                for grid in range(n_grid):
+                    beta_post[subj] += np.dot(L_LAMBDA_LT[grid, :, :],
+                                        sXTAcorrY[subj][grid, :, :])\
+                        * sigma_means[grid, :] * all_SNR_grids[grid] \
+                        * weight_post[grid, :]
+                    # L, np.einsum('ijk,ijl->kl', L_LAMBDA,
+                    #              all_SNR_grids[:, None, None]
+                    #              * result_exp[:, None, :]
+                    #              * denominator[:, None, :]**0.5
+                    #              * sXTAcorrY)) / result_sum\
+                    # * (np.exp(scipy.special.gammaln((n_T - n_X0 - 3) / 2)
+                    #           - scipy.special.gammaln((n_T - n_X0 - 2) / 2))
+                    #    / 2**0.5)
+                beta0_post[subj] = np.zeros((n_X0[subj], n_V[subj]))
+                for grid in range(n_grid):
+                    beta0_post[subj] += weight_post[grid, :] * np.dot(
+                        X0TAX0_i[subj][grid, :, :],
+                        (X0TAY[subj][grid, :, :]
+                         - np.dot(np.dot(XTAX0[subj][grid, :, :].T,
+                                         L_LAMBDA_LT[grid, :, :]),
+                                  sXTAcorrY[subj][grid, :, :])
+                         * all_SNR_grids[grid] * sigma_means[grid, :]))
+            if np.max(np.abs(param_change)) < self.tol:
+                logger.info('The change of parameters is smaller than '
+                            'the tolerance value {}. Fitting is finished '
+                            'after {} iterations'.format(self.tol, it+1))
+                break
+        t_finish = time.time()
+        logger.info(
+            'total time of fitting: {} seconds'.format(t_finish - t_start))
+        return np.dot(L, L.T), L, s_post, \
+            beta_post, beta0_post, sigma_post, \
+            rho_post, X0
+
+    def _raw_loglike_grids(self, L, s2XTAcorrX, YTAcorrY_diag,
+                           sXTAcorrY, half_log_det_X0TAX0,
+                           log_weights, log_fixed_terms,
+                           n_C, n_T, n_V, n_X0,
+                           n_grid, rank):
+        LAMBDA_i = np.dot(np.einsum('ijk,jl->ilk', s2XTAcorrX, L), L) \
+            + np.identity(rank)
+        # dimension: n_grid * rank * rank
+        Chol_LAMBDA_i = np.linalg.cholesky(LAMBDA_i)
+        # dimension: n_grid * rank * rank
+        half_log_det_LAMBDA_i = np.sum(
+            np.log(np.abs(np.diagonal(Chol_LAMBDA_i, axis1=1, axis2=2))),
+            axis=1)
+        # 0.5*log(det(LAMBDA_i))
+        # dimension: n_grid
+        L_LAMBDA = np.empty((n_grid, n_C, rank))
+        L_LAMBDA_LT = np.empty((n_grid, rank, rank))
+        s2YTAcorrXL_LAMBDA_LTXTAcorrY = np.empty((n_grid, n_V))
+        # dimension: space * n_grid
+        
+        for grid in np.arange(n_grid):
+            L_LAMBDA[grid, :, :] = scipy.linalg.cho_solve(
+                (Chol_LAMBDA_i[grid, :, :], True), L.T).T
+            L_LAMBDA_LT[grid, :, :] = np.dot(L_LAMBDA[grid, :, :], L.T)
+            s2YTAcorrXL_LAMBDA_LTXTAcorrY[grid, :] = np.sum(
+                sXTAcorrY[grid, :, :] * np.dot(L_LAMBDA_LT[grid, :, :],
+                                               sXTAcorrY[grid, :, :]),
+                axis=0)
+        denominator = (YTAcorrY_diag - s2YTAcorrXL_LAMBDA_LTXTAcorrY)
+        # dimension: n_grid * space
+        # Not necessary the best name for it. But this term appears
+        # as the denominator within the gradient wrt L
+        # In the equation of the log likelihood, this "denominator"
+        # term is in fact divided by 2. But we absorb that into the
+        # log fixted term.
+        LL_raw = -half_log_det_X0TAX0[:, None] \
+            - half_log_det_LAMBDA_i[:, None] \
+            - (n_T - n_X0 - 2) / 2 * np.log(denominator) \
+            + log_weights[:, None] + log_fixed_terms[:, None]
+        # dimension: n_grid * space
+        # The log likelihood at each pair of values of SNR and rho1.
+        # half_log_det_X0TAX0 is 0.5*log(det(X0TAX0)) with the size of
+        # number of parameter grids. So is the size of log_weights
+        return LL_raw, denominator, L_LAMBDA, L_LAMBDA_LT
+
+    def _sum_loglike_marginalized(self, L_vec, s2XTAcorrX, YTAcorrY_diag,
+                                  sXTAcorrY, half_log_det_X0TAX0,
+                                  log_weights, log_fixed_terms,
+                                  l_idx, n_C, n_T, n_V, n_X0,
+                                  n_grid, rank=None):
+        sum_LL_total = 0
+        sum_grad_L = np.zeros(np.size(l_idx[0]))
+        for subj in range(len(YTAcorrY_diag)):
+            LL_total, grad_L = self._loglike_marginalized(
+                L_vec, s2XTAcorrX[subj], YTAcorrY_diag[subj],
+                sXTAcorrY[subj], half_log_det_X0TAX0[subj], log_weights,
+                log_fixed_terms[subj], l_idx, n_C, n_T[subj], n_V[subj], n_X0[subj],
+                n_grid, rank)
+            sum_LL_total += LL_total
+            sum_grad_L += grad_L
+        return sum_LL_total, sum_grad_L
+    
+    def _loglike_marginalized(self, L_vec, s2XTAcorrX, YTAcorrY_diag,
+                                  sXTAcorrY,# s2XTAcorrYYTAcorrX,
+                                  half_log_det_X0TAX0,# SNR2, rho1,
+                                  log_weights, log_fixed_terms,
+                                  l_idx, n_C, n_T, n_V, n_X0,
+                                  n_grid, rank=None):
+        # In this version, we assume that beta is independent
+        # between voxels and noise is also independent. X0 captures the
+        # co-flucturation between voxels that is
+        # not captured by design matrix X.
+        # marginalized version marginalize sigma^2, s and rho1
+        # for all voxels. n_grid is the number of grid on which the numeric
+        # integration is performed to marginalize s and rho1 for each voxel.
+        # The log likelihood is an inverse-Gamma distribution sigma^2,
+        # so we can analytically marginalize it assuming uniform prior.
+        # n_grid is the number of grid in the parameter space of (s, rho1)
+        # that is used for numerical integration over (s, rho1). 
+
+        n_l = np.size(l_idx[0])
+        # the number of parameters in the index of lower-triangular matrix
+
+        if rank is None:
+            rank = int((2 * n_C + 1
+                        - np.sqrt(n_C**2 * 4 + n_C * 4 + 1 - 8 * n_l)) / 2)
+
+        L = np.zeros([n_C, rank])
+        L[l_idx] = L_vec
+
+        LL_raw, denominator, L_LAMBDA, _ = self._raw_loglike_grids(
+            L, s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
+            log_weights, log_fixed_terms, n_C, n_T, n_V, n_X0, n_grid, rank)
+
+        result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+        LL_total = np.sum(np.log(result_sum) + max_value)
+
+        # Now we start the gradient with respect to L
+        grad_raw = np.empty((n_grid, n_C, rank))
+        # s2XTAcorrXL_LAMBDA = np.einsum('ijk,ikl->ijl',
+        #                                s2XTAcorrX, L_LAMBDA)
+        s2XTAcorrXL_LAMBDA = np.empty((n_grid, n_C, rank))
+        for grid in range(n_grid):
+            s2XTAcorrXL_LAMBDA[grid, :, :] = np.dot(s2XTAcorrX[grid, :, :],
+                                                    L_LAMBDA[grid, :, :])
+        # dimension: n_grid * condition * rank
+        I_minus_s2XTAcorrXL_LAMBDA_LT = np.identity(n_C) \
+            - np.dot(s2XTAcorrXL_LAMBDA, L.T)
+        # dimension: n_grid * condition * condition
+        # The step above may be calculated by einsum. Not sure
+        # which is faster.
+        weight_grad = result_exp / result_sum
+        weight_grad_over_denominator = weight_grad / denominator
+        # dimension: n_grid * space
+        weighted_sXTAcorrY = sXTAcorrY \
+            * weight_grad_over_denominator[:, None, :]
+        # dimension: n_grid * condition * space
+        # sYTAcorrXL_LAMBDA = np.einsum('ijk,ijl->ikl', sXTAcorrY, L_LAMBDA)
+        # dimension: n_grid * space * rank
+        # grad_L = np.einsum('ijk,ikl->jl', I_minus_s2XTAcorrXL_LAMBDA_LT,
+        #                    np.einsum('ijk,ikl->ijl', weighted_sXTAcorrY,
+        #                              sYTAcorrXL_LAMBDA)) \
+        #     * (n_T - n_X0 - 2) \
+        #     - np.sum(s2XTAcorrXL_LAMBDA
+        #              * np.sum(weight_grad, axis=1)[:, None, None], axis=0)
+        grad_L = np.zeros([n_C, rank])
+        for grid in range(n_grid):
+            grad_L += np.dot(
+                np.dot(I_minus_s2XTAcorrXL_LAMBDA_LT[grid, :, :],
+                       sXTAcorrY[grid, :, :]),
+                np.dot(weighted_sXTAcorrY[grid, :, :].T,
+                       L_LAMBDA[grid, :, :])) * (n_T - n_X0 - 2)
+        grad_L -= np.sum(s2XTAcorrXL_LAMBDA
+                         * np.sum(weight_grad, axis=1)[:, None, None],
+                         axis=0)
+        # dimension: condition * rank
+        
+        return -LL_total, -grad_L[l_idx]
