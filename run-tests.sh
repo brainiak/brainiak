@@ -36,11 +36,19 @@ coverage_report=$(mktemp -u coverage_report_XXXXX) || {
     echo "mktemp -u error" >&2;
     exit 1;
 }
+
+set +e
 coverage report > $coverage_report
+report_exit_code=$?
 
 coverage html
 coverage xml
 
-set +e
 cat $coverage_report
 rm $coverage_report
+
+if [ $report_exit_code = 2 ]
+then
+    echo "ERROR: Coverage too low."
+fi
+exit $report_exit_code
