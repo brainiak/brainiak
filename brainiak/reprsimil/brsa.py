@@ -225,12 +225,13 @@ class BRSA(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-        self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
-        tol=2e-3, auto_nuisance=True, n_nureg=6, nureg_method='FA',
-        verbose=False, eta=0.0001,
-        space_smooth_range=None, inten_smooth_range=None,
-        tau_range=5.0, tau2_prior='invGamma', init_iter=20, optimizer='BFGS',
-        rand_seed=0, anneal_speed=5, prior_ts_cov='Full'):
+            self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
+            tol=2e-3, auto_nuisance=True, n_nureg=6, nureg_method='FA',
+            verbose=False, eta=0.0001,
+            space_smooth_range=None, inten_smooth_range=None,
+            tau_range=5.0, tau2_prior='invGamma', init_iter=20,
+            optimizer='BFGS', rand_seed=0, anneal_speed=5,
+            prior_ts_cov='Full'):
 
         self.n_iter = n_iter
         self.rank = rank
@@ -1083,6 +1084,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                 K_major = np.exp(- dist2 / est_space_smooth_r**2 / 2.0)
             K = K_major + np.diag(np.ones(n_V) * self.eta)
             if self.tau2_prior == 'halfCauchy':
+                invK_tilde_log_SNR = np.linalg.solve(K, current_logSNR2) / 2
+                log_SNR_invK_tilde_log_SNR = np.dot(current_logSNR2,
+                                                    invK_tilde_log_SNR) / 2
                 est_std_log_SNR = np.sqrt(
                     (np.dot(current_logSNR2, np.linalg.solve(
                                 K, current_logSNR2))
@@ -1090,7 +1094,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                      + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
                                * self.tau_range**2
                                * log_SNR_invK_tilde_log_SNR
-                               + log_SNR_invK_tilde_log_SNR**2))\
+                               + log_SNR_invK_tilde_log_SNR**2))
                     / 2 / (n_V + 2))
             else:
                 est_std_log_SNR = np.sqrt(
@@ -1127,10 +1131,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         posterior_cov0 = np.linalg.inv(
             np.sum(beta1_outer * (1 - self.rho_**2)[:, None, None]
                    / self.sigma_[:, None, None]**2, axis=0)
-            + inv_cov_X) # np.linalg.inv(self.cov_X))
-        # inv_cov_X = np.linalg.inv(np.diag(np.mean(
-        #             np.concatenate((self.design_, self.X0_),
-        #                            axis=1)**2, axis=0)))
+            + inv_cov_X)
 
         for i_t in range(n_T):
             if i_t in scan_onsets:
@@ -1969,7 +1970,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         L_LAMBDA_LT = np.empty((n_grid, rank, rank))
         s2YTAcorrXL_LAMBDA_LTXTAcorrY = np.empty((n_grid, n_V))
         # dimension: space * n_grid
-        
+
         for grid in np.arange(n_grid):
             L_LAMBDA[grid, :, :] = scipy.linalg.cho_solve(
                 (Chol_LAMBDA_i[grid, :, :], True), L.T).T
@@ -2067,7 +2068,7 @@ class GBRSA(BRSA):
         in log scale. This range should not be too large.
         We use 2 as default. If it is set too small,
         the estimated SNR will turn to be too close to each other.
-        The code will in fact evaluate SNR in the range of 
+        The code will in fact evaluate SNR in the range of
         exp(-3*logS_range) to exp(3*logS_range), on a grid equally spread
         in log scale. The number of grids evaluated is determined by
         SNR_bins. If you increase logS_range, it is recommended to increase
@@ -2153,10 +2154,10 @@ class GBRSA(BRSA):
     """
 
     def __init__(
-        self, n_iter=50, rank=None, auto_nuisance=True, n_nureg=6,
-        nureg_method='FA', logS_range=2.0, SNR_bins = 37, rho_bins = 20,
-        prior_ts_cov='Full', tol=2e-3, verbose=False,
-        optimizer='BFGS', rand_seed=0, anneal_speed=10):
+            self, n_iter=50, rank=None, auto_nuisance=True, n_nureg=6,
+            nureg_method='FA', logS_range=2.0, SNR_bins=37,
+            rho_bins=20, prior_ts_cov='Full', tol=2e-3, verbose=False,
+            optimizer='BFGS', rand_seed=0, anneal_speed=10):
 
         self.n_iter = n_iter
         self.rank = rank
@@ -2184,6 +2185,114 @@ class GBRSA(BRSA):
         self.rand_seed = rand_seed
         self.anneal_speed = anneal_speed
         return
+
+    def _check_data_BGRSA(self, X):
+        # Check input data
+        if type(X) is np.ndarray:
+            X = [X]
+        assert type(X) is list, 'Input data X must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+        for i, x in enumerate(X):
+            assert_all_finite(x)
+            assert x.ndim == 2, 'Each participants'' data should be '
+            '2 dimension ndarray'
+            assert np.all(np.std(x, axis=0) > 0),\
+                'The time courses of some voxels in participant {} '\
+                'do not change at all. Please make sure all voxels '\
+                'are within the brain'.format(i)
+        # This program allows to fit a single subject. But to have a consistent
+        # data structure, we make sure X and design are both lists.
+        return X
+
+    def _check_design_BGRSA(self, design, X):
+        # check design matrix
+        if type(design) is np.ndarray:
+            design = [design] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one design matrix. '
+                               'I assume that the design matrix '
+                               'is shared across all subjects.')
+        assert type(design) is list, 'design matrix must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+
+        for i, d in enumerate(design):
+            assert_all_finite(d)
+            assert d.ndim == 2,\
+                'The design matrix should be 2 dimension ndarray'
+            assert np.linalg.matrix_rank(d) == d.shape[1], \
+                'Your design matrix of subject {} has rank ' \
+                'smaller than the number of columns. Some columns '\
+                'can be explained by linear combination of other columns.'\
+                'Please check your design matrix.'.format(i)
+            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
+                'Design matrix and data of subject {} do not '\
+                'have the same number of time points.'.format(i)
+            assert self.rank is None or self.rank <= d.shape[1],\
+                'Your design matrix of subject {} '\
+                'has fewer columns than the rank you set'.format(i)
+            if i == 0:
+                n_C = np.shape(d)[1]
+            else:
+                assert n_C == np.shape(d)[1], \
+                    'In Group Bayesian RSA, all subjects should have the '\
+                    'set of experiment conditions, thus the same number '\
+                    'of columns in design matrix'
+        return design
+
+    def _check_nuisance_BGRSA(sef, nuisance, X):
+        # Check the nuisance regressors.
+        if nuisance is not None:
+            if type(nuisance) is np.ndarray:
+                nuisance = [nuisance] * len(X)
+                if len(X) > 1:
+                    logger.warning('ATTENTION! There are multiple subjects '
+                                   'while there is only one nuisance matrix. '
+                                   'I assume that the nuisance matrix '
+                                   'is shared across all subjects. '
+                                   'Please double check.')
+            assert type(nuisance) is list, \
+                'nuisance matrix must be either a list '\
+                'with each entry for one participant, or an numpy arrary '\
+                'for single participant.'
+            for i, n in enumerate(nuisance):
+                assert_all_finite(n)
+                if n is not None:
+                    assert n.ndim == 2,\
+                        'The nuisance regressor should be '\
+                        '2 dimension ndarray or None'
+                    assert np.linalg.matrix_rank(n) == n.shape[1], \
+                        'The nuisance regressor of subject {} has rank '\
+                        'smaller than the number of columns.'\
+                        'Some columns can be explained by linear '\
+                        'combination of other columns. Please check your' \
+                        ' nuisance regressors.'.format(i)
+                    assert np.size(n, axis=0) == np.size(X, axis=0), \
+                        'Nuisance regressor and data do not have the same '\
+                        'number of time points.'
+        else:
+            nuisance = [nuisance] * len(X)
+            logger.info('None was provided for nuisance matrix. Replicating '
+                        'it for all subjects.')
+        return nuisance
+
+    def _check_scan_onsets_BGRSA(self, scan_onsets, X):
+        # check scan_onsets validity
+        if scan_onsets is None or type(scan_onsets) is np.ndarray:
+            scan_onsets = [scan_onsets] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one set of scan_onsets. '
+                               'I assume that it is the same for all'
+                               ' subjects. Please double check')
+        for i, s in enumerate(scan_onsets):
+            assert s is None or\
+                (np.max(s) <= X[i].shape[0] and np.min(s) >= 0),\
+                'Some scan onsets of subject {} provided are '\
+                'out of the range of time points.'.format(i)
+        return scan_onsets
 
     def fit(self, X, design, nuisance=None, scan_onsets=None):
         """Compute the Marginalized Bayesian RSA
@@ -2233,108 +2342,15 @@ class GBRSA(BRSA):
         """
 
         logger.info('Running Marginalized Bayesian RSA')
-
-        # Check input data
-        assert_all_finite(X)
-        if type(X) is np.ndarray:
-            X = [X]
-        assert type(X) is list, 'Input data X must be either a list '\
-            'with each entry for one participant, or an numpy arrary '\
-            'for single participant.'
-        for i, x in enumerate(X):
-            assert x.ndim == 2, 'Each participants'' data should be '
-            '2 dimension ndarray'
-            assert np.all(np.std(x, axis=0) > 0),\
-                'The time courses of some voxels in participant {} '\
-                'do not change at all. Please make sure all voxels '\
-                'are within the brain'.format(i)
-        # This program allows to fit a single subject. But to have a consistent
-        # data structure, we make sure X and design are both lists.
-
-        # check design matrix
-        assert_all_finite(design)
-        if type(design) is np.ndarray:
-            design = [design] * len(X)
-            if len(X) > 1:
-                logger.warning('There are multiple subjects while '
-                               'there is only one design matrix. '
-                               'I assume that the design matrix '
-                               'is shared across all subjects.')
-        assert type(design) is list, 'design matrix must be either a list '\
-            'with each entry for one participant, or an numpy arrary '\
-            'for single participant.'
-
-        for i, d in enumerate(design):
-            assert d.ndim == 2,\
-                'The design matrix should be 2 dimension ndarray'
-            assert np.linalg.matrix_rank(d) == d.shape[1], \
-                'Your design matrix of subject {} has rank ' \
-                'smaller than the number of columns. Some columns '\
-                'can be explained by linear combination of other columns.'\
-                'Please check your design matrix.'.format(i)
-            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
-                'Design matrix and data of subject {} do not '\
-                'have the same number of time points.'.format(i)
-            assert self.rank is None or self.rank <= d.shape[1],\
-                'Your design matrix of subject {} '\
-                'has fewer columns than the rank you set'.format(i)
-            if i == 0:
-                n_C = np.shape(d)[1]
-            else:
-                assert n_C == np.shape(d)[1], \
-                    'In Group Bayesian RSA, all subjects should have the '\
-                    'set of experiment conditions, thus the same number '\
-                    'of columns in design matrix'
-
-        # Check the nuisance regressors.
-        if nuisance is not None:
-            assert_all_finite(nuisance)
-            if type(nuisance) is np.ndarray:
-                nuisance = [nuisance] * len(X)
-                if len(X) > 1:
-                    logger.warning('ATTENTION! There are multiple subjects '
-                                   'while there is only one nuisance matrix. '
-                                   'I assume that the nuisance matrix '
-                                   'is shared across all subjects. '
-                                   'Please double check.')
-            assert type(nuisance) is list, \
-                'nuisance matrix must be either a list '\
-                'with each entry for one participant, or an numpy arrary '\
-                'for single participant.'
-            for i, n in enumerate(nuisance):
-                if n is not None:
-                    assert n.ndim == 2,\
-                        'The nuisance regressor should be '\
-                        '2 dimension ndarray or None'
-                    assert np.linalg.matrix_rank(n) == n.shape[1], \
-                        'The nuisance regressor of subject {} has rank '\
-                        'smaller than the number of columns.'\
-                        'Some columns can be explained by linear '\
-                        'combination of other columns. Please check your nuisance' \
-                        'regressors.'.format(i)
-                    assert np.size(n, axis=0) == np.size(X, axis=0), \
-                        'Nuisance regressor and data do not have the same '\
-                        'number of time points.'
-        else:
-            nuisance = [nuisance] * len(X)
-            logger.info('None was provided for nuisance matrix. Replicating '
-                        'it for all subjects.')
-        # check scan_onsets validity
-        if scan_onsets is None or type(scan_onsets) is np.ndarray:
-            scan_onsets = [scan_onsets] * len(X)
-            if len(X) > 1:
-                logger.warning('There are multiple subjects while '
-                               'there is only one set of scan_onsets. '
-                               'I assume that it is the same for all subjects. '
-                               'Please double check')
-        for i, s in enumerate(scan_onsets):
-            assert s is None or\
-                (np.max(s) <= X[i].shape[0] and np.min(s) >= 0),\
-                'Some scan onsets of subject {} provided are '\
-                'out of the range of time points.'.format(i)
+        # Checking all inputs.
+        X = self._check_data_BGRSA(X)
+        design = self._check_design_BGRSA(design, X)
+        nuisance = self._check_nuisance_BGRSA(nuisance, X)
+        scan_onsets = self._check_scan_onsets_BGRSA(scan_onsets, X)
         # Run Marginalized Bayesian RSA
-        # Note that we have a change of notation here. Within _fit_RSA_UV,
-        # design matrix is named X and data is named Y, to reflect the
+        # Note that we have a change of notation here.
+        # Within _fit_RSA_marginalized, design matrix is named X
+        # and data is named Y, to reflect the
         # generative model that data Y is generated by mixing the response
         # X to experiment conditions and other neural activity.
         # However, in fit(), we keep the tradition of scikit-learn that
@@ -2357,10 +2373,10 @@ class GBRSA(BRSA):
         return self
 
     def _calc_sandwidge_marginalized(
-        self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
-        XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-        rho1, n_V, n_X0):
+            self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
+            XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
+            XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
+            rho1, n_V, n_X0):
         # Calculate the sandwidge terms which put Acorr between X, Y and X0
         # These terms are used a lot in the likelihood. This function
         # is used for the marginalized version.
@@ -2405,10 +2421,10 @@ class GBRSA(BRSA):
                                           X0TAY[i_r, :, :]), axis=0)
 
         return X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, \
-            X0TAY, XTAX0 
+            X0TAY, XTAX0
 
     def _fit_RSA_marginalized(self, X, Y, X_base,
-                                 scan_onsets=None):
+                              scan_onsets=None):
         """ The major utility of fitting Bayesian RSA
             (marginalized version).
             Note that there is a naming change of variable. X in fit()
@@ -2461,7 +2477,7 @@ class GBRSA(BRSA):
         #     = np.polynomial.hermite.hermgauss(SNR_bins)
         # SNR_weights = SNR_weights / np.pi**0.5
         # SNR_grids = np.exp(log_SNR_grids * self.logS_range * 2**.5)
-        log_SNR_grids = ((np.arange(self.SNR_bins) 
+        log_SNR_grids = ((np.arange(self.SNR_bins)
                           - (self.SNR_bins - 1) / 2)) \
             / self.SNR_bins * self.logS_range * 6
         SNR_grids = np.exp(log_SNR_grids)
@@ -2472,9 +2488,9 @@ class GBRSA(BRSA):
             scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
                                  scale=self.logS_range))
         SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
-                                             scale=self.logS_range)
+                                              scale=self.logS_range)
         SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
-                                                  scale=self.logS_range)
+                                                   scale=self.logS_range)
         logger.info('The grids of pseudo-SNR used for numerical integration '
                     'is {}.'.format(SNR_grids))
         assert np.isclose(np.sum(SNR_weights), 1), \
@@ -2487,7 +2503,7 @@ class GBRSA(BRSA):
         # SNR_weights = np.ones(SNR_bins) / (SNR_bins - 1)
         # SNR_weights[0] = 0.5 / (SNR_bins - 1)
         # SNR_weights[-1] = 0.5 / (SNR_bins - 1)
-        rho_grids = np.arange(self.rho_bins) * 2  / self.rho_bins - 1 \
+        rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
             + 1 / self.rho_bins
         rho_weights = np.ones(self.rho_bins) / self.rho_bins
         logger.info('The grids of rho used to do numerical integration '
@@ -2530,6 +2546,12 @@ class GBRSA(BRSA):
         n_X0 = [None] * len(Y)
         idx_DC = [None] * len(Y)
 
+        # Initialization for L.
+        cov_point_est = np.zeros((n_C, n_C))
+        std_residual = np.empty(len(Y))
+        # There are several possible ways of initializing the covariance.
+        # (1) start from the point estimation of covariance
+
         for subj in range(len(Y)):
             D[subj], F[subj], run_TRs[subj], n_run[subj] = self._prepare_DF(
                 n_T[subj], scan_onsets=scan_onsets[subj])
@@ -2542,7 +2564,6 @@ class GBRSA(BRSA):
             # Initializing X0 as DC baseline
             # DC component will be added to the nuisance regressors.
             # In later steps, we do not need to add DC components again
-        
             X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj], XTDX0[subj], \
                 XTFX0[subj], X0TY[subj], X0TDY[subj], X0TFY[subj], X0[subj], \
                 X_base[subj], n_X0[subj], idx_DC[subj] = \
@@ -2550,14 +2571,6 @@ class GBRSA(BRSA):
                     X[subj], Y[subj], X_base[subj], None, D[subj], F[subj],
                     run_TRs[subj], no_DC=False)
 
-        # Initialization for L. 
-        cov_point_est = np.zeros((n_C, n_C))
-        std_residual = np.empty(len(Y))
-        # There are several possible ways of initializing the covariance.
-            # (1) start from the point estimation of covariance
-
-        for subj in range(len(Y)):
-            
             X_joint = np.concatenate((X0[subj], X[subj]), axis=1)
             beta_hat = np.linalg.lstsq(X_joint, Y[subj])[0]
             residual = Y[subj] - np.dot(X_joint, beta_hat)
@@ -2606,35 +2619,40 @@ class GBRSA(BRSA):
         beta0_post = [None] * len(Y)
         # The contents below can be updated during fitting.
         # e.g., X0 will be re-estimated
+        logger.info('start real fitting')
         for it in range(self.n_iter):
+            logger.info('Iteration {}'.format(it))
             # Re-estimate part of X0: X_res
             for subj in range(len(Y)):
                 if self.auto_nuisance and it > 1:
                     residuals = Y[subj] - np.dot(X[subj], beta_post[subj]) \
-                        - np.dot(X_base[subj],
-                                 beta0_post[subj][:np.shape(X_base[subj])[1], :])
+                        - np.dot(
+                            X_base[subj],
+                            beta0_post[subj][:np.shape(X_base[subj])[1], :])
                     X_res[subj] = self.nureg_method.fit_transform(residuals)
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
                         X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
                         self._prepare_data_XYX0(
-                            X[subj], Y[subj], X_base[subj], X_res[subj], 
+                            X[subj], Y[subj], X_base[subj], X_res[subj],
                             D[subj], F[subj], run_TRs[subj], no_DC=True)
                 X0TAX0[subj], X0TAX0_i[subj], XTAcorrX[subj],  XTAcorrY[subj],\
                     YTAcorrY_diag[subj], X0TAY[subj], XTAX0[subj] \
                     = self._calc_sandwidge_marginalized(
                         XTY[subj], XTDY[subj], XTFY[subj], YTY_diag[subj],
-                        YTDY_diag[subj], YTFY_diag[subj], XTX[subj], XTDX[subj],
-                        XTFX[subj], X0TX0[subj], X0TDX0[subj], X0TFX0[subj],
-                        XTX0[subj], XTDX0[subj], XTFX0[subj], X0TY[subj],
-                        X0TDY[subj], X0TFY[subj], rho_grids, n_V[subj], n_X0[subj])
+                        YTDY_diag[subj], YTFY_diag[subj], XTX[subj],
+                        XTDX[subj], XTFX[subj], X0TX0[subj], X0TDX0[subj],
+                        X0TFX0[subj], XTX0[subj], XTDX0[subj], XTFX0[subj],
+                        X0TY[subj], X0TDY[subj], X0TFY[subj], rho_grids,
+                        n_V[subj], n_X0[subj])
                 log_fixed_terms[subj] = - (n_T[subj] - n_X0[subj]) \
                     / 2 * np.log(2 * np.pi) + n_run[subj] \
                     / 2 * np.log(1 - all_rho_grids**2) \
-                    + scipy.special.gammaln((n_T[subj] - n_X0[subj] - 2) / 2) \
+                    + scipy.special.gammaln(
+                        (n_T[subj] - n_X0[subj] - 2) / 2) \
                     + (n_T[subj] - n_X0[subj] - 2) / 2 * np.log(2)
                 # These are terms in the log likelihood that do not
-                # depend on L. Notice that the last term comes from 
+                # depend on L. Notice that the last term comes from
                 # ther term of marginalizing sigma. We take the 2 in
                 # the denominator out. Accordingly, the "denominator"
                 # variable in the _raw_loglike_grids() function is not
@@ -2645,18 +2663,20 @@ class GBRSA(BRSA):
                 half_log_det_X0TAX0[subj] = np.reshape(
                     np.repeat(np.log(np.linalg.det(X0TAX0[subj]))[None, :] / 2,
                               self.SNR_bins, axis=0), n_grid)
-                X0TAX0[subj] = np.reshape(np.repeat(X0TAX0[subj][None, :, :, :],
-                                                    self.SNR_bins, axis=0),
-                                          (n_grid, n_X0[subj], n_X0[subj]))
-                X0TAX0_i[subj] = np.reshape(np.repeat(X0TAX0_i[subj][None, :, :, :],
-                                                      self.SNR_bins, axis=0),
+                X0TAX0[subj] = np.reshape(
+                    np.repeat(X0TAX0[subj][None, :, :, :],
+                              self.SNR_bins, axis=0),
+                    (n_grid, n_X0[subj], n_X0[subj]))
+                X0TAX0_i[subj] = np.reshape(np.repeat(
+                        X0TAX0_i[subj][None, :, :, :],
+                        self.SNR_bins, axis=0),
                                             (n_grid, n_X0[subj], n_X0[subj]))
                 s2XTAcorrX[subj] = np.reshape(
                     SNR_grids[:, None, None, None]**2 * XTAcorrX[subj],
                     (n_grid, n_C, n_C))
                 YTAcorrY_diag[subj] = np.reshape(np.repeat(
-                        YTAcorrY_diag[subj][None, :, :], self.SNR_bins, axis=0),
-                                                 (n_grid, n_V[subj]))
+                        YTAcorrY_diag[subj][None, :, :],
+                        self.SNR_bins, axis=0), (n_grid, n_V[subj]))
                 sXTAcorrY[subj] = np.reshape(SNR_grids[:, None, None, None]
                                              * XTAcorrY[subj],
                                              (n_grid, n_C, n_V[subj]))
@@ -2685,26 +2705,26 @@ class GBRSA(BRSA):
             # Estimating a few parameters.
             L[l_idx] = current_vec_U_chlsk_l
             for subj in range(len(Y)):
-                LL_raw, denominator, L_LAMBDA, L_LAMBDA_LT = self._raw_loglike_grids(
-                    L, s2XTAcorrX[subj], YTAcorrY_diag[subj], sXTAcorrY[subj],
-                    half_log_det_X0TAX0[subj], log_weights, log_fixed_terms[subj],
-                    n_C, n_T[subj], n_V[subj], n_X0[subj], n_grid, rank)
+                LL_raw, denominator, L_LAMBDA, L_LAMBDA_LT = \
+                    self._raw_loglike_grids(
+                        L, s2XTAcorrX[subj], YTAcorrY_diag[subj],
+                        sXTAcorrY[subj], half_log_det_X0TAX0[subj],
+                        log_weights, log_fixed_terms[subj], n_C, n_T[subj],
+                        n_V[subj], n_X0[subj], n_grid, rank)
                 result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
                 weight_post = result_exp / result_sum
-                s_post[subj] = np.sum(all_SNR_grids[:, None] * weight_post, axis=0)
+                s_post[subj] = np.sum(all_SNR_grids[:, None] * weight_post,
+                                      axis=0)
                 # Mean-posterior estimate of SNR.
-                rho_post[subj] = np.sum(all_rho_grids[:, None] * weight_post, axis=0)
+                rho_post[subj] = np.sum(all_rho_grids[:, None] * weight_post,
+                                        axis=0)
                 # Mean-posterior estimate of rho.
                 sigma_means = denominator ** 0.5 \
-                    * (np.exp(scipy.special.gammaln((n_T[subj] - n_X0[subj] - 3) / 2)
-                              - scipy.special.gammaln((n_T[subj] - n_X0[subj] - 2) / 2))
-                       / 2**0.5)
+                    * (np.exp(scipy.special.gammaln(
+                                (n_T[subj] - n_X0[subj] - 3) / 2)
+                              - scipy.special.gammaln(
+                                (n_T[subj] - n_X0[subj] - 2) / 2)) / 2**0.5)
                 sigma_post[subj] = np.sum(sigma_means * weight_post, axis=0)
-                # sigma_post = np.sum(denominator ** 0.5 * weight_post, axis=0)\
-                #     * (np.exp(scipy.special.gammaln((n_T - n_X0 - 3) / 2)
-                #               - scipy.special.gammaln((n_T - n_X0 - 2) / 2))
-                #        / 2**0.5)
-                # Mean-posterior estimate of sigma^2, then taken the square root.
                 # The mean of inverse-Gamma distribution is beta/(alpha-1)
                 # The mode is beta/(alpha+1). Notice that beta here does not
                 # refer to the brain activation, but the scale parameter of
@@ -2712,21 +2732,12 @@ class GBRSA(BRSA):
                 # maximum likelihood estimate of sigma^2. So we divide by
                 # (alpha+1), which is (n_T - n_X0).
                 beta_post[subj] = np.zeros((n_C, n_V[subj]))
-                for grid in range(n_grid):
-                    beta_post[subj] += np.dot(L_LAMBDA_LT[grid, :, :],
-                                        sXTAcorrY[subj][grid, :, :])\
-                        * sigma_means[grid, :] * all_SNR_grids[grid] \
-                        * weight_post[grid, :]
-                    # L, np.einsum('ijk,ijl->kl', L_LAMBDA,
-                    #              all_SNR_grids[:, None, None]
-                    #              * result_exp[:, None, :]
-                    #              * denominator[:, None, :]**0.5
-                    #              * sXTAcorrY)) / result_sum\
-                    # * (np.exp(scipy.special.gammaln((n_T - n_X0 - 3) / 2)
-                    #           - scipy.special.gammaln((n_T - n_X0 - 2) / 2))
-                    #    / 2**0.5)
                 beta0_post[subj] = np.zeros((n_X0[subj], n_V[subj]))
                 for grid in range(n_grid):
+                    beta_post[subj] += np.dot(L_LAMBDA_LT[grid, :, :],
+                                              sXTAcorrY[subj][grid, :, :])\
+                        * sigma_means[grid, :] * all_SNR_grids[grid] \
+                        * weight_post[grid, :]
                     beta0_post[subj] += weight_post[grid, :] * np.dot(
                         X0TAX0_i[subj][grid, :, :],
                         (X0TAY[subj][grid, :, :]
@@ -2765,7 +2776,7 @@ class GBRSA(BRSA):
         L_LAMBDA_LT = np.empty((n_grid, n_C, n_C))
         s2YTAcorrXL_LAMBDA_LTXTAcorrY = np.empty((n_grid, n_V))
         # dimension: space * n_grid
-        
+
         for grid in np.arange(n_grid):
             L_LAMBDA[grid, :, :] = scipy.linalg.cho_solve(
                 (Chol_LAMBDA_i[grid, :, :], True), L.T).T
@@ -2802,18 +2813,17 @@ class GBRSA(BRSA):
             LL_total, grad_L = self._loglike_marginalized(
                 L_vec, s2XTAcorrX[subj], YTAcorrY_diag[subj],
                 sXTAcorrY[subj], half_log_det_X0TAX0[subj], log_weights,
-                log_fixed_terms[subj], l_idx, n_C, n_T[subj], n_V[subj], n_X0[subj],
-                n_grid, rank)
+                log_fixed_terms[subj], l_idx, n_C, n_T[subj],
+                n_V[subj], n_X0[subj], n_grid, rank)
             sum_LL_total += LL_total
             sum_grad_L += grad_L
         return sum_LL_total, sum_grad_L
-    
+
     def _loglike_marginalized(self, L_vec, s2XTAcorrX, YTAcorrY_diag,
-                                  sXTAcorrY,# s2XTAcorrYYTAcorrX,
-                                  half_log_det_X0TAX0,# SNR2, rho1,
-                                  log_weights, log_fixed_terms,
-                                  l_idx, n_C, n_T, n_V, n_X0,
-                                  n_grid, rank=None):
+                              sXTAcorrY, half_log_det_X0TAX0,
+                              log_weights, log_fixed_terms,
+                              l_idx, n_C, n_T, n_V, n_X0,
+                              n_grid, rank=None):
         # In this version, we assume that beta is independent
         # between voxels and noise is also independent. X0 captures the
         # co-flucturation between voxels that is
@@ -2824,7 +2834,7 @@ class GBRSA(BRSA):
         # The log likelihood is an inverse-Gamma distribution sigma^2,
         # so we can analytically marginalize it assuming uniform prior.
         # n_grid is the number of grid in the parameter space of (s, rho1)
-        # that is used for numerical integration over (s, rho1). 
+        # that is used for numerical integration over (s, rho1).
 
         n_l = np.size(l_idx[0])
         # the number of parameters in the index of lower-triangular matrix
@@ -2844,7 +2854,6 @@ class GBRSA(BRSA):
         LL_total = np.sum(np.log(result_sum) + max_value)
 
         # Now we start the gradient with respect to L
-        grad_raw = np.empty((n_grid, n_C, rank))
         # s2XTAcorrXL_LAMBDA = np.einsum('ijk,ikl->ijl',
         #                                s2XTAcorrX, L_LAMBDA)
         s2XTAcorrXL_LAMBDA = np.empty((n_grid, n_C, rank))
@@ -2865,12 +2874,6 @@ class GBRSA(BRSA):
         # dimension: n_grid * condition * space
         # sYTAcorrXL_LAMBDA = np.einsum('ijk,ijl->ikl', sXTAcorrY, L_LAMBDA)
         # dimension: n_grid * space * rank
-        # grad_L = np.einsum('ijk,ikl->jl', I_minus_s2XTAcorrXL_LAMBDA_LT,
-        #                    np.einsum('ijk,ikl->ijl', weighted_sXTAcorrY,
-        #                              sYTAcorrXL_LAMBDA)) \
-        #     * (n_T - n_X0 - 2) \
-        #     - np.sum(s2XTAcorrXL_LAMBDA
-        #              * np.sum(weight_grad, axis=1)[:, None, None], axis=0)
         grad_L = np.zeros([n_C, rank])
         for grid in range(n_grid):
             grad_L += np.dot(
@@ -2882,5 +2885,5 @@ class GBRSA(BRSA):
                          * np.sum(weight_grad, axis=1)[:, None, None],
                          axis=0)
         # dimension: condition * rank
-        
+
         return -LL_total, -grad_L[l_idx]
