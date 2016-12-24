@@ -382,7 +382,9 @@ def generate_stimfunction(onsets,
     """Return the function for the onset of events
 
     When do stimuli onset, how long for and to what extent should you
-    resolve the fMRI time course
+    resolve the fMRI time course. There are two ways to create this, either
+    by supplying onset, duration and weight information or by supplying a
+    timing file (in the three column format)
 
     Parameters
     ----------
@@ -418,35 +420,20 @@ def generate_stimfunction(onsets,
     if timing_file is not None:
 
         # Read in text file line by line
-
         with open(timing_file) as f:
             text = f.readlines()  # Pull out file as a an array
 
-        # Preset list size
-        onsets = [0] * len(text)
-        event_durations = [0] * len(text)
-        weights = [0] * len(text)
+        # Preset
+        onsets = list()
+        event_durations = list()
+        weights = list()
 
-        # Cycle through the lines of the text
-        for event_counter in list(range(0, len(text))):
-
-            # Pull out the line
-            line = text[event_counter]
-
-            # Pull out the onset time, set as a float
-            onsets[event_counter] = float(line[0:line.find('\t')])
-
-            # Subset the line
-            line = line[line.find('\t') + 1:]
-
-            # Pull out the duration, set as a float
-            event_durations[event_counter] = float(line[0:line.find('\t')])
-
-            # Subset the line
-            line = line[line.find('\t') + 1:]
-
-            # Pull out the weight, set as a float
-            weights[event_counter] = float(line[0:line.find('\t')])
+        # Pull out the onsets, weights and durations, set as a float
+        for line in text:
+            onset, duration, weight = line.strip().split()
+            onsets.append(float(onset))
+            event_durations.append(float(duration))
+            weights.append(float(weight))
 
     # If only one duration is supplied then duplicate it for the length of
     # the onset variable
@@ -463,7 +450,7 @@ def generate_stimfunction(onsets,
     stimfunction = [0] * round(total_time * temporal_resolution)
 
     # Cycle through the onsets
-    for onset_counter in list(range(0, len(onsets))):
+    for onset_counter in list(range(len(onsets))):
         # Adjust for the resolution
         onset_idx = int(np.floor(onsets[onset_counter] * temporal_resolution))
 
@@ -634,7 +621,7 @@ def apply_signal(signal_function,
     """Apply the convolution and stimfunction
 
     Apply the convolution of the HRF and stimulus time course to the
-    volume. This requires discriti
+    volume.
 
     Parameters
     ----------
@@ -648,9 +635,7 @@ def apply_signal(signal_function,
     Returns
     ----------
     multidimensional array, float
-        Generates the spatial noise volume for these parameters
-
-        """
+        Generates the spatial noise volume for these parameters """
 
     # Preset volume
     signal = np.ndarray([volume_static.shape[0], volume_static.shape[
@@ -666,8 +651,9 @@ def apply_signal(signal_function,
     return signal
 
 
-def _calc_fwhm(volume, mask):
-
+def _calc_fwhm(volume,
+               mask,
+               ):
     """ Calculate the FWHM of a volume
     Takes in a volume and mask and outputs the FWHM of each TR of this
     volume for the non-masked voxels
@@ -684,9 +670,7 @@ def _calc_fwhm(volume, mask):
     -------
 
     float, list
-    Returns the FWHM of each TR
-
-    """
+    Returns the FWHM of each TR """
 
     # What are the dimensions of the volume
     dimensions = volume.shape
@@ -707,7 +691,7 @@ def _calc_fwhm(volume, mask):
     for tr_counter in list(range(0, trs)):
 
         # Preset
-        sumSqDer = [0.0, 0.0, 0.0]
+        sum_sq_der = [0.0, 0.0, 0.0]
         countSqDer = [0, 0, 0]
 
         # If there is more than one TR, just pull out that volume
@@ -733,25 +717,25 @@ def _calc_fwhm(volume, mask):
 
                 if x < dimensions[0] - 1 and mask[x + 1, y, z,
                                                   tr_counter] > 0:
-                    sumSqDer[0] += (volume[x, y, z] - volume[x + 1, y,
+                    sum_sq_der[0] += (volume[x, y, z] - volume[x + 1, y,
                                                              z]) ** 2
                     countSqDer[0] += + 1
 
                 if y < dimensions[1] - 1 and mask[x, y + 1, z,
                                                   tr_counter] > 0:
-                    sumSqDer[1] += (volume[x, y, z] - volume[x, y + 1,
+                    sum_sq_der[1] += (volume[x, y, z] - volume[x, y + 1,
                                                              z]) ** 2
                     countSqDer[1] += + 1
 
                 if z < dimensions[2] - 1 and mask[x, y, z + 1,
                                                   tr_counter] > 0:
-                    sumSqDer[2] += (volume[x, y, z] - volume[x, y,
+                    sum_sq_der[2] += (volume[x, y, z] - volume[x, y,
                                                              z + 1])\
                                    ** 2
-                    countSqDer[2] += + 1
+                    countSqDer[2] += 1
 
         # What is the FWHM for each dimension
-        fwhm3 = np.sqrt(np.divide(4 * np.log(2), np.divide(sumSqDer,
+        fwhm3 = np.sqrt(np.divide(4 * np.log(2), np.divide(sum_sq_der,
                                                            countSqDer)))
         fwhm[tr_counter] = np.prod(fwhm3) ** (1 / 3)  # Calculate the average
 
@@ -1317,6 +1301,7 @@ def _generate_noise_temporal(stimfunction,
 def mask_brain(volume,
                mask_name=None,
                mask_threshold=0.1,
+               mask_self=0,
                ):
     """ Mask the simulated volume
     This takes in a volume and will output the masked volume. if a one
@@ -1332,13 +1317,15 @@ def mask_brain(volume,
         describing the dimensions of the mask to be created
 
     mask_name : str
-        What is the path to the mask to be loaded? If set to self then it
-        makes a mask from the volume supplied (by averaging across time
-        points and changing the range). If empty then it defaults to an
+        What is the path to the mask to be loaded? If empty then it defaults to an
         MNI152 grey matter mask.
 
     mask_threshold : float
         What is the threshold (0 -> 1) for including a voxel in the mask?
+
+    mask_self : bool
+        If set to 1 then it makes a mask from the volume supplied (by
+        averaging across time points and changing the range).
 
     Returns
     ----------
@@ -1354,7 +1341,11 @@ def mask_brain(volume,
     # Load in the mask
     if mask_name is None:
         mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
-    elif mask_name is 'self':
+    else:
+        mask_raw = np.load(mask_name)
+
+    # Is the mask based on the volume
+    if mask_self is 1:
         mask_raw = np.zeros([volume.shape[0], volume.shape[1], volume.shape[
             2], 1])
 
@@ -1362,8 +1353,6 @@ def mask_brain(volume,
             mask_raw[:, :, :, 0] = np.mean(volume, 3)
         else:
             mask_raw[:, :, :, 0] = np.array(volume)
-    else:
-        mask_raw = np.load(mask_name)
 
     # Make sure the mask values range from 0 to 1
     mask_raw = mask_raw / mask_raw.max()
@@ -1443,18 +1432,6 @@ def _noise_dict_update(noise_dict):
     total_var += noise_dict['physiological_sigma'] ** 2
     total_var += noise_dict['system_sigma'] ** 2
 
-    # print('Noise mixture\n')
-    # tmp = str(noise_dict['motion_sigma'] ** 2 / total_var * 100)[0:5]
-    # print('Task noise:\t\t\t\t' + tmp)
-    # tmp = str(noise_dict['drift_sigma'] ** 2 / total_var * 100)[0:5]
-    # print('Drift noise:\t\t\t' + tmp)
-    # tmp = str(noise_dict['auto_reg_sigma'] ** 2 / total_var * 100)[0:5]
-    # print('Autoregression noise:\t' + tmp)
-    # tmp = str(noise_dict['physiological_sigma'] ** 2 / total_var * 100)[0:5]
-    # print('Physiological noise:\t' + tmp)
-    # tmp = str(noise_dict['system_sigma'] ** 2 / total_var * 100)[0:5]
-    # print('System noise:\t\t\t' + tmp)
-
     return noise_dict
 
 
@@ -1462,7 +1439,7 @@ def generate_noise(dimensions,
                    stimfunction,
                    tr_duration,
                    mask=None,
-                   noise_dict={'overall': 0.1},
+                   noise_dict=None,
                    ):
     """ Generate the noise to be added to the signal.
     Default noise parameters will create a noise volume with a standard
@@ -1526,8 +1503,8 @@ def generate_noise(dimensions,
                                                  'physiological_sigma'],
                                               )
 
-    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
-                                          ) * noise_dict['system_sigma']
+    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr) * \
+                   noise_dict['system_sigma']
 
     # Find the outer product for the brain and nonbrain and add white noise
     noise = noise_temporal + noise_system

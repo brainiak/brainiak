@@ -124,7 +124,6 @@ setup(
     install_requires=[
         'cython',
         'mpi4py',
-        'nibabel',
         'nitime',
         'numpy',
         'scikit-learn>=0.18',
