@@ -126,7 +126,6 @@ def separate_epochs(activity_data, epoch_list):
     )
     return raw_data, labels
 
-
 def prepare_data(data_dir, extension, mask_file, epoch_file):
     """ read the data in and generate epochs of interests,
     then broadcast to all workers
@@ -178,3 +177,38 @@ def prepare_data(data_dir, extension, mask_file, epoch_file):
             (time2 - time1)
         )
     return raw_data, labels
+
+def generate_epochs_info(epoch_list):
+    """ use epoch_list to generate epoch_info defined below
+
+    Parameters
+    ----------
+    epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
+        specification of epochs and conditions
+        assuming all subjects have the same number of epochs
+        len(epoch_list) equals the number of subjects
+        also assuming an epoch is always a continuous time course
+
+    Returns
+    -------
+    epoch\_info: list of tuple (label, sid, start, end)
+        the condition labels of the epochs
+        len(labels) labels equals the number of epochs
+        assuming the epochs of the same sid are adjacent
+    """
+    time1 = time.time()
+    epoch_info = []
+    for sid, epoch in enumerate(epoch_list):
+        for cond in range(epoch.shape[0]):
+            sub_epoch = epoch[cond, :, :]
+            for eid in range(epoch.shape[1]):
+                r = np.sum(sub_epoch[eid, :])
+                if r > 0:   # there is an epoch in this condition
+                    start = np.nonzero(sub_epoch[eid, :])[0][0]
+                    epoch_info.append((cond, sid, start, start+r))
+    time2 = time.time()
+    logger.info(
+        'epoch separation done, takes %.2f s' %
+        (time2 - time1)
+    )
+    return epoch_info
