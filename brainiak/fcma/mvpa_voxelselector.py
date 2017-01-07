@@ -82,7 +82,7 @@ class MVPAVoxelSelector:
                  max_blk_edge=10
                  ):
         self.raw_data = raw_data
-        self.mask = mask
+        self.mask = mask.astype(np.bool)
         self.num_voxels = np.sum(mask==1)
         self.epoch_info = epoch_info
         self.num_folds = num_folds
@@ -112,7 +112,6 @@ class MVPAVoxelSelector:
                 subject_count.append(0)
                 cur_sid = epoch[1]
             subject_count[-1] += 1
-            print(self.processed_data.shape, epoch)
             self.processed_data[:, :, :, idx] = \
                 np.mean(self.raw_data[cur_sid][:, :, :, epoch[2]:epoch[3]], axis=3)
         # z-scoring
@@ -143,20 +142,23 @@ class MVPAVoxelSelector:
             the accuracy numbers of all voxels, in accuracy descending order
             the length of array equals the number of voxels
         """
-        logger.info(
-            'running activity-based voxel selection via Searchlight'
-        )
         rank = MPI.COMM_WORLD.Get_rank()
+        if rank == 0:
+            logger.info(
+                'running activity-based voxel selection via Searchlight'
+            )
         if rank == 0:
             self._preprocess_data()
         self.sl.distribute([self.processed_data], self.mask)
         self.sl.broadcast(self.labels)
-        logger.info(
-            'data preparation done'
-        )
+        if rank == 0:
+            logger.info(
+                'data preparation done'
+            )
         # Searchlight kernel function
         def _sfn(l, mask, myrad, bcast_var):
-            data = l[0][mask,:].T
+            data = l[0][mask, :].T
+            #print(l[0].shape, mask.shape, data.shape, bcast_var)
             skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
                                                   shuffle=False)
             accuracy = np.mean(model_selection.cross_val_score(clf, data,
@@ -172,7 +174,8 @@ class MVPAVoxelSelector:
             results.append((idx, value))
         # Sort the voxels
         results.sort(key=lambda tup: tup[1], reverse=True)
-        logger.info(
-            'activity-based voxel selection via Searchlight is done'
-        )
+        if rank == 0:
+            logger.info(
+                'activity-based voxel selection via Searchlight is done'
+            )
         return results
