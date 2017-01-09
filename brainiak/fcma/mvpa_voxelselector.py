@@ -26,6 +26,7 @@ This implementation is based on the following publications:
 
 import numpy as np
 from sklearn import model_selection
+from sklearn import svm
 from scipy.stats.mstats import zscore
 import logging
 from mpi4py import MPI
@@ -150,7 +151,7 @@ class MVPAVoxelSelector:
         if rank == 0:
             self._preprocess_data()
         self.sl.distribute([self.processed_data], self.mask)
-        self.sl.broadcast(self.labels)
+        self.sl.broadcast((self.labels, self.num_folds))
         if rank == 0:
             logger.info(
                 'data preparation done'
@@ -159,10 +160,10 @@ class MVPAVoxelSelector:
         def _sfn(l, mask, myrad, bcast_var):
             data = l[0][mask, :].T
             #print(l[0].shape, mask.shape, data.shape, bcast_var)
-            skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
+            skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
                                                   shuffle=False)
             accuracy = np.mean(model_selection.cross_val_score(clf, data,
-                                                               y=bcast_var,
+                                                               y=bcast_var[0],
                                                                cv=skf, n_jobs=1))
             return accuracy
         # obtain a 3D array with accuracy numbers
