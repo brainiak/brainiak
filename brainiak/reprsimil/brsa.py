@@ -23,6 +23,7 @@
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing
     -bias-in-neural-representational-similarity-analysis.pdf
+    Some extensions not described in the paper were made.
 """
 
 # Authors: Mingbo Cai
@@ -102,6 +103,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This parameter will not be effective in the first round of fitting.
+        This number is in addition to any nuisance regressor that the user
+        has already provided.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'FA'
         The method to estimate the shared component in noise across voxels.
     GP_space: boolean, default: False
@@ -215,10 +218,12 @@ class BRSA(BaseEstimator, TransformerMixin):
     beta_: array, shape=[conditions, voxels]
         The maximum a posterior estimation of the response amplitudes
         of each voxel to each task condition.
-    beta0_: array, shape=[n_nureg, voxels]
+    beta0_: array, shape=[n_nureg + n_base, voxels]
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
-    X0_: array, shape=[time_points, n_nureg]
+        n_base is the number of columns of the user-supplied nuisance
+        regressors plus one for DC component
+    X0_: array, shape=[time_points, n_nureg + n_base]
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
 
@@ -2062,6 +2067,8 @@ class GBRSA(BRSA):
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This parameter will not be effective in the first round of fitting.
+        This number is in addition to any nuisance regressor that the user
+        has already provided.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'FA'
         The method to estimate the shared component in noise across voxels.
     logS_range: the reasonable range of the spread of SNR
@@ -2144,10 +2151,12 @@ class GBRSA(BRSA):
     beta_: array, shape=[conditions, voxels]
         The maximum a posterior estimation of the response amplitudes
         of each voxel to each task condition.
-    beta0_: array, shape=[n_nureg, voxels]
+    beta0_: array, shape=[n_nureg + n_base, voxels]
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
-    X0_: array, shape=[time_points, n_nureg]
+        n_base is the number of columns of the user-supplied nuisance
+        regressors plus one for DC component.
+    X0_: array, shape=[time_points, n_nureg + n_base]
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
 
@@ -2186,114 +2195,6 @@ class GBRSA(BRSA):
         self.anneal_speed = anneal_speed
         return
 
-    def _check_data_BGRSA(self, X):
-        # Check input data
-        if type(X) is np.ndarray:
-            X = [X]
-        assert type(X) is list, 'Input data X must be either a list '\
-            'with each entry for one participant, or an numpy arrary '\
-            'for single participant.'
-        for i, x in enumerate(X):
-            assert_all_finite(x)
-            assert x.ndim == 2, 'Each participants'' data should be '
-            '2 dimension ndarray'
-            assert np.all(np.std(x, axis=0) > 0),\
-                'The time courses of some voxels in participant {} '\
-                'do not change at all. Please make sure all voxels '\
-                'are within the brain'.format(i)
-        # This program allows to fit a single subject. But to have a consistent
-        # data structure, we make sure X and design are both lists.
-        return X
-
-    def _check_design_BGRSA(self, design, X):
-        # check design matrix
-        if type(design) is np.ndarray:
-            design = [design] * len(X)
-            if len(X) > 1:
-                logger.warning('There are multiple subjects while '
-                               'there is only one design matrix. '
-                               'I assume that the design matrix '
-                               'is shared across all subjects.')
-        assert type(design) is list, 'design matrix must be either a list '\
-            'with each entry for one participant, or an numpy arrary '\
-            'for single participant.'
-
-        for i, d in enumerate(design):
-            assert_all_finite(d)
-            assert d.ndim == 2,\
-                'The design matrix should be 2 dimension ndarray'
-            assert np.linalg.matrix_rank(d) == d.shape[1], \
-                'Your design matrix of subject {} has rank ' \
-                'smaller than the number of columns. Some columns '\
-                'can be explained by linear combination of other columns.'\
-                'Please check your design matrix.'.format(i)
-            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
-                'Design matrix and data of subject {} do not '\
-                'have the same number of time points.'.format(i)
-            assert self.rank is None or self.rank <= d.shape[1],\
-                'Your design matrix of subject {} '\
-                'has fewer columns than the rank you set'.format(i)
-            if i == 0:
-                n_C = np.shape(d)[1]
-            else:
-                assert n_C == np.shape(d)[1], \
-                    'In Group Bayesian RSA, all subjects should have the '\
-                    'set of experiment conditions, thus the same number '\
-                    'of columns in design matrix'
-        return design
-
-    def _check_nuisance_BGRSA(sef, nuisance, X):
-        # Check the nuisance regressors.
-        if nuisance is not None:
-            if type(nuisance) is np.ndarray:
-                nuisance = [nuisance] * len(X)
-                if len(X) > 1:
-                    logger.warning('ATTENTION! There are multiple subjects '
-                                   'while there is only one nuisance matrix. '
-                                   'I assume that the nuisance matrix '
-                                   'is shared across all subjects. '
-                                   'Please double check.')
-            assert type(nuisance) is list, \
-                'nuisance matrix must be either a list '\
-                'with each entry for one participant, or an numpy arrary '\
-                'for single participant.'
-            for i, n in enumerate(nuisance):
-                assert_all_finite(n)
-                if n is not None:
-                    assert n.ndim == 2,\
-                        'The nuisance regressor should be '\
-                        '2 dimension ndarray or None'
-                    assert np.linalg.matrix_rank(n) == n.shape[1], \
-                        'The nuisance regressor of subject {} has rank '\
-                        'smaller than the number of columns.'\
-                        'Some columns can be explained by linear '\
-                        'combination of other columns. Please check your' \
-                        ' nuisance regressors.'.format(i)
-                    assert np.size(n, axis=0) == np.size(X, axis=0), \
-                        'Nuisance regressor and data do not have the same '\
-                        'number of time points.'
-        else:
-            nuisance = [nuisance] * len(X)
-            logger.info('None was provided for nuisance matrix. Replicating '
-                        'it for all subjects.')
-        return nuisance
-
-    def _check_scan_onsets_BGRSA(self, scan_onsets, X):
-        # check scan_onsets validity
-        if scan_onsets is None or type(scan_onsets) is np.ndarray:
-            scan_onsets = [scan_onsets] * len(X)
-            if len(X) > 1:
-                logger.warning('There are multiple subjects while '
-                               'there is only one set of scan_onsets. '
-                               'I assume that it is the same for all'
-                               ' subjects. Please double check')
-        for i, s in enumerate(scan_onsets):
-            assert s is None or\
-                (np.max(s) <= X[i].shape[0] and np.min(s) >= 0),\
-                'Some scan onsets of subject {} provided are '\
-                'out of the range of time points.'.format(i)
-        return scan_onsets
-
     def fit(self, X, design, nuisance=None, scan_onsets=None):
         """Compute the Marginalized Bayesian RSA
 
@@ -2322,11 +2223,14 @@ class GBRSA(BRSA):
             relative contribution of design matrix to each voxel.
             You can provide time courses such as those for head motion
             to this parameter.
-            Note that if auto_nuisance is set to True, this input
-            will only be used in the first round of fitting. The first
-            n_nureg principal components of residual (excluding the response
-            to the design matrix) will be used as the nuisance regressor
-            for the second round of fitting.
+            Note that if auto_nuisance is set to True, this regressor
+            together with DC components and the first n_nureg
+            principal components of residuals after fitting will be used
+            as the nuisance regressor starting from the second round of fitting.
+            If other methods are chosen for nureg_method, the nuisance regressor
+            in addition to the ones provided by the user will be estimated
+            based on the chosen methods from residuals
+            after each round of fitting.
             If auto_nuisance is set to False, the nuisance regressors supplied
             by the users together with DC components will be used as
             nuisance time series.
@@ -2887,3 +2791,111 @@ class GBRSA(BRSA):
         # dimension: condition * rank
 
         return -LL_total, -grad_L[l_idx]
+
+    def _check_data_BGRSA(self, X):
+        # Check input data
+        if type(X) is np.ndarray:
+            X = [X]
+        assert type(X) is list, 'Input data X must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+        for i, x in enumerate(X):
+            assert_all_finite(x)
+            assert x.ndim == 2, 'Each participants'' data should be '
+            '2 dimension ndarray'
+            assert np.all(np.std(x, axis=0) > 0),\
+                'The time courses of some voxels in participant {} '\
+                'do not change at all. Please make sure all voxels '\
+                'are within the brain'.format(i)
+        # This program allows to fit a single subject. But to have a consistent
+        # data structure, we make sure X and design are both lists.
+        return X
+
+    def _check_design_BGRSA(self, design, X):
+        # check design matrix
+        if type(design) is np.ndarray:
+            design = [design] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one design matrix. '
+                               'I assume that the design matrix '
+                               'is shared across all subjects.')
+        assert type(design) is list, 'design matrix must be either a list '\
+            'with each entry for one participant, or an numpy arrary '\
+            'for single participant.'
+
+        for i, d in enumerate(design):
+            assert_all_finite(d)
+            assert d.ndim == 2,\
+                'The design matrix should be 2 dimension ndarray'
+            assert np.linalg.matrix_rank(d) == d.shape[1], \
+                'Your design matrix of subject {} has rank ' \
+                'smaller than the number of columns. Some columns '\
+                'can be explained by linear combination of other columns.'\
+                'Please check your design matrix.'.format(i)
+            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
+                'Design matrix and data of subject {} do not '\
+                'have the same number of time points.'.format(i)
+            assert self.rank is None or self.rank <= d.shape[1],\
+                'Your design matrix of subject {} '\
+                'has fewer columns than the rank you set'.format(i)
+            if i == 0:
+                n_C = np.shape(d)[1]
+            else:
+                assert n_C == np.shape(d)[1], \
+                    'In Group Bayesian RSA, all subjects should have the '\
+                    'set of experiment conditions, thus the same number '\
+                    'of columns in design matrix'
+        return design
+
+    def _check_nuisance_BGRSA(sef, nuisance, X):
+        # Check the nuisance regressors.
+        if nuisance is not None:
+            if type(nuisance) is np.ndarray:
+                nuisance = [nuisance] * len(X)
+                if len(X) > 1:
+                    logger.warning('ATTENTION! There are multiple subjects '
+                                   'while there is only one nuisance matrix. '
+                                   'I assume that the nuisance matrix '
+                                   'is shared across all subjects. '
+                                   'Please double check.')
+            assert type(nuisance) is list, \
+                'nuisance matrix must be either a list '\
+                'with each entry for one participant, or an numpy arrary '\
+                'for single participant.'
+            for i, n in enumerate(nuisance):
+                assert_all_finite(n)
+                if n is not None:
+                    assert n.ndim == 2,\
+                        'The nuisance regressor should be '\
+                        '2 dimension ndarray or None'
+                    assert np.linalg.matrix_rank(n) == n.shape[1], \
+                        'The nuisance regressor of subject {} has rank '\
+                        'smaller than the number of columns.'\
+                        'Some columns can be explained by linear '\
+                        'combination of other columns. Please check your' \
+                        ' nuisance regressors.'.format(i)
+                    assert np.size(n, axis=0) == np.size(X, axis=0), \
+                        'Nuisance regressor and data do not have the same '\
+                        'number of time points.'
+        else:
+            nuisance = [nuisance] * len(X)
+            logger.info('None was provided for nuisance matrix. Replicating '
+                        'it for all subjects.')
+        return nuisance
+
+    def _check_scan_onsets_BGRSA(self, scan_onsets, X):
+        # check scan_onsets validity
+        if scan_onsets is None or type(scan_onsets) is np.ndarray:
+            scan_onsets = [scan_onsets] * len(X)
+            if len(X) > 1:
+                logger.warning('There are multiple subjects while '
+                               'there is only one set of scan_onsets. '
+                               'I assume that it is the same for all'
+                               ' subjects. Please double check')
+        for i, s in enumerate(scan_onsets):
+            assert s is None or\
+                (np.max(s) <= X[i].shape[0] and np.min(s) >= 0),\
+                'Some scan onsets of subject {} provided are '\
+                'out of the range of time points.'.format(i)
+        return scan_onsets

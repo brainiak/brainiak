@@ -29,10 +29,6 @@ def test_can_instantiate():
     s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, GP_space=True, GP_inten=True, tol=2e-3,\
                 eta=0.001,space_smooth_range=10.0,inten_smooth_range=100.0)
     assert s, "Invalid BRSA instance!"
-    
-    s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5, tol=2e-3,\
-                marginalize=True)
-    assert s, "Invalid BRSA instance!"
 
 def test_fit():
     from brainiak.reprsimil.brsa import BRSA
