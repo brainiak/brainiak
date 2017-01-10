@@ -8,6 +8,7 @@
 *.npy
 *.log
 *.nii.gz
+*.pkl
 
 brainiak.egg-info
 build
@@ -22,6 +23,7 @@ htmlcov
 .ipynb_checkpoints
 junit-*.xml
 __pycache__
+.DS_Store
 
 brainiak/fcma/cython_blas.c
 brainiak/eventseg/_utils.c
