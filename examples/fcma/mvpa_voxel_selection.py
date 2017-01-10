@@ -51,7 +51,6 @@ if __name__ == '__main__':
     mask = mask_img.get_data()
     epoch_info = None
     if MPI.COMM_WORLD.Get_rank()==0:
-        count = 0
         files = [f for f in sorted(os.listdir(data_dir))
                 if os.path.isfile(os.path.join(data_dir, f))
                 and f.endswith(extension)]
