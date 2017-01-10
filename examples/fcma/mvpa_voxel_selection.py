@@ -19,6 +19,7 @@ import os
 from mpi4py import MPI
 import logging
 from file_io import generate_epochs_info
+from file_io import write_nifti_file
 import nibabel as nib
 import numpy as np
 
@@ -45,11 +46,11 @@ if __name__ == '__main__':
     epoch_file = sys.argv[4]
 
     raw_data = []
-    mask = None
+    # all MPI processes read the mask; the mask file is small
+    mask_img = nib.load(mask_file)
+    mask = mask_img.get_data()
     epoch_info = None
     if MPI.COMM_WORLD.Get_rank()==0:
-        mask_img = nib.load(mask_file)
-        mask = mask_img.get_data()
         count = 0
         files = [f for f in sorted(os.listdir(data_dir))
                 if os.path.isfile(os.path.join(data_dir, f))
@@ -68,7 +69,9 @@ if __name__ == '__main__':
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=10
     clf = svm.SVC(kernel='rbf', shrinking=False, C=10)
-    results = mvs.run(clf)
+    # only rank 0 has meaningful return values
+    result_volume, results = mvs.run(clf)
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
-        print(results[0:100])
+        result_volume = np.nan_to_num(result_volume.astype(np.float))
+        write_nifti_file(result_volume, mask_img.affine, 'result.nii.gz')

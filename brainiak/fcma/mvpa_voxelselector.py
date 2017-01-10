@@ -59,9 +59,6 @@ class MVPAVoxelSelector:
 
     mask: 3D array
 
-    num\_voxels: int
-        the number of processed voxels defined by mask
-
     epoch\_info: list of tuple (label, sid, start, end)
         the condition labels of the epochs
         len(labels) labels equals the number of epochs
@@ -73,6 +70,13 @@ class MVPAVoxelSelector:
 
     sl: Searchlight
         the distributed Searchlight object
+
+    processed\_data: 4D array in shape [brain 3D + epoch]
+        contains the averaged and normalized brain data epoch by epoch
+        it is generated in _\preprocess\_data method
+
+    labels: 1D array
+        contains the labels of the epochs, extracted from epoch\_info
     """
     def __init__(self,
                  raw_data,
@@ -84,11 +88,12 @@ class MVPAVoxelSelector:
                  ):
         self.raw_data = raw_data
         self.mask = mask.astype(np.bool)
-        self.num_voxels = np.sum(mask==1)
         self.epoch_info = epoch_info
         self.num_folds = num_folds
         self.sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge)
-        if self.num_voxels == 0:
+        self.processed_data = None
+        self.labels = None
+        if np.sum(self.mask==True) == 0:
             raise ValueError('Zero processed voxels')
 
     def _preprocess_data(self):
@@ -100,6 +105,10 @@ class MVPAVoxelSelector:
         which is a 4D array of averaged epoch by epoch processed data
         Also write the labels to self.label as a 1D numpy array
         """
+        logger.info(
+            'mask size: %d' %
+            np.sum(self.mask==True)
+        )
         num_epochs = len(self.epoch_info)
         (d1, d2, d3, _) = self.raw_data[0].shape
         self.processed_data = np.empty([d1, d2, d3, num_epochs])
@@ -139,6 +148,8 @@ class MVPAVoxelSelector:
 
         Returns
         -------
+        result_volume: 3D array of accuracy numbers
+            contains the voxelwise accuracy numbers obtained via Searchlight
         results: list of tuple (voxel_id, accuracy)
             the accuracy numbers of all voxels, in accuracy descending order
             the length of array equals the number of voxels
@@ -159,24 +170,27 @@ class MVPAVoxelSelector:
         # Searchlight kernel function
         def _sfn(l, mask, myrad, bcast_var):
             data = l[0][mask, :].T
-            #print(l[0].shape, mask.shape, data.shape, bcast_var)
+            #print(l[0].shape, mask.shape, data.shape)
             skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
                                                   shuffle=False)
             accuracy = np.mean(model_selection.cross_val_score(clf, data,
                                                                y=bcast_var[0],
-                                                               cv=skf, n_jobs=1))
+                                                               cv=skf,
+                                                               n_jobs=1))
             return accuracy
         # obtain a 3D array with accuracy numbers
         result_volume = self.sl.run_searchlight(_sfn)
         # get result tuple list from the volume
         result_list = result_volume[self.mask]
         results = []
-        for idx, value in enumerate(result_list):
-            results.append((idx, value))
-        # Sort the voxels
-        results.sort(key=lambda tup: tup[1], reverse=True)
         if rank == 0:
+            for idx, value in enumerate(result_list):
+                if value is None:
+                    value = 0
+                results.append((idx, value))
+            # Sort the voxels
+            results.sort(key=lambda tup: tup[1], reverse=True)
             logger.info(
                 'activity-based voxel selection via Searchlight is done'
             )
-        return results
+        return result_volume, results

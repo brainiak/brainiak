@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import nibabel as nib
+from nibabel.nifti1 import Nifti1Pair
 import os
 import math
 import time
@@ -212,3 +213,8 @@ def generate_epochs_info(epoch_list):
         (time2 - time1)
     )
     return epoch_info
+
+
+def write_nifti_file(data, affine, filename):
+    img = Nifti1Pair(data, affine)
+    nib.nifti1.save(img, filename)

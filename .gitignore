@@ -7,6 +7,7 @@
 *.o
 *.npy
 *.log
+*.nii.gz
 
 brainiak.egg-info
 build
