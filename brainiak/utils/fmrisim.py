@@ -717,21 +717,20 @@ def _calc_fwhm(volume,
 
                 if x < dimensions[0] - 1 and mask[x + 1, y, z,
                                                   tr_counter] > 0:
-                    sum_sq_der[0] += (volume[x, y, z] - volume[x + 1, y,
-                                                             z]) ** 2
+                    temp = (volume[x, y, z] - volume[x + 1, y, z]) ** 2
+                    sum_sq_der[0] += temp
                     countSqDer[0] += + 1
 
                 if y < dimensions[1] - 1 and mask[x, y + 1, z,
                                                   tr_counter] > 0:
-                    sum_sq_der[1] += (volume[x, y, z] - volume[x, y + 1,
-                                                             z]) ** 2
+                    temp = (volume[x, y, z] - volume[x, y + 1, z]) ** 2
+                    sum_sq_der[1] += temp
                     countSqDer[1] += + 1
 
                 if z < dimensions[2] - 1 and mask[x, y, z + 1,
                                                   tr_counter] > 0:
-                    sum_sq_der[2] += (volume[x, y, z] - volume[x, y,
-                                                             z + 1])\
-                                   ** 2
+                    temp = (volume[x, y, z] - volume[x, y, z + 1]) ** 2
+                    sum_sq_der[2] += temp
                     countSqDer[2] += 1
 
         # What is the FWHM for each dimension
@@ -1317,8 +1316,8 @@ def mask_brain(volume,
         describing the dimensions of the mask to be created
 
     mask_name : str
-        What is the path to the mask to be loaded? If empty then it defaults to an
-        MNI152 grey matter mask.
+        What is the path to the mask to be loaded? If empty then it defaults
+        to an MNI152 grey matter mask.
 
     mask_threshold : float
         What is the threshold (0 -> 1) for including a voxel in the mask?
