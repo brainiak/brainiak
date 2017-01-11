@@ -13,12 +13,7 @@
 #  limitations under the License.
 """Full Correlation Matrix Analysis (FCMA)
 
-This implementation is based on the following publications:
-
-.. [Wang2015] Full correlation matrix analysis (FCMA): An unbiased method for
-   task-related functional connectivity",
-   Yida Wang, Jonathan D Cohen, Kai Li, Nicholas B Turk-Browne.
-   Journal of Neuroscience Methods, 2015.
+Activity-based voxel selction
 """
 
 # Authors: Yida Wang
@@ -26,7 +21,6 @@ This implementation is based on the following publications:
 
 import numpy as np
 from sklearn import model_selection
-from sklearn import svm
 from scipy.stats.mstats import zscore
 import logging
 from mpi4py import MPI
@@ -93,7 +87,8 @@ class MVPAVoxelSelector:
         self.sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge)
         self.processed_data = None
         self.labels = None
-        if np.sum(self.mask==True) == 0:
+        num_voxels = np.sum(self.mask)
+        if num_voxels == 0:
             raise ValueError('Zero processed voxels')
 
     def _preprocess_data(self):
@@ -107,13 +102,13 @@ class MVPAVoxelSelector:
         """
         logger.info(
             'mask size: %d' %
-            np.sum(self.mask==True)
+            np.sum(self.mask)
         )
         num_epochs = len(self.epoch_info)
         (d1, d2, d3, _) = self.raw_data[0].shape
         self.processed_data = np.empty([d1, d2, d3, num_epochs])
         self.labels = np.empty(num_epochs)
-        subject_count = [0] # counting the epochs per subject for z-scoring
+        subject_count = [0]  # counting the epochs per subject for z-scoring
         cur_sid = -1
         # averaging
         for idx, epoch in enumerate(self.epoch_info):
@@ -123,16 +118,19 @@ class MVPAVoxelSelector:
                 cur_sid = epoch[1]
             subject_count[-1] += 1
             self.processed_data[:, :, :, idx] = \
-                np.mean(self.raw_data[cur_sid][:, :, :, epoch[2]:epoch[3]], axis=3)
+                np.mean(self.raw_data[cur_sid][:, :, :, epoch[2]:epoch[3]],
+                        axis=3)
         # z-scoring
         cur_epoch = 0
         for i in subject_count:
             if i > 1:
                 self.processed_data[:, :, :, cur_epoch:cur_epoch + i] = \
-                    zscore(self.processed_data[:, :, :, cur_epoch:cur_epoch + i],
+                    zscore(self.processed_data[:, :, :,
+                           cur_epoch:cur_epoch + i],
                            axis=3, ddof=0)
             cur_epoch += i
-        # if zscore fails (standard deviation is zero), set all values to be zero
+        # if zscore fails (standard deviation is zero),
+        # set all values to be zero
         self.processed_data = np.nan_to_num(self.processed_data)
 
     def run(self, clf):
@@ -167,10 +165,11 @@ class MVPAVoxelSelector:
             logger.info(
                 'data preparation done'
             )
+
         # Searchlight kernel function
         def _sfn(l, mask, myrad, bcast_var):
             data = l[0][mask, :].T
-            #print(l[0].shape, mask.shape, data.shape)
+            # print(l[0].shape, mask.shape, data.shape)
             skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
                                                   shuffle=False)
             accuracy = np.mean(model_selection.cross_val_score(clf, data,

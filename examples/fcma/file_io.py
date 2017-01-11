@@ -216,5 +216,16 @@ def generate_epochs_info(epoch_list):
 
 
 def write_nifti_file(data, affine, filename):
+    """ write a nifti file given data and affine
+
+    Parameters
+    ----------
+    data: 3D/4D numpy array
+        the brain data with/without time dimension
+    affine: 2D numpy array
+        affine of the image, usually inherited from an existing image
+    filename: string
+        the output filename
+    """
     img = Nifti1Pair(data, affine)
     nib.nifti1.save(img, filename)
