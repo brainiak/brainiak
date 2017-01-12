@@ -1502,8 +1502,8 @@ def generate_noise(dimensions,
                                                  'physiological_sigma'],
                                               )
 
-    noise_system = _generate_noise_system(dimensions_tr) * noise_dict[
-        'system_sigma']
+    noise_system = (_generate_noise_system(dimensions_tr=dimensions_tr)
+                    * noise_dict['system_sigma'])
 
     # Find the outer product for the brain and nonbrain and add white noise
     noise = noise_temporal + noise_system
