@@ -1400,9 +1400,6 @@ def _noise_dict_update(noise_dict):
     Updated dictionary
 
     """
-    # Change to be an empty dictionary if it is None
-    if noise_dict is None:
-        noise_dict = {}
 
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
@@ -1474,6 +1471,10 @@ def generate_noise(dimensions,
         Generates the noise volume for these parameters
 
     """
+
+    # Change to be an empty dictionary if it is None
+    if noise_dict is None:
+        noise_dict = {}
 
     # Take in the noise dictionary and determine whether
     noise_dict = _noise_dict_update(noise_dict)
