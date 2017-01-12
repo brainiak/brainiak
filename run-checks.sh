@@ -14,8 +14,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
+set -ev
 set -o pipefail
 
-flake8 --ignore=W503 --max-complexity=10 brainiak
+flake8 --config setup.cfg brainiak
 rst-lint *.rst | { grep -v "is clean.$" || true; }

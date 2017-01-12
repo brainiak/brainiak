@@ -42,3 +42,59 @@ def test_fast_inv():
     with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
         fast_inv(a)
     assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
+
+
+def test_sumexp():
+    from brainiak.utils.utils import sumexp_stable
+    import numpy as np
+
+    data = np.array([[1, 1],[0, 1]])
+    sums, maxs, exps = sumexp_stable(data)
+    assert sums.size == data.shape[1], "Invalid sum(exp(v)) computation (wrong # samples in sums)"
+    assert exps.shape[0] == data.shape[0], "Invalid exp(v) computation (wrong # features)"
+    assert exps.shape[1] == data.shape[1], "Invalid exp(v) computation (wrong # samples)"
+    assert maxs.size == data.shape[1], "Invalid max computation (wrong # samples in maxs)"
+
+
+def test_concatenate_list():
+    from brainiak.utils.utils import concatenate_list
+    import numpy as np
+    l = [None] * 5
+
+    l[1] = np.array([0, 1, 2])
+    l[3] = np.array([3, 4])
+
+    r = concatenate_list(l, axis=0)
+
+    assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"
+
+
+def test_cov2corr():
+    from brainiak.utils.utils import cov2corr
+    import numpy as np
+    cov = np.array([[4,3,0],[3,9,0],[0,0,1]])
+    corr = cov2corr(cov)
+    assert np.isclose(corr, np.array([[1,0.5,0],[0.5,1,0],[0,0,1]])).all(),\
+        "Converting from covariance matrix to correlation incorrect"
+
+
+def test_ReadDesign():
+    from brainiak.utils.utils import ReadDesign
+    import numpy as np
+    import os.path
+    file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
+    design = ReadDesign(fname=file_path, include_orth=False, include_pols=False)
+    assert design, 'Failed to read design matrix'
+    assert design.reg_nuisance is None, \
+        'Nuiance regressor is not None when include_orth and include_pols are'\
+        ' both set to False'
+    read = ReadDesign()
+    assert read, 'Failed to initialize an instance of the class'
+    design = ReadDesign(fname=file_path, include_orth=True, include_pols=True)
+    assert np.size(design.cols_nuisance) == 10, \
+        'Mistake in counting the number of nuiance regressors'
+    assert np.size(design.cols_task) == 17, \
+        'Mistake in counting the number of task conditions'
+    assert np.shape(design.reg_nuisance)[0] == np.shape(design.design_task)[0],\
+        'The number of time points in nuiance regressor does not match'\
+        ' that of task response'

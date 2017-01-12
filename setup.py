@@ -1,10 +1,11 @@
+from distutils import sysconfig
+
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import os
 import sys
 import setuptools
-
-__version__ = '0.1'
+from copy import deepcopy
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
@@ -18,30 +19,22 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path
-
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
-
-    def __init__(self, user=False):
-        self.user = user
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include(self.user)
-
-
 ext_modules = [
     Extension(
         'brainiak.factoranalysis.tfa_extension',
         ['brainiak/factoranalysis/tfa_extension.cpp'],
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
-            get_pybind_include(user=True)
-        ],
+    ),
+    Extension(
+        'brainiak.fcma.fcma_extension',
+        ['brainiak/fcma/src/fcma_extension.cc'],
+    ),
+    Extension(
+        'brainiak.fcma.cython_blas',
+        ['brainiak/fcma/cython_blas.pyx'],
+    ),
+    Extension(
+        'brainiak.eventseg._utils',
+        ['brainiak/eventseg/_utils.pyx'],
     ),
 ]
 
@@ -82,6 +75,12 @@ class BuildExt(build_ext):
         'unix': ['-g0', '-fopenmp'],
     }
 
+    # FIXME Workaround for using the Intel compiler by setting the CC env var
+    # Other uses of ICC (e.g., cc binary linked to icc) are not supported
+    if (('CC' in os.environ and 'icc' in os.environ['CC'])
+            or 'icc' in sysconfig.get_config_var('CC')):
+        c_opts['unix'] += ['-lirc', '-lintlc']
+
     if sys.platform == 'darwin':
         c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
                            '-ftemplate-depth-1024']
@@ -92,23 +91,45 @@ class BuildExt(build_ext):
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' %
                         self.distribution.get_version())
-            opts.append(cpp_flag(self.compiler))
-            if has_flag(self.compiler, '-fvisibility=hidden'):
-                opts.append('-fvisibility=hidden')
         for ext in self.extensions:
-            ext.extra_compile_args = opts
-            ext.extra_link_args = opts
+            ext.extra_compile_args = deepcopy(opts)
+            ext.extra_link_args = deepcopy(opts)
+            lang = ext.language or self.compiler.detect_language(ext.sources)
+            if lang == 'c++':
+                ext.extra_compile_args.append(cpp_flag(self.compiler))
+                ext.extra_link_args.append(cpp_flag(self.compiler))
         build_ext.build_extensions(self)
+
+    def finalize_options(self):
+        super().finalize_options()
+        import numpy
+        import pybind11
+        self.include_dirs.extend([
+            numpy.get_include(),
+            pybind11.get_include(user=True),
+            pybind11.get_include(),
+        ])
+
 
 setup(
     name='brainiak',
-    version=__version__,
+    use_scm_version=True,
+    setup_requires=[
+        'cython',
+        'numpy',
+        'pybind11>=1.7',
+        'setuptools_scm',
+    ],
     install_requires=[
+        'cython',
         'mpi4py',
         'numpy',
-        'scikit-learn',
+        'scikit-learn[alldeps]>=0.18',
         'scipy',
+        'pymanopt',
+        'theano',
         'pybind11>=1.7',
+        'pathos',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',
@@ -120,5 +141,7 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
+    package_data={'brainiak.utils': ['grey_matter_mask.npy']},
+    python_requires='>=3.4',
     zip_safe=False,
 )

@@ -1,6 +1,9 @@
 Brain Imaging Analysis Kit
 ==========================
 
+.. image:: https://travis-ci.org/IntelPNI/brainiak.svg?branch=master
+    :target: https://travis-ci.org/IntelPNI/brainiak
+
 .. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
    :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
    :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
@@ -30,7 +33,8 @@ Linux
 
 Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
-    apt install build-essential cmake libgomp1 mpich python3-pip
+    apt install build-essential libgomp1 libmpich-dev mpich python3-dev \
+        python3-pip
 
 Install updated version of the following Python packages::
 
@@ -58,16 +62,23 @@ the output of the following command to make sure it is working::
 
 Then install the following::
 
-    brew install clang-omp cmake mpich python3
+    brew install llvm cmake mpich python3
 
-You must instruct programs to use ``clang-omp``. One way to do this, which
+You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``.
+One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
 add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
 you have one). For them to take effect, you must logout or launch a new login
 shell, e.g., ``bash -l``::
 
-    export CC=clang-omp
-    export CXX=clang-omp++
+    export CC=/usr/local/opt/llvm/bin/clang
+    export CXX=/usr/local/opt/llvm/bin/clang++
+
+In addition, you also need to specify the directories that the newly installed `clang`
+will seek for compiling and linking::
+
+    export LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+    export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
 
 Install updated versions of the following Python packages::
 
@@ -87,7 +98,6 @@ as long as you see ``Successfully installed`` at the end.
 
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
-
 
 Documentation
 =============

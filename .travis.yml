@@ -1,0 +1,45 @@
+branches:
+  only:
+    - master
+
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+      language: python
+      python: 3.4
+      addons: &linux_addons
+        apt: &apt
+          packages:
+            - build-essential libgomp1 libmpich-dev mpich
+
+    - os: linux
+      dist: trusty
+      sudo: required
+      language: python
+      python: 3.5
+      addons: *linux_addons
+
+    - os: osx
+      osx_image: xcode7.3
+      language: generic
+      env: &macos_env
+        - CC=/usr/local/opt/llvm/bin/clang
+        - CXX=/usr/local/opt/llvm/bin/clang++
+        - LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+        - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+      before_install: &macos_before_install
+        - brew install llvm mpich python3
+
+    - os: osx
+      osx_image: xcode8
+      language: generic
+      env: *macos_env
+      before_install: *macos_before_install
+
+install:
+    - pip3 install -U pip virtualenv
+
+script:
+    - ./pr-check.sh

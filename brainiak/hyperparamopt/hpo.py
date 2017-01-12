@@ -16,8 +16,8 @@
 This implementation is based on the work:
 
 .. [Bergstra2011] "Algorithms for Hyper-Parameter Optimization",
-   James S. Bergstra and Bardenet, R\'{e}mi and Bengio, Yoshua
-   and Bal\'{a}zs K\'{e}gl. NIPS 2011
+   James S. Bergstra and Bardenet, Rémi and Bengio, Yoshua
+   and Kégl, Balázs. NIPS 2011
 
 .. [Bergstra2013] "Making a Science of Model Search:
    Hyperparameter Optimization in Hundreds of Dimensions for
@@ -122,7 +122,9 @@ class gmm_1d_distribution:
         """Calculate the GMM likelihood for a single point.
 
         .. math::
-            y = \sum_{i=1}^{N} w_i*normpdf(x, x_i, \sigma_i)/\sum_{i=1}^{N} w_i
+            y = \\sum_{i=1}^{N} w_i
+            \\times \\text{normpdf}(x, x_i, \\sigma_i)/\\sum_{i=1}^{N} w_i
+            :label: gmm-likelihood
 
         Arguments
         ---------
@@ -153,8 +155,7 @@ class gmm_1d_distribution:
     def __call__(self, x):
         """Return the GMM likelihood for given point(s).
 
-        .. math::
-            y = \sum_{i=1}^{N} w_i*normpdf(x, x_i, \sigma_i)/\sum_{i=1}^{N} w_i
+        See :eq:`gmm-likelihood`.
 
         Arguments
         ---------
