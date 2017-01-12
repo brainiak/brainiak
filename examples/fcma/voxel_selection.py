@@ -26,9 +26,7 @@ logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 """
-example running command:
-mpirun -np 2 python voxel_selection.py /Users/yidawang/data/face_scene/raw nii.gz /Users/yidawang/data/face_scene/mask.nii.gz
-                        data/fs_epoch_labels.npy 12 18
+example running command in run_voxel_selection.sh
 """
 if __name__ == '__main__':
     if MPI.COMM_WORLD.Get_rank()==0:

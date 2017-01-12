@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
+from brainiak.searchlight.searchlight import Searchlight
 from sklearn import svm
 import numpy as np
 from mpi4py import MPI
@@ -42,7 +43,8 @@ def test_mvpa_voxel_selection():
         epoch_info.append((1, 1, 70, 80))
 
     # 2 subjects, 4 epochs per subject
-    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, 2, sl_rad=1)
+    sl = Searchlight(sl_rad=1)
+    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, 2, sl)
     # for cross validation, use SVM with precomputed kernel
 
     clf = svm.SVC(kernel='rbf', C=10)

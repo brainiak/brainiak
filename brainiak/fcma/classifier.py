@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Full Correlation Matrix Analysis (FCMA)
 
-Corrlation-based training and predicrtion
+Correlation-based training and prediction
 """
 
 # Authors: Yida Wang

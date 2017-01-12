@@ -8,6 +8,7 @@
 *.npy
 *.log
 *.nii.gz
+*.zip
 *.pkl
 
 brainiak.egg-info
@@ -24,6 +25,8 @@ htmlcov
 junit-*.xml
 __pycache__
 .DS_Store
+__MACOSX
 
 brainiak/fcma/cython_blas.c
 brainiak/eventseg/_utils.c
+brainiak/examples/fcma/face_scene/

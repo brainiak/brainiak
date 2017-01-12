@@ -185,17 +185,20 @@ def generate_epochs_info(epoch_list):
     Parameters
     ----------
     epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
-        specification of epochs and conditions
-        assuming all subjects have the same number of epochs
-        len(epoch_list) equals the number of subjects
-        also assuming an epoch is always a continuous time course
+        Contains specification of epochs and conditions,
+        Assumption: 1. all subjects have the same number of epochs;
+                     2. len(epoch_list) equals the number of subjects;
+                     3. an epoch is always a continuous time course.
 
     Returns
     -------
-    epoch\_info: list of tuple (label, sid, start, end)
-        the condition labels of the epochs
-        len(labels) labels equals the number of epochs
-        assuming the epochs of the same sid are adjacent
+    epoch\_info: list of tuple (label, sid, start, end).
+        label is the condition labels of the epochs;
+        sid is the subject id, corresponding to the index of raw_data;
+        start is the start TR of an epoch (inclusive);
+        end is the end TR of an epoch(exclusive).
+        Assuming len(labels) labels equals the number of epochs and
+        the epochs of the same sid are adjacent in epoch_info
     """
     time1 = time.time()
     epoch_info = []
@@ -208,7 +211,7 @@ def generate_epochs_info(epoch_list):
                     start = np.nonzero(sub_epoch[eid, :])[0][0]
                     epoch_info.append((cond, sid, start, start+r))
     time2 = time.time()
-    logger.info(
+    logger.debug(
         'epoch separation done, takes %.2f s' %
         (time2 - time1)
     )

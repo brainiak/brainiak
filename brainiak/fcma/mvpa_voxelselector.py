@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Full Correlation Matrix Analysis (FCMA)
 
-Activity-based voxel selction
+Activity-based voxel selection
 """
 
 # Authors: Yida Wang
@@ -24,7 +24,6 @@ from sklearn import model_selection
 from scipy.stats.mstats import zscore
 import logging
 from mpi4py import MPI
-from brainiak.searchlight.searchlight import Searchlight
 
 logger = logging.getLogger(__name__)
 
@@ -40,24 +39,18 @@ class MVPAVoxelSelector:
     ----------
 
     raw\_data: list of 4D array
-        Assumption: 1. all activity data contains the same number of voxels
-                    2. the activity data has been z-scored,
-                       ready to compute correlation as matrix multiplication
-                    3. all subjects have the same number of epochs
-                    4. epochs belonging to the same subject are adjacent
-                       in the list
-                    5. voxel selection is always done in the auto-correlation,
-                       i.e. raw_data correlate with themselves
-                    6. if MPI jobs are running on multiple nodes, the user
-                       home directory is shared by all nodes
+        each element of the list is the raw data of a subject,
+        in the shape of [x, y, z, t]
 
     mask: 3D array
 
-    epoch\_info: list of tuple (label, sid, start, end)
-        the condition labels of the epochs
-        len(labels) labels equals the number of epochs
-        assuming the epochs of the same sid are adjacent,
-        and sid is the index of raw\_data
+    epoch\_info: list of tuple (label, sid, start, end).
+        label is the condition labels of the epochs;
+        sid is the subject id, corresponding to the index of raw_data;
+        start is the start TR of an epoch (inclusive);
+        end is the end TR of an epoch(exclusive).
+        Assuming len(labels) labels equals the number of epochs and
+        the epochs of the same sid are adjacent in epoch_info
 
     num\_folds: int
         the number of folds to be conducted in the cross validation
@@ -65,11 +58,11 @@ class MVPAVoxelSelector:
     sl: Searchlight
         the distributed Searchlight object
 
-    processed\_data: 4D array in shape [brain 3D + epoch]
+    processed\_data\_: 4D array in shape [brain 3D + epoch]
         contains the averaged and normalized brain data epoch by epoch
-        it is generated in _\preprocess\_data method
+        it is generated from raw\_data and epoch\_info
 
-    labels: 1D array
+    labels\_: 1D array
         contains the labels of the epochs, extracted from epoch\_info
     """
     def __init__(self,
@@ -77,16 +70,15 @@ class MVPAVoxelSelector:
                  mask,
                  epoch_info,
                  num_folds,
-                 sl_rad=2,
-                 max_blk_edge=10
+                 sl
                  ):
         self.raw_data = raw_data
         self.mask = mask.astype(np.bool)
         self.epoch_info = epoch_info
         self.num_folds = num_folds
-        self.sl = Searchlight(sl_rad=sl_rad, max_blk_edge=max_blk_edge)
-        self.processed_data = None
-        self.labels = None
+        self.sl = sl
+        self.processed_data_ = None
+        self.labels_ = None
         num_voxels = np.sum(self.mask)
         if num_voxels == 0:
             raise ValueError('Zero processed voxels')
@@ -106,32 +98,32 @@ class MVPAVoxelSelector:
         )
         num_epochs = len(self.epoch_info)
         (d1, d2, d3, _) = self.raw_data[0].shape
-        self.processed_data = np.empty([d1, d2, d3, num_epochs])
-        self.labels = np.empty(num_epochs)
+        self.processed_data_ = np.empty([d1, d2, d3, num_epochs])
+        self.labels_ = np.empty(num_epochs)
         subject_count = [0]  # counting the epochs per subject for z-scoring
         cur_sid = -1
         # averaging
         for idx, epoch in enumerate(self.epoch_info):
-            self.labels[idx] = epoch[0]
+            self.labels_[idx] = epoch[0]
             if cur_sid != epoch[1]:
                 subject_count.append(0)
                 cur_sid = epoch[1]
             subject_count[-1] += 1
-            self.processed_data[:, :, :, idx] = \
+            self.processed_data_[:, :, :, idx] = \
                 np.mean(self.raw_data[cur_sid][:, :, :, epoch[2]:epoch[3]],
                         axis=3)
         # z-scoring
         cur_epoch = 0
         for i in subject_count:
             if i > 1:
-                self.processed_data[:, :, :, cur_epoch:cur_epoch + i] = \
-                    zscore(self.processed_data[:, :, :,
+                self.processed_data_[:, :, :, cur_epoch:cur_epoch + i] = \
+                    zscore(self.processed_data_[:, :, :,
                            cur_epoch:cur_epoch + i],
                            axis=3, ddof=0)
             cur_epoch += i
         # if zscore fails (standard deviation is zero),
         # set all values to be zero
-        self.processed_data = np.nan_to_num(self.processed_data)
+        self.processed_data_ = np.nan_to_num(self.processed_data_)
 
     def run(self, clf):
         """ run activity-based voxel selection
@@ -159,8 +151,8 @@ class MVPAVoxelSelector:
             )
         if rank == 0:
             self._preprocess_data()
-        self.sl.distribute([self.processed_data], self.mask)
-        self.sl.broadcast((self.labels, self.num_folds))
+        self.sl.distribute([self.processed_data_], self.mask)
+        self.sl.broadcast((self.labels_, self.num_folds))
         if rank == 0:
             logger.info(
                 'data preparation done'

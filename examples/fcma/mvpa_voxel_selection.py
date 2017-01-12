@@ -22,6 +22,7 @@ from file_io import generate_epochs_info
 from file_io import write_nifti_file
 import nibabel as nib
 import numpy as np
+from brainiak.searchlight.searchlight import Searchlight
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -30,9 +31,7 @@ logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 """
-example running command:
-mpirun -np 2 python mvpa_voxel_selection.py /Users/yidawang/data/face_scene/raw nii.gz /Users/yidawang/data/face_scene/mask.nii.gz
-                        data/fs_epoch_labels.npy 18
+example running command in run_mvpa_voxel_selection.sh
 """
 if __name__ == '__main__':
     if MPI.COMM_WORLD.Get_rank()==0:
@@ -64,7 +63,9 @@ if __name__ == '__main__':
         epoch_list = np.load(epoch_file)
         epoch_info = generate_epochs_info(epoch_list)
     num_subjs = int(sys.argv[5])
-    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs)
+    # create a Searchlight object
+    sl = Searchlight(sl_rad=2)
+    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs, sl)
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=10
     clf = svm.SVC(kernel='rbf', shrinking=False, C=10)
