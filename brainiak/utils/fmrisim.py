@@ -1400,6 +1400,9 @@ def _noise_dict_update(noise_dict):
     Updated dictionary
 
     """
+    # Change to be an empty dictionary if it is None
+    if noise_dict is None:
+        noise_dict = {}
 
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
