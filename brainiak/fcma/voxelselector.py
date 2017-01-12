@@ -13,21 +13,7 @@
 #  limitations under the License.
 """Full Correlation Matrix Analysis (FCMA)
 
-This implementation is based on the following publications:
-
-.. [Wang2015-1] Full correlation matrix analysis (FCMA): An unbiased method for
-   task-related functional connectivity",
-   Yida Wang, Jonathan D Cohen, Kai Li, Nicholas B Turk-Browne.
-   Journal of Neuroscience Methods, 2015.
-
-.. [Wang2015-2] "Full correlation matrix analysis of fMRI data on Intel® Xeon
-   Phi™ coprocessors",
-   Yida Wang, Michael J. Anderson, Jonathan D. Cohen, Alexander Heinecke,
-   Kai Li, Nadathur Satish, Narayanan Sundaram, Nicholas B. Turk-Browne,
-   Theodore L. Willke.
-   In Proceedings of the International Conference for
-   High Performance Computing,
-   Networking, Storage and Analysis. 2015.
+Correlation-based voxel selection
 """
 
 # Authors: Yida Wang

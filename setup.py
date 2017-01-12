@@ -124,7 +124,7 @@ setup(
         'cython',
         'mpi4py',
         'numpy',
-        'scikit-learn>=0.18',
+        'scikit-learn[alldeps]>=0.18',
         'scipy',
         'pymanopt',
         'theano',

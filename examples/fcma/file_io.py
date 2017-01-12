@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 import nibabel as nib
+from nibabel.nifti1 import Nifti1Pair
 import os
 import math
 import time
@@ -126,7 +127,6 @@ def separate_epochs(activity_data, epoch_list):
     )
     return raw_data, labels
 
-
 def prepare_data(data_dir, extension, mask_file, epoch_file):
     """ read the data in and generate epochs of interests,
     then broadcast to all workers
@@ -178,3 +178,57 @@ def prepare_data(data_dir, extension, mask_file, epoch_file):
             (time2 - time1)
         )
     return raw_data, labels
+
+def generate_epochs_info(epoch_list):
+    """ use epoch_list to generate epoch_info defined below
+
+    Parameters
+    ----------
+    epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
+        Contains specification of epochs and conditions,
+        Assumption: 1. all subjects have the same number of epochs;
+                     2. len(epoch_list) equals the number of subjects;
+                     3. an epoch is always a continuous time course.
+
+    Returns
+    -------
+    epoch\_info: list of tuple (label, sid, start, end).
+        label is the condition labels of the epochs;
+        sid is the subject id, corresponding to the index of raw_data;
+        start is the start TR of an epoch (inclusive);
+        end is the end TR of an epoch(exclusive).
+        Assuming len(labels) labels equals the number of epochs and
+        the epochs of the same sid are adjacent in epoch_info
+    """
+    time1 = time.time()
+    epoch_info = []
+    for sid, epoch in enumerate(epoch_list):
+        for cond in range(epoch.shape[0]):
+            sub_epoch = epoch[cond, :, :]
+            for eid in range(epoch.shape[1]):
+                r = np.sum(sub_epoch[eid, :])
+                if r > 0:   # there is an epoch in this condition
+                    start = np.nonzero(sub_epoch[eid, :])[0][0]
+                    epoch_info.append((cond, sid, start, start+r))
+    time2 = time.time()
+    logger.debug(
+        'epoch separation done, takes %.2f s' %
+        (time2 - time1)
+    )
+    return epoch_info
+
+
+def write_nifti_file(data, affine, filename):
+    """ write a nifti file given data and affine
+
+    Parameters
+    ----------
+    data: 3D/4D numpy array
+        the brain data with/without time dimension
+    affine: 2D numpy array
+        affine of the image, usually inherited from an existing image
+    filename: string
+        the output filename
+    """
+    img = Nifti1Pair(data, affine)
+    nib.nifti1.save(img, filename)
