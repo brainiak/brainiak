@@ -42,11 +42,12 @@ def compute_correlation(component1, component2):
     component1 = normalize_for_correlation(component1, 1)
     component2 = normalize_for_correlation(component2, 1)
     corr_data = np.empty((r1, r2), dtype=np.float32, order='C')
+    # blas routine is column-major
     blas.compute_single_matrix_multiplication('T', 'N',
                                               r1, r2, d1,
                                               1.0,
-                                              component1, d1,
                                               component2, d2,
+                                              component1, d1,
                                               0.0,
                                               corr_data,
                                               r2)
