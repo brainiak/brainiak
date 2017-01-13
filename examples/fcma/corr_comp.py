@@ -15,9 +15,9 @@
 import sys
 import os
 import logging
-from file_io import generate_epochs_info
 import numpy as np
 from brainiak.fcma.util import compute_correlation
+import brainiak.fcma.io as io
 import nibabel as nib
 import scipy.io
 
@@ -34,28 +34,9 @@ if __name__ == '__main__':
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
 
-    raw_data = []
-    mask_img = nib.load(mask_file)
-    mask = mask_img.get_data()
-    mask = mask.astype(np.bool)
-    logger.info(
-        'mask size: %d' %
-        np.sum(mask)
-    )
-    files = [f for f in sorted(os.listdir(data_dir))
-             if os.path.isfile(os.path.join(data_dir, f))
-             and f.endswith(extension)]
-    for f in files:
-        img = nib.load(os.path.join(data_dir, f))
-        data = img.get_data()
-        # apply mask
-        data = data[mask, :]
-        raw_data.append(data)
-        logger.info(
-            'file %s is loaded, with data shape %s' % (f, data.shape)
-        )
+    raw_data = io.read_activity_data(data_dir, extension, mask_file)
     epoch_list = np.load(epoch_file)
-    epoch_info = generate_epochs_info(epoch_list)
+    epoch_info = io.generate_epochs_info(epoch_list)
 
     for idx, epoch in enumerate(epoch_info):
         label = epoch[0]
