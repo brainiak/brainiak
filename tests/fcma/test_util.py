@@ -21,17 +21,18 @@ from scipy.signal import correlate
 prng = RandomState(1234567890)
 
 def test_correlation_computation():
-    row = 5
-    col = 5
-    mat1 = prng.rand(row, col).astype(np.float32)
-    mat2 = prng.rand(row, col).astype(np.float32)
+    row1 = 5
+    col = 10
+    row2 = 6
+    mat1 = prng.rand(row1, col).astype(np.float32)
+    mat2 = prng.rand(row2, col).astype(np.float32)
     corr = compute_correlation(mat1, mat1)
     expected_corr = np.corrcoef(mat1)
     assert np.allclose(corr, expected_corr, atol=1e-5), \
         'high performance correlation computation does not provide correct correlation results within the same set'
     corr = compute_correlation(mat1, mat2)
     mat = np.concatenate((mat1, mat2), axis=0)
-    expected_corr = np.corrcoef(mat)[0:row, col:]
+    expected_corr = np.corrcoef(mat)[0:row1, row1:]
     assert np.allclose(corr, expected_corr, atol=1e-5), \
         'high performance correlation computation does not provide correct correlation results between two sets'
 
