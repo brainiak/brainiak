@@ -71,6 +71,7 @@ def compute_correlation(set1, set2):
     Returns
     -------
     corr_data: 2D array in shape [r1, r2]
+        continuous and row-major in np.float32
     """
     set1 = set1.astype(np.float32)
     set2 = set2.astype(np.float32)
