@@ -216,6 +216,12 @@ class Classifier(BaseEstimator):
                                                       0.0,
                                                       data,
                                                       num_training_samples)
+            # shrink the values for getting more stable alpha values
+            # in SVM training iteration
+            num_digits = len(str(int(data[0, 0])))
+            if num_digits > 2:
+                proportion = 10**(2-num_digits)
+                data *= proportion
             logger.debug(
                 'similarity matrix computation done'
             )

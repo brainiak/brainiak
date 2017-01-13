@@ -88,7 +88,7 @@ def prepare_data(raw_data, epoch_info):
 
     return processed_data, labels
 
-# python mvpa_classification.py face_scene bet.nii.gz face_scene/visual_top_mask.nii.gz face_scene/fs_epoch_labels.npy 18
+# python mvpa_classification.py face_scene bet.nii.gz face_scene/visual_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
     data_dir = sys.argv[1]
     extension = sys.argv[2]
@@ -117,8 +117,6 @@ if __name__ == '__main__':
         )
     epoch_list = np.load(epoch_file)
     epoch_info = generate_epochs_info(epoch_list)
-
-    num_subjs = int(sys.argv[5])
 
     # preparing data
     processed_data, labels = prepare_data(raw_data, epoch_info)
