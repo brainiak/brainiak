@@ -58,6 +58,9 @@ class MVPAVoxelSelector:
     sl: Searchlight
         the distributed Searchlight object
 
+    Attributes
+    ----------
+
     processed\_data\_: 4D array in shape [brain 3D + epoch]
         contains the averaged and normalized brain data epoch by epoch
         it is generated from raw\_data and epoch\_info
