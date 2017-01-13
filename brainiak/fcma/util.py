@@ -25,7 +25,7 @@ from scipy.stats.mstats import zscore
 import math
 
 
-def normalize_for_correlation(data, axis):
+def _normalize_for_correlation(data, axis):
     """normalize the data before computing correlation
 
     The data will be z-scored and divided by sqrt(n)
@@ -71,7 +71,7 @@ def compute_correlation(matrix1, matrix2):
     is the standard deviation of variable X
 
     Reducing the correlation computation to matrix multiplication
-    and use BLAS GEMM API wrapped by Scipy can speedup the numpy build-in
+    and using BLAS GEMM API wrapped by Scipy can speedup the numpy built-in
     correlation computation (numpy.corrcoef) by one order of magnitude
 
     .. math::
@@ -103,8 +103,8 @@ def compute_correlation(matrix1, matrix2):
     if d1 != d2:
         raise ValueError('Dimension discrepancy')
     # preprocess two components
-    matrix1 = normalize_for_correlation(matrix1, 1)
-    matrix2 = normalize_for_correlation(matrix2, 1)
+    matrix1 = _normalize_for_correlation(matrix1, 1)
+    matrix2 = _normalize_for_correlation(matrix2, 1)
     corr_data = np.empty((r1, r2), dtype=np.float32, order='C')
     # blas routine is column-major
     blas.compute_single_matrix_multiplication('T', 'N',
