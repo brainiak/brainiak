@@ -15,7 +15,6 @@
 import numpy as np
 from numpy.random import RandomState
 from brainiak.fcma.util import compute_correlation
-from scipy.signal import correlate
 
 # specify the random state to fix the random numbers
 prng = RandomState(1234567890)

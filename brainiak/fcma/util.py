@@ -24,6 +24,7 @@ from . import cython_blas as blas
 from scipy.stats.mstats import zscore
 import math
 
+
 def normalize_for_correlation(data, axis):
     """normalize the data before computing correlation
 
@@ -49,6 +50,7 @@ def normalize_for_correlation(data, axis):
     data = np.nan_to_num(data)
     data = data / math.sqrt(shape[axis])
     return data
+
 
 def compute_correlation(set1, set2):
     """compute correlation between two sets
