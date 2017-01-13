@@ -52,20 +52,30 @@ def normalize_for_correlation(data, axis):
     return data
 
 
-def compute_correlation(set1, set2):
-    """compute correlation between two sets
+def compute_correlation(matrix1, matrix2):
+    """compute correlation between two sets of variables
 
-    Correlate the rows of set1 with the rows of set2.
-    If set1 == set2, it is auto-correlation computation
+    Correlate the rows of matrix1 with the rows of matrix2.
+    If matrix1 == matrix2, it is auto-correlation computation
     resulting in a symmetric correlation matrix.
-    The number of columns MUST agree between set1 and set2
+    The number of columns MUST agree between set1 and set2.
+    The correlation being computed here is
+    the Pearson's correlation coefficient, which can be expressed as
+
+    .. math:: corr(X, Y) = \\frac{cov(X, Y)}{\\sigma_X\\sigma_Y}
+
+    where cov(X, Y) is the covariance of variable X and Y, and
+
+    .. math:: \\sigma_X
+
+    is the standard deviation of variable X
 
     Parameters
     ----------
-    set1: 2D array in shape [r1, c]
+    matrix1: 2D array in shape [r1, c]
         MUST be continuous and row-major
 
-    set2: 2D array in shape [r2, c]
+    matrix2: 2D array in shape [r2, c]
         MUST be continuous and row-major
 
     Returns
@@ -73,22 +83,22 @@ def compute_correlation(set1, set2):
     corr_data: 2D array in shape [r1, r2]
         continuous and row-major in np.float32
     """
-    set1 = set1.astype(np.float32)
-    set2 = set2.astype(np.float32)
-    [r1, d1] = set1.shape
-    [r2, d2] = set2.shape
+    matrix1 = matrix1.astype(np.float32)
+    matrix2 = matrix2.astype(np.float32)
+    [r1, d1] = matrix1.shape
+    [r2, d2] = matrix2.shape
     if d1 != d2:
         raise ValueError('Dimension discrepancy')
     # preprocess two components
-    set1 = normalize_for_correlation(set1, 1)
-    set2 = normalize_for_correlation(set2, 1)
+    matrix1 = normalize_for_correlation(matrix1, 1)
+    matrix2 = normalize_for_correlation(matrix2, 1)
     corr_data = np.empty((r1, r2), dtype=np.float32, order='C')
     # blas routine is column-major
     blas.compute_single_matrix_multiplication('T', 'N',
                                               r2, r1, d1,
                                               1.0,
-                                              set2, d2,
-                                              set1, d1,
+                                              matrix2, d2,
+                                              matrix1, d1,
                                               0.0,
                                               corr_data,
                                               r2)
