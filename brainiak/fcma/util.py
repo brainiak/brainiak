@@ -70,6 +70,19 @@ def compute_correlation(matrix1, matrix2):
 
     is the standard deviation of variable X
 
+    Reducing the correlation computation to matrix multiplication
+    and use BLAS GEMM API wrapped by Scipy can speedup the numpy build-in
+    correlation computation (numpy.corrcoef) by one order of magnitude
+
+    .. math::
+        corr(X, Y)
+        &= \\frac{\\sum\\limits_{i=1}^n (x_i-\\bar{x})(y_i-\\bar{y})}{(n-1)
+        \\sqrt{\\frac{\\sum\\limits_{j=1}^n x_j^2-n\\bar{x}}{n-1}}
+        \\sqrt{\\frac{\\sum\\limits_{j=1}^{n} y_j^2-n\\bar{y}}{n-1}}}\\\\
+        &= \\sum\\limits_{i=1}^n(\\frac{(x_i-\\bar{x})}
+        {\\sqrt{\\sum\\limits_{j=1}^n x_j^2-n\\bar{x}}}
+        \\frac{(y_i-\\bar{y})}{\\sqrt{\\sum\\limits_{j=1}^n y_j^2-n\\bar{y}}})
+
     Parameters
     ----------
     matrix1: 2D array in shape [r1, c]
