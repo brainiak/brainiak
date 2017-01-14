@@ -130,6 +130,7 @@ setup(
         'theano',
         'pybind11>=1.7',
         'pathos',
+        'nibabel'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',

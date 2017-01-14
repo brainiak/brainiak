@@ -6,8 +6,10 @@
 *.lib
 *.o
 *.npy
+!brainiak/tests/fcma/data/*.npy
 *.log
 *.nii.gz
+!brainiak/tests/fcma/data/*.nii.gz
 *.zip
 *.pkl
 

@@ -31,6 +31,7 @@ from mpi4py import MPI
 
 logger = logging.getLogger(__name__)
 
+
 def read_activity_data(dir, file_extension, mask_file=None):
     """ read data in NIfTI from a dir and apply the spatial mask to them
 
@@ -85,6 +86,7 @@ def read_activity_data(dir, file_extension, mask_file=None):
     )
     return activity_data
 
+
 def _separate_epochs(activity_data, epoch_list):
     """ create data epoch by epoch
 
@@ -137,6 +139,7 @@ def _separate_epochs(activity_data, epoch_list):
         (time2 - time1)
     )
     return raw_data, labels
+
 
 def prepare_fcma_data(data_dir, extension, mask_file, epoch_file):
     """ obtain the data for correlation-based computation and analysis
@@ -192,16 +195,17 @@ def prepare_fcma_data(data_dir, extension, mask_file, epoch_file):
         )
     return raw_data, labels
 
+
 def generate_epochs_info(epoch_list):
     """ use epoch_list to generate epoch_info defined below
 
     Parameters
     ----------
     epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
-        Contains specification of epochs and conditions,
-        Assumptions: 1. all subjects have the same number of epochs;
-                     2. len(epoch_list) equals the number of subjects;
-                     3. an epoch is always a continuous time course.
+        Contains specification of epochs and conditions, assuming
+        1. all subjects have the same number of epochs;
+        2. len(epoch_list) equals the number of subjects;
+        3. an epoch is always a continuous time course.
 
     Returns
     -------
@@ -229,6 +233,7 @@ def generate_epochs_info(epoch_list):
         (time2 - time1)
     )
     return epoch_info
+
 
 def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
     """ obtain the data for activity-based model training and prediction
@@ -287,6 +292,7 @@ def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
     processed_data = np.nan_to_num(processed_data)
 
     return processed_data, labels
+
 
 def write_nifti_file(data, affine, filename):
     """ write a nifti file given data and affine
