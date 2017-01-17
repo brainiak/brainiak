@@ -41,7 +41,7 @@ def read_activity_data(dir, file_extension, mask_file=None):
         the path to all subject files
     file_extension: str
         the file extension, usually nii.gz or nii
-    mask_file: str, default None
+    mask_file: Optional[str]
         the absolute path of the mask file, we apply the mask right after
         reading a file for saving memory
         if it is not specified, the data will not be masked and remain in 4D

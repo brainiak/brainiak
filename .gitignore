@@ -6,10 +6,8 @@
 *.lib
 *.o
 *.npy
-!tests/fcma/data/*.npy
 *.log
 *.nii.gz
-!tests/fcma/data/*.nii.gz
 *.zip
 *.pkl
 
