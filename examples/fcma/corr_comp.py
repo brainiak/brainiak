@@ -13,12 +13,10 @@
 #  limitations under the License.
 
 import sys
-import os
 import logging
 import numpy as np
 from brainiak.fcma.util import compute_correlation
 import brainiak.fcma.io as io
-import nibabel as nib
 import scipy.io
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
