@@ -131,15 +131,20 @@ def get_test_err(htfa, test_weight_data, test_recon_data,
                          widths)
     return recon_err(test_recon_data, F, W)
 
-
+n_subj = 2
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
+group_id = int(rank/n_subj)
+n_group = math.ceil(size/n_subj)
+htfa_comm = comm.Split(group_id, rank)
+htfa_rank = htfa_comm.Get_rank()
+htfa_size = htfa_comm.Get_size()
+
 if rank == 0:
     import logging
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-n_subj = 2
 data_dir = os.path.join(os.getcwd(), 'data')
 if rank == 0 and not os.path.exists(data_dir):
     os.makedirs(data_dir)
@@ -148,11 +153,6 @@ url = []
 url.append(' https://www.dropbox.com/s/r5s9tg4ekxzbrco/s0.mat?dl=0')
 url.append(' https://www.dropbox.com/s/39tr01m76vxwaqa/s1.mat?dl=0')
 
-#get fMRI data and scanner RAS coordinates
-data = []
-R = []
-mapping = {}
-n_local_subj = 0
 for idx in range(n_subj):
     if idx % size == rank:
         file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
@@ -169,14 +169,25 @@ for idx in range(n_subj):
                     print("File download returned", retcode, file=sys.stderr)
             except OSError as e:
                 print("File download failed:", e, file=sys.stderr)
-            all_data = scipy.io.loadmat(file_name)
-            bold = all_data['data']
-            # z-score the data
-            bold = stats.zscore(bold, axis=1, ddof=1)
-            data.append(bold)
-            R.append(all_data['R'])
-            mapping[str(n_local_subj)] = idx
-            n_local_subj += 1
+        else:
+             print("File s%d.mat does not exist!\n"%idx)
+
+#get fMRI data and scanner RAS coordinates
+data = []
+R = []
+mapping = {}
+n_local_subj = 0
+for idx in range(n_subj):
+    if idx % htfa_size == htfa_rank:
+        file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
+        all_data = scipy.io.loadmat(file_name)
+        bold = all_data['data']
+        # z-score the data
+        bold = stats.zscore(bold, axis=1, ddof=1)
+        data.append(bold)
+        R.append(all_data['R'])
+        mapping[str(n_local_subj)] = idx
+        n_local_subj += 1
 
 
 min_K = 3
@@ -240,75 +251,78 @@ if n_local_subj > 0:
 
 
     for p in range(n_splits):
-        #split data and R
-        train_voxel_indices = train_voxels[p]
-        test_voxel_indices = test_voxels[p]
-        train_tr_indices = train_trs[p]
-        test_tr_indices = test_trs[p]
-
-        train_data = []
-        total_test_data = []
-        test_weight_data = []
-        test_recon_data = []
-        test_weight_R = []
-        test_recon_R = []
-        for s in range(n_local_subj):
-            train_data.append(data[s][:, train_tr_indices])
-            total_test_data.append(data[s][:, test_tr_indices])
-            test_weight_data.append(
-                    total_test_data[s][train_voxel_indices, :])
-            test_recon_data.append(
-                    total_test_data[s][test_voxel_indices, :])
-            test_weight_R.append(R[s][train_voxel_indices])
-            test_recon_R.append(R[s][test_voxel_indices])
-
         for idx in range(n_K):
-            htfa = HTFA(K=Ks[idx],
-                    max_global_iter=5,
-                    max_local_iter=2,
-                    n_subj=n_subj,
-                    nlss_method=nlss_method,
-                    nlss_loss=nlss_loss,
-                    tr_solver=tr_solver,
-                    upper_ratio=upper_ratio,
-                    lower_ratio=lower_ratio,
-                    max_tr=max_sample_tr,
-                    max_voxel=max_sample_voxel,
-                    verbose=True)
-            htfa.fit(train_data, R)
+            index = p*n_K + idx
+            if index % n_group == group_id:
+                #split data and R
+                train_voxel_indices = train_voxels[p]
+                test_voxel_indices = test_voxels[p]
+                train_tr_indices = train_trs[p]
+                test_tr_indices = test_trs[p]
 
-            for s in range(n_local_subj):
-                #get posterior for each subject
-                subj_idx = mapping[str(s)]
-                start_idx = s * htfa.prior_size
-                end_idx = (s + 1) * htfa.prior_size
-                local_posteiror = htfa.local_posterior_[start_idx:end_idx]
-                local_centers = htfa.get_centers(local_posteiror)
-                local_widths = htfa.get_widths(local_posteiror)
+                train_data = []
+                total_test_data = []
+                test_weight_data = []
+                test_recon_data = []
+                test_weight_R = []
+                test_recon_R = []
+                for s in range(n_local_subj):
+                    train_data.append(data[s][:, train_tr_indices])
+                    total_test_data.append(data[s][:, test_tr_indices])
+                    test_weight_data.append(
+                            total_test_data[s][train_voxel_indices, :])
+                    test_recon_data.append(
+                            total_test_data[s][test_voxel_indices, :])
+                    test_weight_R.append(R[s][train_voxel_indices])
+                    test_recon_R.append(R[s][test_voxel_indices])
 
-                htfa.n_dim = n_dim
-                htfa.cov_vec_size = np.sum(np.arange(htfa.n_dim) + 1)
-                htfa.map_offset = htfa.get_map_offset()
-                #training happens on all voxels, but part of TRs
-                unique_R_all, inds_all = htfa.get_unique_R(R[s])
-                train_F = htfa.get_factors(unique_R_all,
-                                         inds_all,
-                                         local_centers,
-                                         local_widths)
+                htfa = HTFA(K=Ks[idx],
+                        max_global_iter=5,
+                        max_local_iter=2,
+                        n_subj=n_subj,
+                        nlss_method=nlss_method,
+                        nlss_loss=nlss_loss,
+                        tr_solver=tr_solver,
+                        upper_ratio=upper_ratio,
+                        lower_ratio=lower_ratio,
+                        max_tr=max_sample_tr,
+                        max_voxel=max_sample_voxel,
+                        comm=htfa_comm,
+                        verbose=True)
+                htfa.fit(train_data, R)
 
-                #calculate train_recon_err
-                tmp_train_recon_errs[subj_idx, p,idx] = get_train_err(htfa,
-                                                     train_data[s],
-                                                     train_F)
+                for s in range(n_local_subj):
+                    #get posterior for each subject
+                    subj_idx = mapping[str(s)]
+                    start_idx = s * htfa.prior_size
+                    end_idx = (s + 1) * htfa.prior_size
+                    local_posteiror = htfa.local_posterior_[start_idx:end_idx]
+                    local_centers = htfa.get_centers(local_posteiror)
+                    local_widths = htfa.get_widths(local_posteiror)
 
-                #calculate weights on test_weight_data, test_recon_err on test_recon_data
-                tmp_test_recon_errs[subj_idx, p,idx] = get_test_err(htfa,
-                                                    test_weight_data[s], 
-                                                    test_recon_data[s],
-                                                    test_weight_R[s],
-                                                    test_recon_R[s],
-                                                    local_centers,
-                                                    local_widths)
+                    htfa.n_dim = n_dim
+                    htfa.cov_vec_size = np.sum(np.arange(htfa.n_dim) + 1)
+                    htfa.map_offset = htfa.get_map_offset()
+                    #training happens on all voxels, but part of TRs
+                    unique_R_all, inds_all = htfa.get_unique_R(R[s])
+                    train_F = htfa.get_factors(unique_R_all,
+                                             inds_all,
+                                             local_centers,
+                                             local_widths)
+
+                    #calculate train_recon_err
+                    tmp_train_recon_errs[subj_idx, p,idx] = get_train_err(htfa,
+                                                         train_data[s],
+                                                         train_F)
+
+                    #calculate weights on test_weight_data, test_recon_err on test_recon_data
+                    tmp_test_recon_errs[subj_idx, p,idx] = get_test_err(htfa,
+                                                        test_weight_data[s],
+                                                        test_recon_data[s],
+                                                        test_weight_R[s],
+                                                        test_recon_R[s],
+                                                        local_centers,
+                                                        local_widths)
 
 comm.Reduce(tmp_test_recon_errs, test_recon_errs, op=MPI.SUM)
 comm.Reduce(tmp_train_recon_errs, train_recon_errs, op=MPI.SUM)
