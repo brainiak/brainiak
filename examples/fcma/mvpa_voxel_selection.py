@@ -13,13 +13,11 @@
 #  limitations under the License.
 
 from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
+import brainiak.fcma.io as io
 from sklearn import svm
 import sys
-import os
 from mpi4py import MPI
 import logging
-from file_io import generate_epochs_info
-from file_io import write_nifti_file
 import nibabel as nib
 import numpy as np
 from brainiak.searchlight.searchlight import Searchlight
@@ -50,18 +48,9 @@ if __name__ == '__main__':
     mask = mask_img.get_data()
     epoch_info = None
     if MPI.COMM_WORLD.Get_rank()==0:
-        files = [f for f in sorted(os.listdir(data_dir))
-                if os.path.isfile(os.path.join(data_dir, f))
-                and f.endswith(extension)]
-        for f in files:
-            img = nib.load(os.path.join(data_dir, f))
-            data = img.get_data()
-            raw_data.append(data)
-            logger.info(
-            'file %s is loaded, with data shape %s' % (f, data.shape)
-            )
+        raw_data = io.read_activity_data(data_dir, extension)
         epoch_list = np.load(epoch_file)
-        epoch_info = generate_epochs_info(epoch_list)
+        epoch_info = io.generate_epochs_info(epoch_list)
     num_subjs = int(sys.argv[5])
     # create a Searchlight object
     sl = Searchlight(sl_rad=2)
@@ -74,4 +63,4 @@ if __name__ == '__main__':
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
         result_volume = np.nan_to_num(result_volume.astype(np.float))
-        write_nifti_file(result_volume, mask_img.affine, 'result.nii.gz')
+        io.write_nifti_file(result_volume, mask_img.affine, 'result.nii.gz')
