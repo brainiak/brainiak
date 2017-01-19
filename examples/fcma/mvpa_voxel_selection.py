@@ -45,22 +45,33 @@ if __name__ == '__main__':
     raw_data = []
     # all MPI processes read the mask; the mask file is small
     mask_img = nib.load(mask_file)
-    mask = mask_img.get_data()
+    mask = mask_img.get_data().astype(np.bool)
     epoch_info = None
     if MPI.COMM_WORLD.Get_rank()==0:
         raw_data = io.read_activity_data(data_dir, extension)
         epoch_list = np.load(epoch_file)
         epoch_info = io.generate_epochs_info(epoch_list)
+        # if leaving some subject out, an example
+        #epoch_info = [x for x in epoch_info if x[1] != 0]
     num_subjs = int(sys.argv[5])
     # create a Searchlight object
-    sl = Searchlight(sl_rad=2)
+    sl = Searchlight(sl_rad=1)
     mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs, sl)
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=10
-    clf = svm.SVC(kernel='rbf', shrinking=False, C=10)
+    clf = svm.SVC(kernel='linear', shrinking=False, C=1)
     # only rank 0 has meaningful return values
-    result_volume, results = mvs.run(clf)
+    score_volume, results = mvs.run(clf)
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
-        result_volume = np.nan_to_num(result_volume.astype(np.float))
-        io.write_nifti_file(result_volume, mask_img.affine, 'result.nii.gz')
+        score_volume = np.nan_to_num(score_volume.astype(np.float))
+        io.write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
+        seq_volume = np.zeros(mask.shape, dtype=np.int)
+        seq = np.zeros(len(results), dtype=np.int)
+        fp = open('result_list.txt', 'w')
+        for idx, tuple in enumerate(results):
+            fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
+            seq[tuple[0]] = idx
+        fp.close()
+        seq_volume[mask] = seq
+        io.write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
