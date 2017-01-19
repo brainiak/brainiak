@@ -60,7 +60,7 @@ def get_train_err(htfa, data, F):
     ----------
 
     htfa : HTFA
-        An instance of HTFA, factor anaysis class in Brainiak.
+        An instance of HTFA, factor anaysis class in BrainIAK.
    
     data : 2D array 
         Input data to HTFA.
@@ -87,7 +87,7 @@ def get_test_err(htfa, test_weight_data, test_recon_data,
     ----------
 
     htfa : HTFA
-        An instance of HTFA, factor anaysis class in Brainiak.
+        An instance of HTFA, factor anaysis class in BrainIAK.
    
     test_weigth_data : 2D array 
         Data used for testing weights.
@@ -156,21 +156,23 @@ url.append(' https://www.dropbox.com/s/39tr01m76vxwaqa/s1.mat?dl=0')
 for idx in range(n_subj):
     if idx % size == rank:
         file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
-        #check if file exists
-        ret = requests.head(url[idx])
-        if ret.status_code == 200:
-            #download data
-            cmd = 'curl --location -o ' + file_name + url[idx]
-            try:
-                retcode = call(cmd, shell=True)
-                if retcode < 0:
-                    print("File download was terminated by signal", -retcode, file=sys.stderr)
-                else:
-                    print("File download returned", retcode, file=sys.stderr)
-            except OSError as e:
-                print("File download failed:", e, file=sys.stderr)
-        else:
-             print("File s%d.mat does not exist!\n"%idx)
+        #check if file has already been downloaded
+        if not os.path.exists(file_name):
+            #check if URL exists
+            ret = requests.head(url[idx])
+            if ret.status_code == 200:
+                #download data
+                cmd = 'curl --location -o ' + file_name + url[idx]
+                try:
+                    retcode = call(cmd, shell=True)
+                    if retcode < 0:
+                        print("File download was terminated by signal", -retcode, file=sys.stderr)
+                    else:
+                        print("File download returned", retcode, file=sys.stderr)
+                except OSError as e:
+                    print("File download failed:", e, file=sys.stderr)
+            else:
+                 print("File s%d.mat does not exist!\n"%idx)
 
 #get fMRI data and scanner RAS coordinates
 data = []
