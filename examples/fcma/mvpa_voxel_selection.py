@@ -51,14 +51,12 @@ if __name__ == '__main__':
         raw_data = io.read_activity_data(data_dir, extension)
         epoch_list = np.load(epoch_file)
         epoch_info = io.generate_epochs_info(epoch_list)
-        # if leaving some subject out, an example
+        # the following line is an example to leaving a subject out
         #epoch_info = [x for x in epoch_info if x[1] != 0]
     num_subjs = int(sys.argv[5])
     # create a Searchlight object
     sl = Searchlight(sl_rad=1)
     mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs, sl)
-    # for cross validation, use SVM with precomputed kernel
-    # no shrinking, set C=10
     clf = svm.SVC(kernel='linear', shrinking=False, C=1)
     # only rank 0 has meaningful return values
     score_volume, results = mvs.run(clf)
@@ -68,10 +66,9 @@ if __name__ == '__main__':
         io.write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
         seq_volume = np.zeros(mask.shape, dtype=np.int)
         seq = np.zeros(len(results), dtype=np.int)
-        fp = open('result_list.txt', 'w')
-        for idx, tuple in enumerate(results):
-            fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
-            seq[tuple[0]] = idx
-        fp.close()
+        with open('result_list.txt', 'w') as fp:
+            for idx, tuple in enumerate(results):
+                fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
+                seq[tuple[0]] = idx
         seq_volume[mask] = seq
         io.write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
