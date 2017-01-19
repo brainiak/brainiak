@@ -29,4 +29,4 @@ __MACOSX
 
 brainiak/fcma/cython_blas.c
 brainiak/eventseg/_utils.c
-brainiak/examples/fcma/face_scene/
+examples/fcma/face_scene/
