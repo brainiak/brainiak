@@ -1,3 +1,4 @@
 click
 nibabel
 nilearn
+requests

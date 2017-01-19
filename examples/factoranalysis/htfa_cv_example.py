@@ -14,6 +14,7 @@
 import os
 import sys
 import math
+import requests 
 import scipy.io
 import numpy as np
 from mpi4py import MPI
@@ -40,7 +41,7 @@ def recon_err(data, F, W):
 
     Returns
     -------
-    mse 
+    float 
         Returns mean square reconstruction error.
 
     """
@@ -58,8 +59,8 @@ def get_train_err(htfa, data, F):
     Parameters
     ----------
 
-    htfa : HTFA 
-        Factor Anaysis class in Brainiak.
+    htfa : HTFA
+        An instance of HTFA, factor anaysis class in Brainiak.
    
     data : 2D array 
         Input data to HTFA.
@@ -69,7 +70,7 @@ def get_train_err(htfa, data, F):
         
     Returns
     -------
-    mse 
+    float 
         Returns mean square error on training.
 
     """
@@ -85,8 +86,8 @@ def get_test_err(htfa, test_weight_data, test_recon_data,
     Parameters
     ----------
 
-    htfa : HTFA 
-        Factor Anaysis class in Brainiak.
+    htfa : HTFA
+        An instance of HTFA, factor anaysis class in Brainiak.
    
     test_weigth_data : 2D array 
         Data used for testing weights.
@@ -108,7 +109,7 @@ def get_test_err(htfa, test_weight_data, test_recon_data,
         
     Returns
     -------
-    mse 
+    float 
         Returns mean square error on test.
 
     """
@@ -154,25 +155,28 @@ mapping = {}
 n_local_subj = 0
 for idx in range(n_subj):
     if idx % size == rank:
-        mapping[str(n_local_subj)] = idx
-        n_local_subj += 1
         file_name = os.path.join(data_dir, 's' + str(idx) + '.mat')
-        #download data
-        cmd = 'curl --location -o ' + file_name + url[idx]
-        try:
-            retcode = call(cmd, shell=True)
-            if retcode < 0:
-                print("File download was terminated by signal", -retcode, file=sys.stderr)
-            else:
-                print("File download returned", retcode, file=sys.stderr)
-        except OSError as e:
-            print("File download failed:", e, file=sys.stderr)
-        all_data = scipy.io.loadmat(file_name)
-        bold = all_data['data']
-        # z-score the data
-        bold = stats.zscore(bold, axis=1, ddof=1)
-        data.append(bold)
-        R.append(all_data['R'])
+        #check if file exists
+        ret = requests.head(url[idx])
+        if ret.status_code == 200:
+            #download data
+            cmd = 'curl --location -o ' + file_name + url[idx]
+            try:
+                retcode = call(cmd, shell=True)
+                if retcode < 0:
+                    print("File download was terminated by signal", -retcode, file=sys.stderr)
+                else:
+                    print("File download returned", retcode, file=sys.stderr)
+            except OSError as e:
+                print("File download failed:", e, file=sys.stderr)
+            all_data = scipy.io.loadmat(file_name)
+            bold = all_data['data']
+            # z-score the data
+            bold = stats.zscore(bold, axis=1, ddof=1)
+            data.append(bold)
+            R.append(all_data['R'])
+            mapping[str(n_local_subj)] = idx
+            n_local_subj += 1
 
 
 min_K = 3
