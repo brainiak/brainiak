@@ -521,7 +521,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                                                          labels[subject],
                                                          w[subject],
                                                          s, theta, bias)
-            minstep = np.min((10**-np.floor(np.log10(f_subject))), 1e-1)
+            minstep = np.amin(((10**-np.floor(np.log10(f_subject))), 1e-1))
             manifold = Stiefel(w[subject].shape[0], w[subject].shape[1])
             problem = Problem(manifold=manifold, cost=f, arg=w_th, verbosity=0)
             solver = ConjugateGradient(mingradnorm=1e-2, minstepsize=minstep)
