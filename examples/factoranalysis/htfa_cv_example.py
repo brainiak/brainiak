@@ -42,7 +42,7 @@ def recon_err(data, F, W):
     Returns
     -------
     float 
-        Returns mean square reconstruction error.
+        Returns root mean squared reconstruction error.
 
     """
 
@@ -71,7 +71,7 @@ def get_train_err(htfa, data, F):
     Returns
     -------
     float 
-        Returns mean square error on training.
+        Returns root mean squared error on training.
 
     """
 
@@ -110,7 +110,7 @@ def get_test_err(htfa, test_weight_data, test_recon_data,
     Returns
     -------
     float 
-        Returns mean square error on test.
+        Returns root mean squared error on test.
 
     """
 
