@@ -12,14 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from brainiak.fcma.classifier import Classifier
-from brainiak.fcma.io import prepare_fcma_data
-from sklearn import svm
-#from sklearn.linear_model import LogisticRegression
 import sys
 import logging
 import numpy as np
-#from sklearn.externals import joblib
+from brainiak.fcma.util import compute_correlation
+import brainiak.fcma.io as io
+import scipy.io
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -27,25 +25,34 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-
-# python classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy 12
+# python corr_comp.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
     data_dir = sys.argv[1]
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
-    epochs_per_subj = int(sys.argv[5])
-    # no shrinking, set C=1
-    use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    #use_clf = LogisticRegression()
-    clf = Classifier(use_clf, epochs_per_subj=epochs_per_subj)
-    training_data = raw_data[0:204]
-    test_data = raw_data[204:]
-    clf.fit(training_data, labels[0:204])
-    # joblib can be used for saving and loading models
-    #joblib.dump(clf, 'model/logistic.pkl')
-    #clf = joblib.load('model/svm.pkl')
-    print(clf.predict(test_data))
-    print(clf.decision_function(test_data))
-    print(np.asanyarray(labels[204:]))
+
+    raw_data = io.read_activity_data(data_dir, extension, mask_file)
+    epoch_list = np.load(epoch_file)
+    epoch_info = io.generate_epochs_info(epoch_list)
+
+    for idx, epoch in enumerate(epoch_info):
+        label = epoch[0]
+        sid = epoch[1]
+        start = epoch[2]
+        end = epoch[3]
+        mat = raw_data[sid][:, start:end]
+        mat = np.ascontiguousarray(mat, dtype=np.float32)
+        logger.info(
+            'start to compute correlation for subject %d epoch %d with label %d' %
+            (sid, idx, label)
+        )
+        corr = compute_correlation(mat, mat)
+        mdict = {}
+        mdict['corr'] = corr
+        filename = str(label) + '_' + str(sid) + '_' + str(idx)
+        logger.info(
+            'start to write the correlation matrix to disk as %s' %
+            filename
+        )
+        scipy.io.savemat(filename, mdict)

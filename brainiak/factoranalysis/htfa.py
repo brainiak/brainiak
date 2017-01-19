@@ -128,6 +128,9 @@ class HTFA(TFA):
     max_tr : int, default: 500
         The maximum number of trs to sample in each inner iteration.
 
+    comm : Intracomm
+        MPI communication group, default MPI.COMM_WORLD
+
     verbose : boolean, default: False
         Verbose mode flag.
 
@@ -159,7 +162,7 @@ class HTFA(TFA):
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
                  voxel_ratio=0.25, tr_ratio=0.1, max_voxel=5000, max_tr=500,
-                 verbose=False):
+                 comm=MPI.COMM_WORLD, verbose=False):
         self.K = K
         self.n_subj = n_subj
         self.max_global_iter = max_global_iter
@@ -177,6 +180,7 @@ class HTFA(TFA):
         self.tr_ratio = tr_ratio
         self.max_voxel = max_voxel
         self.max_tr = max_tr
+        self.comm = comm
         self.verbose = verbose
 
     def _converged(self):
@@ -462,10 +466,9 @@ class HTFA(TFA):
 
         """
 
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-        return comm, rank, size
+        rank = self.comm.Get_rank()
+        size = self.comm.Get_size()
+        return rank, size
 
     def _init_prior_posterior(self, rank, R, n_local_subj):
         """set prior for this subject
@@ -507,7 +510,7 @@ class HTFA(TFA):
             self.gather_posterior = None
         return self
 
-    def _gather_local_posterior(self, comm, use_gather,
+    def _gather_local_posterior(self, use_gather,
                                 gather_size, gather_offset):
         """Gather/Gatherv local posterior
 
@@ -541,14 +544,15 @@ class HTFA(TFA):
 
         """
         if use_gather:
-            comm.Gather(self.local_posterior_, self.gather_posterior, root=0)
+            self.comm.Gather(self.local_posterior_,
+                             self.gather_posterior, root=0)
         else:
             target = [
                 self.gather_posterior,
                 gather_size,
                 gather_offset,
                 MPI.DOUBLE]
-            comm.Gatherv(self.local_posterior_, target)
+            self.comm.Gatherv(self.local_posterior_, target)
         return self
 
     def _assign_posterior(self):
@@ -682,7 +686,7 @@ class HTFA(TFA):
             Returns the instance itself.
         """
 
-        comm, rank, size = self._get_mpi_info()
+        rank, size = self._get_mpi_info()
         use_gather = True if self.n_subj % size == 0 else False
         n_local_subj = len(R)
         max_sample_tr, max_sample_voxel =\
@@ -721,7 +725,7 @@ class HTFA(TFA):
             if(self.verbose):
                 logger.info("HTFA global iter %d " % (m))
             # root broadcast first 4 fields of global_prior to all nodes
-            comm.Bcast(self.global_prior_, root=0)
+            self.comm.Bcast(self.global_prior_, root=0)
             # each node loop over its data
             for s, subj_data in enumerate(data):
                 # update tfa with current local prior
@@ -738,7 +742,6 @@ class HTFA(TFA):
                     tfa[s].local_posterior_
 
             self._gather_local_posterior(
-                comm,
                 use_gather,
                 gather_size,
                 gather_offset)
@@ -746,7 +749,7 @@ class HTFA(TFA):
             # root updates global_posterior
             outer_converged =\
                 self._update_global_posterior(rank, m, outer_converged)
-            comm.Bcast(outer_converged, root=0)
+            self.comm.Bcast(outer_converged, root=0)
             m += 1
 
         # update weight matrix for each subject
