@@ -174,6 +174,8 @@ for idx in range(n_subj):
             else:
                  print("File s%d.mat does not exist!\n"%idx)
 
+comm.Barrier()
+
 #get fMRI data and scanner RAS coordinates
 data = []
 R = []
