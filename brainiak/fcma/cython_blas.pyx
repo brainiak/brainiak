@@ -469,9 +469,3 @@ def compute_single_matrix_multiplication(py_trans_a, py_trans_b, py_m, py_n,
     C = py_c
     blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
                &B[0, 0], &ldb, &beta, &C[0, 0], &ldc)
-    # shrink the values for getting more stable alpha values
-    # in SVM training iteration
-    num_digits = len(str(int(py_c[0, 0])))
-    if num_digits > 2:
-        proportion = 10**(2-num_digits)
-        py_c *= proportion

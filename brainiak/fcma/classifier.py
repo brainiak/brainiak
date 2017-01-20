@@ -13,12 +13,7 @@
 #  limitations under the License.
 """Full Correlation Matrix Analysis (FCMA)
 
-This implementation is based on the following publications:
-
-.. [Wang2015] Full correlation matrix analysis (FCMA): An unbiased method for
-   task-related functional connectivity",
-   Yida Wang, Jonathan D Cohen, Kai Li, Nicholas B Turk-Browne.
-   Journal of Neuroscience Methods, 2015.
+Correlation-based training and prediction
 """
 
 # Authors: Yida Wang
@@ -221,6 +216,12 @@ class Classifier(BaseEstimator):
                                                       0.0,
                                                       data,
                                                       num_training_samples)
+            # shrink the values for getting more stable alpha values
+            # in SVM training iteration
+            num_digits = len(str(int(data[0, 0])))
+            if num_digits > 2:
+                proportion = 10**(2-num_digits)
+                data *= proportion
             logger.debug(
                 'similarity matrix computation done'
             )
