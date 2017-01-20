@@ -53,6 +53,9 @@ if __name__ == '__main__':
     results = vs.run(clf)
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
+        logger.info(
+            'correlation-based voxel selection is done'
+        )
         #print(results[0:100])
         mask_img = nib.load(mask_file)
         mask = mask_img.get_data().astype(np.bool)
