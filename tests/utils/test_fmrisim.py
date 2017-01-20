@@ -265,7 +265,8 @@ def test_calc_noise():
     event_durations = [6]
     tr_duration = 2
     duration = 100
-    dimensions_tr = np.array([10, 10, 10, duration/tr_duration])
+    tr_number = int(np.floor(duration / tr_duration))
+    dimensions_tr = np.array([10, 10, 10, tr_number])
 
     # Preset the noise dict
     nd_orig = {'auto_reg_sigma': 1,
