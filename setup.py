@@ -111,6 +111,7 @@ class BuildExt(build_ext):
         ])
 
 
+
 setup(
     name='brainiak',
     use_scm_version=True,
@@ -123,6 +124,7 @@ setup(
     install_requires=[
         'cython',
         'mpi4py',
+        'nitime',
         'numpy',
         'scikit-learn[alldeps]>=0.18',
         'scipy',

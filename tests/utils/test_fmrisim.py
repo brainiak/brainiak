@@ -26,40 +26,40 @@ from brainiak.utils import fmrisim as sim
 def test_generate_signal():
 
     # Inputs for generate_signal
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
-    feature_size = [2]
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
+    feature_size = [3]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[5, 5, 5]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
-    assert np.all(volume_static.shape == dimensions), "Check signal shape"
-    assert np.max(volume_static) == signal_magnitude, "Check signal magnitude"
-    assert np.sum(volume_static>0) == math.pow(feature_size[0], 3), "Check " \
-                                                                    "feature size"
-    assert volume_static[32,32,18] == signal_magnitude, "Check signal location"
-    assert volume_static[32,32,10] == 0, "Check noise location"
+    assert np.all(volume.shape == dimensions), "Check signal shape"
+    assert np.max(volume) == signal_magnitude, "Check signal magnitude"
+    assert np.sum(volume>0) == math.pow(feature_size[0], 3), "Check feature " \
+                                                             "size"
+    assert volume[5, 5, 5] == signal_magnitude, "Check signal location"
+    assert volume[5, 5, 1] == 0, "Check noise location"
 
     feature_coordinates = np.array(
-        [[32, 32, 18], [32, 28, 18], [28, 32, 18]])
+        [[5, 5, 5], [3, 3, 3], [7, 7, 7]])
 
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=['loop', 'cavity', 'sphere'],
-                                        feature_size=[9],
-                                        signal_magnitude=signal_magnitude,
-                                        )
-    assert volume_static[32, 32, 18] == 0, "Loop is empty"
-    assert volume_static[32, 28, 18] == 0, "Cavity is empty"
-    assert volume_static[28, 32, 18] != 0, "Sphere is not empty"
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=['loop', 'cavity', 'sphere'],
+                                 feature_size=[3],
+                                 signal_magnitude=signal_magnitude,
+                                )
+    assert volume[5, 5, 5] == 0, "Loop is empty"
+    assert volume[3, 3, 3] == 0, "Cavity is empty"
+    assert volume[7, 7, 7] != 0, "Sphere is not empty"
 
 
 def test_generate_stimfunction():
@@ -74,48 +74,48 @@ def test_generate_stimfunction():
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
-                                             tr_duration=tr_duration,
                                              )
 
-    assert len(stimfunction) == duration / tr_duration, "stimfunction incorrect " \
-                                                        "length"
-    assert np.sum(stimfunction) == np.sum(event_durations * len(onsets)) / \
-                                   tr_duration, "Event number"
-
+    assert len(stimfunction) == duration * 1000, "stimfunction incorrect " \
+                                                 "length"
+    eventNumber = np.sum(event_durations * len(onsets)) * 1000
+    assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
     signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
+                                           tr_duration=tr_duration,
                                            )
-    assert len(signal_function) == len(stimfunction), "The length did not change"
+    assert len(signal_function) == len(stimfunction) / (tr_duration * 1000), \
+        "The length did not change"
 
     onsets = [10]
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
-                                             tr_duration=tr_duration,
                                              )
 
     signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
+                                           tr_duration=tr_duration,
                                            )
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 
 def test_apply_signal():
 
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[5, 5, 5]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
     # Inputs for generate_stimfunction
     onsets = [10, 30, 50, 70, 90]
@@ -127,22 +127,23 @@ def test_apply_signal():
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
-                                             tr_duration=tr_duration,
                                              )
 
     signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
+                                           tr_duration=tr_duration,
                                            )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
     assert signal.shape == (dimensions[0], dimensions[1], dimensions[2],
-                            duration / tr_duration), "The output is the wrong size"
+                            duration / tr_duration), "The output is the " \
+                                                     "wrong size"
 
     signal = sim.apply_signal(signal_function=stimfunction,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
     assert np.any(signal == signal_magnitude), "The stimfunction is not binary"
@@ -150,21 +151,20 @@ def test_apply_signal():
 
 def test_generate_noise():
 
-
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
-    signal_magnitude = [30]
+        [[5, 5, 5]])
+    signal_magnitude = [1]
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
-                                        feature_coordinates=feature_coordinates,
-                                        feature_type=feature_type,
-                                        feature_size=feature_size,
-                                        signal_magnitude=signal_magnitude,
-                                        )
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 )
 
     # Inputs for generate_stimfunction
     onsets = [10, 30, 50, 70, 90]
@@ -176,41 +176,39 @@ def test_generate_noise():
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
-                                             tr_duration=tr_duration,
                                              )
 
     signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
+                                           tr_duration=tr_duration,
                                            )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume_static,
+                              volume_static=volume,
                               )
 
-    # Create the noise volumes (using the default parameters)
+    # Generate the mask of the signal
+    mask = sim.mask_brain(signal, mask_threshold=0.1)
 
+    assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
+
+    # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction=stimfunction,
                                tr_duration=tr_duration,
+                               mask=mask,
                                )
 
-    assert signal.shape == noise.shape, "The dimensions of signal " \
-                                                  "and noise the same"
-
-    Z_noise = sim._generate_noise_temporal(stimfunction, tr_duration, 1)
-    noise = sim._generate_noise_temporal(stimfunction, tr_duration, 0)
-
-    assert np.std(Z_noise) < np.std(noise), "Z scoring is not working"
-
-    # Combine the signal and the noise
-    volume = signal + noise
+    assert signal.shape == noise.shape, "The dimensions of signal and noise " \
+                                        "the same"
 
     assert np.std(signal) < np.std(noise), "Noise was not created"
 
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction=stimfunction,
                                tr_duration=tr_duration,
-                               noise_strength=[0, 0, 0]
+                               mask=mask,
+                               noise_dict={'overall': 0},
                                )
 
     assert np.sum(noise) == 0, "Noise strength could not be manipulated"
@@ -220,11 +218,11 @@ def test_generate_noise():
 def test_mask_brain():
 
     # Inputs for generate_signal
-    dimensions = np.array([64, 64, 36]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10]) # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
-        [[32, 32, 18]])
+        [[4, 4, 4]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
@@ -236,14 +234,15 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    brain = sim.mask_brain(volume)
+    mask = sim.mask_brain(volume)[:,:,:,0]
+    brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) == np.sum(volume != 0), "Masking did not work"
-    assert brain[0,0,0,0] == 0, "Masking did not work"
-    assert brain[32,32,18,0] != 0, "Masking did not work"
+    assert brain[0, 0, 0] == 0, "Masking did not work"
+    assert brain[4, 4, 4] != 0, "Masking did not work"
 
     feature_coordinates = np.array(
-        [[3, 3, 3]])
+        [[1, 1, 1]])
 
     volume = sim.generate_signal(dimensions=dimensions,
                                  feature_coordinates=feature_coordinates,
@@ -253,6 +252,55 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    brain = sim.mask_brain(volume)
+    mask = sim.mask_brain(volume)[:,:,:,0]
+    brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
+
+
+def test_calc_noise():
+
+    # Inputs for functions
+    onsets = [10, 30, 50, 70, 90]
+    event_durations = [6]
+    tr_duration = 2
+    duration = 100
+    tr_number = int(np.floor(duration / tr_duration))
+    dimensions_tr = np.array([10, 10, 10, tr_number])
+
+    # Preset the noise dict
+    nd_orig = {'auto_reg_sigma': 1,
+               'drift_sigma': 0.5,
+               'overall': 0.1,
+               'snr': 30,
+               'spatial_sigma': 0.15,
+               'system_sigma': 1,
+               }
+
+    # Create the time course for the signal to be generated
+    stimfunction = sim.generate_stimfunction(onsets=onsets,
+                                             event_durations=event_durations,
+                                             total_time=duration,
+                                             )
+
+    # Mask the volume to be the same shape as a brain
+    mask = sim.mask_brain(dimensions_tr)
+    noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
+                               stimfunction=stimfunction,
+                               tr_duration=tr_duration,
+                               mask=mask,
+                               noise_dict=nd_orig,
+                               )
+
+    # Calculate the noise
+    nd_calc = sim.calc_noise(noise, mask)
+
+    assert abs(nd_calc['overall'] - nd_orig['overall']) < 0.1, 'overall ' \
+                                                               'calculated ' \
+                                                               'incorrectly'
+
+    assert abs(nd_calc['snr'] - nd_orig['snr']) < 10, 'snr calculated ' \
+                                                      'incorrectly'
+
+    assert abs(nd_calc['system_sigma'] - nd_orig['system_sigma']) < 1, \
+        'snr calculated incorrectly'
