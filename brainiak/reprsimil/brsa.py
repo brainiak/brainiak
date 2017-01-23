@@ -73,7 +73,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    n_iter : int, default: 200
+    n_iter : int, default: 50
         Number of maximum iterations to run the algorithm.
     rank : int, default: None
         The rank of the covariance matrix.
@@ -92,39 +92,39 @@ class BRSA(BaseEstimator, TransformerMixin):
         The other way is to take the first n_nureg principal components
         in the residual after subtracting the response to the design matrix
         from the data, and use these components as the nuisance regressor.
-        If this flag is turned on, the nuisance regressor provided by the
-        user is used only in the first round of fitting. PCA or factor analysis
-        will be applied to the residuals to obtain new nuisance regressors
-        in the next round of fitting.
+        This flag is for the second approach. If turned on,
+        PCA or factor analysis will be applied to the residuals
+        to obtain new nuisance regressors in each round of fitting.
+        These two approaches can be combined. If the users provide nuisance
+        regressors and set this flag as True, then the first few principals
+        of the residuals after subtracting both the responses to design
+        matrix and nuisance regressors will be used in addition to the
+        nuisance regressors provided by the users.
         Note that nuisance regressor is not required from user. If it is
-        not provided, DC components for each run will be used as nuisance
-        regressor in the initial fitting.
+        not provided, DC components for each run will be included as nuisance
+        regressor regardless of the auto_nuisance parameter.
     n_nureg: int, default: 6
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This parameter will not be effective in the first round of fitting.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'FA'
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'PCA'
         The method to estimate the shared component in noise across voxels.
     GP_space: boolean, default: False
         Whether to impose a Gaussion Process (GP) prior on the log(pseudo-SNR).
         If true, the GP has a kernel defined over spatial coordinate.
-        This is experimental and slow. I find that when SNR is genrally low,
-        smoothness can be overestimated. But I think this is better than
-        not imposing any regularization.
+        This is relatively slow for big ROI. We find that when SNR
+        is generally low, smoothness can be overestimated.
+        But such regularization may reduce variance in the estimated
+        SNR map and similarity matrix.
     GP_inten: boolean, defualt: False
-        Whether to include a kernel definved over the intensity of image.
+        Whether to include a kernel defined over the intensity of image.
         GP_space should be True as well if you want to use this,
         because the smoothness should be primarily in space.
         Smoothness in intensity is just complementary.
-    tol: tolerance parameter passed to the minimizer.
-    verbose : boolean, default: False
-        Verbose mode flag.
-    eta: a small number added to the diagonal element of the
-        covariance matrix in the Gaussian Process prior. This is
-        to ensure that the matrix is invertible.
-    space_smooth_range: the distance (in unit the same as what
+    space_smooth_range: scalar
+        The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
         each voxel, typically millimeter) which you believe is
         the maximum range of the length scale parameter of
@@ -132,27 +132,35 @@ class BRSA(BaseEstimator, TransformerMixin):
         used to impose a half-Cauchy prior on the length scale.
         If not provided, the program will set it to half of the
         maximum distance between all voxels.
-    inten_smooth_range: the difference in image intensity which
+    inten_smooth_range: scalar
+        The difference in image intensity which
         you believe is the maximum range of plausible length
         scale for the Gaussian Process defined over image
         intensity. Length scales larger than this are allowed,
         but will be penalized. If not supplied, this parameter
         will be set to half of the maximal intensity difference.
-    tau_range: the reasonable range of the standard deviation
+    tau_range: scalar
+        The reasonable range of the standard deviation
         of log(SNR). This range should not be too
         large. 5 is a loose range.
         When a Gaussian Process is imposed on the log(SNR),
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: the form of prior for tau^2, the variance of the
-        GP prior on log(SNR). Default: 'invGamma'.
+    tau2_prior: string, Default: 'invGamma'.
+        The form of prior for tau^2, the variance of the
+        GP prior on log(SNR).
         It can be either 'invGamma' for inverse-Gamma or
         'halfCauchy' for half-Cauchy. But half-Cauchy prior is
         actually imposed on tau. tau_range still describes the
         range of tau in the prior for both cases. 'invGamma'
         penalizes for very small tau, while 'halfCauchy' does not.
-    init_iter: how many initial iterations to fit the model
+    eta: scalar, default: 0.0001
+        A small number added to the diagonal element of the
+        covariance matrix in the Gaussian Process prior. This is
+        to ensure that the matrix is invertible.
+    init_iter: int, default: 20
+        How many initial iterations to fit the model
         without introducing the GP prior before fitting with it,
         if GP_space or GP_inten is requested. This initial
         fitting is to give the parameters a good starting point.
@@ -160,15 +168,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         We use 'BFGS' as a default. Users can try other optimizer
         coming with scipy.optimize.minimize, or a custom
         optimizer.
-    rand_seed : int, default: 0
-        Seed for initializing the random number generator.
-    anneal_speed: scalar, default: 5
-        Annealing is introduced in fitting of the Cholesky
-        decomposition of the shared covariance matrix. The amount
-        of perturbation decays exponentially. This parameter sets
-        the ratio of the time constant of the exponential to the
-        maximum number of iteration. anneal_speed=5 means by n_iter/5
-        iterations, the amount of perturbation is reduced by 2.713 times.
     prior_ts_cov: 'Diag' or 'Block', 'Full' or a positive scalar,
         default: 'Full'
         The choice of the prior covariance matrix of task-related
@@ -192,6 +191,19 @@ class BRSA(BaseEstimator, TransformerMixin):
         are assumed to be independent.
         If set to a positive number, an identity matrix
         multiplied by this number will be used.
+    rand_seed : int, default: 0
+        Seed for initializing the random number generator.
+    anneal_speed: scalar, default: 5
+        Annealing is introduced in fitting of the Cholesky
+        decomposition of the shared covariance matrix. The amount
+        of perturbation decays exponentially. This parameter sets
+        the ratio of the maximum number of iteration to the
+        time constant of the exponential.
+        anneal_speed=5 means by n_iter/5 iterations,
+        the amount of perturbation is reduced by 2.713 times.
+    tol: tolerance parameter passed to the minimizer.
+    verbose : boolean, default: False
+        Verbose mode flag.
 
     Attributes
     ----------
@@ -201,7 +213,7 @@ class BRSA(BaseEstimator, TransformerMixin):
     C_: the correlation matrix derived from the shared covariance matrix,
         shape=[condition,condition]
     nSNR_ : array, shape=[voxels,]
-        The pseuso-SNR of all voxels.
+        The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
     sigma_ : array, shape=[voxels,]
         The estimated standard deviation of the noise in each voxel
@@ -220,7 +232,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         of each voxel to each task condition.
     beta0_: array, shape=[n_nureg + n_base, voxels]
         The loading weights of each voxel for the shared time courses
-        not captured by the design matrix.
+        not captured by the design matrix. This helps capture the
+        structure of spatial covariance of task-unrelated signal.
         n_base is the number of columns of the user-supplied nuisance
         regressors plus one for DC component
     X0_: array, shape=[time_points, n_nureg + n_base]
@@ -230,13 +243,14 @@ class BRSA(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-            self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
-            tol=2e-3, auto_nuisance=True, n_nureg=6, nureg_method='FA',
-            verbose=False, eta=0.0001,
+            self, n_iter=50, rank=None, auto_nuisance=True,
+            n_nureg=6, nureg_method='PCA',
+            GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
-            tau_range=5.0, tau2_prior='invGamma', init_iter=20,
-            optimizer='BFGS', rand_seed=0, anneal_speed=5,
-            prior_ts_cov='Full'):
+            tau_range=5.0, tau2_prior='invGamma',
+            eta=0.0001, init_iter=20, optimizer='BFGS',
+            prior_ts_cov='Full', rand_seed=0, anneal_speed=5,
+            tol=2e-3, verbose=False):
 
         self.n_iter = n_iter
         self.rank = rank
@@ -282,7 +296,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         return
 
     def fit(self, X, design, nuisance=None, scan_onsets=None, coords=None,
-            inten=None, SNR_bins=11, rho_bins=10):
+            inten=None):
         """Compute the Bayesian RSA
 
         Parameters
@@ -294,13 +308,13 @@ class BRSA(BaseEstimator, TransformerMixin):
             alignment), and specify the onsets of each scan in scan_onsets.
         design: 2-D numpy array, shape=[time_points, conditions]
             This is the design matrix. It should only include the hypothetic
-            response for task conditions. You do not need to include
+            response for task conditions. You should not include
             regressors for a DC component or motion parameters, unless with
             a strong reason. If you want to model head motion,
             you should include them in nuisance regressors.
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
-            with one column across runs for each condition.
+            with every column for one condition across runs.
         nuisance: optional, 2-D numpy array,
             shape=[time_points, nuisance_factors]
             The responses to these regressors will be marginalized out from
@@ -310,11 +324,11 @@ class BRSA(BaseEstimator, TransformerMixin):
             relative contribution of design matrix to each voxel.
             You can provide time courses such as those for head motion
             to this parameter.
-            Note that if auto_nuisance is set to True, this input
-            will only be used in the first round of fitting. The first
+            Note that if auto_nuisance is set to True, the first
             n_nureg principal components of residual (excluding the response
-            to the design matrix) will be used as the nuisance regressor
-            for the second round of fitting.
+            to the design matrix and the user-provided nuisance regressors)
+            will be included as additional nuisance regressor after the
+            first round of fitting.
             If auto_nuisance is set to False, the nuisance regressors supplied
             by the users together with DC components will be used as
             nuisance time series.
@@ -350,7 +364,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         # Check input data
         assert_all_finite(X)
-        assert X.ndim == 2, 'The data should be 2 dimension ndarray'
+        assert X.ndim == 2, 'The data should be 2-dimensional ndarray'
 
         assert np.all(np.std(X, axis=0) > 0),\
             'The time courses of some voxels do not change at all.'\
@@ -359,7 +373,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         # check design matrix
         assert_all_finite(design)
         assert design.ndim == 2,\
-            'The design matrix should be 2 dimension ndarray'
+            'The design matrix should be 2-dimensional ndarray'
         assert np.linalg.matrix_rank(design) == design.shape[1], \
             'Your design matrix has rank smaller than the number of'\
             ' columns. Some columns can be explained by linear '\
@@ -374,7 +388,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         if nuisance is not None:
             assert_all_finite(nuisance)
             assert nuisance.ndim == 2,\
-                'The nuisance regressor should be 2 dimension ndarray'
+                'The nuisance regressor should be 2-dimensional ndarray'
             assert np.linalg.matrix_rank(nuisance) == nuisance.shape[1], \
                 'The nuisance regressor has rank smaller than the number of'\
                 'columns. Some columns can be explained by linear '\
@@ -548,7 +562,11 @@ class BRSA(BaseEstimator, TransformerMixin):
             scan_onsets = np.array([0])
         else:
             scan_onsets = np.int32(scan_onsets)
-        ts, ts0 = self._transform(Y=X, scan_onsets=scan_onsets)
+        ts, ts0 = self._transform(Y=X, scan_onsets=scan_onsets,
+                                  beta=self.beta_, beta0=self.beta0_,
+                                  cov_X=self.cov_X,
+                                  cov_Delta_X=self.cov_Delta_X,
+                                  rho=self.rho_, sigma=self.sigma_)
         return ts, ts0
 
     # The following 2 functions _D_gen and _F_gen generate templates used
@@ -667,9 +685,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         if np.any(np.isclose(res[1], 0)):
             raise ValueError('Your design matrix appears to have '
                              'included baseline time series.'
-                             'Either remove them, or indicates which'
-                             ' columns in your design matrix are for '
-                             ' conditions of interest.')
+                             'Either remove them, or move them to'
+                             ' nuisance regressors.')
         if X_base is not None:
             res0 = np.linalg.lstsq(X_DC, X_base)
             if not no_DC:
@@ -680,7 +697,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     idx_DC = np.arange(X_base.shape[1] - X_DC.shape[1],
                                        X_base.shape[1])
                 else:
-                    logger.warning('Provided regressors for non-interesting '
+                    logger.warning('Provided regressors for uninteresting '
                                    'time series already include baseline. '
                                    'No additional baseline is inserted.')
                     idx_DC = np.where(np.isclose(res0[1], 0))[0]
@@ -695,7 +712,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                         'such as DC component. Trivial regressors of'
                         ' DC component are included for further modeling.'
                         ' The final covariance matrix won''t '
-                        'reflet them.')
+                        'reflet these components.')
         if X_res is None:
             X0 = X_base
         else:
@@ -1115,7 +1132,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             est_rho1_AR1_UV, est_space_smooth_r, \
             est_std_log_SNR, est_intensity_kernel_r, X0
 
-    def _transform(self, Y, scan_onsets):
+    def _transform(self, Y, scan_onsets, beta, beta0, cov_X, cov_Delta_X,
+                   rho, sigma):
         """ Given the data Y and the response amplitudes beta and beta0
             estimated in the fit step, estimate the corresponding X and X0.
             It is done in Bayesian manner, keeping track of the posterior
@@ -1123,19 +1141,19 @@ class BRSA(BaseEstimator, TransformerMixin):
             Weiner Process, to capture temporal smoothness.
         """
         logger.info('Transforming new data.')
-        n_C = self.beta_.shape[0]
-        n_X0 = self.beta0_.shape[0]
+        n_C = beta.shape[0]
+        n_X0 = beta0.shape[0]
         n_T = Y.shape[0]
         n_V = Y.shape[1]
         X1 = np.empty((Y.shape[0], n_C + n_X0))
-        beta1 = np.concatenate((self.beta_, self.beta0_), axis=0)
+        beta1 = np.concatenate((beta, beta0), axis=0)
         beta1_outer = np.empty((n_V, n_C + n_X0, n_C + n_X0))
         for i_v in range(n_V):
             beta1_outer[i_v, :, :] = np.outer(beta1[:, i_v], beta1[:, i_v])
-        inv_cov_X = np.linalg.inv(self.cov_X)
+        inv_cov_X = np.linalg.inv(cov_X)
         posterior_cov0 = np.linalg.inv(
-            np.sum(beta1_outer * (1 - self.rho_**2)[:, None, None]
-                   / self.sigma_[:, None, None]**2, axis=0)
+            np.sum(beta1_outer * (1 - rho**2)[:, None, None]
+                   / sigma[:, None, None]**2, axis=0)
             + inv_cov_X)
 
         for i_t in range(n_T):
@@ -1143,27 +1161,27 @@ class BRSA(BaseEstimator, TransformerMixin):
                 posterior_Sigma_X1 = posterior_cov0.copy()
                 posterior_mu_X1 = np.dot(
                     posterior_Sigma_X1, np.dot(
-                        beta1, Y[i_t, :] * (1 - self.rho_**2)
-                        / self.sigma_**2))
+                        beta1, Y[i_t, :] * (1 - rho**2)
+                        / sigma**2))
                 X1[i_t, :] = posterior_mu_X1
             else:
-                denom = (self.sigma_**2 + self.rho_**2
+                denom = (sigma**2 + rho**2
                          * np.einsum('ij,ik,kj->j', beta1, posterior_Sigma_X1,
                                      beta1))
                 posterior_Sigma_X1_new = np.linalg.inv(
                     inv_cov_X
                     + np.sum(beta1_outer / denom[:, None, None], axis=0)
-                    + np.linalg.inv(posterior_Sigma_X1 + self.cov_Delta_X))
+                    + np.linalg.inv(posterior_Sigma_X1 + cov_Delta_X))
 
                 posterior_mu_X1 = np.dot(
                     posterior_Sigma_X1_new,
                     np.dot(beta1,
                            (Y[i_t, :]
-                            - self.rho_
+                            - rho
                             * (Y[i_t - 1, :] - np.dot(posterior_mu_X1, beta1)))
                            / denom)
                     + np.linalg.solve(posterior_Sigma_X1
-                                      + self.cov_Delta_X, posterior_mu_X1))
+                                      + cov_Delta_X, posterior_mu_X1))
                 posterior_Sigma_X1 = posterior_Sigma_X1_new
 
                 X1[i_t, :] = posterior_mu_X1
@@ -2018,6 +2036,8 @@ class GBRSA(BRSA):
     The differences of this tool from BRSA are:
     (1) It allows fitting a shared covariance matrix (which can be converted
     to similarity matrix) across multiple subjects.
+    This is analogous to SRM under funcalign submodule. Because of using
+    multiple subjects, the result is less noisy.
     (2) In the fitting process, the SNR and noise parameters are marginalized
     for each voxel. Therefore, this tool should be faster than BRSA
     when analyzing an ROI of hundreds to thousands voxels. It does not
@@ -2025,10 +2045,9 @@ class GBRSA(BRSA):
     Both tools provide estimation of SNR and noise parameters at the end,
     and both tools provide empirical Bayesian estimates of activity patterns
     beta, together with weight map of nuisance signals beta0.
-    GBRSA also allows for estimating shared covariance structure across
-    subjects. This is analogous to SRM under funcalign submodule.
-    If your goal is to perform searchlight RSA with relatively fewer voxels,
-    BRSA should be faster.
+    If your goal is to perform searchlight RSA with relatively fewer voxels
+    on single subject, BRSA should be faster. However, GBRSA can in principle
+    be used together with searchlight in a template space such as MNI.
 
     .. math::
         Y = X \\cdot \\beta + \\epsilon
@@ -2037,7 +2056,7 @@ class GBRSA(BRSA):
 
     Parameters
     ----------
-    n_iter : int, default: 200
+    n_iter : int, default: 50
         Number of maximum iterations to run the algorithm.
     rank : int, default: None
         The rank of the covariance matrix.
@@ -2056,20 +2075,24 @@ class GBRSA(BRSA):
         The other way is to take the first n_nureg principal components
         in the residual after subtracting the response to the design matrix
         from the data, and use these components as the nuisance regressor.
-        If this flag is turned on, the nuisance regressor provided by the
-        user is used only in the first round of fitting. PCA or factor analysis
-        will be applied to the residuals to obtain new nuisance regressors
-        in the next round of fitting.
+        This flag is for the second approach. If turned on,
+        PCA or factor analysis will be applied to the residuals
+        to obtain new nuisance regressors in each round of fitting.
+        These two approaches can be combined. If the users provide nuisance
+        regressors and set this flag as True, then the first few principals
+        of the residuals after subtracting both the responses to design
+        matrix and nuisance regressors will be used in addition to the
+        nuisance regressors provided by the users.
         Note that nuisance regressor is not required from user. If it is
-        not provided, DC components for each run will be used as nuisance
-        regressor in the initial fitting.
+        not provided, DC components for each run will be included as nuisance
+        regressor regardless of the auto_nuisance parameter.
     n_nureg: int, default: 6
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This parameter will not be effective in the first round of fitting.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'FA'
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'PCA'
         The method to estimate the shared component in noise across voxels.
     logS_range: the reasonable range of the spread of SNR
         in log scale. This range should not be too large.
@@ -2080,17 +2103,17 @@ class GBRSA(BRSA):
         in log scale. The number of grids evaluated is determined by
         SNR_bins. If you increase logS_range, it is recommended to increase
         SNR_bins accordingly, otherwise the SNR values evaluated might be
-        too sparse, causing final SNR estimations to be clustered around
-        a few values.
-    SNR_bins: optional, integer. Default: 37
+        too sparse, causing the posterior SNR estimations to be clustered
+        around the bins.
+    SNR_bins: optional, integer. Default: 41
         The number of bins to divide the region of
         [-3*logS_range, 3*logS_range] for the log of pseudo-SNR.
         The default value 37 is based on the default value of logS_range=2
         and the bin width of 0.3 on log scale.
-    rho_bins: optional, integer. Default: 10
+    rho_bins: optional, integer. Default: 20
         The number of bins to divide the region of (-1, 1) for rho.
         This only takes effect for fitting the marginalized version.
-        If set to 10, discrete numbers of (-0.9, -0.7, ..., 0.9) will
+        If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
     prior_ts_cov: 'Diag' or 'Block', 'Full' or a positive scalar,
         default: 'Full'
@@ -2128,9 +2151,10 @@ class GBRSA(BRSA):
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
-        the ratio of the time constant of the exponential to the
-        maximum number of iteration. anneal_speed=10 means by n_iter/10
-        iterations, the amount of perturbation is reduced by 2.713 times.
+        the ratio of the maximum number of iteration to the
+        time constant of the exponential.
+        anneal_speed=10 means by n_iter/10 iterations,
+        the amount of perturbation is reduced by 2.713 times.
 
     Attributes
     ----------
@@ -2139,24 +2163,26 @@ class GBRSA(BRSA):
         (lower-triangular matrix), shape=[condition,condition].
     C_: the correlation matrix derived from the shared covariance matrix,
         shape=[condition,condition]
-    nSNR_ : array, shape=[voxels,]
-        The pseuso-SNR of all voxels.
+    nSNR_ : list of ndarrays, shape=[voxels,] for each subject in the list.
+        The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
-    sigma_ : array, shape=[voxels,]
+    sigma_ : list of ndarrays, shape=[voxels,] for each subject.
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
         of the refreshing noise.
-    rho_ : array, shape=[voxels,]
+    rho_ : list of ndarrays, shape=[voxels,] for each subject.
         The estimated autoregressive coefficient of each voxel
-    beta_: array, shape=[conditions, voxels]
+    beta_: list of ndarrays, shape=[conditions, voxels] for each subject.
         The maximum a posterior estimation of the response amplitudes
         of each voxel to each task condition.
-    beta0_: array, shape=[n_nureg + n_base, voxels]
+    beta0_: list of ndarrays, shape=[n_nureg + n_base, voxels]
+        for each subject.
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
         n_base is the number of columns of the user-supplied nuisance
         regressors plus one for DC component.
-    X0_: array, shape=[time_points, n_nureg + n_base]
+    X0_: list of ndarrays, shape=[time_points, n_nureg + n_base]
+        for each subject.
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
 
@@ -2164,7 +2190,7 @@ class GBRSA(BRSA):
 
     def __init__(
             self, n_iter=50, rank=None, auto_nuisance=True, n_nureg=6,
-            nureg_method='FA', logS_range=2.0, SNR_bins=37,
+            nureg_method='PCA', logS_range=2.0, SNR_bins=41,
             rho_bins=20, prior_ts_cov='Full', tol=2e-3, verbose=False,
             optimizer='BFGS', rand_seed=0, anneal_speed=10):
 
@@ -2200,22 +2226,26 @@ class GBRSA(BRSA):
 
         Parameters
         ----------
-        X: 2-D numpy array, shape=[time_points, voxels]
+        X: list of 2-D numpy arrays, shape=[time_points, voxels]
+            for each subject in the list.
             If you have multiple scans of the same participants that you
             want to analyze together, you should concatenate them along
             the time dimension after proper preprocessing (e.g. spatial
             alignment), and specify the onsets of each scan in scan_onsets.
-        design: 2-D numpy array, shape=[time_points, conditions]
+        design: list of 2-D numpy arrays, shape=[time_points, conditions]
+            for each subject in the list.
             This is the design matrix. It should only include the hypothetic
-            response for task conditions. You do not need to include
+            response for task conditions. You should not include
             regressors for a DC component or motion parameters, unless with
             a strong reason. If you want to model head motion,
             you should include them in nuisance regressors.
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
-            with one column across runs for each condition.
-        nuisance: optional, 2-D numpy array,
-            shape=[time_points, nuisance_factors]
+            with every column for one condition across runs.
+            If the design matrix is the same for all subjects,
+            either provide a list as required, or provide single numpy array.
+        nuisance: optional, list of 2-D numpy arrays,
+            shape=[time_points, nuisance_factors] for each subject in the list.
             The responses to these regressors will be marginalized out from
             each voxel, which means they are considered, but won't be assumed
             to share the same pseudo-SNR map with the design matrix.
@@ -2223,18 +2253,16 @@ class GBRSA(BRSA):
             relative contribution of design matrix to each voxel.
             You can provide time courses such as those for head motion
             to this parameter.
-            Note that if auto_nuisance is set to True, this regressor
-            together with DC components and the first n_nureg
-            principal components of residuals after fitting will be used
-            as the nuisance regressor starting from the second round of fitting.
-            If other methods are chosen for nureg_method, the nuisance regressor
-            in addition to the ones provided by the user will be estimated
-            based on the chosen methods from residuals
-            after each round of fitting.
+            Note that if auto_nuisance is set to True, the first
+            n_nureg principal components of residual (excluding the response
+            to the design matrix and the user-provided nuisance regressors)
+            will be included as additional nuisance regressor after the
+            first round of fitting.
             If auto_nuisance is set to False, the nuisance regressors supplied
             by the users together with DC components will be used as
             nuisance time series.
-        scan_onsets: optional, an 1-D numpy array, shape=[runs,]
+        scan_onsets: optional, list 1-D numpy arrays, shape=[runs,]
+            for each subject in the list.
             This specifies the indices of X which correspond to the onset
             of each scanning run. For example, if you have two experimental
             runs of the same subject, each with 100 TRs, then scan_onsets
@@ -2247,10 +2275,10 @@ class GBRSA(BRSA):
 
         logger.info('Running Marginalized Bayesian RSA')
         # Checking all inputs.
-        X = self._check_data_BGRSA(X)
-        design = self._check_design_BGRSA(design, X)
-        nuisance = self._check_nuisance_BGRSA(nuisance, X)
-        scan_onsets = self._check_scan_onsets_BGRSA(scan_onsets, X)
+        X = self._check_data_GBRSA(X)
+        design = self._check_design_GBRSA(design, X)
+        nuisance = self._check_nuisance_GBRSA(nuisance, X)
+        scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
         # Run Marginalized Bayesian RSA
         # Note that we have a change of notation here.
         # Within _fit_RSA_marginalized, design matrix is named X
@@ -2264,7 +2292,7 @@ class GBRSA(BRSA):
             'At least 5 bins are required to perform the numerical'\
             ' integration over SNR and rho'
         assert self.logS_range * 6 / self.SNR_bins < 0.5, \
-            'The minimum grid of log(SNR) should not be smaller than 0.5.'\
+            'The minimum grid of log(SNR) should not be larger than 0.5.'\
             ' Please consider increasing SNR_bins or reducing logS_range'
         self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
             self.sigma_, self.rho_, self.X0_ = \
@@ -2403,10 +2431,6 @@ class GBRSA(BRSA):
             logger.warning('ATTENTION!! The range of grids of pseudo-SNR'
                            ' to be marginalized is too large. Please '
                            'consider reducing logS_range to 1 or 2')
-        # SNR_grids = np.arange(SNR_bins) / (SNR_bins - 1)
-        # SNR_weights = np.ones(SNR_bins) / (SNR_bins - 1)
-        # SNR_weights[0] = 0.5 / (SNR_bins - 1)
-        # SNR_weights[-1] = 0.5 / (SNR_bins - 1)
         rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
             + 1 / self.rho_bins
         rho_weights = np.ones(self.rho_bins) / self.rho_bins
@@ -2792,7 +2816,7 @@ class GBRSA(BRSA):
 
         return -LL_total, -grad_L[l_idx]
 
-    def _check_data_BGRSA(self, X):
+    def _check_data_GBRSA(self, X):
         # Check input data
         if type(X) is np.ndarray:
             X = [X]
@@ -2811,7 +2835,7 @@ class GBRSA(BRSA):
         # data structure, we make sure X and design are both lists.
         return X
 
-    def _check_design_BGRSA(self, design, X):
+    def _check_design_GBRSA(self, design, X):
         # check design matrix
         if type(design) is np.ndarray:
             design = [design] * len(X)
@@ -2848,7 +2872,7 @@ class GBRSA(BRSA):
                     'of columns in design matrix'
         return design
 
-    def _check_nuisance_BGRSA(sef, nuisance, X):
+    def _check_nuisance_GBRSA(sef, nuisance, X):
         # Check the nuisance regressors.
         if nuisance is not None:
             if type(nuisance) is np.ndarray:
@@ -2884,7 +2908,7 @@ class GBRSA(BRSA):
                         'it for all subjects.')
         return nuisance
 
-    def _check_scan_onsets_BGRSA(self, scan_onsets, X):
+    def _check_scan_onsets_GBRSA(self, scan_onsets, X):
         # check scan_onsets validity
         if scan_onsets is None or type(scan_onsets) is np.ndarray:
             scan_onsets = [scan_onsets] * len(X)
@@ -2899,3 +2923,110 @@ class GBRSA(BRSA):
                 'Some scan onsets of subject {} provided are '\
                 'out of the range of time points.'.format(i)
         return scan_onsets
+
+    def transform(self, X, y=None, scan_onsets=None, prior_ts_cov=None):
+        """ Use the model to estimate the time course of response to
+            each condition, and the time course unrelated to task which
+            is spread across the brain.
+            Notice: this can only be performed if full rank was requested
+            in the fit step (either not setting the rank parameter, or
+            setting it to be equal to the number of conditions). Otherwise
+            error will be thrown out.
+        ----------
+        X : list of 2-D arrays, shape=[time_points, voxels]
+            fMRI data of new data of the same subject. The voxels should
+            match those used in the fit() function. If data are z-scored
+            (recommended) when fitting the model, data should be z-scored
+            as well when calling transform()
+            The size of the list should match the size of the list X fed
+            to fit(), with each item in the list corresponding to data
+            from the same subject in the X fed to fit(). If you do not
+            need to transform some subjects' data, leave the entry
+            corresponding to that subject as None.
+        y : not used (as it is unsupervised learning)
+        scan_onsets : A list of indices corresponding to the onsets of
+            scans in the data X. If not provided, data will be assumed
+            to be acquired in a continuous scan.
+        prior_ts_cov: The assumption of the shape of the covariance matrix
+            of the task-related and task-unrelated time series.
+            It can be set as 'Diag' for diagnal matrix, or 'Block'
+            for block-diagonal matrix. The former assumes independence
+            between all time series. The latter assumes independence
+            only between task-related and task-unrelated time series.
+            If not set, the setting during initialization is used.
+            (default: 'Block' in initialization)
+        Returns
+        -------
+        ts : 2D arrays, shape = [time_points, condition]
+            The estimated response to the task conditions which have the
+            response amplitudes estimated during the fit step.
+        ts0: 2D array, shape = [time_points, n_nureg]
+            The estimated time course spread across the brain, with the
+            loading weights estimated during the fit step.
+        """
+        assert self.rank is None or self.rank == self.beta_.shape[0], \
+            'The fit step was performed with a lower requested rank. '\
+            'Therefore, transform cannot be performed. In order to use '\
+            'the transform function, you have to request full rank in '\
+            'the fit step by ignoring the rank parameter'
+        assert X.ndim == 2 and X.shape[1] == self.beta_.shape[1], \
+            'The shape of X is not consistent with the shape of data '\
+            'used in the fitting step. They should have the same number '\
+            'of voxels'
+        assert scan_onsets is None or (scan_onsets.ndim == 1 and
+                                       0 in scan_onsets), \
+            'scan_onsets should either be None or an array of indices '\
+            'If it is given, it should include at least 0'
+        if prior_ts_cov is None:
+            prior_ts_cov = self.prior_ts_cov
+        # check the choice of prior_ts_cov
+        assert (type(prior_ts_cov) is str and
+                (prior_ts_cov == 'Diag' or prior_ts_cov == 'Block'
+                or prior_ts_cov == 'Full'))\
+            or ((type(prior_ts_cov) is float or type(prior_ts_cov) is int)
+                and prior_ts_cov > 0), \
+            'prior_ts_cov can only be "Diag" or "Block" or "Full"'\
+            'or a positive number'
+        diff_design = np.diff(self.design_, axis=0)
+        diff_X0 = np.diff(self.X0_, axis=0)
+        n_T = self.design_.shape[0]
+        if prior_ts_cov == 'Block':
+            self.cov_Delta_X = scipy.linalg.block_diag(
+                np.dot(diff_design.T, diff_design),
+                np.dot(diff_X0.T, diff_X0)) / n_T
+            self.cov_X = scipy.linalg.block_diag(
+                np.dot(self.design_.T, self.design_),
+                np.dot(self.X0_.T, self.X0_)) / n_T
+        elif prior_ts_cov == 'Diag':
+            self.cov_Delta_X = scipy.linalg.block_diag(
+                np.diag(np.mean(diff_design**2, axis=0)),
+                np.diag(np.mean(diff_X0**2, axis=0)))
+            self.cov_X = scipy.linalg.block_diag(
+                np.diag(np.mean(self.design_**2, axis=0)),
+                np.diag(np.mean(self.X0_**2, axis=0)))
+        elif prior_ts_cov == 'Full':
+            X1 = np.concatenate((self.design_, self.X0_), axis=1)
+            diff_X1 = np.diff(X1, axis=0)
+            self.cov_Delta_X = np.dot(diff_X1.T, diff_X1) / n_T
+            self.cov_X = np.dot(X1.T, X1) / n_T
+        else:
+            self.cov_Delta_X = prior_ts_cov * np.eye(
+                self.design_.shape[1] + self.X0_.shape[1])
+            self.cov_X = prior_ts_cov * np.eye(
+                self.design_.shape[1] + self.X0_.shape[1])
+
+        # cov_Delat_X describes the covariance structure of the temporal
+        # incremental of the design matrix and nuisance regressors.
+        # Since we assume that design matrix and nuisance regressors are
+        # independent, we should construct the covariance matrix
+        # as diagonal block. A stronger assumption is all time series
+        # should be independent.
+        # cov_X describes the prior covariance of the "design matrix"
+        # with zero-mean assumption
+
+        if scan_onsets is None:
+            scan_onsets = np.array([0])
+        else:
+            scan_onsets = np.int32(scan_onsets)
+        ts, ts0 = self._transform(Y=X, scan_onsets=scan_onsets)
+        return ts, ts0
