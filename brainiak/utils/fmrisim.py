@@ -547,6 +547,8 @@ def double_gamma_hrf(stimfunction,
             What is the time course of events to be modelled in this
             experiment
 
+        tr_duration : float
+
         response_delay : float
             How many seconds until the peak of the HRF
 
@@ -601,7 +603,7 @@ def double_gamma_hrf(stimfunction,
         hrf[hrf_counter] = response_model - undershoot_model
 
     # Decimate the stim function so that it only has one element per TR
-    stimfunction = stimfunction[0::tr_duration * 1000]
+    stimfunction = stimfunction[0::int(tr_duration * 1000)]
 
     # Convolve the hrf that was created with the boxcar input
     signal_function = np.convolve(stimfunction, hrf)
