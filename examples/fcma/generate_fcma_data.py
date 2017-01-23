@@ -12,42 +12,47 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""fMRI Simulator example script
+"""Generate simulated data for FCMA example
 
-Example script to generate a run of a participant's data. This generates
-data representing a pair of conditions that are then combined
+Generate example data for FCMA analyses that uses fmrisim
 
- Authors: Cameron Ellis (Princeton) 2016
+ Authors: Cameron Ellis (Princeton) 2017
 """
 import logging
 import numpy as np
 from brainiak.utils import fmrisim as sim
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 import nibabel
 
 logger = logging.getLogger(__name__)
 
-# Inputs for generate_signal
-dimensions = np.array([64, 64, 36])  # What is the size of the brain
-feature_size = [9, 4, 9, 9]
-feature_type = ['loop', 'cube', 'cavity', 'sphere']
-coordinates_A = np.array(
-    [[32, 32, 18], [26, 32, 18], [32, 26, 18], [32, 32, 12]])
-coordinates_B = np.array(
-    [[32, 32, 18], [38, 32, 18], [32, 38, 18], [32, 32, 24]])
-signal_magnitude = [1, 0.5, 0.25, -1]
+# Set the experimental parameters
+participants = 5
+epochs = 5
+dimensions = np.array([10, 10, 10])  # What is the size of the brain
 
+# Prepare the feature attributes
+feature_size = [2]
+feature_type = ['cube']
+coordinates_A = np.array(
+    [[3, 3, 3], [5, 5, 3]])
+coordinates_B = np.array(
+    [[6, 6, 6], [4, 4, 6]])
+signal_magnitude = [1]
 
 # Inputs for generate_stimfunction
-onsets_A = [10, 30, 50, 70, 90]
-onsets_B = [0, 20, 40, 60, 80]
-event_durations = [6]
-tr_duration = 2
-duration = 100
+onsets_A = []
+onsets_B = []
+weights = []
+tr_duration = 1
 
-# Specify a name to save this generated volume.
-savename = 'examples/utils/example.nii'
+for idx in list(range(0, epochs)):
+    onsets_A += list(range((idx * 20) + 10, (idx * 20) + 17, tr_duration))
+    onsets_B += list(range(idx * 20, (idx * 20) + 7, tr_duration))
+    # The pattern of activity for each trial
+    weights += [0.5, 1.0, 1.0, 0.0, -1.0, -1.0, -0.5]
+
+event_durations = [1]
+duration = 100
 
 # Generate a volume representing the location and quality of the signal
 volume_static_A = sim.generate_signal(dimensions=dimensions,
@@ -64,22 +69,17 @@ volume_static_B = sim.generate_signal(dimensions=dimensions,
                                       signal_magnitude=signal_magnitude,
                                       )
 
-
-# Visualize the signal that was generated for condition A
-fig = plt.figure()
-sim.plot_brain(fig,
-               volume_static_A)
-plt.show()
-
 # Create the time course for the signal to be generated
 stimfunction_A = sim.generate_stimfunction(onsets=onsets_A,
                                            event_durations=event_durations,
                                            total_time=duration,
+                                           weights=weights,
                                            )
 
 stimfunction_B = sim.generate_stimfunction(onsets=onsets_B,
                                            event_durations=event_durations,
                                            total_time=duration,
+                                           weights=weights,
                                            )
 
 # Convolve the HRF with the stimulus sequence
@@ -113,63 +113,23 @@ mask = sim.mask_brain(signal)
 # matter likelihood)
 signal *= mask
 
-# Create the noise volumes (using the default parameters
-noise = sim.generate_noise(dimensions=dimensions,
-                           stimfunction=stimfunction,
-                           tr_duration=tr_duration,
-                           mask=mask,
-                           )
+# Iterate through the participants and store participants
+for participantcounter in list(range(1, participants + 1)):
 
-# Combine the signal and the noise
-brain = signal + noise
+    # Save a file name
+    savename = 'examples/fcma/p' + str(participantcounter) + '.nii'
 
-# Display the brain
-fig = plt.figure()
-for tr_counter in list(range(0, brain.shape[3])):
+    # Create the noise volumes (using the default parameters
+    noise = sim.generate_noise(dimensions=dimensions,
+                               stimfunction=stimfunction,
+                               tr_duration=tr_duration,
+                               mask=mask,
+                               )
 
-    # Get the axis to be plotted
-    ax = sim.plot_brain(fig,
-                        brain[:, :, :, tr_counter],
-                        mask=mask[:, :, :, tr_counter],
-                        percentile=99.9)
+    # Combine the signal and the noise
+    brain = signal + noise
 
-    # Wait for an input
-    logging.info(tr_counter)
-    plt.pause(0.5)
-
-# Save the volume
-affine_matrix = np.diag([-1, 1, 1, 1])  # LR gets flipped
-brain_nifti = nibabel.Nifti1Image(brain, affine_matrix)  # Create a nifti brain
-nibabel.save(brain_nifti, savename)
-
-# Load in the test dataset and generate a random volume based on it
-
-# Pull out the data and associated data
-volume = nibabel.load(savename).get_data()
-dimensions = volume.shape[0:3]
-total_time = volume.shape[3] * tr_duration
-stimfunction = sim.generate_stimfunction(onsets=[],
-                                         event_durations=[0],
-                                         total_time=total_time,
-                                         )
-
-# Calculate the mask
-mask = sim.mask_brain(volume=volume,
-                      mask_name='self',
-                      )
-
-# Calculate the noise parameters
-noise_dict = sim.calc_noise(volume=volume,
-                            mask=mask,
-                            )
-
-# Create the noise volumes (using the default parameters
-noise = sim.generate_noise(dimensions=dimensions,
-                           tr_duration=tr_duration,
-                           stimfunction=stimfunction,
-                           mask=mask,
-                           noise_dict=noise_dict,
-                           )
-
-brain_noise = nibabel.Nifti1Image(noise, affine_matrix)  # Create a nifti brain
-nibabel.save(brain_noise, 'examples/utils/example2.nii')  # Save
+    # Save the volume
+    affine_matrix = np.diag([-1, 1, 1, 1])  # LR gets flipped
+    brain_nifti = nibabel.Nifti1Image(brain, affine_matrix)
+    nibabel.save(brain_nifti, savename)
