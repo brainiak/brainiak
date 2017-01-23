@@ -285,10 +285,10 @@ def generate_signal(dimensions,
     Parameters
     ----------
 
-    dimensions : 3 length array, int
+    dimensions : 1d array, ndarray
         What are the dimensions of the volume you wish to create
 
-    feature_coordinates : multidimensional array, int
+    feature_coordinates : multidimensional array
         What are the feature_coordinates of the signal being created.
         Be aware of clipping: features far from the centre of the
         brain will be clipped. If you wish to have multiple features
@@ -1450,10 +1450,10 @@ def generate_noise(dimensions,
 
     Parameters
     ----------
-    dimensions : n length array, int
+    dimensions : nd array
         What is the shape of the volume to be generated
 
-    stimfunction :  Iterable, bool
+    stimfunction :  Iterable, list
         When do the stimuli events occur
 
     tr_duration : float
