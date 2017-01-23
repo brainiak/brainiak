@@ -12,12 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from brainiak.fcma.classifier import Classifier
-from brainiak.fcma.io import prepare_fcma_data
 from sklearn import svm
 #from sklearn.linear_model import LogisticRegression
 import sys
 import logging
+import brainiak.fcma.io as io
 import numpy as np
 #from sklearn.externals import joblib
 
@@ -27,8 +26,7 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-
-# python classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
+# python mvpa_classification.py face_scene bet.nii.gz face_scene/visual_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
     data_dir = sys.argv[1]
     extension = sys.argv[2]
@@ -39,20 +37,24 @@ if __name__ == '__main__':
     num_subjects = len(epoch_list)
     num_epochs_per_subj = epoch_list[0].shape[1]
 
-    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
+    logger.info(
+        'doing MVPA training and classification on %d subjects, each of which has %d epochs' %
+        (num_subjects, num_epochs_per_subj)
+    )
 
-    # no shrinking, set C=1
-    use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    #use_clf = LogisticRegression()
-    clf = Classifier(use_clf, epochs_per_subj=num_epochs_per_subj)
+    processed_data, labels = io.prepare_mvpa_data(data_dir, extension, mask_file, epoch_file)
 
+    # transpose data to facilitate training and prediction
+    processed_data = processed_data.T
+
+    clf = svm.SVC(kernel='linear', shrinking=False, C=1)
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):
         leave_start = i * num_epochs_per_subj
         leave_end = (i+1) * num_epochs_per_subj
-        training_data = raw_data[0:leave_start] + raw_data[leave_end:]
-        test_data = raw_data[leave_start:leave_end]
-        training_labels = labels[0:leave_start] + labels[leave_end:]
+        training_data = np.concatenate((processed_data[0:leave_start], processed_data[leave_end:]), axis=0)
+        test_data = processed_data[leave_start:leave_end]
+        training_labels = np.concatenate((labels[0:leave_start], labels[leave_end:]), axis=0)
         test_labels = labels[leave_start:leave_end]
         clf.fit(training_data, training_labels)
         # joblib can be used for saving and loading models
@@ -61,3 +63,4 @@ if __name__ == '__main__':
         print(clf.predict(test_data))
         print(clf.decision_function(test_data))
         print(np.asanyarray(test_labels))
+    logger.info('MVPA training and classification done')
