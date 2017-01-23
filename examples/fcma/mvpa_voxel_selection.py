@@ -12,15 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from brainiak.fcma.voxelselector import VoxelSelector
-from brainiak.fcma.io import prepare_fcma_data
-from brainiak.fcma.io import write_nifti_file
+from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
+import brainiak.fcma.io as io
 from sklearn import svm
 import sys
 from mpi4py import MPI
 import logging
-import numpy as np
 import nibabel as nib
+import numpy as np
+from brainiak.searchlight.searchlight import Searchlight
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 # if want to output log to a file instead of outputting log to the console,
@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 """
-example running command in run_voxel_selection.sh
+example running command in run_mvpa_voxel_selection.sh
 """
 if __name__ == '__main__':
     if MPI.COMM_WORLD.Get_rank()==0:
@@ -41,36 +41,34 @@ if __name__ == '__main__':
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
-    epochs_per_subj = int(sys.argv[5])
-    num_subjs = int(sys.argv[6])
-    # the following line is an example to leaving a subject out
-    #vs = VoxelSelector(raw_data[0:204], epochs_per_subj, labels[0:204], num_subjs-1)
-    # if using all subjects
-    vs = VoxelSelector(raw_data, epochs_per_subj, labels, num_subjs)
-    # for cross validation, use SVM with precomputed kernel
-    clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
-    results = vs.run(clf)
+
+    raw_data = []
+    # all MPI processes read the mask; the mask file is small
+    mask_img = nib.load(mask_file)
+    mask = mask_img.get_data().astype(np.bool)
+    epoch_info = None
+    if MPI.COMM_WORLD.Get_rank()==0:
+        raw_data = io.read_activity_data(data_dir, extension)
+        epoch_list = np.load(epoch_file)
+        epoch_info = io.generate_epochs_info(epoch_list)
+        # the following line is an example to leaving a subject out
+        #epoch_info = [x for x in epoch_info if x[1] != 0]
+    num_subjs = int(sys.argv[5])
+    # create a Searchlight object
+    sl = Searchlight(sl_rad=1)
+    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs, sl)
+    clf = svm.SVC(kernel='linear', shrinking=False, C=1)
+    # only rank 0 has meaningful return values
+    score_volume, results = mvs.run(clf)
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
-        logger.info(
-            'correlation-based voxel selection is done'
-        )
-        #print(results[0:100])
-        mask_img = nib.load(mask_file)
-        mask = mask_img.get_data().astype(np.bool)
-        score_volume = np.zeros(mask.shape, dtype=np.float32)
-        score = np.zeros(len(results), dtype=np.float32)
+        score_volume = np.nan_to_num(score_volume.astype(np.float))
+        io.write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
         seq_volume = np.zeros(mask.shape, dtype=np.int)
         seq = np.zeros(len(results), dtype=np.int)
         with open('result_list.txt', 'w') as fp:
             for idx, tuple in enumerate(results):
                 fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
-                score[tuple[0]] = tuple[1]
                 seq[tuple[0]] = idx
-        score_volume[mask] = score
         seq_volume[mask] = seq
-        write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
-        write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
-
-
+        io.write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
