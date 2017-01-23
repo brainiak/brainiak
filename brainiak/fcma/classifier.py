@@ -87,7 +87,7 @@ class Classifier(BaseEstimator):
         self.epochs_per_subj = epochs_per_subj
         return
 
-    def _prepare_corerelation_data(self, X):
+    def _prepare_auto_corerelation_data(self, X):
         """ compute auto-correlation for the input data X
 
         Parameters
@@ -258,7 +258,7 @@ class Classifier(BaseEstimator):
         self.num_voxels_ = num_voxels
         self.num_samples_ = num_samples
         # correlation computation
-        corr_data = self._prepare_corerelation_data(X)
+        corr_data = self._prepare_auto_corerelation_data(X)
         # normalization
         normalized_corr_data = self._normalize_correlation_data(
             corr_data,
@@ -326,7 +326,7 @@ class Classifier(BaseEstimator):
         time1 = time.time()
         self.test_raw_data_ = X
         # correlation computation
-        corr_data = self._prepare_corerelation_data(X)
+        corr_data = self._prepare_auto_corerelation_data(X)
         # normalization
         normalized_corr_data = self._normalize_correlation_data(
                                                                 corr_data,
@@ -389,7 +389,7 @@ class Classifier(BaseEstimator):
             self.test_raw_data_ = X
             # generate the test_data first
             # correlation computation
-            corr_data = self._prepare_corerelation_data(X)
+            corr_data = self._prepare_auto_corerelation_data(X)
             # normalization
             normalized_corr_data = self._normalize_correlation_data(
                                                                     corr_data,

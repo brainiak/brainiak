@@ -19,6 +19,8 @@ from sklearn import svm
 import sys
 import logging
 import numpy as np
+from scipy.spatial.distance import hamming
+import gc
 #from sklearn.externals import joblib
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -58,6 +60,14 @@ if __name__ == '__main__':
         # joblib can be used for saving and loading models
         #joblib.dump(clf, 'model/logistic.pkl')
         #clf = joblib.load('model/svm.pkl')
-        print(clf.predict(test_data))
+        predict = clf.predict(test_data)
+        print(predict)
         print(clf.decision_function(test_data))
         print(np.asanyarray(test_labels))
+        incorrect_predict = hamming(predict, np.asanyarray(test_labels)) * num_epochs_per_subj
+        logger.info(
+            'when leaving subject %d out for testing, the accuracy is %d / %d = %.2f' %
+            (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
+             (num_epochs_per_subj-incorrect_predict)*1.0/num_epochs_per_subj)
+        )
+        gc.collect()
