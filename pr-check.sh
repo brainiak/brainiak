@@ -16,7 +16,7 @@
 
 # Check readiness for pull request
 
-set -e
+set -ev
 
 if [ ! -f brainiak/__init__.py ]
 then
