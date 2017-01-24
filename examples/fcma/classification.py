@@ -46,7 +46,7 @@ if __name__ == '__main__':
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     #use_clf = LogisticRegression()
-    clf = Classifier(use_clf, epochs_per_subj=num_epochs_per_subj)
+    clf = Classifier(use_clf, num_processed_voxels=2000, epochs_per_subj=num_epochs_per_subj)
 
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):

@@ -43,6 +43,12 @@ class Classifier(BaseEstimator):
     clf: class
         The classifier used, normally a classifier class of sklearn
 
+    num_processed_voxels: int, default 1000
+        Used for SVM with precomputed kernel,
+        every time only compute correlation between num_process_voxels and
+        the whole brain to aggregate the kernel matrices.
+        This is to better use the memory
+
     epochs_per_subj: int, default 0
         The number of epochs of each subject
         within-subject normalization will be performed during
@@ -57,7 +63,10 @@ class Classifier(BaseEstimator):
         default None
         training_data\_ is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
-        the similarity vector for each sample to be classified
+        the similarity vector for each sample to be classified.
+        However, if the test samples are also provided during the fit,
+        the similarity vectors can be precomputed too
+        and then training_data\ is None
 
     test_raw_data_: a list of 2D array in shape [num_TRs, num_voxels]
         default None
@@ -69,7 +78,10 @@ class Classifier(BaseEstimator):
         default None
         test_data\_ is set after a prediction is called,
         so that the test data does not need to be regenerated in the
-        subsequent operations, e.g. getting decision values of the prediction
+        subsequent operations, e.g. getting decision values of the prediction.
+        test_data\_ may also be set in the fit method
+        if SVM.SVC with precomputed kernel and the test samples are known.
+        NOTE: the test samples will never be used to fit the model.
 
     num_voxels_: int
         The number of voxels per brain used in this classifier
@@ -82,24 +94,34 @@ class Classifier(BaseEstimator):
     """
     def __init__(self,
                  clf,
+                 num_processed_voxels=1000,
                  epochs_per_subj=0):
         self.clf = clf
+        self.num_processed_voxels = num_processed_voxels
         self.epochs_per_subj = epochs_per_subj
         return
 
-    def _prepare_auto_corerelation_data(self, X):
+    def _prepare_auto_corerelation_data(self, X,
+                                        start_voxel=0,
+                                        num_voxels_1=0):
         """ compute auto-correlation for the input data X
+
+        it will generate the correlation between some voxels and all voxels
 
         Parameters
         ----------
         X: a list of numpy array in shape [num_TRs, num_voxels]
             len(X) is the number of samples
             assuming all elements of X has the same num_voxels value
+        start_voxel: int, default 0
+            the starting voxel id for correlation computation
+        num_voxels_1: int, default self.num_voxels_
+            the number of voxels it computes for correlation computation
 
         Returns
         -------
         corr_data: the correlation data
-                    in shape [len(X), num_voxels, num_voxels]
+                    in shape [len(X), num_voxels_1, num_voxels]
         """
         num_samples = len(X)
         assert num_samples > 0, \
@@ -108,29 +130,19 @@ class Classifier(BaseEstimator):
         assert num_voxels == self.num_voxels_, \
             'the number of voxels provided by X does not match ' \
             'the number of voxels defined in the model'
-        corr_data = np.zeros((num_samples, num_voxels, num_voxels),
+        if num_voxels_1 == 0:
+            num_voxels_1 = num_voxels
+        corr_data = np.zeros((num_samples, num_voxels_1, num_voxels),
                              np.float32, order='C')
         # compute correlation
-        count = 0
-        for data in X:
+        for idx, data in enumerate(X):
             num_TRs = data.shape[0]
-            # syrk performs slower in this case
-            # blas.compute_single_self_correlation_syrk('L', 'N',
-            #                                     num_voxels,
-            #                                     num_TRs,
-            #                                    1.0, data,
-            #                                     num_voxels, 0.0,
-            #                                     corr_data,
-            #                                     num_voxels, count)
-            blas.compute_single_self_correlation_gemm('N', 'T',
-                                                      num_voxels,
-                                                      num_voxels,
-                                                      num_TRs,
-                                                      1.0, data,
-                                                      num_voxels, num_voxels,
-                                                      0.0, corr_data,
-                                                      num_voxels, count)
-            count += 1
+            blas.compute_corr_vectors('N', 'T',
+                                      num_voxels, num_voxels_1, num_TRs,
+                                      1.0, data, num_voxels,
+                                      data, num_voxels,
+                                      0.0, corr_data, num_voxels,
+                                      start_voxel, idx)
         logger.debug(
             'correlation computation done'
         )
@@ -145,7 +157,7 @@ class Classifier(BaseEstimator):
         Parameters
         ----------
         corr_data: the correlation data
-                    in shape [num_samples, num_voxels, num_voxels]
+                    in shape [num_samples, num_voxels_1, num_voxels]
         norm_unit: int
                     the number of samples on which the normalization
                     is performed
@@ -158,14 +170,14 @@ class Classifier(BaseEstimator):
         # normalize if necessary
         if norm_unit > 1:
             num_samples = len(corr_data)
-            num_voxels = self.num_voxels_
+            [_, d2, d3] = corr_data.shape
+            second_dimension = d2 * d3
             normalized_corr_data = corr_data.reshape(1,
                                                      num_samples,
-                                                     num_voxels * num_voxels)
+                                                     second_dimension)
             fcma_extension.normalization(normalized_corr_data, norm_unit)
             normalized_corr_data = normalized_corr_data.reshape(num_samples,
-                                                                num_voxels,
-                                                                num_voxels)
+                                                                d2, d3)
             logger.debug(
                 'normalization done'
             )
@@ -257,41 +269,58 @@ class Classifier(BaseEstimator):
         num_voxels = X[0].shape[1]  # see assumption above
         self.num_voxels_ = num_voxels
         self.num_samples_ = num_samples
-        # correlation computation
-        corr_data = self._prepare_auto_corerelation_data(X)
-        # normalization
-        normalized_corr_data = self._normalize_correlation_data(
-            corr_data,
-            self.epochs_per_subj)
-        # training
-        if isinstance(self.clf, sklearn.svm.SVC) \
+        if not isinstance(self.clf, sklearn.svm.SVC) \
                 and self.clf.kernel == 'precomputed':
-            kernel_matrix = np.zeros((num_samples, num_samples),
-                                     np.float32,
-                                     order='C')
-            # for using kernel matrix computation from voxel selection
-            normalized_corr_data = normalized_corr_data.reshape(
-                1,
-                num_samples,
-                num_voxels * num_voxels)
-            blas.compute_kernel_matrix('L', 'T',
-                                       num_samples, num_voxels * num_voxels,
-                                       1.0, corr_data,
-                                       0, num_voxels * num_voxels,
-                                       0.0, kernel_matrix, num_samples)
-            data = kernel_matrix
-            # training data is in shape [num_samples, num_voxels * num_voxels]
-            self.training_data_ = normalized_corr_data.reshape(
-                num_samples,
-                num_voxels * num_voxels)
-            logger.debug(
-                'kernel computation done'
-            )
-        else:
+            # correlation computation
+            corr_data = self._prepare_auto_corerelation_data(X)
+            # normalization
+            normalized_corr_data = self._normalize_correlation_data(
+                corr_data,
+                self.epochs_per_subj)
+            # training data prepare
             data = normalized_corr_data.reshape(num_samples,
                                                 num_voxels * num_voxels)
             self.training_data_ = None
-
+        else: # SVM with precomputed kernel
+            kernel_matrix = np.zeros((num_samples, num_samples),
+                                     np.float32,
+                                     order='C')
+            sr = 0
+            row_length = self.num_processed_voxels
+            while sr < num_voxels:
+                if row_length >= num_voxels - sr:
+                    row_length = num_voxels - sr
+                # compute sub-correlation
+                corr_data = self._prepare_auto_corerelation_data(X, sr, row_length)
+                # normalization
+                normalized_corr_data = self._normalize_correlation_data(
+                    corr_data,
+                    self.epochs_per_subj)
+                # compute partial similarity matrices
+                # for using kernel matrix computation from voxel selection
+                normalized_corr_data = normalized_corr_data.reshape(
+                    1,
+                    num_samples,
+                    row_length * num_voxels)
+                blas.compute_kernel_matrix('L', 'T',
+                                           num_samples, row_length * num_voxels,
+                                           1.0, corr_data,
+                                           0, row_length * num_voxels,
+                                           1.0, kernel_matrix, num_samples)
+                sr += row_length
+            data = kernel_matrix
+            if self.num_processed_voxels >= num_voxels:
+                # training data is in shape [num_samples, num_voxels * num_voxels]
+                self.training_data_ = normalized_corr_data.reshape(
+                    num_samples,
+                    num_voxels * num_voxels)
+            else:
+                # do not store training data because it was partially computed
+                self.training_data_ = None
+            logger.debug(
+                'kernel computation done'
+            )
+        # training
         self.clf = self.clf.fit(data, y)
         self.test_raw_data_ = None
         self.test_data_ = None

@@ -248,13 +248,14 @@ class VoxelSelector:
         for mat in self.raw_data:
             no_trans = 'N'
             trans = 'T'
-            blas.compute_correlation(no_trans, trans,
-                                     self.num_voxels, task[1],
-                                     mat.shape[0], 1.0,
-                                     mat, self.num_voxels,
-                                     s, self.num_voxels,
-                                     0.0, corr,
-                                     self.num_voxels * nEpochs, count)
+            blas.compute_self_corr_for_voxel_sel(no_trans, trans,
+                                                 self.num_voxels, task[1],
+                                                 mat.shape[0], 1.0,
+                                                 mat, self.num_voxels,
+                                                 s, self.num_voxels,
+                                                 0.0, corr,
+                                                 self.num_voxels * nEpochs,
+                                                 count)
             count += 1
         time2 = time.time()
         logger.debug(
