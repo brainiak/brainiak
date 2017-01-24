@@ -33,7 +33,7 @@ epochs = 5
 dimensions = np.array([10, 10, 10])  # What is the size of the brain
 
 # Where will the data be stored?
-directory = 'examples/fcma/simulated/'
+directory = 'simulated/'
 
 # Make the directory if it hasn't been made yet
 if os.path.isdir(directory) is False:
@@ -131,7 +131,7 @@ signal *= mask
 
 # Iterate through the participants and store participants
 epochs = []
-for participantcounter in list(range(1, participants + 1)):
+for participantcounter in range(1, participants + 1):
 
     # Add the epoch cube
     epochs += [epoch]
