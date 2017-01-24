@@ -20,7 +20,6 @@ import sys
 import logging
 import numpy as np
 from scipy.spatial.distance import hamming
-import gc
 #from sklearn.externals import joblib
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -43,10 +42,30 @@ if __name__ == '__main__':
 
     raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
 
+    # aggregate the similarity matrix to save memory
+    use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    clf = Classifier(use_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
+    rearranged_data = raw_data[num_epochs_per_subj:] + raw_data[0:num_epochs_per_subj]
+    rearranged_labels = labels[num_epochs_per_subj:] + labels[0:num_epochs_per_subj]
+    clf.fit(rearranged_data, rearranged_labels,
+            num_training_samples=num_epochs_per_subj*(num_subjects-1))
+    predict = clf.predict()
+    print(predict)
+    print(clf.decision_function())
+    test_labels = labels[0:num_epochs_per_subj]
+    print(np.asanyarray(test_labels))
+    incorrect_predict = hamming(predict, np.asanyarray(test_labels)) * num_epochs_per_subj
+    logger.info(
+        'when aggregating the similarity matrix to save memory, '
+        'the accuracy is %d / %d = %.2f' %
+        (num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
+         (num_epochs_per_subj-incorrect_predict)*1.0/num_epochs_per_subj)
+    )
+
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     #use_clf = LogisticRegression()
-    clf = Classifier(use_clf, num_processed_voxels=2000, epochs_per_subj=num_epochs_per_subj)
+    clf = Classifier(use_clf, epochs_per_subj=num_epochs_per_subj)
 
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):
@@ -70,4 +89,3 @@ if __name__ == '__main__':
             (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
              (num_epochs_per_subj-incorrect_predict)*1.0/num_epochs_per_subj)
         )
-        gc.collect()

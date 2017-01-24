@@ -189,12 +189,6 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a,
     C = py_c
     blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[py_start_voxel, 0, 0], &lda,
                &beta, &C[0, 0], &ldc)
-    # shrink the values for getting more stable alpha values
-    # in SVM training iteration
-    num_digits = len(str(int(py_c[0, 0])))
-    if num_digits > 2:
-        proportion = 10**(2-num_digits)
-        py_c *= proportion
     # complete the other half of the kernel matrix
     if py_uplo == 'L':
         for j in range(py_c.shape[0]):

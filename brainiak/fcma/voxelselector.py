@@ -333,6 +333,12 @@ class VoxelSelector:
                                            1.0, corr,
                                            i, self.num_voxels,
                                            0.0, kernel_matrix, e)
+                # shrink the values for getting more stable alpha values
+                # in SVM training iteration
+                num_digits = len(str(int(kernel_matrix[0, 0])))
+                if num_digits > 2:
+                    proportion = 10**(2-num_digits)
+                    kernel_matrix *= proportion
                 data = kernel_matrix
             else:
                 data = corr[i, :, :]
