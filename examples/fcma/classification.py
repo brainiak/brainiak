@@ -28,20 +28,7 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-
-# python classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
-if __name__ == '__main__':
-    data_dir = sys.argv[1]
-    extension = sys.argv[2]
-    mask_file = sys.argv[3]
-    epoch_file = sys.argv[4]
-
-    epoch_list = np.load(epoch_file)
-    num_subjects = len(epoch_list)
-    num_epochs_per_subj = epoch_list[0].shape[1]
-
-    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
-
+def example_of_aggregating_sim_matrix(raw_data, labels):
     # aggregate the similarity matrix to save memory
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     clf = Classifier(use_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
@@ -59,14 +46,14 @@ if __name__ == '__main__':
         'when aggregating the similarity matrix to save memory, '
         'the accuracy is %d / %d = %.2f' %
         (num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
-         (num_epochs_per_subj-incorrect_predict)*1.0/num_epochs_per_subj)
+         (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
     )
 
+def example_of_cross_validation_on_regular_classifier(raw_data, labels):
     # no shrinking, set C=1
     use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     #use_clf = LogisticRegression()
     clf = Classifier(use_clf, epochs_per_subj=num_epochs_per_subj)
-
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):
         leave_start = i * num_epochs_per_subj
@@ -89,3 +76,20 @@ if __name__ == '__main__':
             (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
              (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
         )
+
+# python classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
+if __name__ == '__main__':
+    data_dir = sys.argv[1]
+    extension = sys.argv[2]
+    mask_file = sys.argv[3]
+    epoch_file = sys.argv[4]
+
+    epoch_list = np.load(epoch_file)
+    num_subjects = len(epoch_list)
+    num_epochs_per_subj = epoch_list[0].shape[1]
+
+    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
+
+    example_of_aggregating_sim_matrix(raw_data, labels)
+
+    example_of_cross_validation_on_regular_classifier(raw_data, labels)
