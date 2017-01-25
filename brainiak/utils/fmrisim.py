@@ -576,25 +576,32 @@ def double_gamma_hrf(stimfunction,
 
     """
 
+    temporal_resolution = 0.001  # What is the temporal resolution (in s)
+
     hrf_length = 30  # How long is the HRF being created
 
-    hrf = [0] * hrf_length  # How many seconds of the HRF will you model?
+    # How many seconds of the HRF will you model?
+    hrf = [0] * int(hrf_length / temporal_resolution)
 
-    for hrf_counter in list(range(0, hrf_length - 1)):
+    for hrf_counter in list(range(len(hrf) - 1)):
         # When is the peak of the two aspects of the HRF
         response_peak = response_delay * response_dispersion
         undershoot_peak = undershoot_delay * undershoot_dispersion
 
         # Specify the elements of the HRF for both the response and undershoot
-        resp_pow = math.pow(hrf_counter / response_peak, response_delay)
-        resp_exp = math.exp(-(hrf_counter - response_peak) /
+        resp_pow = math.pow((hrf_counter * temporal_resolution) /
+                            response_peak, response_delay)
+        resp_exp = math.exp(-((hrf_counter * temporal_resolution) -
+                              response_peak) /
                             response_dispersion)
 
         response_model = response_scale * resp_pow * resp_exp
 
-        undershoot_pow = math.pow(hrf_counter / undershoot_peak,
+        undershoot_pow = math.pow((hrf_counter * temporal_resolution) /
+                                  undershoot_peak,
                                   undershoot_delay)
-        undershoot_exp = math.exp(-(hrf_counter - undershoot_peak /
+        undershoot_exp = math.exp(-((hrf_counter * temporal_resolution) -
+                                    undershoot_peak /
                                     undershoot_dispersion))
 
         undershoot_model = undershoot_scale * undershoot_pow * undershoot_exp
@@ -602,14 +609,14 @@ def double_gamma_hrf(stimfunction,
         # For this time point find the value of the HRF
         hrf[hrf_counter] = response_model - undershoot_model
 
-    # Decimate the stim function so that it only has one element per TR
-    stimfunction = stimfunction[0::int(tr_duration * 1000)]
-
     # Convolve the hrf that was created with the boxcar input
     signal_function = np.convolve(stimfunction, hrf)
 
+    # Decimate the signal function so that it only has one element per TR
+    signal_function = signal_function[0::int(tr_duration * 1000)]
+
     # Cut off the HRF
-    signal_function = signal_function[0:len(stimfunction)]
+    signal_function = signal_function[0:int(len(stimfunction) / 1000)]
 
     # Scale the function so that the peak response is 1
     signal_function = signal_function / np.max(signal_function)

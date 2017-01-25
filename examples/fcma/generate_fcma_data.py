@@ -14,7 +14,18 @@
 
 """Generate simulated data for FCMA example
 
-Generate example data for FCMA analyses that uses fmrisim
+Generate example data for FCMA analyses that uses fmrisim.
+
+This creates two conditions, a and b, with 5 trials for each condtion and
+5 participants total. Each trial is 10 TRs long with 7 TRs of stimulation.
+Brains are extremely downsampled (10 voxels cubed) in order to help
+processing speed.
+
+The signal that discriminates these conditions is such that one region
+responds to both conditions whereas another region responds differently to
+the two conditions. For instance, imagine voxel X responds to common
+activation but voxel A only responds in condition A and voxel B only
+responds in condition B.
 
  Authors: Cameron Ellis (Princeton) 2017
 """
@@ -27,10 +38,15 @@ import os
 logger = logging.getLogger(__name__)
 
 
-# Set the experimental parameters
-participants = 5
-epochs = 5
+# Default experimental parameters (These can all be changed (will affect
+# processing time)
+participants = 5  # How many participants are being created
+epochs = 5  # How many trials
 dimensions = np.array([10, 10, 10])  # What is the size of the brain
+stim_dur = 7  # How long is each stimulation period
+rest_dur = 3  # How long is the rest between stimulation
+conds = 2  # How many conditions are there
+fcma_better = 1  # this data is made so fcma will succeed and mvpa will fail
 
 # Where will the data be stored?
 directory = 'simulated/'
@@ -40,94 +56,93 @@ if os.path.isdir(directory) is False:
     os.mkdir(directory)
 
 # Prepare the feature attributes
-feature_size = [2]
+feature_size = [1]
 feature_type = ['cube']
-coordinates_a = np.array(
-    [[3, 3, 2], [3, 5, 4]])
-coordinates_b = np.array(
-    [[6, 4, 2], [6, 5, 4]])
-signal_magnitude = [1]
+coordinates=[]
+coordinates += [np.array(
+    [[3, 3, 3], [3, 5, 4]])]
+coordinates += [np.array(
+    [[3, 3, 3], [6, 5, 4]])]
+coordinates += [np.array(
+    [[3, 3, 3], [5, 6, 4]])]
+signal_magnitude = [1]  # How big is the signal (in SD)
+
 
 # Inputs for generate_stimfunction
-onsets_a = []
-onsets_b = []
-weights = []
-tr_duration = 1
-event_durations = [1]
-duration = 100
+onsets = list(range(conds))
+weights = list(range(conds))
+tr_duration = 2
+event_durations = [tr_duration]
+trial_dur = stim_dur + rest_dur
+duration = epochs * trial_dur * conds
 
 # Create the epoch cube
-epoch = np.zeros([2, epochs * 2, int(duration / tr_duration)], np.int8,
+epoch = np.zeros([conds, epochs * conds, int(duration / tr_duration)], np.int8,
                  order='C')
 
-for idx in list(range(0, epochs)):
-    onsets_a += list(range((idx * 20) + 10, (idx * 20) + 17, tr_duration))
-    onsets_b += list(range(idx * 20, (idx * 20) + 7, tr_duration))
+# Iterate through the epochs and conditions
+for cond_counter in list(range(conds)):
 
-    epoch[0, idx * 2, ((idx * 20) + 10):((idx * 20) + 17)] = 1
-    epoch[1, ((idx * 2) + 1), (idx * 20):((idx * 20) + 7)] = 1
+    onsets[cond_counter] = []  # Add a list for this condition
+    weights[cond_counter] = []
+    for idx in list(range(0, epochs)):
 
-    # The pattern of activity for each trial
-    weights += [0.5, 1.0, 1.0, 0.0, -1.0, -1.0, -0.5]
+        # When does each epoch start and end
+        start_idx = (idx * trial_dur * conds) + (trial_dur * cond_counter)
+        end_idx = start_idx + stim_dur
 
-# Generate a volume representing the location and quality of the signal
-volume_static_a = sim.generate_signal(dimensions=dimensions,
-                                      feature_coordinates=coordinates_a,
-                                      feature_type=feature_type,
-                                      feature_size=feature_size,
-                                      signal_magnitude=signal_magnitude,
-                                      )
+        # Store these start and end times
+        onsets[cond_counter] += list(range(start_idx, end_idx, tr_duration))
+        epoch[cond_counter, idx * conds + cond_counter, start_idx:end_idx] = 1
 
-volume_static_b = sim.generate_signal(dimensions=dimensions,
-                                      feature_coordinates=coordinates_b,
-                                      feature_type=feature_type,
-                                      feature_size=feature_size,
-                                      signal_magnitude=signal_magnitude,
-                                      )
+        # The pattern of activity for each trial
+        weight = ([1] * int(np.floor(stim_dur / 2))) + ([-1]*int(np.ceil(
+            stim_dur / 2)))
+        weights[cond_counter] += weight
 
-# Create the time course for the signal to be generated
-stimfunction_a = sim.generate_stimfunction(onsets=onsets_a,
-                                           event_durations=event_durations,
-                                           total_time=duration,
-                                           weights=weights,
+# Iterate through the conditions to make the necessary functions
+for cond in list(range(conds)):
+
+    # Generate a volume representing the location and quality of the signal
+    volume_static = sim.generate_signal(dimensions=dimensions,
+                                        feature_coordinates=coordinates[cond],
+                                        feature_type=feature_type,
+                                        feature_size=feature_size,
+                                        signal_magnitude=signal_magnitude,
+                                        )
+
+    # Create the time course for the signal to be generated
+    stimfunction_cond = sim.generate_stimfunction(onsets=onsets[cond],
+                                                  event_durations=
+                                                  event_durations,
+                                                  total_time=duration,
+                                                  weights=weights[cond],
+                                                  )
+
+    # Convolve the HRF with the stimulus sequence
+    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction_cond,
+                                           tr_duration=tr_duration,
                                            )
 
-stimfunction_b = sim.generate_stimfunction(onsets=onsets_b,
-                                           event_durations=event_durations,
-                                           total_time=duration,
-                                           weights=weights,
-                                           )
+    # Multiply the HRF timecourse with the signal
+    signal_cond = sim.apply_signal(signal_function=signal_function,
+                                   volume_static=volume_static,
+                                   )
 
-# Convolve the HRF with the stimulus sequence
-signal_function_a = sim.double_gamma_hrf(stimfunction=stimfunction_a,
-                                         tr_duration=tr_duration,
-                                         )
-
-signal_function_b = sim.double_gamma_hrf(stimfunction=stimfunction_b,
-                                         tr_duration=tr_duration,
-                                         )
-
-# Multiply the HRF timecourse with the signal
-signal_a = sim.apply_signal(signal_function=signal_function_a,
-                            volume_static=volume_static_a,
-                            )
-
-signal_b = sim.apply_signal(signal_function=signal_function_b,
-                            volume_static=volume_static_b,
-                            )
-
-# Combine the signals from the two conditions
-signal = signal_a + signal_b
-
-# Combine the stim functions
-stimfunction = list(np.add(stimfunction_a, stimfunction_b))
+    # Concatenate all the signal and function files
+    if cond == 0:
+        stimfunction = stimfunction_cond
+        signal = signal_cond
+    else:
+        stimfunction = list(np.add(stimfunction, stimfunction_cond))
+        signal += signal_cond
 
 # Generate the mask of the signal
 mask = sim.mask_brain(signal)
 
-# Mask the signal to the shape of a brain (attenuates signal according
+# Mask the signal to the shape of a brain (does not attenuate signal according
 # to grey matter likelihood)
-signal *= mask
+signal *= mask > 0
 
 # Iterate through the participants and store participants
 epochs = []
