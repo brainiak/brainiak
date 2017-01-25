@@ -69,6 +69,6 @@ if __name__ == '__main__':
         logger.info(
             'when leaving subject %d out for testing, the accuracy is %d / %d = %.2f' %
             (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
-             (num_epochs_per_subj-incorrect_predict)*1.0/num_epochs_per_subj)
+             (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
         )
     logger.info('MVPA training and classification done')
