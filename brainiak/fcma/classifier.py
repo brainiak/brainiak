@@ -103,7 +103,7 @@ class Classifier(BaseEstimator):
         self.clf = clf
         self.num_processed_voxels = num_processed_voxels
         self.epochs_per_subj = epochs_per_subj
-        self.num_digits_= 0
+        self.num_digits_ = 0
         return
 
     def _prepare_auto_corerelation_data(self, X,
@@ -178,6 +178,7 @@ class Classifier(BaseEstimator):
             num_samples = len(corr_data)
             [_, d2, d3] = corr_data.shape
             second_dimension = d2 * d3
+            # this is a shallow copy
             normalized_corr_data = corr_data.reshape(1,
                                                      num_samples,
                                                      second_dimension)
@@ -248,6 +249,45 @@ class Classifier(BaseEstimator):
                                      num_voxels * num_voxels)
         return data
 
+    def _compute_similarity_matrix_in_portion(self, X):
+        kernel_matrix = np.zeros((self.num_samples_, self.num_samples_),
+                                 np.float32,
+                                 order='C')
+        sr = 0
+        row_length = self.num_processed_voxels
+        normalized_corr_data = None
+        while sr < self.num_voxels_:
+            if row_length >= self.num_voxels_ - sr:
+                row_length = self.num_voxels_ - sr
+            # compute sub-correlation
+            corr_data = self._prepare_auto_corerelation_data(X, sr,
+                                                             row_length)
+            # normalization
+            normalized_corr_data = self._normalize_correlation_data(
+                corr_data,
+                self.epochs_per_subj)
+            # compute partial similarity matrices
+            # for using kernel matrix computation from voxel selection
+            normalized_corr_data = normalized_corr_data.reshape(
+                1,
+                self.num_samples_,
+                row_length * self.num_voxels_)
+            blas.compute_kernel_matrix('L', 'T',
+                                       self.num_samples_,
+                                       row_length * self.num_voxels_,
+                                       1.0, normalized_corr_data,
+                                       0, row_length * self.num_voxels_,
+                                       1.0, kernel_matrix, self.num_samples_)
+            sr += row_length
+        # shrink the values for getting more stable alpha values
+        # in SVM training iteration
+        num_digits = len(str(int(kernel_matrix[0, 0])))
+        self.num_digits_ = num_digits
+        if num_digits > 2:
+            proportion = 10**(2-num_digits)
+            kernel_matrix *= proportion
+        return kernel_matrix, normalized_corr_data
+
     def fit(self, X, y, num_training_samples=None):
         """ use correlation data to train a model
 
@@ -281,8 +321,8 @@ class Classifier(BaseEstimator):
         num_voxels = X[0].shape[1]  # see assumption above
         self.num_voxels_ = num_voxels
         self.num_samples_ = num_samples
-        if not isinstance(self.clf, sklearn.svm.SVC) \
-                and self.clf.kernel == 'precomputed':
+        if not (isinstance(self.clf, sklearn.svm.SVC)
+                and self.clf.kernel == 'precomputed'):
             if num_training_samples is not None:
                 num_training_samples = None
                 logger.warn(
@@ -299,51 +339,23 @@ class Classifier(BaseEstimator):
             data = normalized_corr_data.reshape(num_samples,
                                                 num_voxels * num_voxels)
             self.training_data_ = None
-        else: # SVM with precomputed kernel
+        else:  # SVM with precomputed kernel
             if self.num_processed_voxels < num_voxels:
                 if num_training_samples is None:
-                    raise RuntimeError('the similarity matrix will be computed portion by portion, '
-                                      'the test samples must be predefined by specifying '
-                                      'num_training_samples')
+                    raise RuntimeError('the similarity matrix will be '
+                                       'computed portion by portion, '
+                                       'the test samples must be predefined '
+                                       'by specifying '
+                                       'num_training_samples')
                 if num_training_samples >= num_samples:
-                    raise ValueError('the number of training samples must be smaller than '
+                    raise ValueError('the number of training samples '
+                                     'must be smaller than '
                                      'the number of total samples')
-            kernel_matrix = np.zeros((num_samples, num_samples),
-                                     np.float32,
-                                     order='C')
-            sr = 0
-            row_length = self.num_processed_voxels
-            while sr < num_voxels:
-                if row_length >= num_voxels - sr:
-                    row_length = num_voxels - sr
-                # compute sub-correlation
-                corr_data = self._prepare_auto_corerelation_data(X, sr, row_length)
-                # normalization
-                normalized_corr_data = self._normalize_correlation_data(
-                    corr_data,
-                    self.epochs_per_subj)
-                # compute partial similarity matrices
-                # for using kernel matrix computation from voxel selection
-                normalized_corr_data = normalized_corr_data.reshape(
-                    1,
-                    num_samples,
-                    row_length * num_voxels)
-                blas.compute_kernel_matrix('L', 'T',
-                                           num_samples, row_length * num_voxels,
-                                           1.0, corr_data,
-                                           0, row_length * num_voxels,
-                                           1.0, kernel_matrix, num_samples)
-                sr += row_length
-            # shrink the values for getting more stable alpha values
-            # in SVM training iteration
-            num_digits = len(str(int(kernel_matrix[0, 0])))
-            self.num_digits_ = num_digits
-            if num_digits > 2:
-                proportion = 10**(2-num_digits)
-                kernel_matrix *= proportion
-            data = kernel_matrix
+            data, normalized_corr_data = \
+                self._compute_similarity_matrix_in_portion(X)
             if self.num_processed_voxels >= num_voxels:
-                # training data is in shape [num_samples, num_voxels * num_voxels]
+                # training data is in shape
+                # [num_samples, num_voxels * num_voxels]
                 self.training_data_ = normalized_corr_data.reshape(
                     num_samples,
                     num_voxels * num_voxels)
@@ -356,9 +368,9 @@ class Classifier(BaseEstimator):
 
         if num_training_samples is not None:
             self.test_raw_data_ = data[num_training_samples:,
-                                  0:num_training_samples]
+                                       0:num_training_samples]
             self.test_data_ = data[num_training_samples:,
-                              0:num_training_samples]
+                                   0:num_training_samples]
             # limit training to the data specified by num_training_samples
             data = data[0:num_training_samples, 0:num_training_samples]
         # training
