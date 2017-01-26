@@ -37,11 +37,26 @@ __all__ = [
 class Classifier(BaseEstimator):
     """Correlation-based classification component of FCMA
 
+    The classifier first computes correlation of the input data,
+    and normalizes them if needed, then uses the given classifier
+    to train and/or predict the correlation data.
+    NOTE: if the classifier is sklearn.svm.SVC with precomputed kernel,
+    the test data may be provided in the fit method to compute
+    the kernel matrix together with the training data to save the memory usage,
+    but the test data will NEVER be seen in the model training.
+
     Parameters
     ----------
 
     clf: class
         The classifier used, normally a classifier class of sklearn
+
+    num_processed_voxels: int, default 2000
+        Used for SVM with precomputed kernel,
+        every time it only computes correlation between num_process_voxels and
+        the whole mask to aggregate the kernel matrices.
+        This is to save the memory
+        so as to handle correlations at a larger scale.
 
     epochs_per_subj: int, default 0
         The number of epochs of each subject
@@ -54,10 +69,12 @@ class Classifier(BaseEstimator):
     ----------
 
     training_data_: 2D numpy array in shape [num_samples, num_features]
-        default None
         training_data\_ is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
-        the similarity vector for each sample to be classified
+        the similarity vector for each sample to be classified.
+        However, if the test samples are also provided during the fit,
+        the similarity vectors can be precomputed too
+        and then training_data\ is None
 
     test_raw_data_: a list of 2D array in shape [num_TRs, num_voxels]
         default None
@@ -69,7 +86,11 @@ class Classifier(BaseEstimator):
         default None
         test_data\_ is set after a prediction is called,
         so that the test data does not need to be regenerated in the
-        subsequent operations, e.g. getting decision values of the prediction
+        subsequent operations, e.g. getting decision values of the prediction.
+        test_data\_ may also be set in the fit method
+        if sklearn.svm.SVC with precomputed kernel
+        and the test samples are known.
+        NOTE: the test samples will never be used to fit the model.
 
     num_voxels_: int
         The number of voxels per brain used in this classifier
@@ -79,27 +100,43 @@ class Classifier(BaseEstimator):
 
     num_samples_: int
         The number of samples of the training set
+
+    num_digits_: int
+        The number of digits of the first value of the kernel matrix,
+        for normalizing the similarity values accordingly
     """
     def __init__(self,
                  clf,
+                 num_processed_voxels=2000,
                  epochs_per_subj=0):
         self.clf = clf
+        self.num_processed_voxels = num_processed_voxels
         self.epochs_per_subj = epochs_per_subj
+        self.num_digits_ = 0
         return
 
-    def _prepare_corerelation_data(self, X):
+    def _prepare_auto_corerelation_data(self, X,
+                                        start_voxel=0,
+                                        num_processed_voxels=None):
         """ compute auto-correlation for the input data X
+
+        it will generate the correlation between some voxels and all voxels
 
         Parameters
         ----------
         X: a list of numpy array in shape [num_TRs, num_voxels]
             len(X) is the number of samples
             assuming all elements of X has the same num_voxels value
+        start_voxel: int, default 0
+            the starting voxel id for correlation computation
+        num_processed_voxels: int, default None
+            the number of voxels it computes for correlation computation
+            if it is None, it is set to self.num_voxels
 
         Returns
         -------
         corr_data: the correlation data
-                    in shape [len(X), num_voxels, num_voxels]
+                    in shape [len(X), num_processed_voxels, num_voxels]
         """
         num_samples = len(X)
         assert num_samples > 0, \
@@ -108,29 +145,20 @@ class Classifier(BaseEstimator):
         assert num_voxels == self.num_voxels_, \
             'the number of voxels provided by X does not match ' \
             'the number of voxels defined in the model'
-        corr_data = np.zeros((num_samples, num_voxels, num_voxels),
+        if num_processed_voxels is None:
+            num_processed_voxels = num_voxels
+        corr_data = np.zeros((num_samples, num_processed_voxels, num_voxels),
                              np.float32, order='C')
         # compute correlation
-        count = 0
-        for data in X:
+        for idx, data in enumerate(X):
             num_TRs = data.shape[0]
-            # syrk performs slower in this case
-            # blas.compute_single_self_correlation_syrk('L', 'N',
-            #                                     num_voxels,
-            #                                     num_TRs,
-            #                                    1.0, data,
-            #                                     num_voxels, 0.0,
-            #                                     corr_data,
-            #                                     num_voxels, count)
-            blas.compute_single_self_correlation_gemm('N', 'T',
-                                                      num_voxels,
-                                                      num_voxels,
-                                                      num_TRs,
-                                                      1.0, data,
-                                                      num_voxels, num_voxels,
-                                                      0.0, corr_data,
-                                                      num_voxels, count)
-            count += 1
+            blas.compute_corr_vectors('N', 'T',
+                                      num_voxels, num_processed_voxels,
+                                      num_TRs,
+                                      1.0, data, num_voxels,
+                                      data, num_voxels,
+                                      0.0, corr_data, num_voxels,
+                                      start_voxel, idx)
         logger.debug(
             'correlation computation done'
         )
@@ -145,7 +173,7 @@ class Classifier(BaseEstimator):
         Parameters
         ----------
         corr_data: the correlation data
-                    in shape [num_samples, num_voxels, num_voxels]
+                    in shape [num_samples, num_processed_voxels, num_voxels]
         norm_unit: int
                     the number of samples on which the normalization
                     is performed
@@ -158,14 +186,15 @@ class Classifier(BaseEstimator):
         # normalize if necessary
         if norm_unit > 1:
             num_samples = len(corr_data)
-            num_voxels = self.num_voxels_
+            [_, d2, d3] = corr_data.shape
+            second_dimension = d2 * d3
+            # this is a shallow copy
             normalized_corr_data = corr_data.reshape(1,
                                                      num_samples,
-                                                     num_voxels * num_voxels)
+                                                     second_dimension)
             fcma_extension.normalization(normalized_corr_data, norm_unit)
             normalized_corr_data = normalized_corr_data.reshape(num_samples,
-                                                                num_voxels,
-                                                                num_voxels)
+                                                                d2, d3)
             logger.debug(
                 'normalization done'
             )
@@ -218,7 +247,7 @@ class Classifier(BaseEstimator):
                                                       num_training_samples)
             # shrink the values for getting more stable alpha values
             # in SVM training iteration
-            num_digits = len(str(int(data[0, 0])))
+            num_digits = self.num_digits_
             if num_digits > 2:
                 proportion = 10**(2-num_digits)
                 data *= proportion
@@ -230,7 +259,46 @@ class Classifier(BaseEstimator):
                                      num_voxels * num_voxels)
         return data
 
-    def fit(self, X, y):
+    def _compute_similarity_matrix_in_portion(self, X):
+        kernel_matrix = np.zeros((self.num_samples_, self.num_samples_),
+                                 np.float32,
+                                 order='C')
+        sr = 0
+        row_length = self.num_processed_voxels
+        normalized_corr_data = None
+        while sr < self.num_voxels_:
+            if row_length >= self.num_voxels_ - sr:
+                row_length = self.num_voxels_ - sr
+            # compute sub-correlation
+            corr_data = self._prepare_auto_corerelation_data(X, sr,
+                                                             row_length)
+            # normalization
+            normalized_corr_data = self._normalize_correlation_data(
+                corr_data,
+                self.epochs_per_subj)
+            # compute partial similarity matrices
+            # for using kernel matrix computation from voxel selection
+            normalized_corr_data = normalized_corr_data.reshape(
+                1,
+                self.num_samples_,
+                row_length * self.num_voxels_)
+            blas.compute_kernel_matrix('L', 'T',
+                                       self.num_samples_,
+                                       row_length * self.num_voxels_,
+                                       1.0, normalized_corr_data,
+                                       0, row_length * self.num_voxels_,
+                                       1.0, kernel_matrix, self.num_samples_)
+            sr += row_length
+        # shrink the values for getting more stable alpha values
+        # in SVM training iteration
+        num_digits = len(str(int(kernel_matrix[0, 0])))
+        self.num_digits_ = num_digits
+        if num_digits > 2:
+            proportion = 10**(2-num_digits)
+            kernel_matrix *= proportion
+        return kernel_matrix, normalized_corr_data
+
+    def fit(self, X, y, num_training_samples=None):
         """ use correlation data to train a model
 
         first compute the correlation of the input data,
@@ -245,6 +313,14 @@ class Classifier(BaseEstimator):
             and prepared for correlation computation.
             assuming all elements of X has the same num_voxels value
         y: labels, len(X) equals len(Y)
+        num_training_samples: int, default None
+            The number of samples used in the training,
+            which is set when the similarity matrix is constructed
+            portion by portion so the similarity vectors of the
+            test data have to be computed here.
+            This is ONLY set when sklearn.svm.SVC with
+            precomputed kernel is used.
+            If it is set, only those samples will be used to fit the model.
 
         Returns
         -------
@@ -257,44 +333,64 @@ class Classifier(BaseEstimator):
         num_voxels = X[0].shape[1]  # see assumption above
         self.num_voxels_ = num_voxels
         self.num_samples_ = num_samples
-        # correlation computation
-        corr_data = self._prepare_corerelation_data(X)
-        # normalization
-        normalized_corr_data = self._normalize_correlation_data(
-            corr_data,
-            self.epochs_per_subj)
-        # training
-        if isinstance(self.clf, sklearn.svm.SVC) \
-                and self.clf.kernel == 'precomputed':
-            kernel_matrix = np.zeros((num_samples, num_samples),
-                                     np.float32,
-                                     order='C')
-            # for using kernel matrix computation from voxel selection
-            normalized_corr_data = normalized_corr_data.reshape(
-                1,
-                num_samples,
-                num_voxels * num_voxels)
-            blas.compute_kernel_matrix('L', 'T',
-                                       num_samples, num_voxels * num_voxels,
-                                       1.0, corr_data,
-                                       0, num_voxels * num_voxels,
-                                       0.0, kernel_matrix, num_samples)
-            data = kernel_matrix
-            # training data is in shape [num_samples, num_voxels * num_voxels]
-            self.training_data_ = normalized_corr_data.reshape(
-                num_samples,
-                num_voxels * num_voxels)
-            logger.debug(
-                'kernel computation done'
-            )
-        else:
+        if not (isinstance(self.clf, sklearn.svm.SVC)
+                and self.clf.kernel == 'precomputed'):
+            if num_training_samples is not None:
+                num_training_samples = None
+                logger.warn(
+                    'num_training_samples should not be set for classifiers '
+                    'other than SVM with precomputed kernels'
+                )
+            # correlation computation
+            corr_data = self._prepare_auto_corerelation_data(X)
+            # normalization
+            normalized_corr_data = self._normalize_correlation_data(
+                corr_data,
+                self.epochs_per_subj)
+            # training data prepare
             data = normalized_corr_data.reshape(num_samples,
                                                 num_voxels * num_voxels)
             self.training_data_ = None
+        else:  # SVM with precomputed kernel
+            if self.num_processed_voxels < num_voxels:
+                if num_training_samples is None:
+                    raise RuntimeError('the similarity matrix will be '
+                                       'computed portion by portion, '
+                                       'the test samples must be predefined '
+                                       'by specifying '
+                                       'num_training_samples')
+                if num_training_samples >= num_samples:
+                    raise ValueError('the number of training samples '
+                                     'must be smaller than '
+                                     'the number of total samples')
+            data, normalized_corr_data = \
+                self._compute_similarity_matrix_in_portion(X)
+            if self.num_processed_voxels >= num_voxels:
+                # training data is in shape
+                # [num_samples, num_voxels * num_voxels]
+                self.training_data_ = normalized_corr_data.reshape(
+                    num_samples,
+                    num_voxels * num_voxels)
+            else:
+                # do not store training data because it was partially computed
+                self.training_data_ = None
+            logger.debug(
+                'kernel computation done'
+            )
 
-        self.clf = self.clf.fit(data, y)
-        self.test_raw_data_ = None
-        self.test_data_ = None
+        if num_training_samples is not None:
+            self.test_raw_data_ = data[num_training_samples:,
+                                       0:num_training_samples]
+            self.test_data_ = data[num_training_samples:,
+                                   0:num_training_samples]
+            # limit training to the data specified by num_training_samples
+            data = data[0:num_training_samples, 0:num_training_samples]
+        # training
+        self.clf = self.clf.fit(data, y[0:num_training_samples])
+        # set the test data
+        if num_training_samples is None:
+            self.test_raw_data_ = None
+            self.test_data_ = None
         time2 = time.time()
         logger.info(
             'training done, takes %.2f s' %
@@ -302,18 +398,22 @@ class Classifier(BaseEstimator):
         )
         return self
 
-    def predict(self, X):
+    def predict(self, X=None):
         """ use a trained model to predict correlation data
 
         first compute the correlation of the input data,
         and then normalize across all samples in the list
         if len(X) > 1,
         and then predict via self.clf.
+        If X is None, use the similarity vectors produced in fit
+        to predict
 
         Parameters
         ----------
         X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
-            X contains the activity data filtered by top voxels
+            default None, meaning that the data to be predicted
+            have been processed in the fit method.
+            Otherwise, X contains the activity data filtered by top voxels
             and prepared for correlation computation.
             len(X) is the number of test samples
             if len(X) > 0: normalization is done
@@ -324,15 +424,16 @@ class Classifier(BaseEstimator):
         y_pred: the predicted label of X, in shape [len(X),]
         """
         time1 = time.time()
-        self.test_raw_data_ = X
-        # correlation computation
-        corr_data = self._prepare_corerelation_data(X)
-        # normalization
-        normalized_corr_data = self._normalize_correlation_data(
-                                                                corr_data,
-                                                                len(X))
-        # test data generation
-        self.test_data_ = self._prepare_test_data(normalized_corr_data)
+        if X is not None:
+            self.test_raw_data_ = X
+            # correlation computation
+            corr_data = self._prepare_auto_corerelation_data(X)
+            # normalization
+            normalized_corr_data = self._normalize_correlation_data(
+                corr_data,
+                len(X))
+            # test data generation
+            self.test_data_ = self._prepare_test_data(normalized_corr_data)
         # prediction
         y_pred = self.clf.predict(self.test_data_)
         time2 = time.time()
@@ -365,17 +466,20 @@ class Classifier(BaseEstimator):
                 return False
         return True
 
-    def decision_function(self, X):
+    def decision_function(self, X=None):
         """ output the decision value of the prediction
 
         if X is not equal to self.test_raw_data\_, i.e. predict is not called,
         first generate the test_data
         after getting the test_data, get the decision value via self.clf.
+        if X is None, test_data\_ is ready to be used
 
         Parameters
         ----------
         X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
-            X contains the activity data filtered by top voxels
+            default None, meaning that the data to be predicted
+            have been processed in the fit method.
+            Otherwise, X contains the activity data filtered by top voxels
             and prepared for correlation computation.
             len(X) is the number of test samples
             if len(X) > 1: normalization is done
@@ -385,11 +489,11 @@ class Classifier(BaseEstimator):
         -------
         confidence: the predictions confidence values of X, in shape [len(X),]
         """
-        if not self._is_equal_to_test_raw_data(X):
+        if X is not None and not self._is_equal_to_test_raw_data(X):
             self.test_raw_data_ = X
             # generate the test_data first
             # correlation computation
-            corr_data = self._prepare_corerelation_data(X)
+            corr_data = self._prepare_auto_corerelation_data(X)
             # normalization
             normalized_corr_data = self._normalize_correlation_data(
                                                                     corr_data,

@@ -40,20 +40,21 @@ def create_epoch(idx):
 
 def test_classification():
     fake_raw_data = [create_epoch(i) for i in range(20)]
-    labels = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-    # 4 subjects, 4 epochs per subject
+    labels = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+    # 5 subjects, 4 epochs per subject
     epochs_per_subj = 4
     # svm
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     training_data = fake_raw_data[0: 12]
     clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
-    clf.fit(training_data, labels)
+    clf.fit(training_data, labels[0:12])
     expected_confidence = np.array([-1.18234421, 0.97403604, -1.04005679, 
                                     0.92403019, -0.95567738, 1.11746593,
                                     -0.83275891, 0.9486868])
     recomputed_confidence = clf.decision_function(fake_raw_data[12:])
-    hamming_distance = hamming(np.sign(expected_confidence), 
-			       np.sign(recomputed_confidence))
+    hamming_distance = hamming(np.sign(expected_confidence),
+                               np.sign(recomputed_confidence)) \
+                       * expected_confidence.size
     assert hamming_distance <= 1, \
         'decision function of SVM with recomputation ' \
         'does not provide correct results'
@@ -64,9 +65,25 @@ def test_classification():
         'classification via SVM does not provide correct results'
     confidence = clf.decision_function(fake_raw_data[12:])
     hamming_distance = hamming(np.sign(expected_confidence),
-			       np.sign(confidence))
+			       np.sign(confidence)) * confidence.size
     assert hamming_distance <= 1, \
         'decision function of SVM without recomputation ' \
+        'does not provide correct results'
+    # svm with partial similarity matrix computation
+    clf = Classifier(svm_clf, num_processed_voxels=2,
+                     epochs_per_subj=epochs_per_subj)
+    clf.fit(fake_raw_data, labels, num_training_samples=12)
+    y_pred = clf.predict()
+    expected_output = [0, 0, 0, 1, 0, 1, 0, 1]
+    hamming_distance = hamming(y_pred, expected_output) * len(y_pred)
+    assert hamming_distance <= 1, \
+        'classification via SVM (partial sim) does not ' \
+        'provide correct results'
+    confidence = clf.decision_function()
+    hamming_distance = hamming(np.sign(expected_confidence),
+                               np.sign(confidence)) * confidence.size
+    assert hamming_distance <= 1, \
+        'decision function of SVM (partial sim) without recomputation ' \
         'does not provide correct results'
     # logistic regression
     lr_clf = LogisticRegression()
@@ -77,7 +94,7 @@ def test_classification():
                                     -3.35616616, 3.77716609])
     recomputed_confidence = clf.decision_function(fake_raw_data[12:])
     hamming_distance = hamming(np.sign(expected_confidence), 
-			       np.sign(recomputed_confidence))
+			       np.sign(recomputed_confidence)) * expected_confidence.size
     assert hamming_distance <= 1, \
         'decision function of logistic regression with recomputation ' \
         'does not provide correct results'
@@ -88,8 +105,8 @@ def test_classification():
         'classification via logistic regression ' \
         'does not provide correct results'
     confidence = clf.decision_function(fake_raw_data[12:])
-    hamming_distance = hamming(np.sign(expected_confidence), 
-			       np.sign(confidence))
+    hamming_distance = hamming(np.sign(expected_confidence),
+			       np.sign(confidence)) * confidence.size
     assert hamming_distance <= 1, \
         'decision function of logistic regression without precomputation ' \
         'does not provide correct results'
