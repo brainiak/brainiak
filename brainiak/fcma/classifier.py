@@ -153,7 +153,8 @@ class Classifier(BaseEstimator):
         for idx, data in enumerate(X):
             num_TRs = data.shape[0]
             blas.compute_corr_vectors('N', 'T',
-                                      num_voxels, num_processed_voxels, num_TRs,
+                                      num_voxels, num_processed_voxels,
+                                      num_TRs,
                                       1.0, data, num_voxels,
                                       data, num_voxels,
                                       0.0, corr_data, num_voxels,
