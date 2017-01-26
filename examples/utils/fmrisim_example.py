@@ -147,11 +147,10 @@ nibabel.save(brain_nifti, savename)
 # Pull out the data and associated data
 volume = nibabel.load(savename).get_data()
 dimensions = volume.shape[0:3]
-tr_duration = tr_duration  # Can't be pulled out of nibabel
+total_time = volume.shape[3] * tr_duration
 stimfunction = sim.generate_stimfunction(onsets=[],
                                          event_durations=[0],
-                                         total_time=volume.shape[3] *
-                                                    tr_duration,
+                                         total_time=total_time,
                                          )
 
 # Calculate the mask

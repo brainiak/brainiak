@@ -17,11 +17,13 @@
 
 cimport scipy.linalg.cython_blas as blas
 
-def compute_correlation(py_trans_a, py_trans_b, py_m, py_n, py_k,
-                        py_alpha, py_a, py_lda, int py_start_voxel,
-                        py_ldb, py_beta, py_c, py_ldc, int py_start_epoch):
+def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
+                                    py_alpha, py_a, py_lda, int py_start_voxel,
+                                    py_ldb, py_beta, py_c, py_ldc,
+                                    int py_start_epoch):
     """ use blas API sgemm wrapped by scipy to compute correlation
 
+    This method is limited to process self-correlation.
     The blas APIs process matrices in column-major,
     but our matrices are in row-major,
     so we play the transpose trick here, i.e. A*B=(B^T*A^T)^T.
@@ -187,12 +189,6 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a,
     C = py_c
     blas.ssyrk(uplo, trans, &N, &K, &alpha, &A[py_start_voxel, 0, 0], &lda,
                &beta, &C[0, 0], &ldc)
-    # shrink the values for getting more stable alpha values
-    # in SVM training iteration
-    num_digits = len(str(int(py_c[0, 0])))
-    if num_digits > 2:
-        proportion = 10**(2-num_digits)
-        py_c *= proportion
     # complete the other half of the kernel matrix
     if py_uplo == 'L':
         for j in range(py_c.shape[0]):
@@ -203,10 +199,10 @@ def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a,
             for k in range(j):
                 py_c[k, j] = py_c[j, k]
 
-def compute_single_self_correlation_syrk(py_uplo, py_trans, py_n, py_k,
-                                         py_alpha, py_a, py_lda,
-                                         py_beta, py_c, py_ldc,
-                                         int py_start_sample):
+def compute_single_self_corr_syrk(py_uplo, py_trans, py_n, py_k,
+                                  py_alpha, py_a, py_lda,
+                                  py_beta, py_c, py_ldc,
+                                  int py_start_sample):
     """ use blas API syrk wrapped by scipy to compute correlation matrix
 
     This is to compute the correlation between selected voxels for
@@ -292,10 +288,10 @@ def compute_single_self_correlation_syrk(py_uplo, py_trans, py_n, py_k,
             for k in range(j):
                 py_c[py_start_sample, k, j] = py_c[py_start_sample, j, k]
 
-def compute_single_self_correlation_gemm(py_trans_a, py_trans_b, py_m, py_n,
-                                         py_k, py_alpha, py_a, py_lda,
-                                         py_ldb, py_beta, py_c, py_ldc,
-                                         int py_start_sample):
+def compute_single_self_corr_gemm(py_trans_a, py_trans_b, py_m, py_n,
+                                  py_k, py_alpha, py_a, py_lda,
+                                  py_ldb, py_beta, py_c, py_ldc,
+                                  int py_start_sample):
     """ use blas API gemm wrapped by scipy to compute correlation matrix
 
     This is to compute the correlation between selected voxels for
@@ -382,13 +378,105 @@ def compute_single_self_correlation_gemm(py_trans_a, py_trans_b, py_m, py_n,
     blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
                &A[0, 0], &ldb, &beta, &C[py_start_sample, 0, 0], &ldc)
 
+def compute_corr_vectors(py_trans_a, py_trans_b, py_m, py_n,
+                         py_k, py_alpha, py_a, py_lda,
+                         py_b, py_ldb, py_beta, py_c, py_ldc,
+                         int py_start_voxel,
+                         int py_start_sample):
+    """ use blas API gemm wrapped by scipy to construct a correlation vector
+
+    The correlation vector is essentially correlation matrices computed
+    from two activity matrices. It will be placed in the corresponding place
+    of the resulting correlation data set.
+    The blas APIs process matrices in column-major,
+    but our matrices are in row-major, so we play the transpose trick here,
+    i.e. A*B=(B^T*A^T)^T
+
+    py_trans_a: str
+    do transpose or not for the first matrix A
+
+    py_trans_b: str
+    do transpose or not for the first matrix B
+
+    py_m: int
+    the row of the resulting matrix C
+
+    py_n: int
+    the column of the resulting matrix C
+
+    py_k: int
+    the collapsed dimension of the multiplying matrices
+    i.e. the column of the first matrix after transpose if necessary
+    the row of the second matrix after transpose if necessary
+
+    py_alpha: float
+    the weight applied to the input matrix A
+
+    py_a: 2D array
+
+    py_lda: int
+    the stride of the input matrix A
+
+    py_b: 2D array
+
+    py_ldb: int
+    the stride of the input matrix B
+
+    py_beta: float
+    the weight applied to the resulting matrix C
+
+    py_c: 2D array
+    in shape [py_m, py_n] of column-major
+    in fact it is
+    in shape [py_n, py_m] of row-major
+
+    py_ldc: int
+    the stride of the resulting matrix
+
+    py_start_voxel: int
+    the starting voxel of assigned voxels
+    used to locate the second matrix B
+
+    py_start_sample: int
+    the processed sample
+    used to locate the resulting matrix C
+
+    Returns
+    -------
+    py_c: 2D array
+    in shape [py_m, py_n] of column-major
+    write the resulting matrix to the place indicated by py_start_sample
+    """
+    cdef bytes by_trans_a=py_trans_a.encode()
+    cdef bytes by_trans_b=py_trans_b.encode()
+    cdef char* trans_a = by_trans_a
+    cdef char* trans_b = by_trans_b
+    cdef int M, N, K, lda, ldb, ldc
+    M = py_m
+    N = py_n
+    K = py_k
+    lda = py_lda
+    ldb = py_ldb
+    ldc = py_ldc
+    cdef float alpha, beta
+    alpha = py_alpha
+    beta = py_beta
+    cdef float[:, ::1] A
+    A = py_a
+    cdef float[:, ::1] B
+    B = py_b
+    cdef float[:, :, ::1] C
+    C = py_c
+    blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
+               &B[0, py_start_voxel], &ldb, &beta, &C[py_start_sample, 0, 0], &ldc)
+
 def compute_single_matrix_multiplication(py_trans_a, py_trans_b, py_m, py_n,
                                          py_k, py_alpha, py_a, py_lda,
                                          py_b, py_ldb, py_beta, py_c, py_ldc):
-    """ use blas API gemm wrapped by scipy to compute similarity matrix of SVM
+    """ use blas API gemm wrapped by scipy to do matrix multiplication
 
-    This is to compute the similarity matrix between test sample(s) and
-    training samples. The blas APIs process matrices in column-major,
+    This is to compute the matrix multiplication.
+    The blas APIs process matrices in column-major,
     but our matrices are in row-major, so we play the transpose trick here,
     i.e. A*B=(B^T*A^T)^T
 
@@ -402,29 +490,24 @@ def compute_single_matrix_multiplication(py_trans_a, py_trans_b, py_m, py_n,
 
     py_m: int
     the row of the resulting matrix C
-    in our case, is num_training_samples
 
     py_n: int
     the column of the resulting matrix C
-    in our case, is num_test_samples
 
     py_k: int
     the collapsed dimension of the multiplying matrices
     i.e. the column of the first matrix after transpose if necessary
     the row of the second matrix after transpose if necessary
-    in our case, is num_selected_voxels*num_selected_voxels
 
     py_alpha: float
     the weight applied to the input matrix A
 
     py_a: 2D array
-    in shape [num_training_samples, num_selected_voxels*num_selected_voxels]
 
     py_lda: int
     the stride of the input matrix A
 
     py_b: 2D array
-    in shape [num_test_samples, num_selected_voxels*num_selected_voxels]
 
     py_ldb: int
     the stride of the input matrix B
@@ -433,19 +516,18 @@ def compute_single_matrix_multiplication(py_trans_a, py_trans_b, py_m, py_n,
     the weight applied to the resulting matrix C
 
     py_c: 2D array
-    in shape [num_training_samples, num_test_samples] of column-major
+    in shape [py_m, py_n] of column-major
     in fact it is
-    in shape [num_test_samples, num_training_samples] of row-major
-    place to store the resulting similarity matrix
+    in shape [py_n, py_m] of row-major
 
     py_ldc: int
     the stride of the resulting matrix
 
     Returns
     -------
-    py_c: 3D array
-    in shape [num_training_samples, num_test_samples] of column-major
-    write the resulting similarity matrix
+    py_c: 2D array
+    in shape [py_m, py_n] of column-major
+    write the resulting matrix
     """
     cdef bytes by_trans_a=py_trans_a.encode()
     cdef bytes by_trans_b=py_trans_b.encode()
