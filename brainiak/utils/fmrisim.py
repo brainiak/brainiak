@@ -538,7 +538,8 @@ def double_gamma_hrf(stimfunction,
                      response_dispersion=0.9,
                      undershoot_dispersion=0.9,
                      response_scale=1,
-                     undershoot_scale=0.035):
+                     undershoot_scale=0.035,
+                     scale_function=1,):
     """Return a double gamma HRF
 
     Parameters
@@ -567,6 +568,9 @@ def double_gamma_hrf(stimfunction,
         undershoot_scale :float
             How big is the undershoot relative to the trough
 
+        scale_function : bool
+            Do you want to scale the function to a range of 1
+
     Returns
     ----------
 
@@ -583,10 +587,11 @@ def double_gamma_hrf(stimfunction,
     # How many seconds of the HRF will you model?
     hrf = [0] * int(hrf_length / temporal_resolution)
 
+    # When is the peak of the two aspects of the HRF
+    response_peak = response_delay * response_dispersion
+    undershoot_peak = undershoot_delay * undershoot_dispersion
+
     for hrf_counter in list(range(len(hrf) - 1)):
-        # When is the peak of the two aspects of the HRF
-        response_peak = response_delay * response_dispersion
-        undershoot_peak = undershoot_delay * undershoot_dispersion
 
         # Specify the elements of the HRF for both the response and undershoot
         resp_pow = math.pow((hrf_counter * temporal_resolution) /
@@ -616,10 +621,12 @@ def double_gamma_hrf(stimfunction,
     signal_function = signal_function[0::int(tr_duration * 1000)]
 
     # Cut off the HRF
-    signal_function = signal_function[0:int(len(stimfunction) / 1000)]
+    signal_function = signal_function[0:int(len(stimfunction) / tr_duration
+                                            / 1000)]
 
     # Scale the function so that the peak response is 1
-    signal_function = signal_function / np.max(signal_function)
+    if scale_function == 1:
+        signal_function = signal_function / np.max(signal_function)
 
     return signal_function
 
