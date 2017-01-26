@@ -285,10 +285,10 @@ def generate_signal(dimensions,
     Parameters
     ----------
 
-    dimensions : 3 length array, int
+    dimensions : 1d array, ndarray
         What are the dimensions of the volume you wish to create
 
-    feature_coordinates : multidimensional array, int
+    feature_coordinates : multidimensional array
         What are the feature_coordinates of the signal being created.
         Be aware of clipping: features far from the centre of the
         brain will be clipped. If you wish to have multiple features
@@ -538,7 +538,8 @@ def double_gamma_hrf(stimfunction,
                      response_dispersion=0.9,
                      undershoot_dispersion=0.9,
                      response_scale=1,
-                     undershoot_scale=0.035):
+                     undershoot_scale=0.035,
+                     scale_function=1,):
     """Return a double gamma HRF
 
     Parameters
@@ -546,6 +547,8 @@ def double_gamma_hrf(stimfunction,
         stimfunction : list, bool
             What is the time course of events to be modelled in this
             experiment
+
+        tr_duration : float
 
         response_delay : float
             How many seconds until the peak of the HRF
@@ -565,6 +568,9 @@ def double_gamma_hrf(stimfunction,
         undershoot_scale :float
             How big is the undershoot relative to the trough
 
+        scale_function : bool
+            Do you want to scale the function to a range of 1
+
     Returns
     ----------
 
@@ -574,25 +580,33 @@ def double_gamma_hrf(stimfunction,
 
     """
 
+    temporal_resolution = 0.001  # What is the temporal resolution (in s)
+
     hrf_length = 30  # How long is the HRF being created
 
-    hrf = [0] * hrf_length  # How many seconds of the HRF will you model?
+    # How many seconds of the HRF will you model?
+    hrf = [0] * int(hrf_length / temporal_resolution)
 
-    for hrf_counter in list(range(0, hrf_length - 1)):
-        # When is the peak of the two aspects of the HRF
-        response_peak = response_delay * response_dispersion
-        undershoot_peak = undershoot_delay * undershoot_dispersion
+    # When is the peak of the two aspects of the HRF
+    response_peak = response_delay * response_dispersion
+    undershoot_peak = undershoot_delay * undershoot_dispersion
+
+    for hrf_counter in list(range(len(hrf) - 1)):
 
         # Specify the elements of the HRF for both the response and undershoot
-        resp_pow = math.pow(hrf_counter / response_peak, response_delay)
-        resp_exp = math.exp(-(hrf_counter - response_peak) /
+        resp_pow = math.pow((hrf_counter * temporal_resolution) /
+                            response_peak, response_delay)
+        resp_exp = math.exp(-((hrf_counter * temporal_resolution) -
+                              response_peak) /
                             response_dispersion)
 
         response_model = response_scale * resp_pow * resp_exp
 
-        undershoot_pow = math.pow(hrf_counter / undershoot_peak,
+        undershoot_pow = math.pow((hrf_counter * temporal_resolution) /
+                                  undershoot_peak,
                                   undershoot_delay)
-        undershoot_exp = math.exp(-(hrf_counter - undershoot_peak /
+        undershoot_exp = math.exp(-((hrf_counter * temporal_resolution) -
+                                    undershoot_peak /
                                     undershoot_dispersion))
 
         undershoot_model = undershoot_scale * undershoot_pow * undershoot_exp
@@ -600,17 +614,19 @@ def double_gamma_hrf(stimfunction,
         # For this time point find the value of the HRF
         hrf[hrf_counter] = response_model - undershoot_model
 
-    # Decimate the stim function so that it only has one element per TR
-    stimfunction = stimfunction[0::tr_duration * 1000]
-
     # Convolve the hrf that was created with the boxcar input
     signal_function = np.convolve(stimfunction, hrf)
 
+    # Decimate the signal function so that it only has one element per TR
+    signal_function = signal_function[0::int(tr_duration * 1000)]
+
     # Cut off the HRF
-    signal_function = signal_function[0:len(stimfunction)]
+    signal_function = signal_function[0:int(len(stimfunction) / tr_duration
+                                            / 1000)]
 
     # Scale the function so that the peak response is 1
-    signal_function = signal_function / np.max(signal_function)
+    if scale_function == 1:
+        signal_function = signal_function / np.max(signal_function)
 
     return signal_function
 
@@ -1448,10 +1464,10 @@ def generate_noise(dimensions,
 
     Parameters
     ----------
-    dimensions : n length array, int
+    dimensions : nd array
         What is the shape of the volume to be generated
 
-    stimfunction :  Iterable, bool
+    stimfunction :  Iterable, list
         When do the stimuli events occur
 
     tr_duration : float
