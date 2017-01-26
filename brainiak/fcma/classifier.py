@@ -37,6 +37,14 @@ __all__ = [
 class Classifier(BaseEstimator):
     """Correlation-based classification component of FCMA
 
+    The classifier first computes correlation of the input data,
+    and normalizes them if needed, then uses the given classifier
+    to train and/or predict the correlation data.
+    NOTE: if the classifier is sklearn.svm.SVC with precomputed kernel,
+    the test data may be provided in the fit method to compute
+    the kernel matrix together with the training data to save the memory usage,
+    but the test data will NEVER be seen in the model training.
+
     Parameters
     ----------
 
@@ -45,9 +53,10 @@ class Classifier(BaseEstimator):
 
     num_processed_voxels: int, default 2000
         Used for SVM with precomputed kernel,
-        every time only compute correlation between num_process_voxels and
-        the whole brain to aggregate the kernel matrices.
-        This is to better use the memory
+        every time it only computes correlation between num_process_voxels and
+        the whole mask to aggregate the kernel matrices.
+        This is to save the memory
+        so as to handle correlations at a larger scale.
 
     epochs_per_subj: int, default 0
         The number of epochs of each subject
@@ -60,7 +69,6 @@ class Classifier(BaseEstimator):
     ----------
 
     training_data_: 2D numpy array in shape [num_samples, num_features]
-        default None
         training_data\_ is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
         the similarity vector for each sample to be classified.
@@ -80,7 +88,8 @@ class Classifier(BaseEstimator):
         so that the test data does not need to be regenerated in the
         subsequent operations, e.g. getting decision values of the prediction.
         test_data\_ may also be set in the fit method
-        if SVM.SVC with precomputed kernel and the test samples are known.
+        if sklearn.svm.SVC with precomputed kernel
+        and the test samples are known.
         NOTE: the test samples will never be used to fit the model.
 
     num_voxels_: int
@@ -93,7 +102,7 @@ class Classifier(BaseEstimator):
         The number of samples of the training set
 
     num_digits_: int
-        The number of digit of the first value of the kernel matrix,
+        The number of digits of the first value of the kernel matrix,
         for normalizing the similarity values accordingly
     """
     def __init__(self,
@@ -108,7 +117,7 @@ class Classifier(BaseEstimator):
 
     def _prepare_auto_corerelation_data(self, X,
                                         start_voxel=0,
-                                        num_voxels_1=None):
+                                        num_processed_voxels=None):
         """ compute auto-correlation for the input data X
 
         it will generate the correlation between some voxels and all voxels
@@ -120,14 +129,14 @@ class Classifier(BaseEstimator):
             assuming all elements of X has the same num_voxels value
         start_voxel: int, default 0
             the starting voxel id for correlation computation
-        num_voxels_1: int, default None
+        num_processed_voxels: int, default None
             the number of voxels it computes for correlation computation
             if it is None, it is set to self.num_voxels
 
         Returns
         -------
         corr_data: the correlation data
-                    in shape [len(X), num_voxels_1, num_voxels]
+                    in shape [len(X), num_processed_voxels, num_voxels]
         """
         num_samples = len(X)
         assert num_samples > 0, \
@@ -136,15 +145,15 @@ class Classifier(BaseEstimator):
         assert num_voxels == self.num_voxels_, \
             'the number of voxels provided by X does not match ' \
             'the number of voxels defined in the model'
-        if num_voxels_1 is None:
-            num_voxels_1 = num_voxels
-        corr_data = np.zeros((num_samples, num_voxels_1, num_voxels),
+        if num_processed_voxels is None:
+            num_processed_voxels = num_voxels
+        corr_data = np.zeros((num_samples, num_processed_voxels, num_voxels),
                              np.float32, order='C')
         # compute correlation
         for idx, data in enumerate(X):
             num_TRs = data.shape[0]
             blas.compute_corr_vectors('N', 'T',
-                                      num_voxels, num_voxels_1, num_TRs,
+                                      num_voxels, num_processed_voxels, num_TRs,
                                       1.0, data, num_voxels,
                                       data, num_voxels,
                                       0.0, corr_data, num_voxels,
@@ -163,7 +172,7 @@ class Classifier(BaseEstimator):
         Parameters
         ----------
         corr_data: the correlation data
-                    in shape [num_samples, num_voxels_1, num_voxels]
+                    in shape [num_samples, num_processed_voxels, num_voxels]
         norm_unit: int
                     the number of samples on which the normalization
                     is performed
@@ -304,11 +313,13 @@ class Classifier(BaseEstimator):
             assuming all elements of X has the same num_voxels value
         y: labels, len(X) equals len(Y)
         num_training_samples: int, default None
-            the number of samples that used in the training,
+            The number of samples used in the training,
             which is set when the similarity matrix is constructed
             portion by portion so the similarity vectors of the
             test data have to be computed here.
-            If it is set, only those samples will be used to fit the model
+            This is ONLY set when sklearn.svm.SVC with
+            precomputed kernel is used.
+            If it is set, only those samples will be used to fit the model.
 
         Returns
         -------

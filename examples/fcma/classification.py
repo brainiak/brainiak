@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 def example_of_aggregating_sim_matrix(raw_data, labels):
     # aggregate the similarity matrix to save memory
-    use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    clf = Classifier(use_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    clf = Classifier(svm_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
     rearranged_data = raw_data[num_epochs_per_subj:] + raw_data[0:num_epochs_per_subj]
     rearranged_labels = labels[num_epochs_per_subj:] + labels[0:num_epochs_per_subj]
     clf.fit(rearranged_data, rearranged_labels,
@@ -51,9 +51,9 @@ def example_of_aggregating_sim_matrix(raw_data, labels):
 
 def example_of_cross_validation_on_regular_classifier(raw_data, labels):
     # no shrinking, set C=1
-    use_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
-    #use_clf = LogisticRegression()
-    clf = Classifier(use_clf, epochs_per_subj=num_epochs_per_subj)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    #logit_clf = LogisticRegression()
+    clf = Classifier(svm_clf, epochs_per_subj=num_epochs_per_subj)
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):
         leave_start = i * num_epochs_per_subj
