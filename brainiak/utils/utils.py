@@ -436,10 +436,10 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
     n_C = len(stimtime_files)  # number of conditions
     n_S = np.size(scan_duration)  # number of scans
     if n_S > 1:
-        design = [np.empty([np.floor(duration / TR), n_C])
+        design = [np.empty([int(np.floor(duration / TR)), n_C])
                   for duration in scan_duration]
     else:
-        design = [np.empty([np.floor(scan_duration / TR), n_C])]
+        design = [np.empty([int(np.floor(scan_duration / TR)), n_C])]
     scan_onoff = np.insert(np.cumsum(scan_duration), 0, 0)
     if style == 'FSL':
         design_info = read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
