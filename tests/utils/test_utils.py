@@ -103,18 +103,24 @@ def test_ReadDesign():
 def test_gen_design():
     from brainiak.utils.utils import gen_design
     import numpy as np
-    design1 = gen_design(stimtime_files='example_stimtime_1_FSL.txt', scan_duration=[48, 20], TR=2, style='FSL')
+    import os.path
+    files = {'FSL1': 'example_stimtime_1_FSL.txt',
+             'FSL2': 'example_stimtime_2_FSL.txt',
+             'AFNI1':'example_stimtime_1_AFNI.txt'}
+    for key in files.keys():
+        files[key] = os.path.join(os.path.dirname(__file__), files[key])
+    design1 = gen_design(stimtime_files=files['FSL1'], scan_duration=[48, 20], TR=2, style='FSL')
     assert design1.shape == (34, 1), 'Returned design matrix has wrong shape'
     assert design1[24] == 0, 'gen_design should generated design matrix for each run separately and concatenate them.'
-    design2 = gen_design(stimtime_files=['example_stimtime_1_FSL.txt', 'example_stimtime_2_FSL.txt'],
+    design2 = gen_design(stimtime_files=[files['FSL1'], files['FSL2']],
                         scan_duration=[48, 20], TR=2, style='FSL')
     assert design2.shape == (34, 2), 'Returned design matrix has wrong shape'
-    design3 = gen_design(stimtime_files='example_stimtime_1_FSL.txt', scan_duration=68, TR=2, style='FSL')
+    design3 = gen_design(stimtime_files=files['FSL1'], scan_duration=68, TR=2, style='FSL')
     assert design3[24] != 0, 'design matrix should be non-zero 8 seconds after an event onset.'
-    design4 = gen_design(stimtime_files=['example_stimtime_2_FSL.txt'], scan_duration=[48, 20], TR=2, style='FSL')
+    design4 = gen_design(stimtime_files=[files['FSL2']], scan_duration=[48, 20], TR=2, style='FSL')
     assert np.all(np.isclose(design1 * 0.5, design4)) , 'gen_design does not treat missing values correctly'
-    design5 = gen_design(stimtime_files=['example_stimtime_2_FSL.txt'], scan_duration=[48, 20], TR=1)
+    design5 = gen_design(stimtime_files=[files['FSL2']], scan_duration=[48, 20], TR=1)
     assert np.all(np.isclose(design4, design5[::2])) , 'design matrices sampled at different frequency do not match'\
         ' at corresponding time points'
-    design6 = gen_design(stimtime_files=['example_stimtime_1_AFNI.txt'], scan_duration=[48, 20], TR=2, style='AFNI')
+    design6 = gen_design(stimtime_files=[files['AFNI1']], scan_duration=[48, 20], TR=2, style='AFNI')
     assert np.all(np.isclose(design1, design6)), 'design matrices generated from AFNI style and FSL style do not match'
