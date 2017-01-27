@@ -1,7 +1,8 @@
-import functools # https://danijar.com/structuring-your-tensorflow-models/
+import functools  # https://danijar.com/structuring-your-tensorflow-models/
 import tensorflow as tf
 from numpy.linalg import cholesky
 from scipy.stats import norm
+
 
 def doublewrap(function):
     """
@@ -30,6 +31,7 @@ def define_scope(function, scope=None, *args, **kwargs):
     """
     attribute = '_cache_' + function.__name__
     name = scope or function.__name__
+
     @property
     @functools.wraps(function)
     def decorator(self):
@@ -39,26 +41,33 @@ def define_scope(function, scope=None, *args, **kwargs):
         return getattr(self, attribute)
     return decorator
 
+
 def xx_t(x):
     """ x * x' """
     return tf.matmul(x, x, transpose_b=True)
+
 
 def x_tx(x):
     """ x' * x """
     return tf.matmul(x, x, transpose_a=True)
 
+
 def quad_form(x, y):
     """ x' * y * x """
-    return tf.matmul(x, tf.matmul(y, x), transpose_a = True)
+    return tf.matmul(x, tf.matmul(y, x), transpose_a=True)
+
 
 def scaled_I(x, size):
     """ x * I_{size} """
-    return tf.diag(tf.ones([size], dtype=tf.float64)* x,) 
+    return tf.diag(tf.ones([size], dtype=tf.float64) * x,)
+
 
 def quad_form_trp(x, y):
     """ x * y * x' """
-    return tf.matmul(x, tf.matmul(y, x, transpose_b = True))
+    return tf.matmul(x, tf.matmul(y, x, transpose_b=True))
+
 
 def rmn(rowcov, colcov):
     # generate random draws from a zero-mean matrix-normal distribution
-    return(cholesky(rowcov) @ norm.rvs(size=(rowcov.shape[0],colcov.shape[0])) @ cholesky(colcov))
+    Z = norm.rvs(norm.rvs(size=(rowcov.shape[0], colcov.shape[0])))
+    return(cholesky(rowcov).dot(Z).dot(cholesky(colcov)))

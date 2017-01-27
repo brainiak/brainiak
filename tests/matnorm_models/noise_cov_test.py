@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart
 from brainiak.matnorm_models.noise_covs import *
@@ -11,24 +11,26 @@ m = 6
 n = 4
 p = 3
 
-rtol = 1e-7 
+rtol = 1e-7
+
 
 def logdet_sinv_np(X, sigma):
-    # logdet 
+    # logdet
     _, logdet_np = np.linalg.slogdet(sigma)
     # sigma-inv
     sinv_np = np.linalg.inv(sigma)
-    # sigma-inverse * 
+    # sigma-inverse *
     sinvx_np = sinv_np.dot(X)
     return logdet_np, sinv_np, sinvx_np
 
 X = norm.rvs(size=(m, n))
 X_tf = tf.constant(X)
 A = norm.rvs(size=(m, p))
-A_tf = tf.constant(A) 
+A_tf = tf.constant(A)
+
 
 def test_NoiseCovConstant():
-    
+
     cov_np = wishart.rvs(df=m+2, scale=np.eye(m))
     cov = NoiseCovConstant(cov_np)
 
@@ -39,11 +41,11 @@ def test_NoiseCovConstant():
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)        
+        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_NoiseCovIdentity():
-    
+
     cov = NoiseCovIdentity(size=m)
 
     with tf.Session() as sess:
@@ -55,7 +57,7 @@ def test_NoiseCovIdentity():
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
-        
+
 
 def test_NoiseCovIsotropic():
 
@@ -86,6 +88,7 @@ def test_NoiseCovDiagonal():
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
+
 def test_NoiseCovFullRank():
 
     cov = NoiseCovFullRank(size=m)
@@ -99,6 +102,7 @@ def test_NoiseCovFullRank():
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
+
 
 def test_NoisePrecFullRank():
 
@@ -114,6 +118,7 @@ def test_NoisePrecFullRank():
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
+
 def test_NoiseCov2FactorKron():
     assert(m%2 == 0)
     dim1 = int(m/2)
@@ -126,7 +131,7 @@ def test_NoiseCov2FactorKron():
         # compute the naive version
         L1 = (cov.L1).eval(session=sess)
         L2 = (cov.L2).eval(session=sess)
-        cov_np = np.kron(np.dot(L1, L1.transpose()), np.dot(L2, L2.transpose()) )
+        cov_np = np.kron(np.dot(L1, L1.transpose()), np.dot(L2, L2.transpose()))
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
 
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
