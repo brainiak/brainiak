@@ -1,26 +1,27 @@
-try:
-    import GPflow
-    from GPflow import Matern32
-    from brainiak.matnorm_models.noise_covs import NoiseCovIdentity
-    from brainiak.matnorm_models.noise_cov_gp import NoiseCovGP
-    from brainiak.matnorm_models import MatnormRegression
-    from brainiak.matnorm_models.helpers import rmn
-    from scipy.stats import norm, pearsonr
-    import tensorflow as tf
-    import numpy as np
+def test_matnorm_regression_gp():
+    try:
+        import GPflow
+        from GPflow import Matern32
+        from brainiak.matnorm_models.noise_covs import NoiseCovIdentity
+        from brainiak.matnorm_models.noise_cov_gp import NoiseCovGP
+        from brainiak.matnorm_models import MatnormRegression
+        from brainiak.matnorm_models.helpers import rmn
+        from scipy.stats import norm, pearsonr
+        import tensorflow as tf
+        import numpy as np
 
-    # this is not the official GPflow way of doing it using a ContextManager but
-    # since we're not using a lot of the rest of the machinery, we can get away
-    # with overriding the float type (which defaults to float32 for some reason).
-    GPflow.kernels.float_type = tf.float64
+        # this is not the official GPflow way of doing it using a ContextManager but
+        # since we're not using a lot of the rest of the machinery, we can get away
+        # with overriding the float type (which defaults to float32 for some reason).
+        GPflow.kernels.float_type = tf.float64
 
-    m = 100
-    n = 4
-    p = 5
+        m = 100
+        n = 4
+        p = 5
 
-    corrtol = 0.8  # at least this much correlation between true and est to pass
+        corrtol = 0.8  # at least this much correlation between true and est to pass
 
-    def test_matnorm_regression_gp():
+        
 
         # create the actual kernel
         trueKern = GPflow.kernels.Matern32(input_dim=1)
@@ -51,5 +52,6 @@ try:
 
         assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
 
-except ImportError:
-    pass
+    except ImportError:
+        
+        print("No GPflow found, skipping GPflow tests!")

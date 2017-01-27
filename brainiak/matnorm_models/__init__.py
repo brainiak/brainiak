@@ -3,8 +3,7 @@ from .base import MatnormModelBase
 from .regression import MatnormRegression
 
 
-"""
-The matrix variate normal distribution, with conditional and marginal identities
+"""The matrix variate normal distribution, with conditional and marginal identities
 ==========================================================================================
 
 .. math::
