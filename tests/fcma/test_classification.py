@@ -69,6 +69,10 @@ def test_classification():
     assert hamming_distance <= 1, \
         'decision function of SVM without recomputation ' \
         'does not provide correct results'
+    y = [0, 1, 0, 1, 0, 1, 0, 1]
+    score = clf.score(fake_raw_data[12:], y)
+    assert np.isclose([hamming(y_pred, y)], [1-score])[0], \
+        'the prediction score is incorrect'
     # svm with partial similarity matrix computation
     clf = Classifier(svm_clf, num_processed_voxels=2,
                      epochs_per_subj=epochs_per_subj)
