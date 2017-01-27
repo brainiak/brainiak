@@ -364,64 +364,64 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
         This function uses generate_stimfunction and double_gamma_hrf
         of brainiak.utils.fmrisim.
 
-    Parameters
-    ----------
+        Parameters
+        ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files will
-        be interpretated based on the style parameter.
-        Details are explained under the style parameter.
+        stimtime_files: stimtime_files, a string or a list of string,
+            with each string being the name of the file storing
+            the stimulus timing information. The files will
+            be interpretated based on the style parameter.
+            Details are explained under the style parameter.
 
-    scan_duration: total duration of each fMRI scan, in unit of seconds.
-        If there are multiple runs, the duration can be
-        either a number or a list (or 1-d numpy array) of numbers.
-        If it is a list, then each number in the list
-        represents the duration of the corresponding scan
-        in the stimtime_files.
+        scan_duration: total duration of each fMRI scan, in unit of seconds.
+            If there are multiple runs, the duration can be
+            either a number or a list (or 1-d numpy array) of numbers.
+            If it is a list, then each number in the list
+            represents the duration of the corresponding scan
+            in the stimtime_files.
 
-    TR: the sampling period of fMRI, in unit of seconds.
+        TR: the sampling period of fMRI, in unit of seconds.
 
-    style: the formating style of the stimtime_files. default: 'FSL'
-        Acceptable inputs: 'FSL', 'AFNI'
-        'FSL' style has one line for each event of the same condition.
-        Each line contains three numbers. The first number is the onset
-        of the event relative to the onset of the first scan,
-        in units of seconds.
-        (Multiple scans should be treated as a concatenated long scan
-        for the purpose of calculating onsets.
-        However, the design matrix from one scan won't leak into the next).
-        The second number is the duration of the event,
-        in unit of seconds.
-        The third number is the amplitude modulation (or weight)
-        of the response.
-        It is acceptable to not provide the weight,
-        or not provide both duration and weight.
-        In such cases, these parameters will default to 1.0.
+        style: the formating style of the stimtime_files. default: 'FSL'
+            Acceptable inputs: 'FSL', 'AFNI'
+            'FSL' style has one line for each event of the same condition.
+            Each line contains three numbers. The first number is the onset
+            of the event relative to the onset of the first scan,
+            in units of seconds.
+            (Multiple scans should be treated as a concatenated long scan
+            for the purpose of calculating onsets.
+            However, the design matrix from one scan won't leak into the next).
+            The second number is the duration of the event,
+            in unit of seconds.
+            The third number is the amplitude modulation (or weight)
+            of the response.
+            It is acceptable to not provide the weight,
+            or not provide both duration and weight.
+            In such cases, these parameters will default to 1.0.
 
-        'AFNI' style has one line for each scan (run).
-        Each line has a few triplets in the format of
-        stim_onsets*weight:duration
-        (or simpler, see below), separated by spaces.
-        For example, 3.2*2.0:1.5 means that one event starts at 3.2s,
-        modulated by weight of 2.0 and lasts for 1.5s.
-        If some run does not include a single event
-        of a condition (stimulus type), then you can put *,
-        or a negative number, or a very large number in that line.
-        Either duration or weight can be neglected. In such
-        cases, they will default to 1.0.
-        For example, 3.0, 3.0*1.0, 3.0:1.0 and 3.0*1.0:1.0 all
-        means an event starting at 3.0s, lasting for 1.0s, with
-        amplitude modulation of 1.0.
+            'AFNI' style has one line for each scan (run).
+            Each line has a few triplets in the format of
+            stim_onsets*weight:duration
+            (or simpler, see below), separated by spaces.
+            For example, 3.2*2.0:1.5 means that one event starts at 3.2s,
+            modulated by weight of 2.0 and lasts for 1.5s.
+            If some run does not include a single event
+            of a condition (stimulus type), then you can put *,
+            or a negative number, or a very large number in that line.
+            Either duration or weight can be neglected. In such
+            cases, they will default to 1.0.
+            For example, 3.0, 3.0*1.0, 3.0:1.0 and 3.0*1.0:1.0 all
+            means an event starting at 3.0s, lasting for 1.0s, with
+            amplitude modulation of 1.0.
 
 
-    Returns
-    -------
+        Returns
+        -------
 
-    design: 2D numpy array
-        design matrix. Each time row represents one TR
-        (fMRI sampling time point) and each column represents
-        one experiment condition, in the order in stimtime_files
+        design: 2D numpy array
+            design matrix. Each time row represents one TR
+            (fMRI sampling time point) and each column represents
+            one experiment condition, in the order in stimtime_files
 
     """
     if np.ndim(scan_duration) == 0:
@@ -467,38 +467,39 @@ def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
         stimulus timing file comforming to FSL style,
         and return a list (size of [#run * #condition])
         of dictionary including onsets, durations and weights of each event.
-    Parameters
-    ----------
+        Parameters
+        ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files should follow the
-        style of FSL stimulus timing files, refer to gen_design.
+        stimtime_files: stimtime_files, a string or a list of string,
+            with each string being the name of the file storing
+            the stimulus timing information. The files should follow the
+            style of FSL stimulus timing files, refer to gen_design.
 
-    n_C: number of conditions, integer
+        n_C: number of conditions, integer
 
-    n_S: number of scans, integer
+        n_S: number of scans, integer
 
-    scan_onoff: the onset of each scan after concatenating all scans, together
-        with the offset of the last scan. For example, if 3 scans of duration
-        100s, 150s, 120s are run, scan_onoff is [0, 100, 250, 370]
-
-
-    Returns
-    -------
-
-    design_info: list of stimulus information
-        The first level of the list correspond to different scans.
-        The second level of the list correspond to different conditions.
-        Each item in the list is a dictiornary with keys "onset",
-        "duration" and "weight". If one condition includes no event
-        in a scan, the values of these keys in that scan of the condition
-        are empty lists.
+        scan_onoff: the onset of each scan after concatenating all scans,
+            together with the offset of the last scan.
+            For example, if 3 scans of duration 100s, 150s, 120s are run,
+            scan_onoff is [0, 100, 250, 370]
 
 
-    See also
-    --------
-    gen_design
+        Returns
+        -------
+
+        design_info: list of stimulus information
+            The first level of the list correspond to different scans.
+            The second level of the list correspond to different conditions.
+            Each item in the list is a dictiornary with keys "onset",
+            "duration" and "weight". If one condition includes no event
+            in a scan, the values of these keys in that scan of the condition
+            are empty lists.
+
+
+        See also
+        --------
+        gen_design
     """
     design_info = [[{'onset': [], 'duration': [], 'weight': []}
                     for i_c in range(n_C)] for i_s in range(n_S)]
@@ -531,38 +532,39 @@ def read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff, scan_duration):
         file comforming to AFNI style, and return a list
         (size of [number of runs * number of conditions])
         of dictionary including onsets, durations and weights of each event.
-    Parameters
-    ----------
+        Parameters
+        ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files should follow the
-        style of AFNI stimulus timing files, refer to gen_design.
+        stimtime_files: stimtime_files, a string or a list of string,
+            with each string being the name of the file storing
+            the stimulus timing information. The files should follow the
+            style of AFNI stimulus timing files, refer to gen_design.
 
-    n_C: number of conditions, integer
+        n_C: number of conditions, integer
 
-    n_S: number of scans, integer
+        n_S: number of scans, integer
 
-    scan_onoff: the onset of each scan after concatenating all scans, together
-        with the offset of the last scan. For example, if 3 scans of duration
-        100s, 150s, 120s are run, scan_onoff is [0, 100, 250, 370]
-
-
-    Returns
-    -------
-
-    design_info: list of stimulus information
-        The first level of the list correspond to different scans.
-        The second level of the list correspond to different conditions.
-        Each item in the list is a dictiornary with keys "onset",
-        "duration" and "weight". If one condition includes no event
-        in a scan, the values of these keys in that scan of the condition
-        are empty lists.
+        scan_onoff: the onset of each scan after concatenating all scans,
+            together with the offset of the last scan.
+            For example, if 3 scans of duration 100s, 150s, 120s are run,
+            scan_onoff is [0, 100, 250, 370]
 
 
-    See also
-    --------
-    gen_design
+        Returns
+        -------
+
+        design_info: list of stimulus information
+            The first level of the list correspond to different scans.
+            The second level of the list correspond to different conditions.
+            Each item in the list is a dictiornary with keys "onset",
+            "duration" and "weight". If one condition includes no event
+            in a scan, the values of these keys in that scan of the condition
+            are empty lists.
+
+
+        See also
+        --------
+        gen_design
     """
     design_info = [[{'onset': [], 'duration': [], 'weight': []}
                     for i_c in range(n_C)] for i_s in range(n_S)]
