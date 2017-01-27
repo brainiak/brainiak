@@ -532,7 +532,7 @@ def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
 def read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff, scan_duration):
     """Utility called by gen_design. It reads in one or more stimulus timing
        file comforming to AFNI style, and return a list
-       (size of `[number of runs * number of conditions]`)
+       (size of ``[number of runs * number of conditions]``)
        of dictionary including onsets, durations and weights of each event.
 
     Parameters
