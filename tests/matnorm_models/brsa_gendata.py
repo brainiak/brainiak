@@ -1,8 +1,6 @@
 import numpy as np
-from scipy.stats import norm
-from numpy.linalg import cholesky
 import scipy.spatial.distance as spdist
-from brainiak.matnorm_base.helpers import rmn
+from brainiak.matnorm_models.helpers import rmn
 
 
 def gen_U_nips2016_example():

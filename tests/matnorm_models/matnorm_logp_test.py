@@ -3,7 +3,7 @@ from numpy.testing import assert_allclose
 from scipy.stats import multivariate_normal
 import tensorflow as tf
 from brainiak.matnorm_models.helpers import rmn
-from brainiak.matnorm_models.base import MatnormModelBase
+from brainiak.matnorm_models import MatnormModelBase
 from brainiak.matnorm_models.noise_covs import NoiseCovIdentity,NoiseCovFullRank
 
 # X is m x n, so A sould be m x p
