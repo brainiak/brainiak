@@ -30,7 +30,7 @@ logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 def example_of_aggregating_sim_matrix(raw_data, labels):
-    # aggregate the similarity matrix to save memory
+    # aggregate the kernel matrix to save memory
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     clf = Classifier(svm_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
     rearranged_data = raw_data[num_epochs_per_subj:] + raw_data[0:num_epochs_per_subj]
@@ -41,7 +41,6 @@ def example_of_aggregating_sim_matrix(raw_data, labels):
     print(predict)
     print(clf.decision_function())
     test_labels = labels[0:num_epochs_per_subj]
-    print(np.asanyarray(test_labels))
     incorrect_predict = hamming(predict, np.asanyarray(test_labels)) * num_epochs_per_subj
     logger.info(
         'when aggregating the similarity matrix to save memory, '
@@ -49,6 +48,8 @@ def example_of_aggregating_sim_matrix(raw_data, labels):
         (num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
          (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
     )
+    # when the kernel matrix is computed in portion, the test data is already in
+    print(clf.score(None, test_labels))
 
 def example_of_cross_validation_with_detailed_info(raw_data, labels):
     # no shrinking, set C=1
@@ -79,6 +80,9 @@ def example_of_cross_validation_with_detailed_info(raw_data, labels):
         print(clf.score(test_data, test_labels))
 
 def example_of_cross_validation_using_model_selection(raw_data, labels):
+    # NOTE: this method does not work for sklearn.svm.SVC with precomputed kernel
+    # when the kernel matrix is computed in portions
+
     # no shrinking, set C=1
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
     #logit_clf = LogisticRegression()

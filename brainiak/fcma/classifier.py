@@ -539,6 +539,8 @@ class Classifier(BaseEstimator):
         ----------
         X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
             Test samples.
+            It is not used in sklearn.svm.SVC with precomputed
+            kernel when the kernel matrix is computed portion by portion.
         y : labels, len(X) equals len(y)
         sample_weight : 1D array in shape [n_samples], optional
             Sample weights.
@@ -549,4 +551,12 @@ class Classifier(BaseEstimator):
             Mean accuracy of self.predict(X) wrt. y.
         """
         from sklearn.metrics import accuracy_score
-        return accuracy_score(y, self.predict(X), sample_weight=sample_weight)
+        if isinstance(self.clf, sklearn.svm.SVC) \
+                and self.clf.kernel == 'precomputed' \
+                and self.training_data_ is None:
+            result = accuracy_score(y, self.predict(),
+                                    sample_weight=sample_weight)
+        else:
+            result = accuracy_score(y, self.predict(X),
+                                    sample_weight=sample_weight)
+        return result
