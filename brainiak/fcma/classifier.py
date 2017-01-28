@@ -265,7 +265,7 @@ class Classifier(BaseEstimator):
         The method generates the kernel matrix (similarity matrix) for
         sklearn.svm.SVC with precomputed kernel. It first computes
         the correlation from X, then normalizes the correlation if needed,
-        and finally compute the kernel matrix. It is worth noting that if
+        and finally computes the kernel matrix. It is worth noting that if
         the resulting correlation is large, the kernel matrix will be computed
         portion by portion to save memory usage (the portion size is specified
         in self.num_processed_voxels.
@@ -275,7 +275,7 @@ class Classifier(BaseEstimator):
         X: a list of numpy array in shape [num_TRs, num_voxels]
             X contains the activity data filtered by top voxels
             and prepared for correlation computation.
-            assuming all elements of X has the same num_voxels value
+            Assuming all elements of X have the same num_voxels value.
 
         Returns
         -------
@@ -532,17 +532,19 @@ class Classifier(BaseEstimator):
     def score(self, X, y, sample_weight=None):
         """ returns the mean accuracy on the given test data and labels
 
-        NOTE: This function will not work in sklearn.svm.SVC with precomputed
-        kernel when the kernel matrix is computed portion by portion.
+        NOTE: In the condition of sklearn.svm.SVC with precomputed kernel
+        when the kernel matrix is computed portion by portion, the function
+        will ignore the first input argument X.
 
         Parameters
         ----------
-        X: a list of numpy array in shape [num_TRs, self.num_voxels\_]
+        X: a list of numpy array in shape [TRs, voxels]
             Test samples.
+            The second dimension voxels MUST be self.num_voxels\_
             It is not used in sklearn.svm.SVC with precomputed
             kernel when the kernel matrix is computed portion by portion.
-        y : labels, len(X) equals len(y)
-        sample_weight : 1D array in shape [n_samples], optional
+        y: labels, len(X) equals len(y), which is num_samples
+        sample_weight: 1D array in shape [num_samples], optional
             Sample weights.
 
         Returns
