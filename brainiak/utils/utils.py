@@ -360,7 +360,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                          'undershoot_scale': 0.035}):
     """ Generate design matrix based on a list of names of stimulus
         timing files. The function will read each file, and generate
-        a numpy array of size [time_points * condition], where
+        a numpy array of size [time_points \* condition], where
         time_points equals duration / TR, and condition is the size of
         stimtime_filenames. Each column is the hypothetical fMRI response
         based on the stimulus timing in the corresponding file
@@ -416,11 +416,11 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
         For example, 3.2\*2.0:1.5 means that one event starts at 3.2s,
         modulated by weight of 2.0 and lasts for 1.5s.
         If some run does not include a single event
-        of a condition (stimulus type), then you can put *,
+        of a condition (stimulus type), then you can put \*,
         or a negative number, or a very large number in that line.
         Either duration or weight can be neglected. In such
         cases, they will default to 1.0.
-        For example, 3.0, 3.0*1.0, 3.0:1.0 and 3.0*1.0:1.0 all
+        For example, 3.0, 3.0\*1.0, 3.0:1.0 and 3.0\*1.0:1.0 all
         means an event starting at 3.0s, lasting for 1.0s, with
         amplitude modulation of 1.0.
 
@@ -481,7 +481,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     """Utility called by gen_design. It reads in one or more
        stimulus timing file comforming to FSL style,
-       and return a list (size of [#run * #condition])
+       and return a list (size of [#run \* #condition])
        of dictionary including onsets, durations and weights of each event.
 
     Parameters
@@ -549,7 +549,7 @@ def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
 def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     """Utility called by gen_design. It reads in one or more stimulus timing
        file comforming to AFNI style, and return a list
-       (size of ``[number of runs * number of conditions]``)
+       (size of ``[number of runs \* number of conditions]``)
        of dictionary including onsets, durations and weights of each event.
 
     Parameters
