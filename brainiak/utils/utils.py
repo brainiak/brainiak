@@ -16,7 +16,7 @@ import logging
 import re
 import warnings
 import os.path
-from brainiak.utils.fmrisim import generate_stimfunction, double_gamma_hrf
+from .fmrisim import generate_stimfunction, double_gamma_hrf
 
 """
 Some utility functions that can be used by different algorithms
@@ -353,7 +353,11 @@ class ReadDesign:
             self.StimLabels = []
 
 
-def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
+def gen_design(stimtime_files, scan_duration, TR, style='FSL',
+               hrf_para={'response_delay': 6, 'undershoot_delay': 12,
+                         'response_dispersion': 0.9,
+                         'undershoot_dispersion': 0.9,
+                         'undershoot_scale': 0.035}):
     """ Generate design matrix based on a list of names of stimulus
         timing files. The function will read each file, and generate
         a numpy array of size [time_points * condition], where
@@ -367,23 +371,29 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
     Parameters
     ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files will
-        be interpretated based on the style parameter.
+    stimtime_files: a string or a list of string.
+        Each string is the name of the file storing
+        the stimulus timing information of one task condition.
+        The contents in the files will be interpretated
+        based on the style parameter.
         Details are explained under the style parameter.
 
-    scan_duration: total duration of each fMRI scan, in unit of seconds.
-        If there are multiple runs, the duration can be
-        either a number or a list (or 1-d numpy array) of numbers.
+    scan_duration: float or a list (or a 1D numpy array) of numbers.
+        Total duration of each fMRI scan, in unit of seconds.
+        If there are multiple runs, the duration should be
+        a list (or 1-d numpy array) of numbers.
         If it is a list, then each number in the list
         represents the duration of the corresponding scan
         in the stimtime_files.
+        If only a number is provided, it is assumed that
+        there is only one fMRI scan lasting for scan_duration.
 
-    TR: the sampling period of fMRI, in unit of seconds.
+    TR: float.
+        The sampling period of fMRI, in unit of seconds.
 
-    style: the formating style of the stimtime_files. default: 'FSL'
+    style: string, default: 'FSL'
         Acceptable inputs: 'FSL', 'AFNI'
+        The formating style of the stimtime_files.
         'FSL' style has one line for each event of the same condition.
         Each line contains three numbers. The first number is the onset
         of the event relative to the onset of the first scan,
@@ -403,7 +413,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
         Each line has a few triplets in the format of
         stim_onsets*weight:duration
         (or simpler, see below), separated by spaces.
-        For example, 3.2*2.0:1.5 means that one event starts at 3.2s,
+        For example, 3.2\*2.0:1.5 means that one event starts at 3.2s,
         modulated by weight of 2.0 and lasts for 1.5s.
         If some run does not include a single event
         of a condition (stimulus type), then you can put *,
@@ -442,11 +452,15 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
         design = [np.empty([int(np.floor(scan_duration / TR)), n_C])]
     scan_onoff = np.insert(np.cumsum(scan_duration), 0, 0)
     if style == 'FSL':
-        design_info = read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
+        design_info = _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
     elif style == 'AFNI':
-        design_info = read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff,
-                                         scan_duration)
+        design_info = _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff)
 
+    response_delay = hrf_para['response_delay']
+    undershoot_delay = hrf_para['undershoot_delay']
+    response_dispersion = hrf_para['response_dispersion']
+    undershoot_dispersion = hrf_para['undershoot_dispersion']
+    undershoot_scale = hrf_para['undershoot_scale']
     # generate design matrix
     for i_s in range(n_S):
         for i_c in range(n_C):
@@ -456,13 +470,15 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL'):
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'])
             design[i_s][:, i_c] = double_gamma_hrf(
-                stimfunction, TR, response_delay=6, undershoot_delay=12,
-                response_dispersion=0.9, undershoot_dispersion=0.9,
-                response_scale=1, undershoot_scale=0.035, scale_function=0)
+                stimfunction, TR, response_delay=response_delay,
+                undershoot_delay=undershoot_delay,
+                response_dispersion=response_dispersion,
+                undershoot_dispersion=undershoot_dispersion,
+                undershoot_scale=undershoot_scale, scale_function=0)
     return np.concatenate(design, axis=0)
 
 
-def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
+def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     """Utility called by gen_design. It reads in one or more
        stimulus timing file comforming to FSL style,
        and return a list (size of [#run * #condition])
@@ -471,16 +487,18 @@ def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     Parameters
     ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files should follow the
-        style of FSL stimulus timing files, refer to gen_design.
+    stimtime_files: a string or a list of string.
+        Each string is the name of the file storing the stimulus
+        timing information of one task condition.
+        The contents in the files should follow the style of FSL
+        stimulus timing files, refer to gen_design.
 
-    n_C: number of conditions, integer
+    n_C: integer, number of task conditions
 
-    n_S: number of scans, integer
+    n_S: integer, number of scans
 
-    scan_onoff: the onset of each scan after concatenating all scans,
+    scan_onoff: list of numbers.
+        The onset of each scan after concatenating all scans,
         together with the offset of the last scan.
         For example, if 3 scans of duration 100s, 150s, 120s are run,
         scan_onoff is [0, 100, 250, 370]
@@ -508,8 +526,7 @@ def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     # Read stimulus timing files
     for i_c in range(n_C):
         with open(stimtime_files[i_c]) as f:
-            text = f.readlines()
-            for line in text:
+            for line in f.readlines():
                 tmp = line.strip().split()
                 i_s = np.where(
                     np.logical_and(scan_onoff[:-1] <= float(tmp[0]),
@@ -529,7 +546,7 @@ def read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     return design_info
 
 
-def read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff, scan_duration):
+def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     """Utility called by gen_design. It reads in one or more stimulus timing
        file comforming to AFNI style, and return a list
        (size of ``[number of runs * number of conditions]``)
@@ -538,16 +555,18 @@ def read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff, scan_duration):
     Parameters
     ----------
 
-    stimtime_files: stimtime_files, a string or a list of string,
-        with each string being the name of the file storing
-        the stimulus timing information. The files should follow the
-        style of AFNI stimulus timing files, refer to gen_design.
+    stimtime_files: a string or a list of string.
+        Each string is the name of the file storing the stimulus
+        timing information of one task condition.
+        The contents in the files should follow the style of AFNI
+        stimulus timing files, refer to gen_design.
 
-    n_C: number of conditions, integer
+    n_C: integer, number of task conditions
 
-    n_S: number of scans, integer
+    n_S: integer, number of scans
 
-    scan_onoff: the onset of each scan after concatenating all scans,
+    scan_onoff: list of numbers.
+        The onset of each scan after concatenating all scans,
         together with the offset of the last scan.
         For example, if 3 scans of duration 100s, 150s, 120s are run,
         scan_onoff is [0, 100, 250, 370]
@@ -595,7 +614,8 @@ def read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff, scan_duration):
                     else:
                         weight = 1.0
                     if (float(tmp[0]) >= 0
-                            and float(tmp[0]) < scan_duration[i_s]):
+                            and float(tmp[0])
+                            < scan_onoff[i_s + 1] - scan_onoff[i_s]):
                         design_info[i_s][i_c]['onset'].append(float(tmp[0]))
                         design_info[i_s][i_c]['duration'].append(duration)
                         design_info[i_s][i_c]['weight'].append(weight)
