@@ -99,11 +99,11 @@ class Classifier(BaseEstimator):
         num_voxels\_ must be consistent in both training and classification
 
     num_samples_: int
-        The number of samples of the training set
+        The number of samples
 
     num_digits_: int
         The number of digits of the first value of the kernel matrix,
-        for normalizing the similarity values accordingly
+        for normalizing the kernel values accordingly
     """
     def __init__(self,
                  clf,
@@ -232,7 +232,7 @@ class Classifier(BaseEstimator):
                             order='C')
             corr_data = corr_data.reshape(num_test_samples,
                                           num_voxels * num_voxels)
-            # compute the similarity matrix using corr_data and training_data
+            # compute the similarity vectors using corr_data and training_data
             blas.compute_single_matrix_multiplication('T', 'N',
                                                       num_training_samples,
                                                       num_test_samples,
@@ -252,14 +252,40 @@ class Classifier(BaseEstimator):
                 proportion = 10**(2-num_digits)
                 data *= proportion
             logger.debug(
-                'similarity matrix computation done'
+                'similarity vectors computation done'
             )
         else:
             data = corr_data.reshape(num_test_samples,
                                      num_voxels * num_voxels)
         return data
 
-    def _compute_similarity_matrix_in_portion(self, X):
+    def _compute_kernel_matrix_in_portion(self, X):
+        """ compute kernel matrix for sklearn.svm.SVC with precomputed kernel
+
+        The method generates the kernel matrix (similarity matrix) for
+        sklearn.svm.SVC with precomputed kernel. It first computes
+        the correlation from X, then normalizes the correlation if needed,
+        and finally computes the kernel matrix. It is worth noting that if
+        the resulting correlation is large, the kernel matrix will be computed
+        portion by portion to save memory usage (the portion size is specified
+        in self.num_processed_voxels.
+
+        Parameters
+        ----------
+        X: a list of numpy array in shape [num_TRs, num_voxels]
+            X contains the activity data filtered by top voxels
+            and prepared for correlation computation.
+            Assuming all elements of X have the same num_voxels value.
+
+        Returns
+        -------
+        kernel_matrix: 2D array in shape [num_samples, num_samples]
+            the kernel matrix to be used in sklearn.svm.SVC
+        normalized_corr_data: 2D array in shape [num_samples, num_features]
+            the training data to be used in self.predict() if
+            the kernel matrix is computed in one portion,
+            otherwise it will not be used.
+        """
         kernel_matrix = np.zeros((self.num_samples_, self.num_samples_),
                                  np.float32,
                                  order='C')
@@ -276,7 +302,7 @@ class Classifier(BaseEstimator):
             normalized_corr_data = self._normalize_correlation_data(
                 corr_data,
                 self.epochs_per_subj)
-            # compute partial similarity matrices
+            # compute partial kernel matrices
             # for using kernel matrix computation from voxel selection
             normalized_corr_data = normalized_corr_data.reshape(
                 1,
@@ -312,10 +338,10 @@ class Classifier(BaseEstimator):
             X contains the activity data filtered by top voxels
             and prepared for correlation computation.
             assuming all elements of X has the same num_voxels value
-        y: labels, len(X) equals len(Y)
+        y: labels, len(X) equals len(y)
         num_training_samples: int, default None
             The number of samples used in the training,
-            which is set when the similarity matrix is constructed
+            which is set when the kernel matrix is constructed
             portion by portion so the similarity vectors of the
             test data have to be computed here.
             This is ONLY set when sklearn.svm.SVC with
@@ -354,7 +380,7 @@ class Classifier(BaseEstimator):
         else:  # SVM with precomputed kernel
             if self.num_processed_voxels < num_voxels:
                 if num_training_samples is None:
-                    raise RuntimeError('the similarity matrix will be '
+                    raise RuntimeError('the kernel matrix will be '
                                        'computed portion by portion, '
                                        'the test samples must be predefined '
                                        'by specifying '
@@ -364,7 +390,7 @@ class Classifier(BaseEstimator):
                                      'must be smaller than '
                                      'the number of total samples')
             data, normalized_corr_data = \
-                self._compute_similarity_matrix_in_portion(X)
+                self._compute_kernel_matrix_in_portion(X)
             if self.num_processed_voxels >= num_voxels:
                 # training data is in shape
                 # [num_samples, num_voxels * num_voxels]
@@ -502,3 +528,37 @@ class Classifier(BaseEstimator):
             self.test_data_ = self._prepare_test_data(normalized_corr_data)
         confidence = self.clf.decision_function(self.test_data_)
         return confidence
+
+    def score(self, X, y, sample_weight=None):
+        """ returns the mean accuracy on the given test data and labels
+
+        NOTE: In the condition of sklearn.svm.SVC with precomputed kernel
+        when the kernel matrix is computed portion by portion, the function
+        will ignore the first input argument X.
+
+        Parameters
+        ----------
+        X: a list of numpy array in shape [TRs, voxels]
+            Test samples.
+            The second dimension voxels MUST be self.num_voxels\_
+            It is not used in sklearn.svm.SVC with precomputed
+            kernel when the kernel matrix is computed portion by portion.
+        y: labels, len(X) equals len(y), which is num_samples
+        sample_weight: 1D array in shape [num_samples], optional
+            Sample weights.
+
+        Returns
+        -------
+        score : float
+            Mean accuracy of self.predict(X) wrt. y.
+        """
+        from sklearn.metrics import accuracy_score
+        if isinstance(self.clf, sklearn.svm.SVC) \
+                and self.clf.kernel == 'precomputed' \
+                and self.training_data_ is None:
+            result = accuracy_score(y, self.predict(),
+                                    sample_weight=sample_weight)
+        else:
+            result = accuracy_score(y, self.predict(X),
+                                    sample_weight=sample_weight)
+        return result

@@ -19,6 +19,7 @@ import logging
 import brainiak.fcma.io as io
 import numpy as np
 from scipy.spatial.distance import hamming
+from sklearn import model_selection
 #from sklearn.externals import joblib
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -71,4 +72,17 @@ if __name__ == '__main__':
             (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
              (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
         )
+
+    # use model selection
+    # no shuffling in cv
+    skf = model_selection.StratifiedKFold(n_splits=num_subjects,
+                                          shuffle=False)
+    scores = model_selection.cross_val_score(clf, processed_data,
+                                             y=labels,
+                                             cv=skf)
+    print(scores)
+    logger.info(
+        'the overall cross validation accuracy is %.2f' %
+        np.mean(scores)
+    )
     logger.info('MVPA training and classification done')
