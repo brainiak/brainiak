@@ -42,21 +42,19 @@ if __name__ == '__main__':
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
 
-    raw_data = []
     # all MPI processes read the mask; the mask file is small
     mask_img = nib.load(mask_file)
     mask = mask_img.get_data().astype(np.bool)
-    epoch_info = None
+    data = None
+    labels = None
     if MPI.COMM_WORLD.Get_rank()==0:
-        raw_data = io.read_activity_data(data_dir, extension)
-        epoch_list = np.load(epoch_file)
-        epoch_info = io.generate_epochs_info(epoch_list)
+        data, labels = io.prepare_searchlight_mvpa_data(data_dir, extension, epoch_file)
         # the following line is an example to leaving a subject out
         #epoch_info = [x for x in epoch_info if x[1] != 0]
     num_subjs = int(sys.argv[5])
     # create a Searchlight object
     sl = Searchlight(sl_rad=1)
-    mvs = MVPAVoxelSelector(raw_data, mask, epoch_info, num_subjs, sl)
+    mvs = MVPAVoxelSelector(data, mask, labels, num_subjs, sl)
     clf = svm.SVC(kernel='linear', shrinking=False, C=1)
     # only rank 0 has meaningful return values
     score_volume, results = mvs.run(clf)
