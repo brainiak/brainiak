@@ -48,6 +48,10 @@ if __name__ == '__main__':
     data = None
     labels = None
     if MPI.COMM_WORLD.Get_rank()==0:
+        logger.info(
+            'mask size: %d' %
+            np.sum(mask)
+        )
         data, labels = io.prepare_searchlight_mvpa_data(data_dir, extension, epoch_file)
         # the following line is an example to leaving a subject out
         #epoch_info = [x for x in epoch_info if x[1] != 0]

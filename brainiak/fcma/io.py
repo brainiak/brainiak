@@ -99,7 +99,12 @@ def read_activity_data(dir, file_extension, mask_file=None):
     activity_data = []
     for f in files:
         filename = os.path.join(dir, f)
-        _read_one_nifti_file(filename, mask)
+        masked_data = _read_one_nifti_file(filename, mask)
+        activity_data.append(masked_data)
+        logger.info(
+            'file %s is loaded and masked, with data shape %s' %
+            (f, masked_data.shape)
+        )
     time2 = time.time()
     logger.info(
         'data reading done, takes %.2f s' %
@@ -367,6 +372,11 @@ def prepare_searchlight_mvpa_data(data_dir, extension, epoch_file):
                 subject_count[sid] += 1
                 processed_data[:, :, :, idx] = \
                     np.mean(data[:, :, :, epoch[2]:epoch[3]], axis=3)
+
+        logger.info(
+            'file %s is loaded and processed, with data shape %s' %
+            (f, data.shape)
+        )
     # z-scoring
     cur_epoch = 0
     for i in subject_count:
