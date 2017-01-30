@@ -21,7 +21,6 @@ Activity-based voxel selection
 
 import numpy as np
 from sklearn import model_selection
-from scipy.stats.mstats import zscore
 import logging
 from mpi4py import MPI
 

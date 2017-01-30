@@ -62,6 +62,7 @@ def _read_one_nifti_file(filename, mask=None):
 
     return data
 
+
 def read_activity_data(dir, file_extension, mask_file=None):
     """ read data in NIfTI from a dir and apply the spatial mask to them
 
@@ -319,6 +320,7 @@ def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
 
     return processed_data, labels
 
+
 def prepare_searchlight_mvpa_data(data_dir, extension, epoch_file):
     """ obtain the data for activity-based voxel selection using Searchlight
 
@@ -352,6 +354,10 @@ def prepare_searchlight_mvpa_data(data_dir, extension, epoch_file):
     files = [f for f in sorted(os.listdir(data_dir))
              if os.path.isfile(os.path.join(data_dir, f))
              and f.endswith(extension)]
+    logger.info(
+        'there are %d subjects, and in total %d epochs' %
+        (len(files), num_epochs)
+    )
     labels = np.empty(num_epochs)
     # assign labels
     for idx, epoch in enumerate(epoch_info):
