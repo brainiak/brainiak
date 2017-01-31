@@ -32,6 +32,37 @@ from mpi4py import MPI
 logger = logging.getLogger(__name__)
 
 
+def _read_one_nifti_file(filename, mask=None):
+    """ read data from an NIfTI file, apply the mask if provided
+
+    Parameters
+    ----------
+    filename: str
+        the absolute path of the NIfTI file
+    mask: Optional[3D array]
+        This is a 3D binary file indicating which voxels
+        are selected (labelled 1).
+        If it is not specified, the data will not be masked and remain in 4D
+
+    Returns
+    -------
+    data: 2D/4D array
+        if masked, in shape [nVoxels, nTRs], organized in voxel*TR formats
+        if not masked, in shape [x, y, z, t] or [brain 3D, nTRs]
+        len(activity_data) equals the number of subjects
+        the data type is float32
+
+    """
+    img = nib.load(filename)
+    data = img.get_data()
+    if mask is None:
+        data = data.astype(np.float32)
+    else:
+        data = data[mask].astype(np.float32)
+
+    return data
+
+
 def read_activity_data(dir, file_extension, mask_file=None):
     """ read data in NIfTI from a dir and apply the spatial mask to them
 
@@ -68,12 +99,8 @@ def read_activity_data(dir, file_extension, mask_file=None):
              and f.endswith(file_extension)]
     activity_data = []
     for f in files:
-        img = nib.load(os.path.join(dir, f))
-        data = img.get_data()
-        if mask is None:
-            masked_data = data.astype(np.float32)
-        else:
-            masked_data = data[mask].astype(np.float32)
+        filename = os.path.join(dir, f)
+        masked_data = _read_one_nifti_file(filename, mask)
         activity_data.append(masked_data)
         logger.info(
             'file %s is loaded and masked, with data shape %s' %
@@ -290,6 +317,88 @@ def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
     # if zscore fails (standard deviation is zero),
     # set all values to be zero
     processed_data = np.nan_to_num(processed_data)
+
+    return processed_data, labels
+
+
+def prepare_searchlight_mvpa_data(data_dir, extension, epoch_file):
+    """ obtain the data for activity-based voxel selection using Searchlight
+
+    Average the activity within epochs and z-scoring within subject,
+    while maintaining the 3D brain structure. In order to save memory,
+    the data is processed subject by subject instead of reading all in before
+    processing. Assuming all subjects live in the identical cube.
+
+    Parameters
+    ----------
+    data_dir: str
+        the path to all subject files
+    extension: str
+        the file extension, usually nii.gz or nii
+    epoch_file: str
+        the absolute path of the epoch file
+
+    Returns
+    -------
+    processed\_data: 4D array in shape [brain 3D + epoch]
+        averaged epoch by epoch processed data
+
+    labels: 1D array
+        contains labels of the data
+    """
+    time1 = time.time()
+    epoch_list = np.load(epoch_file)
+    epoch_info = generate_epochs_info(epoch_list)
+    num_epochs = len(epoch_info)
+    processed_data = None
+    files = [f for f in sorted(os.listdir(data_dir))
+             if os.path.isfile(os.path.join(data_dir, f))
+             and f.endswith(extension)]
+    logger.info(
+        'there are %d subjects, and in total %d epochs' %
+        (len(files), num_epochs)
+    )
+    labels = np.empty(num_epochs)
+    # assign labels
+    for idx, epoch in enumerate(epoch_info):
+        labels[idx] = epoch[0]
+    # counting the epochs per subject for z-scoring
+    subject_count = np.zeros(len(files), dtype=np.int32)
+
+    for sid, f in enumerate(files):
+        filename = os.path.join(data_dir, f)
+        data = _read_one_nifti_file(filename)
+        if processed_data is None:
+            [d1, d2, d3, _] = data.shape
+            processed_data = np.empty([d1, d2, d3, num_epochs],
+                                      dtype=np.float32)
+        # averaging
+        for idx, epoch in enumerate(epoch_info):
+            if sid == epoch[1]:
+                subject_count[sid] += 1
+                processed_data[:, :, :, idx] = \
+                    np.mean(data[:, :, :, epoch[2]:epoch[3]], axis=3)
+
+        logger.info(
+            'file %s is loaded and processed, with data shape %s' %
+            (f, data.shape)
+        )
+    # z-scoring
+    cur_epoch = 0
+    for i in subject_count:
+        if i > 1:
+            processed_data[:, :, :, cur_epoch:cur_epoch + i] = \
+                zscore(processed_data[:, :, :, cur_epoch:cur_epoch + i],
+                       axis=3, ddof=0)
+        cur_epoch += i
+    # if zscore fails (standard deviation is zero),
+    # set all values to be zero
+    processed_data = np.nan_to_num(processed_data)
+    time2 = time.time()
+    logger.info(
+        'data processed for activity-based voxel selection, takes %.2f s' %
+        (time2 - time1)
+    )
 
     return processed_data, labels
 
