@@ -320,7 +320,7 @@ def generate_epochs_info(epoch_list):
     return epoch_info
 
 
-def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
+def prepare_mvpa_data(data_dir, extension, epoch_file, mask_file):
     """ obtain the data for activity-based model training and prediction
 
     Average the activity within epochs and z-scoring within subject.
@@ -331,11 +331,11 @@ def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
         the path to all subject files
     extension: str
         the file extension, usually nii.gz or nii
+    epoch_file: str
+        the absolute path of the epoch file
     mask_file: str
         the absolute path of the mask file,
         we apply the mask right after reading a file for saving memory
-    epoch_file: str
-        the absolute path of the epoch file
 
     Returns
     -------
@@ -345,7 +345,7 @@ def prepare_mvpa_data(data_dir, extension, mask_file, epoch_file):
     labels: 1D array
         contains labels of the data
     """
-    activity_data = read_activity_data(data_dir, extension, mask_file)
+    activity_data, _ = read_activity_data(data_dir, extension, mask_file)
     epoch_list = np.load(epoch_file)
     epoch_info = generate_epochs_info(epoch_list)
     num_epochs = len(epoch_info)

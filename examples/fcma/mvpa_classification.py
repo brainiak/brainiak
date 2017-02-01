@@ -44,7 +44,7 @@ if __name__ == '__main__':
         (num_subjects, num_epochs_per_subj)
     )
 
-    processed_data, labels = io.prepare_mvpa_data(data_dir, extension, mask_file, epoch_file)
+    processed_data, labels = io.prepare_mvpa_data(data_dir, extension, epoch_file, mask_file)
 
     # transpose data to facilitate training and prediction
     processed_data = processed_data.T

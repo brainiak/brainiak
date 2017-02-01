@@ -24,8 +24,8 @@ epoch_file = os.path.join(os.path.dirname(__file__), 'data/epoch_labels.npy')
 expected_labels = np.array([0, 1, 0, 1])
 
 def test_read_activity_data():
-    masked_data1 = io.read_activity_data(dir, extension, mask_file)
-    raw_data = io.read_activity_data(dir, extension)
+    masked_data1, _ = io.read_activity_data(dir, extension, mask_file)
+    raw_data, _ = io.read_activity_data(dir, extension)
     mask_img = nib.load(mask_file)
     mask = mask_img.get_data().astype(np.bool)
     masked_data2 = []
@@ -36,9 +36,18 @@ def test_read_activity_data():
     for idx in range(len(masked_data1)):
         assert np.allclose(masked_data1[idx], masked_data2[idx]), \
             'masked data do not match in test_read_activity_data'
+    # two masks
+    masked_data1, masked_data2 = io.read_activity_data(dir, extension, mask_file, mask_file)
+    mask_img = nib.load(mask_file)
+    mask = mask_img.get_data().astype(np.bool)
+    assert len(masked_data1) == len(masked_data2), \
+        'numbers of subjects do not match in test_read_activity_data'
+    for idx in range(len(masked_data1)):
+        assert np.allclose(masked_data1[idx], masked_data2[idx]), \
+            'masked data do not match in test_read_activity_data'
 
 def test_prepare_fcma_data():
-    raw_data, labels = io.prepare_fcma_data(dir, extension, mask_file, epoch_file)
+    raw_data, _, labels = io.prepare_fcma_data(dir, extension, epoch_file, mask_file)
     expected_raw_data = np.load(os.path.join(os.path.dirname(__file__),
                                              'data/expected_raw_data.npy'))
     assert len(raw_data) == len(expected_raw_data), \
@@ -50,7 +59,7 @@ def test_prepare_fcma_data():
         'the labels do not match in test_prepare_fcma_data'
 
 def test_prepare_mvpa_data():
-    processed_data, labels = io.prepare_mvpa_data(dir, extension, mask_file, epoch_file)
+    processed_data, labels = io.prepare_mvpa_data(dir, extension, epoch_file, mask_file)
     expected_processed_data = np.load(os.path.join(os.path.dirname(__file__),
                                                    'data/expected_processed_data.npy'))
     assert len(processed_data) == len(expected_processed_data), \
