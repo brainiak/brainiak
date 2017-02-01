@@ -177,7 +177,6 @@ def test_classification_with_two_components():
                                     4.46505975, -4.19933099, 4.08313584,
                                     -4.23070437, 4.31779758])
     recomputed_confidence = clf.decision_function((fake_raw_data[12:], fake_raw_data2[12:]))
-    print(recomputed_confidence)
     hamming_distance = hamming(np.sign(expected_confidence),
                                np.sign(recomputed_confidence)) * expected_confidence.size
     assert hamming_distance <= 1, \
