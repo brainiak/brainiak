@@ -155,16 +155,16 @@ if __name__ == '__main__':
     num_subjects = len(epoch_list)
     num_epochs_per_subj = epoch_list[0].shape[1]
 
-    #raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
+    raw_data, _, labels = prepare_fcma_data(data_dir, extension, epoch_file, mask_file)
 
-    #example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs_per_subj)
+    example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs_per_subj)
 
-    #example_of_cross_validation_with_detailed_info(raw_data, labels, num_subjects, num_epochs_per_subj)
+    example_of_cross_validation_with_detailed_info(raw_data, labels, num_subjects, num_epochs_per_subj)
 
-    #example_of_cross_validation_using_model_selection(raw_data, labels, num_subjects, num_epochs_per_subj)
+    example_of_cross_validation_using_model_selection(raw_data, labels, num_subjects, num_epochs_per_subj)
 
     # test of two different components for correlation computation
-    raw_data, raw_data2, labels = prepare_fcma_data(data_dir, extension, epoch_file,
-                                                    mask_file, 'face_scene/visual_top_mask.nii.gz')
+    #raw_data, raw_data2, labels = prepare_fcma_data(data_dir, extension, epoch_file,
+    #                                                mask_file, 'face_scene/visual_top_mask.nii.gz')
     #example_of_correlating_two_components(raw_data, raw_data2, labels, num_subjects, num_epochs_per_subj)
-    example_of_correlating_two_components_aggregating_sim_matrix(raw_data, raw_data2, labels, num_subjects, num_epochs_per_subj)
+    #example_of_correlating_two_components_aggregating_sim_matrix(raw_data, raw_data2, labels, num_subjects, num_epochs_per_subj)
