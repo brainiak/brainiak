@@ -197,7 +197,7 @@ def _separate_epochs(activity_data, epoch_list):
                     raw_data.append(mat)
                     labels.append(cond)
     time2 = time.time()
-    logger.info(
+    logger.debug(
         'epoch separation done, takes %.2f s' %
         (time2 - time1)
     )
