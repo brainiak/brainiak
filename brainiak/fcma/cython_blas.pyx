@@ -19,7 +19,7 @@ cimport scipy.linalg.cython_blas as blas
 
 def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
                                     py_alpha, py_a, py_lda, int py_start_voxel,
-                                    py_ldb, py_beta, py_c, py_ldc,
+                                    py_b, py_ldb, py_beta, py_c, py_ldc,
                                     int py_start_epoch):
     """ use blas API sgemm wrapped by scipy to compute correlation
 
@@ -56,7 +56,8 @@ def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
     the weight applied to the first matrix A
 
     py_a: 2D array in shape [epoch_length, num_voxels] in our case
-    the activity data of an epoch
+    the activity data of an epoch, part 1 of the data to be correlated with.
+    Note that py_a can point to the same location of py_b.
 
     py_lda: int
     the stride of the first matrix A
@@ -64,6 +65,10 @@ def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
     py_start_voxel: int
     the starting voxel of assigned voxels
     used to locate the second matrix B
+
+    py_b: 2D array in shape [epoch_length, num_voxels] in our case
+    the activity data of an epoch, part 2 of the data to be correlated with.
+    Note that py_a can point to the same location of py_b.
 
     py_ldb: int
     the stride of the second matrix B
@@ -103,10 +108,12 @@ def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
     beta = py_beta
     cdef float[:, ::1] A
     A = py_a
+    cdef float[:, ::1] B
+    B = py_b
     cdef float[:, :, ::1] C
     C = py_c
     blas.sgemm(trans_a, trans_b, &M, &N, &K, &alpha, &A[0, 0], &lda,
-               &A[0, py_start_voxel], &ldb, &beta, &C[0, py_start_epoch, 0], &ldc)
+               &B[0, py_start_voxel], &ldb, &beta, &C[0, py_start_epoch, 0], &ldc)
 
 def compute_kernel_matrix(py_uplo, py_trans, py_n, py_k, py_alpha, py_a,
                           int py_start_voxel, py_lda,

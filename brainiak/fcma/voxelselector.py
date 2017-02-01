@@ -42,6 +42,16 @@ class VoxelSelector:
     Parameters
     ----------
 
+    labels: list of 1D array
+        the condition labels of the epochs
+        len(labels) labels equals the number of epochs
+
+    epochs_per_subj: int
+        The number of epochs of each subject
+
+    num_folds: int
+        The number of folds to be conducted in the cross validation
+
     raw_data: list of 2D array in shape [epoch length, nVoxels]
         Assumption: 1. all activity data contains the same number of voxels
                     2. the activity data has been z-scored,
@@ -49,20 +59,15 @@ class VoxelSelector:
                     3. all subjects have the same number of epochs
                     4. epochs belonging to the same subject are adjacent
                        in the list
-                    5. voxel selection is always done in the auto-correlation,
-                       i.e. raw_data correlate with themselves
-                    6. if MPI jobs are running on multiple nodes, the user
+                    5. if MPI jobs are running on multiple nodes, the user
                        home directory is shared by all nodes
 
-    epochs_per_subj: int
-        The number of epochs of each subject
-
-    labels: list of 1D array
-        the condition labels of the epochs
-        len(labels) labels equals the number of epochs
-
-    num_folds: int
-        The number of folds to be conducted in the cross validation
+    raw_data2: Optional, list of 2D array in shape [epoch length, nVoxels]
+        raw_data2 shares the data structure of the assumptions of raw_data
+        If raw_data2 is None, the correlation will be computed as
+        raw_data by raw_data.
+        If raw_data2 is specified, len(raw_data) MUST equal len(raw_data2),
+        the correlation will be computed as raw_data by raw_data2.
 
     voxel_unit: int, default 100
         The number of voxels assigned to a worker each time
@@ -71,20 +76,29 @@ class VoxelSelector:
         The process which serves as the master
     """
     def __init__(self,
-                 raw_data,
-                 epochs_per_subj,
                  labels,
+                 epochs_per_subj,
                  num_folds,
+                 raw_data,
+                 raw_data2=None,
                  voxel_unit=100,
                  master_rank=0):
-        self.raw_data = raw_data
-        self.epochs_per_subj = epochs_per_subj
-        self.num_voxels = raw_data[0].shape[1]
         self.labels = labels
+        self.epochs_per_subj = epochs_per_subj
         self.num_folds = num_folds
+        self.raw_data = raw_data
+        self.num_voxels = raw_data[0].shape[1]
+        self.raw_data2 = raw_data2
+        self.num_voxels2 = raw_data2[0].shape[1] \
+            if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
         self.master_rank = master_rank
-        if self.num_voxels == 0:
+        if self.raw_data2 is not None \
+                and len(self.raw_data) != len(self.raw_data2):
+            raise ValueError('The raw data lists must have the same number '
+                             'of elements for computing the correlations '
+                             'element by element')
+        if self.num_voxels == 0 or self.num_voxels2 == 0:
             raise ValueError('Zero processed voxels')
         if MPI.COMM_WORLD.Get_size() == 1:
             raise RuntimeError('one process cannot run the '
@@ -242,19 +256,21 @@ class VoxelSelector:
         time1 = time.time()
         s = task[0]
         nEpochs = len(self.raw_data)
-        corr = np.zeros((task[1], nEpochs, self.num_voxels),
+        corr = np.zeros((task[1], nEpochs, self.num_voxels2),
                         np.float32, order='C')
         count = 0
-        for mat in self.raw_data:
+        for i in range(len(self.raw_data)):
+            mat = self.raw_data[i]
+            mat2 = self.raw_data2[i] if self.raw_data2 is not None else mat
             no_trans = 'N'
             trans = 'T'
             blas.compute_self_corr_for_voxel_sel(no_trans, trans,
-                                                 self.num_voxels, task[1],
+                                                 self.num_voxels2, task[1],
                                                  mat.shape[0], 1.0,
-                                                 mat, self.num_voxels,
-                                                 s, self.num_voxels,
+                                                 mat2, self.num_voxels2,
+                                                 s, mat, self.num_voxels,
                                                  0.0, corr,
-                                                 self.num_voxels * nEpochs,
+                                                 self.num_voxels2 * nEpochs,
                                                  count)
             count += 1
         time2 = time.time()
@@ -268,7 +284,7 @@ class VoxelSelector:
         """ within-subject normalization
 
         This method uses scipy.zscore to normalize the data,
-        but is much slower than its C++ counterpart。
+        but is much slower than its C++ counterpart.
         It is doing in-place z-score.
 
         Parameters
@@ -329,9 +345,9 @@ class VoxelSelector:
             if isinstance(clf, sklearn.svm.SVC) \
                     and clf.kernel == 'precomputed':
                 blas.compute_kernel_matrix('L', 'T',
-                                           e, self.num_voxels,
+                                           e, self.num_voxels2,
                                            1.0, corr,
-                                           i, self.num_voxels,
+                                           i, self.num_voxels2,
                                            0.0, kernel_matrix, e)
                 # shrink the values for getting more stable alpha values
                 # in SVM training iteration
@@ -349,6 +365,10 @@ class VoxelSelector:
                                                      y=self.labels,
                                                      cv=skf, n_jobs=1)
             results.append((i + task[0], scores.mean()))
+            logger.debug(
+                'cross validation for voxel %d is done' %
+                (i + task[0])
+            )
         time2 = time.time()
         logger.debug(
             'cross validation for %d voxels, takes %.2f s' %

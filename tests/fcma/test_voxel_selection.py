@@ -39,7 +39,7 @@ def test_voxel_selection():
     fake_raw_data = [create_epoch() for i in range(8)]
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
-    vs = VoxelSelector(fake_raw_data, 4, labels, 2, voxel_unit=1)
+    vs = VoxelSelector(labels, 4, 2, fake_raw_data, voxel_unit=1)
     # test scipy normalization
     fake_corr = prng.rand(1, 4, 5).astype(np.float32)
     fake_corr = vs._correlationNormalization(fake_corr)
@@ -76,5 +76,35 @@ def test_voxel_selection():
         assert np.allclose(output, expected_output, atol=1), \
             'voxel selection via logistic regression does not provide correct results'
 
+def test_voxel_selection_with_two_masks():
+    fake_raw_data1 = [create_epoch() for i in range(8)]
+    fake_raw_data2 = [create_epoch() for i in range(8)]
+    labels = [0, 1, 0, 1, 0, 1, 0, 1]
+    # 2 subjects, 4 epochs per subject
+    vs = VoxelSelector(labels, 4, 2, fake_raw_data1,
+                       raw_data2=fake_raw_data2, voxel_unit=1)
+    # for cross validation, use SVM with precomputed kernel
+    # no shrinking, set C=1
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    results = vs.run(clf)
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        output = [None] * len(results)
+        for tuple in results:
+            output[tuple[0]] = int(8*tuple[1])
+        expected_output = [3, 3, 3, 6, 6]
+        assert np.allclose(output, expected_output, atol=1), \
+            'voxel selection via SVM does not provide correct results'
+    # for cross validation, use logistic regression
+    clf = LogisticRegression()
+    results = vs.run(clf)
+    if MPI.COMM_WORLD.Get_rank() == 0:
+        output = [None] * len(results)
+        for tuple in results:
+            output[tuple[0]] = int(8*tuple[1])
+        expected_output = [3, 4, 4, 6, 6]
+        assert np.allclose(output, expected_output, atol=1), \
+            'voxel selection via logistic regression does not provide correct results'
+
 if __name__ == '__main__':
     test_voxel_selection()
+    test_voxel_selection_with_two_masks()
