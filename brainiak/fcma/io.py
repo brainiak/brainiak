@@ -425,7 +425,7 @@ def prepare_searchlight_mvpa_data(data_dir, extension, epoch_file):
 
     for sid, f in enumerate(files):
         filename = os.path.join(data_dir, f)
-        data = _read_one_nifti_file(filename)
+        data, _ = _read_one_nifti_file(filename)
         if processed_data is None:
             [d1, d2, d3, _] = data.shape
             processed_data = np.empty([d1, d2, d3, num_epochs],

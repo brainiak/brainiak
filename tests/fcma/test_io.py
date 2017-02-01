@@ -38,8 +38,6 @@ def test_read_activity_data():
             'masked data do not match in test_read_activity_data'
     # two masks
     masked_data1, masked_data2 = io.read_activity_data(dir, extension, mask_file, mask_file)
-    mask_img = nib.load(mask_file)
-    mask = mask_img.get_data().astype(np.bool)
     assert len(masked_data1) == len(masked_data2), \
         'numbers of subjects do not match in test_read_activity_data'
     for idx in range(len(masked_data1)):
@@ -66,11 +64,23 @@ def test_prepare_mvpa_data():
         'numbers of epochs do not match in test_prepare_mvpa_data'
     for idx in range(len(processed_data)):
         assert np.allclose(processed_data[idx], expected_processed_data[idx]), \
-            'raw data do not match'
+            'raw data do not match in test_prepare_mvpa_data'
     assert np.array_equal(labels, expected_labels), \
         'the labels do not match in test_prepare_mvpa_data'
+
+def test_prepare_searchlight_mvpa_data():
+    processed_data, labels = io.prepare_searchlight_mvpa_data(dir, extension, epoch_file)
+    expected_searchlight_processed_data = \
+        np.load(os.path.join(os.path.dirname(__file__),
+                             'data/expected_searchlight_processed_data.npy'))
+    for idx in range(len(processed_data)):
+        assert np.allclose(processed_data[idx], expected_searchlight_processed_data[idx]), \
+            'raw data do not match in test_prepare_searchlight_mvpa_data'
+    assert np.array_equal(labels, expected_labels), \
+        'the labels do not match in test_prepare_searchlight_mvpa_data'
 
 if __name__ == '__main__':
     test_read_activity_data()
     test_prepare_fcma_data()
     test_prepare_mvpa_data()
+    test_prepare_searchlight_mvpa_data()
