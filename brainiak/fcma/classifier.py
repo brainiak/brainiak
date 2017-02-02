@@ -122,24 +122,24 @@ class Classifier(BaseEstimator):
         self.num_digits_ = 0
         return
 
-    def _prepare_corerelation_data(self, x1, x2,
+    def _prepare_corerelation_data(self, X1, X2,
                                    start_voxel=0,
                                    num_processed_voxels=None):
-        """ compute auto-correlation for the input data X
+        """ compute auto-correlation for the input data X1 and X2
 
         it will generate the correlation between some voxels and all voxels
 
         Parameters
         ----------
-        x1: a list of numpy array in shape [num_TRs, num_voxels]
-            x1 contains the activity data filtered by ROIs
+        X1: a list of numpy array in shape [num_TRs, num_voxels1]
+            X1 contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            Assuming all elements of x1 has the same num_voxels value,
-        x2: a list of numpy array in shape [num_TRs, num_voxels]
-            len(x1) equals len(x2).
-            Assuming all elements of x2 has the same num_voxels value.
-            x2 can be identical to x1; if not, x1 always has more voxels
-            than x2.
+            All elements of X1 must have the same num_voxels value.
+        X2: a list of numpy array in shape [num_TRs, num_voxels2]
+            len(X1) equals len(X2).
+            All elements of X2 must have the same num_voxels value.
+            X2 can be identical to X1; if not, X1 always has more voxels
+            than X2.
         start_voxel: int, default 0
             the starting voxel id for correlation computation
         num_processed_voxels: int, default None
@@ -149,31 +149,31 @@ class Classifier(BaseEstimator):
         Returns
         -------
         corr_data: the correlation data
-                    in shape [len(X), num_processed_voxels, num_voxels]
+                    in shape [len(X), num_processed_voxels, num_voxels2]
         """
-        num_samples = len(x1)
+        num_samples = len(X1)
         assert num_samples > 0, \
             'at least one sample is needed for correlation computation'
-        num_voxels = x1[0].shape[1]
-        num_voxels2 = x2[0].shape[1]
-        assert num_voxels*num_voxels2 == self.num_features_, \
+        num_voxels1 = X1[0].shape[1]
+        num_voxels2 = X2[0].shape[1]
+        assert num_voxels1 * num_voxels2 == self.num_features_, \
             'the number of features provided by X does not match ' \
             'the number of features defined in the model'
-        assert x1[0].shape[0] == x2[0].shape[0], \
+        assert X1[0].shape[0] == X2[0].shape[0], \
             'the numbers of TRs of X and X2 are not identical'
         if num_processed_voxels is None:
-            num_processed_voxels = num_voxels
+            num_processed_voxels = num_voxels1
         corr_data = np.zeros((num_samples, num_processed_voxels, num_voxels2),
                              np.float32, order='C')
         # compute correlation
-        for idx, data in enumerate(x1):
-            data2 = x2[idx]
+        for idx, data in enumerate(X1):
+            data2 = X2[idx]
             num_TRs = data.shape[0]
             blas.compute_corr_vectors('N', 'T',
                                       num_voxels2, num_processed_voxels,
                                       num_TRs,
                                       1.0, data2, num_voxels2,
-                                      data, num_voxels,
+                                      data, num_voxels1,
                                       0.0, corr_data, num_voxels2,
                                       start_voxel, idx)
         logger.debug(
@@ -276,7 +276,7 @@ class Classifier(BaseEstimator):
                                      self.num_features_)
         return data
 
-    def _compute_kernel_matrix_in_portion(self, x1, x2):
+    def _compute_kernel_matrix_in_portion(self, X1, X2):
         """ compute kernel matrix for sklearn.svm.SVC with precomputed kernel
 
         The method generates the kernel matrix (similarity matrix) for
@@ -289,15 +289,15 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        x1: a list of numpy array in shape [num_TRs, num_voxels]
+        X1: a list of numpy array in shape [num_TRs, num_voxels]
             X contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            Assuming all elements of x1 has the same num_voxels value,
-        x2: a list of numpy array in shape [num_TRs, num_voxels]
-            len(X) equals len(x2).
-            Assuming all elements of x2 has the same num_voxels value.
-            X2 can be identical to x1; if not, x1 always has more voxels
-            than x2.
+            All elements of X1 must have the same num_voxels value,
+        X2: a list of numpy array in shape [num_TRs, num_voxels]
+            len(X) equals len(X2).
+            All elements of X2 must have the same num_voxels value.
+            X2 can be identical to X1; if not, X1 always has more voxels
+            than X2.
 
         Returns
         -------
@@ -313,13 +313,13 @@ class Classifier(BaseEstimator):
                                  order='C')
         sr = 0
         row_length = self.num_processed_voxels
-        num_voxels2 = x2[0].shape[1]
+        num_voxels2 = X2[0].shape[1]
         normalized_corr_data = None
         while sr < self.num_voxels_:
             if row_length >= self.num_voxels_ - sr:
                 row_length = self.num_voxels_ - sr
             # compute sub-correlation
-            corr_data = self._prepare_corerelation_data(x1, x2,
+            corr_data = self._prepare_corerelation_data(X1, X2,
                                                         sr, row_length)
             # normalization
             normalized_corr_data = self._normalize_correlation_data(
@@ -347,7 +347,7 @@ class Classifier(BaseEstimator):
             kernel_matrix *= proportion
         return kernel_matrix, normalized_corr_data
 
-    def _generate_training_data(self, x1, x2, num_training_samples):
+    def _generate_training_data(self, X1, X2, num_training_samples):
         """ generate training data for the classifier
 
         Compute the correlation, do the normalization if necessary,
@@ -356,15 +356,15 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        x1: a list of numpy array in shape [num_TRs, num_voxels]
-            x1 contains the activity data filtered by ROIs
+        X1: a list of numpy array in shape [num_TRs, num_voxels]
+            X1 contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            Assuming all elements of x1 has the same num_voxels value,
-        x2: a list of numpy array in shape [num_TRs, num_voxels]
-            len(x1) equals len(x2).
-            Assuming all elements of x2 has the same num_voxels value.
-            x2 can be identical to x1; if not, x always has more voxels
-            than x2.
+            All elements of X1 must have the same num_voxels value,
+        X2: a list of numpy array in shape [num_TRs, num_voxels]
+            len(X1) equals len(X2).
+            All elements of X2 must have the same num_voxels value.
+            X2 can be identical to X1; if not, x always has more voxels
+            than X2.
         num_training_samples: Optional[int]
             Default None.
             The number of samples used in the training,
@@ -386,7 +386,7 @@ class Classifier(BaseEstimator):
         if not (isinstance(self.clf, sklearn.svm.SVC)
                 and self.clf.kernel == 'precomputed'):
             # correlation computation
-            corr_data = self._prepare_corerelation_data(x1, x2)
+            corr_data = self._prepare_corerelation_data(X1, X2)
             # normalization
             normalized_corr_data = self._normalize_correlation_data(
                 corr_data,
@@ -408,7 +408,7 @@ class Classifier(BaseEstimator):
                                      'must be smaller than '
                                      'the number of total samples')
             data, normalized_corr_data = \
-                self._compute_kernel_matrix_in_portion(x1, x2)
+                self._compute_kernel_matrix_in_portion(X1, X2)
             if self.num_processed_voxels >= self.num_voxels_:
                 # training data is in shape
                 # [num_samples, num_voxels * num_voxels]
@@ -426,33 +426,36 @@ class Classifier(BaseEstimator):
     def fit(self, X, y, num_training_samples=None):
         """ use correlation data to train a model
 
-        first compute the correlation of the input data,
+        First compute the correlation of the input data,
         and then normalize within subject
         if more than one sample in one subject,
         and then fit to a model defined by self.clf.
 
         Parameters
         ----------
-        X: tuple (x1, x2)
-            x1 and x2 are lists of numpy array in shape [num_TRs, num_voxels],
+        X: tuple (X1, X2)
+            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels],
             they contain the activity data filtered by ROIs
             and prepared for correlation computation.
-            Assuming within list, all elements have the same num_voxels value
-        y: labels, 1D numpy array
-            len(X) equals len(y)
+            Within list, all elements must have the same num_voxels value.
+            For compatible purpose, X can also be
+            a list of numpy array in shape [num_TRs, num_voxels],
+            in which case the method will make a tuple (X, X) for it.
+        y: 1D numpy array
+            labels, len(X) equals len(y)
         num_training_samples: Optional[int]
-            Default None.
-            The number of samples used in the training,
-            which is set when the kernel matrix is constructed
+            The number of samples used in the training.
+            Set it to construct the kernel matrix
             portion by portion so the similarity vectors of the
             test data have to be computed here.
-            This is ONLY set when sklearn.svm.SVC with
+            Only set num_training_samples when sklearn.svm.SVC with
             precomputed kernel is used.
             If it is set, only those samples will be used to fit the model.
 
         Returns
         -------
-        self: return the object itself
+        Classifier:
+            self.
         """
         time1 = time.time()
         # if X is not a tuple, make it one but replicating it
@@ -460,12 +463,12 @@ class Classifier(BaseEstimator):
             X = (X, X)
         assert len(X) == 2, \
             'there must be two parts for correlation computation'
-        x1 = X[0]
-        x2 = X[1]
-        assert len(x1) == len(y), \
+        X1 = X[0]
+        X2 = X[1]
+        assert len(X1) == len(y), \
             'the number of samples does not match the number labels'
-        assert len(x1) == len(x2), \
-            'the numbers of samples in x1 and x2 are not identical'
+        assert len(X1) == len(X2), \
+            'the numbers of samples in X1 and X2 are not identical'
         if not (isinstance(self.clf, sklearn.svm.SVC)
                 and self.clf.kernel == 'precomputed'):
             if num_training_samples is not None:
@@ -474,18 +477,18 @@ class Classifier(BaseEstimator):
                     'num_training_samples should not be set for classifiers '
                     'other than SVM with precomputed kernels'
                 )
-        num_samples = len(x1)
-        num_voxels = x1[0].shape[1]  # see assumption above
-        num_voxels2 = x2[0].shape[1]  # see assumption above
-        # make sure x1 always has more voxels
-        if num_voxels < num_voxels2:
-            x1, x2 = x2, x1
-            num_voxels, num_voxels2 = num_voxels2, num_voxels
-        self.num_voxels_ = num_voxels
-        self.num_features_ = num_voxels * num_voxels2
+        num_samples = len(X1)
+        num_voxels1 = X1[0].shape[1]
+        num_voxels2 = X2[0].shape[1]
+        # make sure X1 always has more voxels
+        if num_voxels1 < num_voxels2:
+            X1, X2 = X2, X1
+            num_voxels1, num_voxels2 = num_voxels2, num_voxels1
+        self.num_voxels_ = num_voxels1
+        self.num_features_ = num_voxels1 * num_voxels2
         self.num_samples_ = num_samples
 
-        data = self._generate_training_data(x1, x2, num_training_samples)
+        data = self._generate_training_data(X1, X2, num_training_samples)
 
         if num_training_samples is not None:
             self.test_raw_data_ = None
@@ -518,39 +521,42 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: Optional[tuple (x1, x2)]
-            x1 and x2 are lists of numpy array in shape [num_TRs, num_voxels]
+        X: Optional[tuple (X1, X2)]
+            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels]
             default None, meaning that the data to be predicted
             have been processed in the fit method.
             Otherwise, X contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            len(x1) equals len(x2), is the number of test samples.
+            len(X1) equals len(X2), is the number of test samples.
+            For compatible purpose, X can also be
+            a list of numpy array in shape [num_TRs, num_voxels],
+            in which case the method will make a tuple (X, X) for it.
 
         Returns
         -------
-        y_pred: the predicted label of X, in shape [len(x1),]
+        y_pred: the predicted label of X, in shape [len(X1),]
         """
         time1 = time.time()
         if X is not None:
             if not isinstance(X, tuple):
                 X = (X, X)
-            x1 = X[0]
-            x2 = X[1]
-            assert len(x1) == len(x2), \
+            X1 = X[0]
+            X2 = X[1]
+            assert len(X1) == len(X2), \
                 'the list lengths do not match'
-            num_voxels = x1[0].shape[1]
-            num_voxels2 = x2[0].shape[1]
-            # make sure x1 always has more voxels
-            if num_voxels < num_voxels2:
-                x1, x2 = x2, x1
-                num_voxels, num_voxels2 = num_voxels2, num_voxels
-            assert self.num_features_ == num_voxels * num_voxels2, \
+            num_voxels1 = X1[0].shape[1]
+            num_voxels2 = X2[0].shape[1]
+            # make sure X1 always has more voxels
+            if num_voxels1 < num_voxels2:
+                X1, X2 = X2, X1
+                num_voxels1, num_voxels2 = num_voxels2, num_voxels1
+            assert self.num_features_ == num_voxels1 * num_voxels2, \
                 'the number of features does not match the model'
-            num_test_samples = len(x1)
+            num_test_samples = len(X1)
             self.test_raw_data_ = X
 
             # correlation computation
-            corr_data = self._prepare_corerelation_data(x1, x2)
+            corr_data = self._prepare_corerelation_data(X1, X2)
             # normalization
             normalized_corr_data = self._normalize_correlation_data(
                 corr_data,
@@ -573,8 +579,8 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (x1, x2)
-            x1 and x2 are lists of numpy array in shape [num_TRs, num_voxels],
+        X: tuple (X1, X2)
+            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels],
             the input data to be checked.
 
         Returns
@@ -583,16 +589,16 @@ class Classifier(BaseEstimator):
         """
         if self.test_raw_data_ is None or len(X) != len(self.test_raw_data_):
             return False
-        x1 = X[0]
-        x2 = X[1]
+        X1 = X[0]
+        X2 = X[1]
         c1 = self.test_raw_data_[0]
         c2 = self.test_raw_data_[1]
         # this for loop is faster than
         # doing np.array_equal(X, self.test_raw_data_) directly
-        for new, old in zip(x1, c1):
+        for new, old in zip(X1, c1):
             if not np.array_equal(new, old):
                 return False
-        for new, old in zip(x2, c2):
+        for new, old in zip(X2, c2):
             if not np.array_equal(new, old):
                 return False
         return True
@@ -607,14 +613,17 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (x1, x2)
-            x1 and x2 are lists of numpy array in shape [num_TRs, num_voxels]
+        X: tuple (X1, X2)
+            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels]
             default None, meaning that the data to be predicted
             have been processed in the fit method.
             Otherwise, X contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            len(x1) equals len(x2), is the number of test samples.
-            if len(x1) > 1: normalization is done on all test samples.
+            len(X1) equals len(X2), is the number of test samples.
+            if len(X1) > 1: normalization is done on all test samples.
+            For compatible purpose, X can also be
+            a list of numpy array in shape [num_TRs, num_voxels],
+            in which case the method will make a tuple (X, X) for it.
 
         Returns
         -------
@@ -623,23 +632,23 @@ class Classifier(BaseEstimator):
         if X is not None and not self._is_equal_to_test_raw_data(X):
             if not isinstance(X, tuple):
                 X = (X, X)
-            x1 = X[0]
-            x2 = X[1]
-            assert len(x1) == len(x2), \
+            X1 = X[0]
+            X2 = X[1]
+            assert len(X1) == len(X2), \
                 'the list lengths do not match'
-            num_voxels = x1[0].shape[1]
-            num_voxels2 = x2[0].shape[1]
-            # make sure x1 always has more voxels
-            if num_voxels < num_voxels2:
-                x1, x2 = x2, x1
-                num_voxels, num_voxels2 = num_voxels2, num_voxels
-            assert self.num_features_ == num_voxels * num_voxels2, \
+            num_voxels1 = X1[0].shape[1]
+            num_voxels2 = X2[0].shape[1]
+            # make sure X1 always has more voxels
+            if num_voxels1 < num_voxels2:
+                X1, X2 = X2, X1
+                num_voxels1, num_voxels2 = num_voxels2, num_voxels1
+            assert self.num_features_ == num_voxels1 * num_voxels2, \
                 'the number of features does not match the model'
-            num_test_samples = len(x1)
+            num_test_samples = len(X1)
             self.test_raw_data_ = X
             # generate the test_data first
             # correlation computation
-            corr_data = self._prepare_corerelation_data(x1, x2)
+            corr_data = self._prepare_corerelation_data(X1, X2)
             # normalization
             normalized_corr_data = \
                 self._normalize_correlation_data(corr_data,
@@ -658,13 +667,14 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (x1, x2)
-            x1 and x2 are lists of numpy array in shape [TRs, voxels].
+        X: tuple (X1, X2)
+            X1 and X2 are lists of numpy array in shape [TRs, voxels].
             They are test samples.
-            len(x1) equals len(x2), is the number of test samples.
+            len(X1) equals len(X2), is the number of test samples.
             This argument is not used in sklearn.svm.SVC with precomputed
             kernel when the kernel matrix is computed portion by portion.
-        y: labels, len(x1) equals len(y), which is num_samples
+        y: 1D numpy array
+            labels, len(X1) equals len(y), which is num_samples
         sample_weight: 1D array in shape [num_samples], optional
             Sample weights.
 

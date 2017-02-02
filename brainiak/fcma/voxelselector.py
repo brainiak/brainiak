@@ -59,8 +59,8 @@ class VoxelSelector:
                     3. all subjects have the same number of epochs
                     4. epochs belonging to the same subject are adjacent
                        in the list
-                    5. if MPI jobs are running on multiple nodes, the user
-                       home directory is shared by all nodes
+                    5. if MPI jobs are running on multiple nodes, the path
+                       used must be on a filesystem shared by all nodes
 
     raw_data2: Optional, list of 2D array in shape [epoch length, nVoxels]
         raw_data2 shares the data structure of the assumptions of raw_data

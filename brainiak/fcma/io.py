@@ -32,26 +32,26 @@ from mpi4py import MPI
 logger = logging.getLogger(__name__)
 
 
-def _read_one_nifti_file(filename, mask=None, mask2=None):
-    """ read data from an NIfTI file, apply the mask if provided
+def _read_one_nifti_file(filename, mask1=None, mask2=None):
+    """ read data from an NIfTI file, apply the masks if provided
 
     Parameters
     ----------
     filename: str
         the absolute path of the NIfTI file
-    mask: Optional[3D array]
+    mask1: Optional[3D array]
         This is a 3D binary file indicating which voxels
-        are selected (labelled 1).
+        are selected (labeled 1).
         If it is not specified, the data will not be masked and remain in 4D
     mask2: Optional[3D array]
         This is a 3D binary file indicating which voxels
-        are selected (labelled 1).
-        It only takes effect when mask is not None.
+        are selected (labeled 1).
+        It is only allowed when mask is not None.
         If it is not specified, the returning variable data2 is None
 
     Returns
     -------
-    data: 2D/4D array
+    data1: 2D/4D array
         if masked, in shape [nVoxels, nTRs], organized in voxel*TR formats;
         if not masked, in shape [x, y, z, t] or [brain 3D, nTRs];
         len(activity_data) equals the number of subjects;
@@ -62,23 +62,23 @@ def _read_one_nifti_file(filename, mask=None, mask2=None):
         The data type is float32.
 
     """
-    if mask is None and mask2 is not None:
+    if mask1 is None and mask2 is not None:
         raise ValueError('the second mask only takes effect when the first '
                          'mask is specified')
     img = nib.load(filename)
     raw_data = img.get_data()
     data2 = None
-    if mask is None:
-        data = raw_data.astype(np.float32)
+    if mask1 is None:
+        data1 = raw_data.astype(np.float32)
     else:
-        data = raw_data[mask].astype(np.float32)
+        data1 = raw_data[mask1].astype(np.float32)
         if mask2 is not None:
             data2 = raw_data[mask2].astype(np.float32)
 
-    return data, data2
+    return data1, data2
 
 
-def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
+def read_activity_data(dir, file_extension, mask_file1=None, mask_file2=None):
     """ read data in NIfTI from a dir and apply the spatial mask to them
 
     Parameters
@@ -87,7 +87,7 @@ def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
         the path to all subject files
     file_extension: str
         the file extension, usually nii.gz or nii
-    mask_file: Optional[str]
+    mask_file1: Optional[str]
         the absolute path of the mask file, we apply the mask right after
         reading a file for saving memory
         if it is not specified, the data will not be masked and remain in 4D
@@ -98,7 +98,7 @@ def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
 
     Returns
     -------
-    activity_data: list of array of brain activity data
+    activity_data1: list of array of brain activity data
         if masked, in shape [nVoxels, nTRs], organized in voxel*TR formats;
         if not masked, in shape [x, y, z, t] or [brain 3D, nTRs];
         len(activity_data) equals the number of subjects;
@@ -110,13 +110,13 @@ def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
         the data type is float32.
     """
     time1 = time.time()
-    mask = None
-    if mask_file:
-        mask_img = nib.load(mask_file)
-        mask = mask_img.get_data().astype(np.bool)
+    mask1 = None
+    if mask_file1:
+        mask_img = nib.load(mask_file1)
+        mask1 = mask_img.get_data().astype(np.bool)
         logger.info(
             'first mask size: %d' %
-            np.sum(mask)
+            np.sum(mask1)
         )
     mask2 = None
     if mask_file2:
@@ -129,13 +129,14 @@ def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
     files = [f for f in sorted(os.listdir(dir))
              if os.path.isfile(os.path.join(dir, f))
              and f.endswith(file_extension)]
-    activity_data = []
+    activity_data1 = []
     activity_data2 = []
     for f in files:
         filename = os.path.join(dir, f)
-        masked_data, masked_data2 = _read_one_nifti_file(filename, mask, mask2)
-        activity_data.append(masked_data)
-        if mask is not None:
+        masked_data, masked_data2 = _read_one_nifti_file(filename,
+                                                         mask1, mask2)
+        activity_data1.append(masked_data)
+        if mask1 is not None:
             activity_data2.append(masked_data2)
         logger.info(
             'file %s is loaded and masked.' % f
@@ -145,9 +146,9 @@ def read_activity_data(dir, file_extension, mask_file=None, mask_file2=None):
         'data reading done, takes %.2f s' %
         (time2 - time1)
     )
-    if mask is None:
+    if mask1 is None:
         activity_data2 = None
-    return activity_data, activity_data2
+    return activity_data1, activity_data2
 
 
 def _separate_epochs(activity_data, epoch_list):
@@ -204,7 +205,7 @@ def _separate_epochs(activity_data, epoch_list):
     return raw_data, labels
 
 
-def prepare_fcma_data(data_dir, extension, epoch_file, mask_file,
+def prepare_fcma_data(data_dir, extension, epoch_file, mask_file1,
                       mask_file2=None):
     """ obtain the data for correlation-based computation and analysis
 
@@ -219,7 +220,7 @@ def prepare_fcma_data(data_dir, extension, epoch_file, mask_file,
         the file extension, usually nii.gz or nii
     epoch_file: str
         the absolute path of the epoch file
-    mask_file: str
+    mask_file1: str
         the absolute path of the mask file,
         we apply the mask right after reading a file for saving memory.
     mask_file2: Optional[str]
@@ -230,7 +231,7 @@ def prepare_fcma_data(data_dir, extension, epoch_file, mask_file,
 
     Returns
     -------
-    raw_data: list of 2D array in shape [epoch length, nVoxels]
+    raw_data1: list of 2D array in shape [epoch length, nVoxels]
         the data organized in epochs, specified by the first mask.
         len(raw_data) equals the number of epochs
     raw_data2: Optional, list of 2D array in shape [epoch length, nVoxels]
@@ -243,28 +244,28 @@ def prepare_fcma_data(data_dir, extension, epoch_file, mask_file,
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     labels = []
-    raw_data = []
+    raw_data1 = []
     raw_data2 = []
     if rank == 0:
-        activity_data, activity_data2 = read_activity_data(data_dir,
-                                                           extension,
-                                                           mask_file,
-                                                           mask_file2)
+        activity_data1, activity_data2 = read_activity_data(data_dir,
+                                                            extension,
+                                                            mask_file1,
+                                                            mask_file2)
         # a list of numpy array in shape [condition, nEpochs, nTRs]
         epoch_list = np.load(epoch_file)
-        raw_data, labels = _separate_epochs(activity_data, epoch_list)
+        raw_data1, labels = _separate_epochs(activity_data1, epoch_list)
         if mask_file2 is not None:
             raw_data2, _ = _separate_epochs(activity_data2, epoch_list)
         time1 = time.time()
-    raw_data_length = len(raw_data)
+    raw_data_length = len(raw_data1)
     raw_data_length = comm.bcast(raw_data_length, root=0)
     # broadcast the data subject by subject to prevent size overflow
     for i in range(raw_data_length):
         if rank != 0:
-            raw_data.append(None)
+            raw_data1.append(None)
             if mask_file2 is not None:
                 raw_data2.append(None)
-        raw_data[i] = comm.bcast(raw_data[i], root=0)
+        raw_data1[i] = comm.bcast(raw_data1[i], root=0)
         if mask_file2 is not None:
             raw_data2[i] = comm.bcast(raw_data2[i], root=0)
 
@@ -278,7 +279,7 @@ def prepare_fcma_data(data_dir, extension, epoch_file, mask_file,
         )
     if mask_file2 is None:
         raw_data2 = None
-    return raw_data, raw_data2, labels
+    return raw_data1, raw_data2, labels
 
 
 def generate_epochs_info(epoch_list):
