@@ -125,7 +125,7 @@ class Classifier(BaseEstimator):
     def _prepare_corerelation_data(self, X1, X2,
                                    start_voxel=0,
                                    num_processed_voxels=None):
-        """ compute auto-correlation for the input data X1 and X2
+        """Compute auto-correlation for the input data X1 and X2.
 
         it will generate the correlation between some voxels and all voxels
 
@@ -182,7 +182,7 @@ class Classifier(BaseEstimator):
         return corr_data
 
     def _normalize_correlation_data(self, corr_data, norm_unit):
-        """ normalize the correlation data if necessary
+        """Normalize the correlation data if necessary.
 
         Fisher-transform and then z-score the data for every norm_unit samples
         if norm_unit > 1.
@@ -220,7 +220,7 @@ class Classifier(BaseEstimator):
         return normalized_corr_data
 
     def _prepare_test_data(self, corr_data):
-        """ prepare the data to be applied to the predict function
+        """Prepare the data to be applied to the predict function.
 
         if the classifier is SVM, do kernel precomputation,
         otherwise the test data is the reshaped corr_data
@@ -277,7 +277,7 @@ class Classifier(BaseEstimator):
         return data
 
     def _compute_kernel_matrix_in_portion(self, X1, X2):
-        """ compute kernel matrix for sklearn.svm.SVC with precomputed kernel
+        """Compute kernel matrix for sklearn.svm.SVC with precomputed kernel.
 
         The method generates the kernel matrix (similarity matrix) for
         sklearn.svm.SVC with precomputed kernel. It first computes
@@ -348,7 +348,7 @@ class Classifier(BaseEstimator):
         return kernel_matrix, normalized_corr_data
 
     def _generate_training_data(self, X1, X2, num_training_samples):
-        """ generate training data for the classifier
+        """Generate training data for the classifier.
 
         Compute the correlation, do the normalization if necessary,
         and compute the kernel matrix if the classifier is
@@ -424,7 +424,7 @@ class Classifier(BaseEstimator):
         return data
 
     def fit(self, X, y, num_training_samples=None):
-        """ use correlation data to train a model
+        """Use correlation data to train a model.
 
         First compute the correlation of the input data,
         and then normalize within subject
@@ -433,13 +433,13 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: list of tuple (x1, x2)
-            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+        X: list of tuple (data1, data2)
+            data1 and data2 are numpy array in shape [num_TRs, num_voxels]
             to be computed for correlation.
             They contain the activity data filtered by ROIs
             and prepared for correlation computation.
-            Within list, all x1s must have the same num_voxels value,
-            all x2s must have the same num_voxels value.
+            Within list, all data1s must have the same num_voxels value,
+            all data2s must have the same num_voxels value.
         y: 1D numpy array
             labels, len(X) equals len(y)
         num_training_samples: Optional[int]
@@ -504,7 +504,7 @@ class Classifier(BaseEstimator):
         return self
 
     def predict(self, X=None):
-        """ use a trained model to predict correlation data
+        """Use a trained model to predict correlation data.
 
         first compute the correlation of the input data,
         and then normalize across all samples in the list
@@ -515,8 +515,8 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: Optional[list of tuple (x1, x2)]
-            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+        X: Optional[list of tuple (data1, data2)]
+            data1 and data2 are numpy array in shape [num_TRs, num_voxels]
             to be computed for correlation.
             default None, meaning that the data to be predicted
             have been processed in the fit method.
@@ -524,8 +524,8 @@ class Classifier(BaseEstimator):
             and prepared for correlation computation.
             len(X) is the number of test samples.
             if len(X) > 1: normalization is done on all test samples.
-            Within list, all x1s must have the same num_voxels value,
-            all x2s must have the same num_voxels value.
+            Within list, all data1s must have the same num_voxels value,
+            all data2s must have the same num_voxels value.
 
         Returns
         -------
@@ -566,14 +566,14 @@ class Classifier(BaseEstimator):
         return y_pred
 
     def _is_equal_to_test_raw_data(self, X):
-        """ check if the new input data X is equal to the old one
+        """Check if the new input data X is equal to the old one.
 
         compare X and self.test_raw_data_ if it exists
 
         Parameters
         ----------
-        X: list of tuple (x1, x2)
-            x1 and x2 are numpy array in shape [num_TRs, num_voxels],
+        X: list of tuple (data1, data2)
+            data1 and data2 are numpy array in shape [num_TRs, num_voxels],
             the input data to be checked.
 
         Returns
@@ -595,7 +595,7 @@ class Classifier(BaseEstimator):
         return True
 
     def decision_function(self, X=None):
-        """ output the decision value of the prediction
+        """Output the decision value of the prediction.
 
         if X is not equal to self.test_raw_data\_, i.e. predict is not called,
         first generate the test_data
@@ -604,8 +604,8 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: Optional[list of tuple (x1, x2)]
-            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+        X: Optional[list of tuple (data1, data2)]
+            data1 and data2 are numpy array in shape [num_TRs, num_voxels]
             to be computed for correlation.
             default None, meaning that the data to be predicted
             have been processed in the fit method.
@@ -613,8 +613,8 @@ class Classifier(BaseEstimator):
             and prepared for correlation computation.
             len(X) is the number of test samples.
             if len(X) > 1: normalization is done on all test samples.
-            Within list, all x1s must have the same num_voxels value,
-            all x2s must have the same num_voxels value.
+            Within list, all data1s must have the same num_voxels value,
+            all data2s must have the same num_voxels value.
 
         Returns
         -------
@@ -650,7 +650,7 @@ class Classifier(BaseEstimator):
         return confidence
 
     def score(self, X, y, sample_weight=None):
-        """ returns the mean accuracy on the given test data and labels
+        """Returns the mean accuracy on the given test data and labels.
 
         NOTE: In the condition of sklearn.svm.SVC with precomputed kernel
         when the kernel matrix is computed portion by portion, the function
@@ -658,14 +658,14 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: list of tuple (x1, x2)
-            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+        X: list of tuple (data1, data2)
+            data1 and data2 are numpy array in shape [num_TRs, num_voxels]
             to be computed for correlation.
             They are test samples.
             They contain the activity data filtered by ROIs
             and prepared for correlation computation.
-            Within list, all x1s must have the same num_voxels value,
-            all x2s must have the same num_voxels value.
+            Within list, all data1s must have the same num_voxels value,
+            all data2s must have the same num_voxels value.
             len(X) is the number of test samples.
 
         y: 1D numpy array
