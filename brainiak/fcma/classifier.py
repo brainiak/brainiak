@@ -433,15 +433,13 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (X1, X2)
-            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels],
-            they contain the activity data filtered by ROIs
+        X: list of tuple (x1, x2)
+            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+            to be computed for correlation.
+            They contain the activity data filtered by ROIs
             and prepared for correlation computation.
-            Within list, all elements must have the same num_voxels value.
-            NOTE: in order to make sklearn.model_selection.cross_val_score
-            work, this method also takes single list of numpy array X1 as
-            input and make it as (X1, X1). But it is NOT recommended to
-            explicitly assign a list to X instead of a tuple.
+            Within list, all x1s must have the same num_voxels value,
+            all x2s must have the same num_voxels value.
         y: 1D numpy array
             labels, len(X) equals len(y)
         num_training_samples: Optional[int]
@@ -459,16 +457,12 @@ class Classifier(BaseEstimator):
             self.
         """
         time1 = time.time()
-        if not isinstance(X, tuple):
-            X = (X, X)
-        assert len(X) == 2, \
-            'there must be two parts for correlation computation'
-        X1 = X[0]
-        X2 = X[1]
-        assert len(X1) == len(y), \
-            'the number of samples does not match the number labels'
-        assert len(X1) == len(X2), \
-            'the numbers of samples in X1 and X2 are not identical'
+        assert len(X) == len(y), \
+            'the number of samples must be equal to the number of labels'
+        for x in X:
+            assert len(x) == 2, \
+                'there must be two parts for each correlation computation'
+        X1, X2 = zip(*X)
         if not (isinstance(self.clf, sklearn.svm.SVC)
                 and self.clf.kernel == 'precomputed'):
             if num_training_samples is not None:
@@ -521,28 +515,28 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: Optional[tuple (X1, X2)]
-            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels]
+        X: Optional[list of tuple (x1, x2)]
+            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+            to be computed for correlation.
             default None, meaning that the data to be predicted
             have been processed in the fit method.
             Otherwise, X contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            len(X1) equals len(X2), is the number of test samples.
+            len(X) is the number of test samples.
+            if len(X) > 1: normalization is done on all test samples.
+            Within list, all x1s must have the same num_voxels value,
+            all x2s must have the same num_voxels value.
 
         Returns
         -------
-        y_pred: the predicted label of X, in shape [len(X1),]
+        y_pred: the predicted label of X, in shape [len(X),]
         """
         time1 = time.time()
         if X is not None:
-            assert isinstance(X, tuple), \
-                'input data X must be a tuple'
-            assert len(X) == 2, \
-                'there must be two parts for correlation computation'
-            X1 = X[0]
-            X2 = X[1]
-            assert len(X1) == len(X2), \
-                'the list lengths do not match'
+            for x in X:
+                assert len(x) == 2, \
+                    'there must be two parts for each correlation computation'
+            X1, X2 = zip(*X)
             num_voxels1 = X1[0].shape[1]
             num_voxels2 = X2[0].shape[1]
             # make sure X1 always has more voxels
@@ -578,8 +572,8 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (X1, X2)
-            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels],
+        X: list of tuple (x1, x2)
+            x1 and x2 are numpy array in shape [num_TRs, num_voxels],
             the input data to be checked.
 
         Returns
@@ -588,10 +582,8 @@ class Classifier(BaseEstimator):
         """
         if self.test_raw_data_ is None or len(X) != len(self.test_raw_data_):
             return False
-        X1 = X[0]
-        X2 = X[1]
-        c1 = self.test_raw_data_[0]
-        c2 = self.test_raw_data_[1]
+        X1, X2 = zip(*X)
+        c1, c2 = zip(*self.test_raw_data_)
         # this for loop is faster than
         # doing np.array_equal(X, self.test_raw_data_) directly
         for new, old in zip(X1, c1):
@@ -612,30 +604,31 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (X1, X2)
-            X1 and X2 are lists of numpy array in shape [num_TRs, num_voxels]
+        X: Optional[list of tuple (x1, x2)]
+            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+            to be computed for correlation.
             default None, meaning that the data to be predicted
             have been processed in the fit method.
             Otherwise, X contains the activity data filtered by ROIs
             and prepared for correlation computation.
-            len(X1) equals len(X2), is the number of test samples.
-            if len(X1) > 1: normalization is done on all test samples.
+            len(X) is the number of test samples.
+            if len(X) > 1: normalization is done on all test samples.
+            Within list, all x1s must have the same num_voxels value,
+            all x2s must have the same num_voxels value.
 
         Returns
         -------
         confidence: the predictions confidence values of X, in shape [len(X),]
         """
         if X is not None and not self._is_equal_to_test_raw_data(X):
-            assert isinstance(X, tuple), \
-                'input data X must be a tuple'
-            assert len(X) == 2, \
-                'there must be two parts for correlation computation'
-            X1 = X[0]
-            X2 = X[1]
-            assert len(X1) == len(X2), \
-                'the list lengths do not match'
+            for x in X:
+                assert len(x) == 2, \
+                    'there must be two parts for each correlation computation'
+            X1, X2 = zip(*X)
             num_voxels1 = X1[0].shape[1]
             num_voxels2 = X2[0].shape[1]
+            assert len(X1) == len(X2), \
+                'the list lengths do not match'
             # make sure X1 always has more voxels
             if num_voxels1 < num_voxels2:
                 X1, X2 = X2, X1
@@ -665,18 +658,18 @@ class Classifier(BaseEstimator):
 
         Parameters
         ----------
-        X: tuple (X1, X2)
-            X1 and X2 are lists of numpy array in shape [TRs, voxels].
+        X: list of tuple (x1, x2)
+            x1 and x2 are numpy array in shape [num_TRs, num_voxels]
+            to be computed for correlation.
             They are test samples.
-            len(X1) equals len(X2), is the number of test samples.
-            This argument is not used in sklearn.svm.SVC with precomputed
-            kernel when the kernel matrix is computed portion by portion.
-            NOTE: in order to make sklearn.model_selection.cross_val_score
-            work, this method also takes single list of numpy array X1 as
-            input and make it as (X1, X1). But it is NOT recommended to
-            explicitly assign a list to X instead of a tuple.
+            They contain the activity data filtered by ROIs
+            and prepared for correlation computation.
+            Within list, all x1s must have the same num_voxels value,
+            all x2s must have the same num_voxels value.
+            len(X) is the number of test samples.
+
         y: 1D numpy array
-            labels, len(X1) equals len(y), which is num_samples
+            labels, len(X) equals len(y), which is num_samples
         sample_weight: 1D array in shape [num_samples], optional
             Sample weights.
 
@@ -685,8 +678,6 @@ class Classifier(BaseEstimator):
         score : float
             Mean accuracy of self.predict(X) wrt. y.
         """
-        if (X is not None) and (not isinstance(X, tuple)):
-            X = (X, X)
         from sklearn.metrics import accuracy_score
         if isinstance(self.clf, sklearn.svm.SVC) \
                 and self.clf.kernel == 'precomputed' \
