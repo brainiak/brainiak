@@ -1,8 +1,8 @@
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart
-from brainiak.matnorm_models.noise_covs import *
-from brainiak.matnorm_models.noise_cov_kron import *
+from brainiak.matnormal.noise_covs import *
+from brainiak.matnormal.noise_cov_kron import *
 import tensorflow as tf
 import pytest
 

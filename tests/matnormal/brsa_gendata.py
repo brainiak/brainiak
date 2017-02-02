@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.spatial.distance as spdist
-from brainiak.matnorm_models.helpers import rmn
+from brainiak.matnormal.helpers import rmn
 
 
 def gen_U_nips2016_example():

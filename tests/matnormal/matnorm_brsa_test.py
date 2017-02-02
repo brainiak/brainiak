@@ -1,6 +1,6 @@
-from brainiak.matnorm_models import MatnormBRSA
+from brainiak.matnormal import MatnormBRSA
 from brsa_gendata import gen_brsa_data_from_model, gen_U_nips2016_example
-from brainiak.matnorm_models.noise_covs import \
+from brainiak.matnormal.noise_covs import \
     NoiseCovIdentity, NoiseCovDiagonal, NoiseCovFullRank
 from scipy.stats import norm
 import numpy as np

@@ -57,7 +57,7 @@ The log-likelihood for the matrix-normal density is:
 Here :math:`X` and :math:`M` are both :math:`m\\times n` matrices, :math:`\\R`
 is :math:`m\\times m` and :math:`\\C` is :math:`n\\times n`.
 
-The `brainiak.matnorm_models` package provides structure to infer models that
+The `brainiak.matnormal` package provides structure to infer models that
 can be stated in the matrix-normal notation that are useful for fMRI analysis.
 It provides a few interfaces. `MatnormModelBase` is intended to be subclasses
 from by matrix-variate models. It provides a wrapper for the tensorflow

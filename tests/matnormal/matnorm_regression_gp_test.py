@@ -2,10 +2,10 @@ def test_matnorm_regression_gp():
     try:
         import GPflow
         from GPflow import Matern32
-        from brainiak.matnorm_models.noise_covs import NoiseCovIdentity
-        from brainiak.matnorm_models.noise_cov_gp import NoiseCovGP
-        from brainiak.matnorm_models import MatnormRegression
-        from brainiak.matnorm_models.helpers import rmn
+        from brainiak.matnormal.noise_covs import NoiseCovIdentity
+        from brainiak.matnormal.noise_cov_gp import NoiseCovGP
+        from brainiak.matnormal import MatnormRegression
+        from brainiak.matnormal.helpers import rmn
         from scipy.stats import norm, pearsonr
         import tensorflow as tf
         import numpy as np

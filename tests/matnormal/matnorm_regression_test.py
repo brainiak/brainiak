@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-from brainiak.matnorm_models.noise_covs import\
+from brainiak.matnormal.noise_covs import\
     NoiseCovIdentity, NoiseCovFullRank, NoisePrecFullRank, NoiseCovDiagonal
-from brainiak.matnorm_models import MatnormRegression
-from brainiak.matnorm_models.helpers import rmn
+from brainiak.matnormal import MatnormRegression
+from brainiak.matnormal.helpers import rmn
 import pytest
 
 m = 100

@@ -26,7 +26,7 @@ class MatnormBRSA(MatnormModelBase):
     allows different temporal covariance for each voxel. On the other hand,
     computational efficiencies enabled by this choice allow MatnormBRSA to
     support a richer class of space and time covariances (anything in
-    `brainiak.matnorm_models.noise_covs`).
+    `brainiak.matnormal.noise_covs`).
 
     For users: in general, if you are worried about voxels each having
     different temporal noise structure,you should use `brainiak.reprsimil.BRSA`.
