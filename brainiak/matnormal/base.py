@@ -1,5 +1,6 @@
 import tensorflow as tf
 from sklearn.base import BaseEstimator
+from .helpers import scaled_I
 
 
 class MatnormModelBase(BaseEstimator):
@@ -14,7 +15,7 @@ class MatnormModelBase(BaseEstimator):
     def _optimize_impl(self, optfun, loss, optvars, feed_dict, max_iter, step,
                        loss_tol, grad_tol):
         """Implementation method for optimization that does
-            convergence checks and output
+            convergence checks and logging
         """
 
         grad = tf.concat(0, [tf.reshape(g[0], [-1]) for g in
@@ -23,14 +24,14 @@ class MatnormModelBase(BaseEstimator):
         max_abs_current_grad_op = tf.reduce_max(tf.abs(grad))
 
         past_loss = 0
+        # initialize loss
         current_loss = self.sess.run(loss, feed_dict=feed_dict)
 
         for n in range(max_iter):
-            self.sess.run(optfun, feed_dict=feed_dict)
             past_loss = current_loss
-            current_loss = self.sess.run(loss, feed_dict=feed_dict)
-            max_abs_current_grad = self.sess.run(max_abs_current_grad_op,
-                                                 feed_dict=feed_dict)
+            _, current_loss, max_abs_current_grad = self.sess.run([optfun, loss,
+                                                                   max_abs_current_grad_op],
+                                                                   feed_dict=feed_dict)
 
             # check tolerances
             if abs((current_loss - past_loss) /
@@ -68,23 +69,24 @@ class MatnormModelBase(BaseEstimator):
         Atrp_Sinv = tf.matmul(A, sigma.Sigma_inv, transpose_a=True)
         # (Qinv + A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
         prod_term = tf.cholesky_solve(i_qf_cholesky, Atrp_Sinv)
-        solve = tf.matmul(sigma.Sigma_inv -
-                          sigma.Sigma_inv_x(tf.matmul(A, prod_term)), x)
+
+        solve = tf.matmul(sigma.Sigma_inv_x(scaled_I(1.0, sigma.size) - tf.matmul(A, prod_term)), x)
+
         return solve, logdet
 
     def solve_det_conditional(self, x, sigma, A, Q):
         """
         Use matrix inversion lemma for the solve:
         .. math::
-            (\Sigma - AQA')^{-1} X =\\
-             \Sigma^{-1} + \Sigma^{-1} A (Q^{-1} - A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1}
+            (\Sigma - AQ^{-1}A')^{-1} X =\\
+             \Sigma^{-1} + \Sigma^{-1} A (Q - A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1} X 
 
         Use matrix determinant lemma for determinant:
         ..math::
-            \log|(\Sigma - AQA')| = \log|Q^{-1} - A' \Sigma^{-1} A| + \log|Q| + \log|\Sigma|
+            \log|(\Sigma - AQ^{-1}A')| = \log|Q - A' \Sigma^{-1} A| - \log|Q| + \log|\Sigma|
         """
 
-        # (Qinv - A' Sigma^{-1} A)
+        # (Q - A' Sigma^{-1} A)
         i_qf_cholesky = tf.cholesky(Q.Sigma - tf.matmul(A,
                                     sigma.Sigma_inv_x(A), transpose_a=True))
 
@@ -96,8 +98,7 @@ class MatnormModelBase(BaseEstimator):
         # (Q - A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
         prod_term = tf.cholesky_solve(i_qf_cholesky, Atrp_Sinv)
 
-        solve = tf.matmul(sigma.Sigma_inv +
-                          sigma.Sigma_inv_x(tf.matmul(A, prod_term)), x)
+        solve = tf.matmul(sigma.Sigma_inv_x(scaled_I(1.0, sigma.size) + tf.matmul(A, prod_term)), x)
 
         return solve, logdet
 
@@ -110,7 +111,7 @@ class MatnormModelBase(BaseEstimator):
         denominator = - rowsize * colsize * log2pi -\
             colsize * logdet_row - rowsize * logdet_col
         numerator = - tf.trace(tf.matmul(solve_col, solve_row))
-        return tf.reduce_sum(0.5 * (numerator + denominator))
+        return 0.5 * (numerator + denominator)
 
     def matnorm_logp(self, x, row_cov, col_cov):
         """Log likelihood for centered matrix-variate normal density.
