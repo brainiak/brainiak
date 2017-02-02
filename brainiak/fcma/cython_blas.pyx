@@ -55,10 +55,9 @@ def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
     py_alpha: float
     the weight applied to the first matrix A
 
-    py_a: 2D array
-    In shape [epoch_length, num_voxels] in our case, it is
-    the activity data of an epoch, part 1 of the data to be correlated with.
-    Note that py_a can point to the same location of py_b.
+    py_a: 2D array in shape [epoch_length, num_voxels]
+    It is the activity data of an epoch, part 1 of the data to be
+    correlated with. Note that py_a can point to the same location of py_b.
 
     py_lda: int
     the stride of the first matrix A
@@ -67,10 +66,9 @@ def compute_self_corr_for_voxel_sel(py_trans_a, py_trans_b, py_m, py_n, py_k,
     the starting voxel of assigned voxels
     used to locate the second matrix B
 
-    py_b: 2D array
-    In shape [epoch_length, num_voxels] in our case, it is
-    the activity data of an epoch, part 2 of the data to be correlated with.
-    Note that py_a can point to the same location of py_b.
+    py_b: 2D array in shape [epoch_length, num_voxels]
+    It is the activity data of an epoch, part 2 of the data to be
+    correlated with. Note that py_a can point to the same location of py_b.
 
     py_ldb: int
     the stride of the second matrix B

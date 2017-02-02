@@ -35,7 +35,7 @@ def example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs
     clf = Classifier(svm_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
     rearranged_data = raw_data[num_epochs_per_subj:] + raw_data[0:num_epochs_per_subj]
     rearranged_labels = labels[num_epochs_per_subj:] + labels[0:num_epochs_per_subj]
-    clf.fit(rearranged_data, rearranged_labels,
+    clf.fit((rearranged_data, rearranged_data), rearranged_labels,
             num_training_samples=num_epochs_per_subj*(num_subjects-1))
     predict = clf.predict()
     print(predict)
@@ -64,24 +64,25 @@ def example_of_cross_validation_with_detailed_info(raw_data, labels, num_subject
         test_data = raw_data[leave_start:leave_end]
         training_labels = labels[0:leave_start] + labels[leave_end:]
         test_labels = labels[leave_start:leave_end]
-        clf.fit(training_data, training_labels)
+        clf.fit((training_data, training_data), training_labels)
         # joblib can be used for saving and loading models
         #joblib.dump(clf, 'model/logistic.pkl')
         #clf = joblib.load('model/svm.pkl')
-        predict = clf.predict(test_data)
+        predict = clf.predict((test_data, test_data))
         print(predict)
-        print(clf.decision_function(test_data))
+        print(clf.decision_function((test_data, test_data)))
         incorrect_predict = hamming(predict, np.asanyarray(test_labels)) * num_epochs_per_subj
         logger.info(
             'when leaving subject %d out for testing, the accuracy is %d / %d = %.2f' %
             (i, num_epochs_per_subj-incorrect_predict, num_epochs_per_subj,
              (num_epochs_per_subj-incorrect_predict) * 1.0 / num_epochs_per_subj)
         )
-        print(clf.score(test_data, test_labels))
+        print(clf.score((test_data, test_data), test_labels))
 
 def example_of_cross_validation_using_model_selection(raw_data, labels, num_subjects, num_epochs_per_subj):
     # NOTE: this method does not work for sklearn.svm.SVC with precomputed kernel
-    # when the kernel matrix is computed in portions
+    # when the kernel matrix is computed in portions; also, this method only works
+    # for self-correlation, i.e. correlation between the same data matrix.
 
     # no shrinking, set C=1
     svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
