@@ -1,7 +1,9 @@
 import tensorflow as tf
 from sklearn.base import BaseEstimator
 from .helpers import scaled_I
+import logging 
 
+logger = logging.getLogger(__name__)
 
 class MatnormModelBase(BaseEstimator):
     """ Base class implementing shared functionality for matrix-variate normal
@@ -36,15 +38,15 @@ class MatnormModelBase(BaseEstimator):
             # check tolerances
             if abs((current_loss - past_loss) /
                     max(current_loss, past_loss)) < loss_tol:
-                print('loss tolerance reached on iter %i, %f, stopping' %
+                logger.info('loss tolerance reached on iter %i, %f, stopping' %
                       (n+1, current_loss))
                 break
             if max_abs_current_grad < grad_tol:
-                print('gradient tolerance reached on iter %i, %f, stopping' %
+                logger.info('gradient tolerance reached on iter %i, %f, stopping' %
                       (n+1, current_loss))
                 break
             if (n+1) % step == 0:
-                print('iter %i, %f' % (n+1, current_loss))
+                logger.info('iter %i, %f' % (n+1, current_loss))
 
     def solve_det_marginal(self, x, sigma, A, Q):
         """
