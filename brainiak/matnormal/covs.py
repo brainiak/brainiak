@@ -9,8 +9,11 @@ class CovBase:
     """
     __metaclass__ = abc.ABCMeta
 
-    loc = tf.placeholder(tf.float64, [None, None], name="positions")
-    mask = tf.placeholder(tf.float64, [None, None], name="cov_mask")
+    def __init__(self, size):
+        self.size = size
+
+        self.loc = tf.placeholder_with_default(tf.ones([self.size, 1], dtype=tf.float64), [size, None], name="positions")
+        self.mask = tf.placeholder_with_default(tf.ones([self.size], dtype=tf.float64), [size], name="cov_mask")
 
     @abc.abstractmethod
     def get_optimize_vars(self):
@@ -40,10 +43,13 @@ class CovBase:
 
 
 class CovConstant(CovBase):
-
+    """ Constant covariance
+    """
     def __init__(self, Sigma):
         self.Sigma = tf.constant(Sigma)
-        self.size = Sigma.shape[0]
+
+        super(CovConstant, self).__init__(Sigma.shape[0])
+
         self.L = tf.constant(np.linalg.cholesky(Sigma))
 
     def get_optimize_vars(self):
@@ -66,7 +72,8 @@ class CovIdentity(CovBase):
     """Identity noise covariance.
     """
     def __init__(self, size):
-        self.size = size
+        super(CovIdentity, self).__init__(size)
+
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to
@@ -96,10 +103,13 @@ class CovIsotropic(CovBase):
     """Scaled identity (isotropic) noise covariance.
     """
 
-    def __init__(self, size):
-        self.size = size
-        self.log_sigma = tf.Variable(tf.random_normal([1], dtype=tf.float64),
-                                     name="sigma")
+    def __init__(self, size, sigma=None):
+        super(CovIsotropic, self).__init__(size)
+        if sigma is None:
+            self.log_sigma = tf.Variable(tf.random_normal([1], dtype=tf.float64),
+                                         name="sigma")
+        else:
+            self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
 
     @define_scope
     def sigma(self):
@@ -115,7 +125,7 @@ class CovIsotropic(CovBase):
     def logdet(self):
         """ log|Sigma|
         """
-        return self.size * tf.log(self.sigma)
+        return self.size * self.log_sigma
 
     def Sigma_inv_x(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
@@ -132,10 +142,13 @@ class CovIsotropic(CovBase):
 class CovDiagonal(CovBase):
     """Uncorrelated (diagonal) noise covariance
     """
-    def __init__(self, size):
-        self.size = size
-        self.logprec = tf.Variable(tf.random_normal([size], dtype=tf.float64),
-                                   name="precisions")
+    def __init__(self, size, sigma=None):
+        super(CovDiagonal, self).__init__(size)
+        if sigma is None:
+            self.logprec = tf.Variable(tf.random_normal([size], dtype=tf.float64),
+                                       name="precisions")
+        else:
+            self.logprec = tf.Variable(np.log(sigma), name="precisions")
 
     @define_scope
     def prec(self):
@@ -155,7 +168,7 @@ class CovDiagonal(CovBase):
     def logdet(self):
         """ log|Sigma|
         """
-        return -tf.reduce_sum(tf.log(self.prec))
+        return -tf.reduce_sum(self.logprec)
 
     def Sigma_inv_x(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
@@ -169,15 +182,19 @@ class CovDiagonal(CovBase):
         return tf.diag(tf.ones([self.size], dtype=tf.float64) * self.prec)
 
 
-class CovFullRank(CovBase):
+class CovFullRankCholesky(CovBase):
     """Full rank noise covariance parameterized in terms of its cholesky
     """
 
-    def __init__(self, size):
-        self.L_full = tf.Variable(tf.random_normal([size, size],
-                                  dtype=tf.float64),
-                                  name="L_full", dtype="float64")
-        self.size = size
+    def __init__(self, size, Sigma=None):
+        super(CovFullRankCholesky, self).__init__(size)
+        if Sigma is None:
+            self.L_full = tf.Variable(tf.random_normal([size, size],
+                                      dtype=tf.float64),
+                                      name="L_full", dtype="float64")
+        else:
+            self.L_full = tf.Variable(np.linalg.cholesky(Sigma), name="L_full",
+                                      dtype="float64")
 
     @define_scope
     def L(self):
@@ -219,14 +236,18 @@ class CovFullRank(CovBase):
         return tf.cholesky_solve(self.L, X)
 
 
-class NoisePrecFullRank(CovBase):
+class CovFullRankInvCholesky(CovBase):
     """Full rank noise covariance parameterized in terms of its precision cholesky
     """
 
-    def __init__(self, size):
-        self.Linv_full = tf.Variable(tf.random_normal([size, size],
-                                     dtype=tf.float64), name="L_full")
-        self.size = size
+    def __init__(self, size, invSigma=None):
+        if invSigma is None: 
+            self.Linv_full = tf.Variable(tf.random_normal([size, size],
+                                         dtype=tf.float64), name="Linv_full")
+        else:
+            self.Linv_full = tf.Variable(np.linalg.cholesky(invSigma), name="Linv_full")
+
+        super(CovFullRankInvCholesky, self).__init__(size)
 
     @define_scope
     def Linv(self):
