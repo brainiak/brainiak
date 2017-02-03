@@ -4,7 +4,7 @@ from scipy.stats import multivariate_normal
 import tensorflow as tf
 from brainiak.matnormal.helpers import rmn
 from brainiak.matnormal import MatnormModelBase
-from brainiak.matnormal.covs import CovIdentity,CovFullRank
+from brainiak.matnormal.covs import CovIdentity,CovFullRankCholesky
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -22,7 +22,7 @@ def test_against_scipy_mvn_row():
 
     with tf.Session() as sess:
 
-        rowcov = CovFullRank(size=m)
+        rowcov = CovFullRankCholesky(size=m)
         colcov = CovIdentity(size=n)
         X = rmn(np.eye(m), np.eye(n))
         X_tf = tf.constant(X, 'float64')
@@ -43,7 +43,7 @@ def test_against_scipy_mvn_col():
     with tf.Session() as sess:
 
         rowcov = CovIdentity(size=n)
-        colcov = CovFullRank(size=m)
+        colcov = CovFullRankCholesky(size=m)
         X = rmn(np.eye(n), np.eye(m))
         X_tf = tf.constant(X, 'float64')
 

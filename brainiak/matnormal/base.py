@@ -40,11 +40,11 @@ class MatnormModelBase(BaseEstimator):
             if abs((current_loss - past_loss) /
                     max(current_loss, past_loss)) < loss_tol:
                 logger.info('loss tolerance reached on iter %i, %f, stopping' %
-                      (n+1, current_loss))
+                            (n+1, current_loss))
                 break
             if max_abs_current_grad < grad_tol:
                 logger.info('gradient tolerance reached on iter %i, %f, stopping' %
-                      (n+1, current_loss))
+                            (n+1, current_loss))
                 break
             if (n+1) % step == 0:
                 logger.info('iter %i, %f' % (n+1, current_loss))

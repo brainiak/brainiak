@@ -12,8 +12,7 @@ class CovBase:
     def __init__(self, size):
         self.size = size
 
-        self.loc = tf.placeholder_with_default(tf.ones([self.size, 1], dtype=tf.float64), [size, None], name="positions")
-        self.mask = tf.placeholder_with_default(tf.ones([self.size], dtype=tf.float64), [size], name="cov_mask")
+        # self.mask = tf.placeholder_with_default(tf.ones([self.size],dtype=tf.float64), [size], name="cov_mask")
 
     @abc.abstractmethod
     def get_optimize_vars(self):
@@ -73,7 +72,6 @@ class CovIdentity(CovBase):
     """
     def __init__(self, size):
         super(CovIdentity, self).__init__(size)
-
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to
@@ -241,7 +239,7 @@ class CovFullRankInvCholesky(CovBase):
     """
 
     def __init__(self, size, invSigma=None):
-        if invSigma is None: 
+        if invSigma is None:
             self.Linv_full = tf.Variable(tf.random_normal([size, size],
                                          dtype=tf.float64), name="Linv_full")
         else:

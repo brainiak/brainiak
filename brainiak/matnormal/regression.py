@@ -105,15 +105,13 @@ class MatnormRegression(MatnormModelBase):
         if restart:
             self.sess.run(tf.global_variables_initializer())
 
-        if voxel_pos is None:
-            self.voxel_pos = np.c_[np.arange(self.n_v)[:, None],
-                                   np.zeros((self.n_v, 2))]
+        feed_dict = {self.X: X, self.Y: y}
 
-        if times is None:
-            times = np.arange(X.shape[0])[:, None]
+        if voxel_pos is not None:
+            feed_dict[self.space_noise_cov.loc] = voxel_pos
 
-        feed_dict = {self.X: X, self.Y: y, self.time_noise_cov.loc: times,
-                     self.space_noise_cov.loc: self.voxel_pos}
+        if times is not None:
+            feed_dict[self.time_noise_cov.loc] = times
 
         self._optimize_impl(self.train_optimize, -self.train_logp,
                             self.train_variables, feed_dict, max_iter,

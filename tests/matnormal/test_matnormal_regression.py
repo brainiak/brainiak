@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
 from brainiak.matnormal.covs import\
-    CovIdentity, CovFullRank, NoisePrecFullRank, CovDiagonal
+    CovIdentity, CovFullRankCholesky, CovFullRankInvCholesky, CovDiagonal
 from brainiak.matnormal import MatnormRegression
 from brainiak.matnormal.helpers import rmn
 import pytest
@@ -29,7 +29,7 @@ def test_matnorm_regression_fullrank():
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
-    col_cov = CovFullRank(size=p)
+    col_cov = CovFullRankCholesky(size=p)
 
     model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
                               space_noise_cov=col_cov, learnRate=0.01)
@@ -52,7 +52,7 @@ def test_matnorm_regression_fullrankprec():
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
-    col_cov = NoisePrecFullRank(size=p)
+    col_cov = CovFullRankInvCholesky(size=p)
 
     model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
                               space_noise_cov=col_cov, learnRate=0.01)

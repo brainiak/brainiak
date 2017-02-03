@@ -93,9 +93,9 @@ def test_CovDiagonal():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_CovFullRank():
+def test_CovFullRankCholesky():
 
-    cov = CovFullRank(size=m)
+    cov = CovFullRankCholesky(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -108,9 +108,9 @@ def test_CovFullRank():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoisePrecFullRank():
+def test_CovFullRankInvCholesky():
 
-    cov = NoisePrecFullRank(size=m)
+    cov = CovFullRankInvCholesky(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -167,3 +167,4 @@ def test_Cov3FactorKron():
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
+

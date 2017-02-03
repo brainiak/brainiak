@@ -1,7 +1,7 @@
 from brainiak.matnormal import MatnormBRSA
 from brsa_gendata import gen_brsa_data_from_model, gen_U_nips2016_example
 from brainiak.matnormal.covs import \
-    CovIdentity, CovDiagonal, CovFullRank
+    CovIdentity, CovDiagonal, CovFullRankCholesky
 from scipy.stats import norm
 import numpy as np
 import logging
@@ -62,7 +62,7 @@ def test_brsa_structured_cov():
     model_matnorm = MatnormBRSA(n_TRs=n_T, n_V=n_V, n_C=16, n_nureg=n_nureg,
                                 time_noise_cov=timecov_model,
                                 space_noise_cov=spacecov_model,
-                                structured_RSA_cov=CovFullRank(size=16+n_nureg),
+                                structured_RSA_cov=CovFullRankCholesky(size=16+n_nureg),
                                 learnRate=0.1)
 
     model_matnorm.fit(tr['Y'], tr['X'], max_iter=10000)
