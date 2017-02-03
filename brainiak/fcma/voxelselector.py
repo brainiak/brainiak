@@ -28,6 +28,7 @@ import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
 import logging
+import pathos.multiprocessing
 
 logger = logging.getLogger(__name__)
 
@@ -320,6 +321,7 @@ class VoxelSelector:
         )
         return corr
 
+
     def _crossValidation(self, task, corr, clf):
         """ voxelwise cross validation based on correlation vectors
 
@@ -339,11 +341,11 @@ class VoxelSelector:
         """
         time1 = time.time()
         (sv, e, av) = corr.shape
-        kernel_matrix = np.zeros((e, e), np.float32, order='C')
-        results = []
-        for i in range(sv):
-            if isinstance(clf, sklearn.svm.SVC) \
-                    and clf.kernel == 'precomputed':
+        kernel_matrices = []
+        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
+            # kernel matrices should be computed first
+            for i in range(sv):
+                kernel_matrix = np.zeros((e, e), np.float32, order='C')
                 blas.compute_kernel_matrix('L', 'T',
                                            e, self.num_voxels2,
                                            1.0, corr,
@@ -355,20 +357,28 @@ class VoxelSelector:
                 if num_digits > 2:
                     proportion = 10**(2-num_digits)
                     kernel_matrix *= proportion
-                data = kernel_matrix
-            else:
-                data = corr[i, :, :]
+                kernel_matrices.append(kernel_matrix)
+
+
+        def _cross_validation_for_one_voxel(vid, num_folds, data, labels):
             # no shuffling in cv
-            skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
+            skf = model_selection.StratifiedKFold(n_splits=num_folds,
                                                   shuffle=False)
             scores = model_selection.cross_val_score(clf, data,
-                                                     y=self.labels,
+                                                     y=labels,
                                                      cv=skf, n_jobs=1)
-            results.append((i + task[0], scores.mean()))
             logger.debug(
                 'cross validation for voxel %d is done' %
-                (i + task[0])
+                (vid)
             )
+            return (vid, scores.mean())
+
+        inlist = [(i + task[0], self.num_folds,
+                   kernel_matrices[i] if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed' else corr[i, :, :],
+                   self.labels) for i in range(sv)]
+
+        pool = pathos.multiprocessing.ProcessingPool(None)
+        results = list(pool.map(lambda x: _cross_validation_for_one_voxel(x[0], x[1], x[2], x[3]), inlist))
         time2 = time.time()
         logger.debug(
             'cross validation for %d voxels, takes %.2f s' %
