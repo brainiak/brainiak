@@ -1,9 +1,13 @@
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 def test_matnorm_regression_gp():
     try:
         import GPflow
         from GPflow import Matern32
-        from brainiak.matnormal.noise_covs import NoiseCovIdentity
-        from brainiak.matnormal.noise_cov_gp import NoiseCovGP
+        from brainiak.matnormal.covs import CovIdentity
+        from brainiak.matnormal.cov_gp import CovGP
         from brainiak.matnormal import MatnormRegression
         from brainiak.matnormal.helpers import rmn
         from scipy.stats import norm, pearsonr
@@ -42,8 +46,8 @@ def test_matnorm_regression_gp():
 
         Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-        row_cov = NoiseCovIdentity(size=m)
-        col_cov = NoiseCovGP(kern=Matern32, input_dim=3)
+        row_cov = CovIdentity(size=m)
+        col_cov = CovGP(kern=Matern32, input_dim=3)
 
         model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
                                   space_noise_cov=col_cov, learnRate=0.01)

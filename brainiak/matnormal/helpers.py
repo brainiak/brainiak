@@ -59,7 +59,7 @@ def quad_form(x, y):
 
 def scaled_I(x, size):
     """ x * I_{size} """
-    return tf.diag(tf.ones([size], dtype=tf.float64) * x,)
+    return tf.diag(tf.ones([size], dtype=tf.float64) * x)
 
 
 def quad_form_trp(x, y):

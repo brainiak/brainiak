@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from .helpers import define_scope
-from .noise_covs import NoiseCovBase
+from .covs import CovBase
 
 
 def tf_solve_lower_triangular_kron(L, y):
@@ -64,7 +64,7 @@ def tf_solve_upper_triangular_kron(L, y):
         return x
 
 
-class NoiseCovKroneckerFactored(NoiseCovBase):
+class CovKroneckerFactored(CovBase):
     """
     Kronecker product noise covariance parameterized in terms
     of its component cholesky factors

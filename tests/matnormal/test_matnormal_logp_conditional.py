@@ -4,7 +4,10 @@ from scipy.stats import wishart, multivariate_normal
 import tensorflow as tf
 from brainiak.matnormal.helpers import rmn
 from brainiak.matnormal.base import MatnormModelBase
-from brainiak.matnormal.noise_covs import *
+from brainiak.matnormal.covs import *
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
 
@@ -21,12 +24,12 @@ def test_against_scipy_mvn_col_conditional():
     # PSD matrix, else no guarantee that anything's invertible.
     cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
 
-    rowcov = NoiseCovConstant(cov_np[0:m, 0:m])
+    rowcov = CovConstant(cov_np[0:m, 0:m])
     A = cov_np[0:m, m:]
 
-    colcov = NoiseCovIdentity(size=n)
+    colcov = CovIdentity(size=n)
 
-    Q = NoiseCovConstant(cov_np[m:, m:])
+    Q = CovConstant(cov_np[m:, m:])
 
     modelbase = MatnormModelBase()
     X = rmn(np.eye(m), np.eye(n))
@@ -61,12 +64,12 @@ def test_against_scipy_mvn_row_conditional():
     # PSD matrix, else no guarantee that anything's invertible.
     cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
 
-    rowcov = NoiseCovConstant(cov_np[0:m, 0:m])
+    rowcov = CovConstant(cov_np[0:m, 0:m])
     A = cov_np[0:m, m:]
 
-    colcov = NoiseCovIdentity(size=n)
+    colcov = CovIdentity(size=n)
 
-    Q = NoiseCovConstant(cov_np[m:, m:])
+    Q = CovConstant(cov_np[m:, m:])
 
     modelbase = MatnormModelBase()
     X = rmn(np.eye(m), np.eye(n))

@@ -1,9 +1,9 @@
-from .noise_covs import NoiseCovBase
+from .covs import CovBase
 import tensorflow as tf
 from .helpers import define_scope
 
 
-class NoiseCovGP(NoiseCovBase):
+class CovGP(CovBase):
     """
     Wrapper for GPflow kernels that lets us use them. Also exposes methods
     for constructing kernels between arbitrary X's which we need for prediction

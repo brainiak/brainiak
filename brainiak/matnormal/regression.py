@@ -17,10 +17,10 @@ class MatnormRegression(MatnormModelBase):
         Number of columns in design matrix
     n_v : int
         number of voxels
-    time_noise_cov : subclass of NoiseCovBase
-        TR noise covariance class following NoiseCovBase interface.
-    space_noise_cov : subclass of NoiseCovBase
-        Voxel noise covariance class following NoiseCovBase interface.
+    time_noise_cov : subclass of CovBase
+        TR noise covariance class following CovBase interface.
+    space_noise_cov : subclass of CovBase
+        Voxel noise covariance class following CovBase interface.
     learnRate : real, default=0.01
         Step size for the Adam optimizer
 
@@ -82,14 +82,14 @@ class MatnormRegression(MatnormModelBase):
             fMRI data
         voxel_pos: np.array, n_voxels by 3, default: None
             Spatial positions of voxels (optional).
-            If provided, and if space_noise_cov is a NoiseCovGP, the positions
-            for computing the GP covaraince matrix. Otherwise NoiseCovGP
+            If provided, and if space_noise_cov is a CovGP, the positions
+            for computing the GP covaraince matrix. Otherwise CovGP
             defaults to distances of 1 unit between all voxels.
             Ignored by non-GP noise covariances.
         times : np.array, TRs by 1, default:None
             Timestamps of observations (optional).
-            If provided, and if time_noise_cov is a NoiseCovGP, the the times
-            for computing the GP covaraince matrix. Otherwise NoiseCovGP
+            If provided, and if time_noise_cov is a CovGP, the the times
+            for computing the GP covaraince matrix. Otherwise CovGP
             defaults to distances of 1 unit between all times.
             Ignored by non-GP noise covariances.
         max_iter: int, default=1000

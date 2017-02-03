@@ -4,7 +4,10 @@ from scipy.stats import multivariate_normal
 import tensorflow as tf
 from brainiak.matnormal.helpers import rmn
 from brainiak.matnormal import MatnormModelBase
-from brainiak.matnormal.noise_covs import NoiseCovIdentity, NoiseCovFullRank
+from brainiak.matnormal.covs import CovIdentity, CovFullRank
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
 
@@ -17,9 +20,9 @@ rtol = 1e-7
 
 def test_against_scipy_mvn_row_marginal():
 
-    rowcov = NoiseCovFullRank(size=m)
-    colcov = NoiseCovIdentity(size=n)
-    Q = NoiseCovFullRank(size=p)
+    rowcov = CovFullRank(size=m)
+    colcov = CovIdentity(size=n)
+    Q = CovFullRank(size=p)
 
     modelbase = MatnormModelBase()
     X = rmn(np.eye(m), np.eye(n))
@@ -46,9 +49,9 @@ def test_against_scipy_mvn_row_marginal():
 
 def test_against_scipy_mvn_col_marginal():
 
-    rowcov = NoiseCovIdentity(size=n)
-    colcov = NoiseCovFullRank(size=m)
-    Q = NoiseCovFullRank(size=p)
+    rowcov = CovIdentity(size=n)
+    colcov = CovFullRank(size=m)
+    Q = CovFullRank(size=p)
 
     modelbase = MatnormModelBase()
     X = rmn(np.eye(n), np.eye(m))

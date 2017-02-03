@@ -63,7 +63,7 @@ It provides a few interfaces. `MatnormModelBase` is intended to be subclasses
 from by matrix-variate models. It provides a wrapper for the tensorflow
 optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
-for noise covariances (`NoiseCovBase`). Any class that follows the interface
+for noise covariances (`CovBase`). Any class that follows the interface
 can be used as a noise covariance in any of the matrix normal models. The
 package includes a variety of noise covariances to work with, as well as an
 interface to use any of the kernels in the `GPflow` package.

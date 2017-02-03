@@ -1,10 +1,13 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-from brainiak.matnormal.noise_covs import\
-    NoiseCovIdentity, NoiseCovFullRank, NoisePrecFullRank, NoiseCovDiagonal
+from brainiak.matnormal.covs import\
+    CovIdentity, CovFullRank, NoisePrecFullRank, CovDiagonal
 from brainiak.matnormal import MatnormRegression
 from brainiak.matnormal.helpers import rmn
 import pytest
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 m = 100
 n = 4
@@ -25,8 +28,8 @@ def test_matnorm_regression_fullrank():
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-    row_cov = NoiseCovIdentity(size=m)
-    col_cov = NoiseCovFullRank(size=p)
+    row_cov = CovIdentity(size=m)
+    col_cov = CovFullRank(size=p)
 
     model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
                               space_noise_cov=col_cov, learnRate=0.01)
@@ -48,7 +51,7 @@ def test_matnorm_regression_fullrankprec():
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-    row_cov = NoiseCovIdentity(size=m)
+    row_cov = CovIdentity(size=m)
     col_cov = NoisePrecFullRank(size=p)
 
     model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
@@ -72,8 +75,8 @@ def test_matnorm_regression_scaledDiag():
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-    row_cov = NoiseCovIdentity(size=m)
-    col_cov = NoiseCovDiagonal(size=p)
+    row_cov = CovIdentity(size=m)
+    col_cov = CovDiagonal(size=p)
 
     model = MatnormRegression(n_v=p, n_c=n, time_noise_cov=row_cov,
                               space_noise_cov=col_cov, learnRate=0.01)
@@ -95,8 +98,8 @@ def test_matnorm_regression_predict_calibrate():
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-    row_cov = NoiseCovIdentity(size=m)
-    col_cov = NoiseCovDiagonal(size=p)
+    row_cov = CovIdentity(size=m)
+    col_cov = CovDiagonal(size=p)
 
     Y_train = Y[:m, :]
     Y_test = Y[m:, :]
@@ -132,8 +135,8 @@ def test_matnorm_regression_raises_calibrate_rank_defficient():
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
-    row_cov = NoiseCovIdentity(size=m)
-    col_cov = NoiseCovDiagonal(size=p)
+    row_cov = CovIdentity(size=m)
+    col_cov = CovDiagonal(size=p)
 
     Y_train = Y[:m, :]
     Y_test = Y[m:, :]

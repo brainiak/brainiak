@@ -31,9 +31,10 @@ class MatnormModelBase(BaseEstimator):
 
         for n in range(max_iter):
             past_loss = current_loss
-            _, current_loss, max_abs_current_grad = self.sess.run([optfun, loss,
-                                                                   max_abs_current_grad_op],
-                                                                   feed_dict=feed_dict)
+            self.sess.run(optfun, feed_dict=feed_dict)
+            current_loss, max_abs_current_grad = self.sess.run([loss,
+                                                                max_abs_current_grad_op],
+                                                                feed_dict=feed_dict)
 
             # check tolerances
             if abs((current_loss - past_loss) /
@@ -117,7 +118,7 @@ class MatnormModelBase(BaseEstimator):
 
     def matnorm_logp(self, x, row_cov, col_cov):
         """Log likelihood for centered matrix-variate normal density.
-        Assumes that row_cov and col_cov follow the API defined in NoiseCovBase.
+        Assumes that row_cov and col_cov follow the API defined in CovBase.
         """
 
         rowsize = tf.cast(tf.shape(x)[0], 'float64')
@@ -138,13 +139,13 @@ class MatnormModelBase(BaseEstimator):
         """
         Log likelihood for centered matrix-variate normal density.
         Assumes that row_cov, col_cov, and marg_cov follow the API defined
-        in NoiseCovBase.
+        in CovBase.
 
         When you marginalize in mnorm, you end up with a covariance S + APA',
         where P is the covariance of A in the relevant dimension.
 
         This method exploits the matrix inversion and determinant lemmas to
-        construct S + APA' given the covariance API in in NoiseCovBase.
+        construct S + APA' given the covariance API in in CovBase.
         """
         rowsize = tf.cast(tf.shape(x)[0], 'float64')
         colsize = tf.cast(tf.shape(x)[1], 'float64')
@@ -161,13 +162,13 @@ class MatnormModelBase(BaseEstimator):
     def matnorm_logp_marginal_col(self, x, row_cov, col_cov, marg, marg_cov):
         """
         Log likelihood for centered matrix-variate normal density. Assumes that
-        row_cov, col_cov, and marg_cov follow the API defined in NoiseCovBase.
+        row_cov, col_cov, and marg_cov follow the API defined in CovBase.
 
         When you marginalize in mnorm, you end up with a covariance S + APA',
         where P is the covariance of A in the relevant dimension.
 
         This method exploits the matrix inversion and determinant lemmas to
-        construct S + APA' given the covariance API in in NoiseCovBase.
+        construct S + APA' given the covariance API in in CovBase.
         """
         rowsize = tf.cast(tf.shape(x)[0], 'float64')
         colsize = tf.cast(tf.shape(x)[1], 'float64')
@@ -184,14 +185,14 @@ class MatnormModelBase(BaseEstimator):
     def matnorm_logp_conditional_row(self, x, row_cov, col_cov, cond, cond_cov):
         """
         Log likelihood for centered matrix-variate normal density. Assumes that
-        row_cov, col_cov, and cond_cov follow the API defined in NoiseCovBase.
+        row_cov, col_cov, and cond_cov follow the API defined in CovBase.
 
         When you go from joint to conditional in mnorm, you end up with a
         covariance S - APA', where P is the covariance of A in the relevant
         dimension.
 
         This method exploits the matrix inversion and determinant lemmas to
-        construct S - APA' given the covariance API in in NoiseCovBase.
+        construct S - APA' given the covariance API in in CovBase.
         """
 
         rowsize = tf.cast(tf.shape(x)[0], 'float64')
@@ -209,14 +210,14 @@ class MatnormModelBase(BaseEstimator):
     def matnorm_logp_conditional_col(self, x, row_cov, col_cov, cond, cond_cov):
         """
         Log likelihood for centered matrix-variate normal density. Assumes that
-        row_cov, col_cov, and cond_cov follow the API defined in NoiseCovBase.
+        row_cov, col_cov, and cond_cov follow the API defined in CovBase.
 
         When you go from joint to conditional in mnorm, you end up with a
         covariance S - APA', where P is the covariance of A in the relevant
         dimension.
 
         This method exploits the matrix inversion and determinant lemmas to
-        construct S - APA' given the covariance API in in NoiseCovBase.
+        construct S - APA' given the covariance API in in CovBase.
         """
         rowsize = tf.cast(tf.shape(x)[0], 'float64')
         colsize = tf.cast(tf.shape(x)[1], 'float64')

@@ -1,9 +1,12 @@
 from brainiak.matnormal import MatnormBRSA
 from brsa_gendata import gen_brsa_data_from_model, gen_U_nips2016_example
-from brainiak.matnormal.noise_covs import \
-    NoiseCovIdentity, NoiseCovDiagonal, NoiseCovFullRank
+from brainiak.matnormal.covs import \
+    CovIdentity, CovDiagonal, CovFullRank
 from scipy.stats import norm
 import numpy as np
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def test_brsa_rudimentary():
@@ -24,8 +27,8 @@ def test_brsa_rudimentary():
                                       space_cov=spacecov_true,
                                       time_cov=timecov_true)
 
-    spacecov_model = NoiseCovIdentity(size=n_V)
-    timecov_model = NoiseCovDiagonal(size=n_T)
+    spacecov_model = CovIdentity(size=n_V)
+    timecov_model = CovDiagonal(size=n_T)
     model_matnorm = MatnormBRSA(n_TRs=n_T, n_V=n_V, n_C=16, n_nureg=n_nureg,
                                 time_noise_cov=timecov_model,
                                 space_noise_cov=spacecov_model, learnRate=0.1)
@@ -54,12 +57,12 @@ def test_brsa_structured_cov():
                                       space_cov=spacecov_true,
                                       time_cov=timecov_true)
 
-    spacecov_model = NoiseCovIdentity(size=n_V)
-    timecov_model = NoiseCovDiagonal(size=n_T)
+    spacecov_model = CovIdentity(size=n_V)
+    timecov_model = CovDiagonal(size=n_T)
     model_matnorm = MatnormBRSA(n_TRs=n_T, n_V=n_V, n_C=16, n_nureg=n_nureg,
                                 time_noise_cov=timecov_model,
                                 space_noise_cov=spacecov_model,
-                                structured_RSA_cov=NoiseCovFullRank(size=16+n_nureg),
+                                structured_RSA_cov=CovFullRank(size=16+n_nureg),
                                 learnRate=0.1)
 
     model_matnorm.fit(tr['Y'], tr['X'], max_iter=10000)

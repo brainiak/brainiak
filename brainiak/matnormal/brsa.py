@@ -1,7 +1,7 @@
 import tensorflow as tf
 from .helpers import define_scope
 from .base import MatnormModelBase
-from .noise_covs import NoisePrecFullRank
+from .covs import NoisePrecFullRank
 
 
 class MatnormBRSA(MatnormModelBase):
@@ -26,7 +26,7 @@ class MatnormBRSA(MatnormModelBase):
     allows different temporal covariance for each voxel. On the other hand,
     computational efficiencies enabled by this choice allow MatnormBRSA to
     support a richer class of space and time covariances (anything in
-    `brainiak.matnormal.noise_covs`).
+    `brainiak.matnormal.covs`).
 
     For users: in general, if you are worried about voxels each having
     different temporal noise structure,you should use `brainiak.reprsimil.BRSA`.
@@ -45,10 +45,10 @@ class MatnormBRSA(MatnormModelBase):
         number of voxels
     n_C : int
         number of conditions
-    time_noise_cov : subclass of NoiseCovBase
-        Temporal noise covariance class following NoiseCovBase interface.
-    space_noise_cov : subclass of NoiseCovBase
-        Spatial noise covariance class following NoiseCovBase interface.
+    time_noise_cov : subclass of CovBase
+        Temporal noise covariance class following CovBase interface.
+    space_noise_cov : subclass of CovBase
+        Spatial noise covariance class following CovBase interface.
     n_nureg : int
         Number of nuisance regressors
     learnRate : real, default=0.01
@@ -111,11 +111,11 @@ class MatnormBRSA(MatnormModelBase):
             Note that doing this like this forces us to estimate the covariance
             of X0 -- which is probably fine for small n_nureg, but I'm not sure
             if estimating arbitrary correlation between X and X0 is problematic.
-            In general what we should do here is define a low rank NoiseCov
-            (which is what X0 is) and make code for composing NoiseCovs so that
+            In general what we should do here is define a low rank Cov
+            (which is what X0 is) and make code for composing Covs so that
             Sigma_t can be the sum of a low rank and a toeplitz matrix, which is
             what this model basically is. Another alternative is define a
-            NoiseCov that is a direct sum (block diagonal) of other NoiseCovs.
+            Cov that is a direct sum (block diagonal) of other Covs.
             (Internal use.)
         """
         return tf.concat(1, [self.X, self.X_0])

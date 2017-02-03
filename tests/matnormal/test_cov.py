@@ -1,10 +1,13 @@
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart
-from brainiak.matnormal.noise_covs import *
-from brainiak.matnormal.noise_cov_kron import *
+from brainiak.matnormal.covs import *
+from brainiak.matnormal.cov_kron import *
 import tensorflow as tf
 import pytest
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
 
@@ -30,10 +33,10 @@ A = norm.rvs(size=(m, p))
 A_tf = tf.constant(A)
 
 
-def test_NoiseCovConstant():
+def test_CovConstant():
 
     cov_np = wishart.rvs(df=m+2, scale=np.eye(m))
-    cov = NoiseCovConstant(cov_np)
+    cov = CovConstant(cov_np)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -45,9 +48,9 @@ def test_NoiseCovConstant():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoiseCovIdentity():
+def test_CovIdentity():
 
-    cov = NoiseCovIdentity(size=m)
+    cov = CovIdentity(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -60,9 +63,9 @@ def test_NoiseCovIdentity():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoiseCovIsotropic():
+def test_CovIsotropic():
 
-    cov = NoiseCovIsotropic(size=m)
+    cov = CovIsotropic(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -75,9 +78,9 @@ def test_NoiseCovIsotropic():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoiseCovDiagonal():
+def test_CovDiagonal():
 
-    cov = NoiseCovDiagonal(size=m)
+    cov = CovDiagonal(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -90,9 +93,9 @@ def test_NoiseCovDiagonal():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoiseCovFullRank():
+def test_CovFullRank():
 
-    cov = NoiseCovFullRank(size=m)
+    cov = CovFullRank(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -119,16 +122,16 @@ def test_NoisePrecFullRank():
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
-def test_NoiseCov2FactorKron():
+def test_Cov2FactorKron():
     assert(m%2 == 0)
     dim1 = int(m/2)
     dim2 = 2
 
     with pytest.raises(TypeError) as excinfo:
-        cov = NoiseCovKroneckerFactored(sizes=dim1)
+        cov = CovKroneckerFactored(sizes=dim1)
     assert "sizes is not a list" in str(excinfo.value)
 
-    cov = NoiseCovKroneckerFactored(sizes=[dim1, dim2])
+    cov = CovKroneckerFactored(sizes=[dim1, dim2])
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -143,12 +146,12 @@ def test_NoiseCov2FactorKron():
         assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
-def test_NoiseCov3FactorKron():
+def test_Cov3FactorKron():
     assert(m%4 == 0)
     dim1 = int(m/4)
     dim2 = 2
     dim3 = 2
-    cov = NoiseCovKroneckerFactored(sizes=[dim1, dim2, dim3])
+    cov = CovKroneckerFactored(sizes=[dim1, dim2, dim3])
 
     with tf.Session() as sess:
         # initialize the random covariance

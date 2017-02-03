@@ -4,7 +4,7 @@ import abc
 from .helpers import define_scope, xx_t
 
 
-class NoiseCovBase:
+class CovBase:
     """Base metaclass for noise covariances
     """
     __metaclass__ = abc.ABCMeta
@@ -39,7 +39,7 @@ class NoiseCovBase:
                                 dtype=tf.float64)))
 
 
-class NoiseCovConstant(NoiseCovBase):
+class CovConstant(CovBase):
 
     def __init__(self, Sigma):
         self.Sigma = tf.constant(Sigma)
@@ -62,7 +62,7 @@ class NoiseCovConstant(NoiseCovBase):
         return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.L)))
 
 
-class NoiseCovIdentity(NoiseCovBase):
+class CovIdentity(CovBase):
     """Identity noise covariance.
     """
     def __init__(self, size):
@@ -92,7 +92,7 @@ class NoiseCovIdentity(NoiseCovBase):
         return tf.diag(tf.ones([self.size], dtype=tf.float64))
 
 
-class NoiseCovIsotropic(NoiseCovBase):
+class CovIsotropic(CovBase):
     """Scaled identity (isotropic) noise covariance.
     """
 
@@ -129,7 +129,7 @@ class NoiseCovIsotropic(NoiseCovBase):
         return tf.diag(tf.ones([self.size], dtype=tf.float64)) / self.sigma
 
 
-class NoiseCovDiagonal(NoiseCovBase):
+class CovDiagonal(CovBase):
     """Uncorrelated (diagonal) noise covariance
     """
     def __init__(self, size):
@@ -169,7 +169,7 @@ class NoiseCovDiagonal(NoiseCovBase):
         return tf.diag(tf.ones([self.size], dtype=tf.float64) * self.prec)
 
 
-class NoiseCovFullRank(NoiseCovBase):
+class CovFullRank(CovBase):
     """Full rank noise covariance parameterized in terms of its cholesky
     """
 
@@ -219,7 +219,7 @@ class NoiseCovFullRank(NoiseCovBase):
         return tf.cholesky_solve(self.L, X)
 
 
-class NoisePrecFullRank(NoiseCovBase):
+class NoisePrecFullRank(CovBase):
     """Full rank noise covariance parameterized in terms of its precision cholesky
     """
 
