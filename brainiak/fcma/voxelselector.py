@@ -244,12 +244,12 @@ class VoxelSelector:
 
         Parameters
         ----------
-        task: tuple (start_voxel_id, num_assigned_voxels)
+        task: tuple (start_voxel_id, num_processed_voxels)
             depicting the voxels assigned to compute
 
         Returns
         -------
-        corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the correlation values of all subjects in all epochs
             for the assigned values, in row-major
             corr[i, e, s + j] = corr[j, e, s + i]
@@ -290,13 +290,13 @@ class VoxelSelector:
 
         Parameters
         ----------
-        corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the correlation values of all subjects in all epochs
             for the assigned values, in row-major
 
         Returns
         -------
-        corr: 3D array in  shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the normalized correlation values of all subjects in all epochs
             for the assigned values, in row-major
         """
@@ -382,7 +382,7 @@ class VoxelSelector:
             If using sklearn.svm.SVC with precomputed kernel,
             it is in shape [num_processed_voxels, num_epochs, num_epochs];
             otherwise it is the input argument corr,
-            in shape [num_selected_voxels, num_epochs, num_voxels]
+            in shape [num_processed_voxels, num_epochs, num_voxels]
         task: tuple (start_voxel_id, num_processed_voxels)
             depicting the voxels assigned to compute
 
@@ -444,7 +444,7 @@ class VoxelSelector:
 
         Parameters
         ----------
-        task: tuple (start_voxel_id, num_assigned_voxels),
+        task: tuple (start_voxel_id, num_processed_voxels),
             depicting the voxels assigned to compute
         clf: classification function
             the classifier to be used in cross validation
