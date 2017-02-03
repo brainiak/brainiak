@@ -38,7 +38,7 @@ __all__ = [
 
 
 class VoxelSelector:
-    """Correlation-based voxel selection component of FCMA
+    """Correlation-based voxel selection component of FCMA.
 
     Parameters
     ----------
@@ -114,7 +114,7 @@ class VoxelSelector:
     _TERMINATETAG = 1
 
     def run(self, clf):
-        """ run correlation-based voxel selection in master-worker model
+        """Run correlation-based voxel selection in master-worker model.
 
         Sort the voxels based on the cross-validation accuracy
         of their correlation vectors
@@ -141,7 +141,7 @@ class VoxelSelector:
         return results
 
     def _master(self):
-        """ master node's operation
+        """Master node's operation.
 
         Assigning tasks to workers and collecting results from them
 
@@ -215,7 +215,7 @@ class VoxelSelector:
         return results
 
     def _worker(self, clf):
-        """ worker node's operation
+        """Worker node's operation.
 
         Receiving tasks from the master to process and sending the result back
 
@@ -236,11 +236,11 @@ class VoxelSelector:
                              status=status)
             if status.Get_tag():
                 break
-            comm.send(self._voxelScoring(task, clf),
+            comm.send(self._voxel_scoring(task, clf),
                       dest=self.master_rank)
 
-    def _correlationComputation(self, task):
-        """ use BLAS API to do correlation computation (matrix multiplication)
+    def _correlation_computation(self, task):
+        """Use BLAS API to do correlation computation (matrix multiplication).
 
         Parameters
         ----------
@@ -281,8 +281,8 @@ class VoxelSelector:
         )
         return corr
 
-    def _correlationNormalization(self, corr):
-        """ within-subject normalization
+    def _correlation_normalization(self, corr):
+        """Do within-subject normalization.
 
         This method uses scipy.zscore to normalize the data,
         but is much slower than its C++ counterpart.
@@ -432,15 +432,15 @@ class VoxelSelector:
         )
         return results
 
-    def _voxelScoring(self, task, clf):
-        """ voxel selection processing done in the worker node
+    def _voxel_scoring(self, task, clf):
+        """The voxel selection process done in the worker node.
 
         Take the task in,
         do analysis on voxels specified by the task (voxel id, num_voxels)
         It is a three-stage pipeline consisting of:
         1. correlation computation
         2. within-subject normalization
-        3. voxelwise cross validaion
+        3. voxelwise cross validation
 
         Parameters
         ----------
@@ -457,9 +457,9 @@ class VoxelSelector:
         """
         time1 = time.time()
         # correlation computation
-        corr = self._correlationComputation(task)
+        corr = self._correlation_computation(task)
         # normalization
-        # corr = self._correlationNormalization(corr)
+        # corr = self._correlation_normalization(corr)
         time3 = time.time()
         fcma_extension.normalization(corr, self.epochs_per_subj)
         time4 = time.time()
