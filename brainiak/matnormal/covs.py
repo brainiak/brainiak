@@ -2,6 +2,8 @@ import tensorflow as tf
 import numpy as np
 import abc
 from .helpers import define_scope, xx_t
+from ..utils.utils import tf_solve_lower_triangular_kron,\
+                          tf_solve_upper_triangular_kron
 
 
 class CovBase:
@@ -287,3 +289,79 @@ class CovFullRankInvCholesky(CovBase):
         cholesky solve
         """
         return tf.matmul(xx_t(self.Linv), X)
+
+
+class CovKroneckerFactored(CovBase):
+    """ Kronecker product noise covariance parameterized in terms
+    of its component cholesky factors
+    """
+
+    def __init__(self, sizes):
+        """Initialize the kronecker factored covariance object.
+
+        Arguments
+        ---------
+        sizes : list
+            List of dimensions (int) of the factors
+            E.g. ``sizes = [2, 3]`` will create two factors of
+            sizes 2x2 and 3x3 giving us a 6x6 dimensional covariance
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        TypeError
+            If sizes is not a list
+        """
+        if not isinstance(sizes, list):
+            raise TypeError('sizes is not a list')
+
+        self.sizes = sizes
+        self.nfactors = len(sizes)
+        self.size = np.prod(np.array(sizes), dtype=np.int32)
+        self.L_full = [tf.Variable(tf.random_normal([sizes[i], sizes[i]],
+                       dtype=tf.float64), name="L"+str(i)+"_full")
+                       for i in range(self.nfactors)]
+
+    @define_scope
+    def L(self):
+        """ Zero out triu of all factors in L_full to get cholesky L.
+            This seems dumb but TF is smart enough to set the gradient to
+            zero for those elements, and the alternative
+            (fill_lower_triangular from contrib.distributions)
+            is inefficient and recommends not doing the packing (for now).
+            Also: to make the parameterization unique we log the diagonal
+            so it's positive.
+        """
+        L_indeterminate = [tf.matrix_band_part(mat, -1, 0)
+                           for mat in self.L_full]
+        return [tf.matrix_set_diag(mat, tf.exp(tf.matrix_diag_part(mat)))
+                for mat in L_indeterminate]
+
+    def get_optimize_vars(self):
+        """ Returns a list of tf variables that need to get optimized
+            to fit this covariance
+        """
+        return self.L_full
+
+    @define_scope
+    def logdet(self):
+        """ log|Sigma| using the diagonals of the cholesky factors.
+        """
+        n_list = tf.pack([tf.to_double(tf.shape(mat)[0]) for mat in self.L])
+        n_prod = tf.reduce_prod(n_list)
+        logdet = tf.pack([tf.reduce_sum(tf.log(tf.diag_part(mat)))
+                 for mat in self.L])
+        logdetfinal = tf.reduce_sum((logdet*n_prod)/n_list)
+        return (2.0*logdetfinal)
+
+    def Sigma_inv_x(self, X):
+        """ Given this Sigma and some X, compute Sigma^{-1} * x using
+        traingular solves with the cholesky factors.
+        Do 2 triangular solves - L L^T x = y as L z = y and L^T x = z
+        """
+        z = tf_solve_lower_triangular_kron(self.L, X)
+        x = tf_solve_upper_triangular_kron(self.L, z)
+        return x

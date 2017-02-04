@@ -1,7 +1,7 @@
 import tensorflow as tf
 from .helpers import define_scope
 from .base import MatnormModelBase
-from .covs import NoisePrecFullRank
+from .covs import CovFullRankInvCholesky
 
 
 class MatnormBRSA(MatnormModelBase):
@@ -60,7 +60,7 @@ class MatnormBRSA(MatnormModelBase):
                  structured_RSA_cov=None, n_nureg=5, learnRate=0.01):
 
         if structured_RSA_cov is None:
-            self.rsa_cov = NoisePrecFullRank(size=n_C+n_nureg)
+            self.rsa_cov = CovFullRankInvCholesky(size=n_C+n_nureg)
         else:
             self.rsa_cov = structured_RSA_cov
 

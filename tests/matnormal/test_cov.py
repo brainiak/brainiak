@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart
 from brainiak.matnormal.covs import *
-from brainiak.matnormal.cov_kron import *
 import tensorflow as tf
 import pytest
 import logging
@@ -93,9 +92,9 @@ def test_CovDiagonal():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_CovFullRank():
+def test_CovFullRankCholesky():
 
-    cov = CovFullRank(size=m)
+    cov = CovFullRankCholesky(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -108,9 +107,9 @@ def test_CovFullRank():
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol)
 
 
-def test_NoisePrecFullRank():
+def test_CovFullRankInvCholesky():
 
-    cov = NoisePrecFullRank(size=m)
+    cov = CovFullRankInvCholesky(size=m)
 
     with tf.Session() as sess:
         # initialize the random covariance
