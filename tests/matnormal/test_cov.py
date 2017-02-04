@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart
 from brainiak.matnormal.covs import *
-from brainiak.matnormal.cov_kron import *
 import tensorflow as tf
 import pytest
 import logging

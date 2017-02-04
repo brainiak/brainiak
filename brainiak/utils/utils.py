@@ -16,6 +16,7 @@ import logging
 import re
 import warnings
 import os.path
+import tensorflow as tf
 
 """
 Some utility functions that can be used by different algorithms
@@ -185,7 +186,7 @@ def cov2corr(cov):
     -------
 
     corr: 2D array
-        correlation converted from the covarince matrix
+        correlation converted from the covariance matrix
 
 
     """
@@ -350,3 +351,93 @@ class ReadDesign:
                 re.split(r'[ ;]+', StimLabels_found.group('SLtext'))
         else:
             self.StimLabels = []
+
+
+def tf_solve_lower_triangular_kron(L, y):
+    """ Tensor flow function to solve L x = y
+    where L = kron(L[0], L[1] .. L[n-1])
+    and L[i] are the lower triangular matrices
+
+    Arguments
+    ---------
+    L : list of 2-D tensors
+        Each element of the list must be a tensorflow tensor and
+        must be a lower triangular matrix of dimension n_i x n_i
+
+    y : 1-D or 2-D tensor
+        Dimension (n_0*n_1*..n_(m-1)) x p
+
+    Returns
+    -------
+    x : 1-D or 2-D tensor
+        Dimension (n_0*n_1*..n_(m-1)) x p
+
+    """
+    n = len(L)
+    if n == 1:
+        return tf.matrix_triangular_solve(L[0], y)
+    else:
+        x = y
+        na = L[0].get_shape().as_list()[0]
+        n_list = tf.pack([tf.to_double(tf.shape(mat)[0]) for mat in L])
+        n_prod = tf.to_int32(tf.reduce_prod(n_list))
+        nb = tf.to_int32(n_prod/na)
+        col = tf.shape(x)[1]
+
+        for i in range(na):
+            xt, xinb, xina = tf.split_v(x, [i*nb, nb, (na-i-1)*nb], 0)
+            t = xinb / L[0][i, i]
+            xinb = tf_solve_lower_triangular_kron(L[1:], t)
+            xina = xina - tf.reshape(tf.tile
+                           (tf.slice(L[0], [i+1, i], [na-i-1, 1]),
+                           [1, nb*col]), [(na-i-1)*nb, col]) * \
+                           tf.reshape(tf.tile(tf.reshape
+                           (t, [-1, 1]), [na-i-1, 1]), [(na-i-1)*nb, col])
+            x = tf.concat(0, [xt, xinb, xina])
+
+        return x
+
+
+def tf_solve_upper_triangular_kron(L, y):
+    """ Tensor flow function to solve L^T x = y
+    where L = kron(L[0], L[1] .. L[n-1])
+    and L[i] are the lower triangular matrices
+
+    Arguments
+    ---------
+    L : list of 2-D tensors
+        Each element of the list must be a tensorflow tensor and
+        must be a lower triangular matrix of dimension n_i x n_i
+
+    y : 1-D or 2-D tensor
+        Dimension (n_0*n_1*..n_(m-1)) x p
+
+    Returns
+    -------
+    x : 1-D or 2-D tensor
+        Dimension (n_0*n_1*..n_(m-1)) x p
+
+    """
+    n = len(L)
+    if n == 1:
+        return tf.matrix_triangular_solve(L[0], y, adjoint=True)
+    else:
+        x = y
+        na = L[0].get_shape().as_list()[0]
+        n_list = tf.pack([tf.to_double(tf.shape(mat)[0]) for mat in L])
+        n_prod = tf.to_int32(tf.reduce_prod(n_list))
+        nb = tf.to_int32(n_prod/na)
+        col = tf.shape(x)[1]
+
+        for i in range(na-1, -1, -1):
+            xt, xinb, xina = tf.split_v(x, [i*nb, nb, (na-i-1)*nb], 0)
+            t = xinb / L[0][i, i]
+            xinb = tf_solve_upper_triangular_kron(L[1:], t)
+            xt = xt - tf.reshape(tf.tile(tf.transpose
+                                 (tf.slice(L[0], [i, 0], [1, i])),
+                                 [1, nb*col]), [i*nb, col]) * \
+                                 tf.reshape(tf.tile(tf.reshape
+                                 (t, [-1, 1]), [i, 1]), [i*nb, col])
+            x = tf.concat(0, [xt, xinb, xina])
+
+        return x
