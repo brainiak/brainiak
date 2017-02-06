@@ -70,7 +70,7 @@ class VoxelSelector:
         If raw_data2 is specified, len(raw_data) MUST equal len(raw_data2),
         the correlation will be computed as raw_data by raw_data2.
 
-    voxel_unit: int, default 100
+    voxel_unit: int, default 64
         The number of voxels assigned to a worker each time
 
     master_rank: int, default 0
@@ -82,7 +82,7 @@ class VoxelSelector:
                  num_folds,
                  raw_data,
                  raw_data2=None,
-                 voxel_unit=100,
+                 voxel_unit=64,
                  master_rank=0):
         self.labels = labels
         self.epochs_per_subj = epochs_per_subj
