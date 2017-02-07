@@ -42,7 +42,7 @@ def test_voxel_selection():
     vs = VoxelSelector(labels, 4, 2, fake_raw_data, voxel_unit=1)
     # test scipy normalization
     fake_corr = prng.rand(1, 4, 5).astype(np.float32)
-    fake_corr = vs._correlationNormalization(fake_corr)
+    fake_corr = vs._correlation_normalization(fake_corr)
     if MPI.COMM_WORLD.Get_rank() == 0:
         expected_fake_corr = [[[1.19203866, 0.18862808, -0.54350245,
                                 -1.18334889, -0.16860008],
