@@ -25,7 +25,7 @@ This implementation is based on the following publications:
    K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
    2014 International Workshop on, June 2014.
 
-.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
+.. [AndersonMJ2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
    Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
    Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
