@@ -115,3 +115,12 @@ We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
 
 .. _CONTRIBUTING.rst:
    https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
+
+
+Citing
+======
+
+Please cite BrainIAK in your publications as: "Brain Imaging Analysis Kit,
+http://brainiak.org." Additionally, if you use `RRIDs
+<https://scicrunch.org/resolver>`_ to identify resources, please mention
+BrainIAK as "Brain Imaging Analysis Kit, RRID:SCR_014824".
