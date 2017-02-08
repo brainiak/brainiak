@@ -24,8 +24,9 @@ The implementations are based on the following publications:
    Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
    Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
-   Kenneth A. Norman, arXiv preprint, 2016.
-   https://arxiv.org/abs/1608.04647
+   Kenneth A. Norman,
+   IEEE International Conference on Big Data, 2016.
+   https://doi.org/10.1109/BigData.2016.7840719
 """
 
 # Authors: Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek

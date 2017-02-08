@@ -25,10 +25,13 @@ This implementation is based on the following publications:
    K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
    2014 International Workshop on, June 2014.
 
-.. [AndersonMJ2016] "Scaling Up Multi-Subject Neuroimaging Factor Analysis",
-   Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu,
-   Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning,
-   Peter J. Ramadge, and Kenneth A. Norman. 2016
+.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
+   Datasets",
+   Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
+   Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
+   Kenneth A. Norman,
+   IEEE International Conference on Big Data, 2016.
+   https://doi.org/10.1109/BigData.2016.7840719
 """
 
 # Authors: Xia Zhu (Intel Labs), Jeremy Manning (Dartmouth College) 2015~2016
