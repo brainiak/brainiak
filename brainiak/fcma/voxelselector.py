@@ -28,7 +28,7 @@ import sklearn
 from . import fcma_extension
 from . import cython_blas as blas
 import logging
-import pathos.multiprocessing
+import multiprocess
 
 logger = logging.getLogger(__name__)
 
@@ -412,11 +412,9 @@ class VoxelSelector:
             inlist = [(i + task[0], self.num_folds, data[i, :, :],
                        self.labels) for i in range(task[1])]
 
-            pool = pathos.multiprocessing.ProcessingPool(None)
-            results = list(pool.map(
-                lambda x: _cross_validation_for_one_voxel
-                (x[0], x[1], x[2], x[3]),
-                inlist))
+            with multiprocess.Pool(None) as pool:
+                results = list(pool.starmap(_cross_validation_for_one_voxel,
+                                            inlist))
         else:
             results = []
             for i in range(task[1]):
