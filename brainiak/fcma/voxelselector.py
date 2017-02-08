@@ -413,10 +413,8 @@ class VoxelSelector:
                        self.labels) for i in range(task[1])]
 
             with multiprocess.Pool(None) as pool:
-                results = list(pool.map(
-                    lambda x: _cross_validation_for_one_voxel
-                    (x[0], x[1], x[2], x[3]),
-                    inlist))
+                results = list(pool.starmap(_cross_validation_for_one_voxel,
+                                            inlist))
         else:
             results = []
             for i in range(task[1]):
