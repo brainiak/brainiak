@@ -23,7 +23,7 @@
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing
     -bias-in-neural-representational-similarity-analysis.pdf
-    Some extensions not described in the paper were made.
+    Some extensions not described in the paper have been made here.
 """
 
 # Authors: Mingbo Cai
@@ -1210,54 +1210,91 @@ class BRSA(BaseEstimator, TransformerMixin):
         # of covariance matrix for Var_X, Var_dX and T_X, which means
         # each dimension of X is independent and their refreshing noise
         # are also independent. Note that log_p_data takes this assumption.
-        if Sigma_X.ndim == 1:
+        if Var_X.ndim == 1:
+            inv_Var_X = np.diag(1 / Var_X)
             log_det_Var_X = np.sum(np.log(Var_X))
             Var_X = np.diag(Var_X)
-            inv_Var_X = np.diag(1 / Var_X)
             # the marginal variance of X
+        else:
+            log_det_Var_X = np.linalg.det(Var_X)
+            inv_Var_X = np.linalg.inv(Var_X)
         if Var_dX.ndim == 1:
+            inv_Var_dX = np.diag(1 / Var_dX)
             log_det_Var_dX = np.sum(np.log(Var_dX))
             Var_dX = np.diag(Var_dX)
             # the marginal variance of Delta X
+        else:
+            inv_Var_dX = np.linalg.inv(Var_dX)
+            log_det_Var_dX = np.linalg.det(Var_dX)
         if T_X.ndim == 1:
             T_X = np.diag(T_X)
         [n_T, n_V] = np.shape(Y)
         # numbers of time points and voxels
-        mu_post = [None] * n_T
+        mu = [None] * n_T
         # posterior mean of X, conditioned on all data up till the current
         # time point
-        Gamma_post = [None] * n_T
+        Gamma = [None] * n_T
         # posterior variance of X, conditioned on all data up till the current
         # time point
-        Gamma_inv_post = [None] * n_T
+        Gamma_inv = [None] * n_T
         # inverse of poterior Gamma.
-        mu_Gamma_inv_post = [None] * n_T
-        # mu_post * inv(Gamma_post)
+        mu_Gamma_inv = [None] * n_T
+        # mu * inv(Gamma)
         log_p_data = - np.log(np.pi * 2) * (n_T * n_V) / 2 \
             - log_det_Var_X / 2.0 - np.sum(np.log(sigma2_e)) * n_T /2.0\
-            + np.sum(np.log(1 - rho_e**2)) - log_deg_Var_dX / 2.0 \
+            + np.sum(np.log(1 - rho_e**2)) / 2.0 - log_det_Var_dX / 2.0 \
             * (n_T - 1)
         # This is the term to be incremented by c_n at each time step.
         # We first add all the fixed terms to it.
 
         # The following are a few fixed terms.
-        Lambda_0 = np.dot(T_X, np.dpt(inv_Var_X, T_X.T)) \
+        Lambda_0 = np.dot(T_X, np.dot(inv_Var_dX, T_X.T)) \
             + np.dot(beta * rho_e**2 / sigma2_e, beta.T)
-        H = np.dot(inv_Var_X, X.T) + np.dot(beta * rho_e / sigma2_e,
-                                                 beta.T)
-        Lambda_1 = inv_Var_X + np.dot(beta / sigma2_e, beta.T)
+        H = np.dot(inv_Var_dX, T_X.T) + np.dot(beta * rho_e / sigma2_e,
+                                               beta.T)
+        Lambda_1 = inv_Var_dX + np.dot(beta / sigma2_e, beta.T)
 
-        Gamma_inv_post[0] = Var_X + np.dot(
+        Gamma_inv[0] = inv_Var_X + np.dot(
             beta * (1 - rho_e**2) / sigma2_e, beta.T)
-        Gamma_post[0] = np.linalg.inv(Gamma_inv_post[0])
-        mu_Gamma_inv_post[0] = np.dot(
+        Gamma[0] = np.linalg.inv(Gamma_inv[0])
+        # We might not need this and only use linalg.solve for related terms.
+        mu_Gamma_inv[0] = np.dot(
             Y[0, :] * (1 - rho_e**2) / sigma2_e, beta.T)
-        mu_post[0] = np.dot(mu_Gamma_inv_post[0], Gamma_post[0])
-        log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)\
-            - np.dot(mu_Gamma_inv_post[0], mu_post[0])
+        mu[0] = np.dot(mu_Gamma_inv[0], Gamma[0])
+        log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)
+
+        # log_p_data_alt = scipy.stats.multivariate_normal.logpdf(
+        #     Y[0, :], cov=np.dot(np.dot(beta.T, Var_X), beta)
+        #     + np.diag(sigma2_e / (1 - rho_e**2)))
+        # Tbeta_betarho = np.dot(T_X, beta) - beta * rho_e
+        # next_term = np.dot(np.dot(beta.T, Var_dX), beta) + np.diag(sigma2_e)
+        # The two terms above are just for testing
 
         for t in np.arange(1, n_T):
+            deltaY = Y[t, :] - rho_e * Y[t - 1, :]
+            Gamma_tilde_inv = Lambda_0 + Gamma_inv[t - 1]
+            tmp = np.linalg.solve(Gamma_tilde_inv, H.T)
+            Gamma_inv[t] = Lambda_1 - np.dot(H, tmp)
+            Gamma[t] = np.linalg.inv(Gamma_inv[t])
+            deltaY_sigma2inv_rho_betaT = np.dot(
+                deltaY / sigma2_e * rho_e, beta.T)
+            mu_Gamma_inv[t] = np.dot(deltaY / sigma2_e, beta.T) \
+                + np.dot(mu_Gamma_inv[t - 1]
+                         - deltaY_sigma2inv_rho_betaT, tmp)
+            mu[t] = np.dot(mu_Gamma_inv[t], Gamma[t])
+            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_betaT
+            log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
+                - np.sum(deltaY**2 / sigma2_e) / 2.0 \
+                + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
+            # log_p_data_alt += scipy.stats.multivariate_normal.logpdf(
+            #     Y[t, :], mean=Y[t - 1, :] * rho_e + np.dot(
+            #         mu[t - 1], Tbeta_betarho),
+            #     cov=np.dot(np.dot(Tbeta_betarho.T, Gamma[t - 1]),
+            #                Tbeta_betarho) + next_term)
             
+        log_p_data += np.log(np.linalg.det(Gamma[-1])) / 2.0 \
+            + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0
+        return mu, mu_Gamma_inv, Gamma, Gamma_inv, log_p_data
 
     def _initial_fit_singpara(self, XTX, XTDX, XTFX,
                               YTY_diag, YTDY_diag, YTFY_diag,
