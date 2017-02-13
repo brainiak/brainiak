@@ -42,6 +42,7 @@ from sklearn.decomposition import PCA, FactorAnalysis, SparsePCA, FastICA
 import logging
 import brainiak.utils.utils as utils
 import scipy.spatial.distance as spdist
+from nitime import algorithms as alg
 warnings.filterwarnings('ignore')
 
 
@@ -1188,6 +1189,75 @@ class BRSA(BaseEstimator, TransformerMixin):
         X = X1[:, :n_C]
         X0 = X1[:, n_C:]
         return X, X0
+
+    def _est_AR1(self, x): # , cov_form='diag'
+        """ Estimate the AR(1) parameters of input x. If cov_form is "diag"
+            Then each column of x is assumed as independent from other columns,
+            and each column is treated as an AR(1) process of a random variable.
+            Otherwise if cov_form="full", then x is assumed to follow a vector
+            AR(1) process. The transition matrix and covariance of update noise
+            are both full matrices.
+        """
+        rho = np.zeros(np.shape(x)[1])
+        sigma2 = np.zeros(np.shape(x)[1])
+        for c in np.arange(np.shape(x)[1]):
+            rho[c], sigma2[c] = alg.AR_est_YW(x[:, c], 1)
+        return rho, sigma2**0.5
+
+    def _forward_step(self, Y, T_X, Var_X, Var_dX, rho_e, sigma2_e, beta):
+        """ forward step for HMM """
+        # cov_form='diag'  We currently only implement diagonal form
+        # of covariance matrix for Var_X, Var_dX and T_X, which means
+        # each dimension of X is independent and their refreshing noise
+        # are also independent. Note that log_p_data takes this assumption.
+        if Sigma_X.ndim == 1:
+            log_det_Var_X = np.sum(np.log(Var_X))
+            Var_X = np.diag(Var_X)
+            inv_Var_X = np.diag(1 / Var_X)
+            # the marginal variance of X
+        if Var_dX.ndim == 1:
+            log_det_Var_dX = np.sum(np.log(Var_dX))
+            Var_dX = np.diag(Var_dX)
+            # the marginal variance of Delta X
+        if T_X.ndim == 1:
+            T_X = np.diag(T_X)
+        [n_T, n_V] = np.shape(Y)
+        # numbers of time points and voxels
+        mu_post = [None] * n_T
+        # posterior mean of X, conditioned on all data up till the current
+        # time point
+        Gamma_post = [None] * n_T
+        # posterior variance of X, conditioned on all data up till the current
+        # time point
+        Gamma_inv_post = [None] * n_T
+        # inverse of poterior Gamma.
+        mu_Gamma_inv_post = [None] * n_T
+        # mu_post * inv(Gamma_post)
+        log_p_data = - np.log(np.pi * 2) * (n_T * n_V) / 2 \
+            - log_det_Var_X / 2.0 - np.sum(np.log(sigma2_e)) * n_T /2.0\
+            + np.sum(np.log(1 - rho_e**2)) - log_deg_Var_dX / 2.0 \
+            * (n_T - 1)
+        # This is the term to be incremented by c_n at each time step.
+        # We first add all the fixed terms to it.
+
+        # The following are a few fixed terms.
+        Lambda_0 = np.dot(T_X, np.dpt(inv_Var_X, T_X.T)) \
+            + np.dot(beta * rho_e**2 / sigma2_e, beta.T)
+        H = np.dot(inv_Var_X, X.T) + np.dot(beta * rho_e / sigma2_e,
+                                                 beta.T)
+        Lambda_1 = inv_Var_X + np.dot(beta / sigma2_e, beta.T)
+
+        Gamma_inv_post[0] = Var_X + np.dot(
+            beta * (1 - rho_e**2) / sigma2_e, beta.T)
+        Gamma_post[0] = np.linalg.inv(Gamma_inv_post[0])
+        mu_Gamma_inv_post[0] = np.dot(
+            Y[0, :] * (1 - rho_e**2) / sigma2_e, beta.T)
+        mu_post[0] = np.dot(mu_Gamma_inv_post[0], Gamma_post[0])
+        log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)\
+            - np.dot(mu_Gamma_inv_post[0], mu_post[0])
+
+        for t in np.arange(1, n_T):
+            
 
     def _initial_fit_singpara(self, XTX, XTDX, XTFX,
                               YTY_diag, YTDY_diag, YTFY_diag,
@@ -2690,8 +2760,13 @@ class GBRSA(BRSA):
                            log_weights, log_fixed_terms,
                            n_C, n_T, n_V, n_X0,
                            n_grid, rank):
-        LAMBDA_i = np.dot(np.einsum('ijk,jl->ilk', s2XTAcorrX, L), L) \
-            + np.identity(rank)
+        # LAMBDA_i = np.dot(np.einsum('ijk,jl->ilk', s2XTAcorrX, L), L) \
+        #     + np.identity(rank)
+        LAMBDA_i = np.empty((n_grid, rank, rank))
+        for grid in np.arange(n_grid):
+            LAMBDA_i[grid, :, :] = np.dot(np.dot(L.T,
+                                                 s2XTAcorrX[grid, :, :]), L)
+        LAMBDA_i += np.identity(rank)
         # dimension: n_grid * rank * rank
         Chol_LAMBDA_i = np.linalg.cholesky(LAMBDA_i)
         # dimension: n_grid * rank * rank
