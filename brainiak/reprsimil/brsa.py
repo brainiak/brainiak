@@ -1256,11 +1256,10 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         Gamma_inv[0] = inv_Var_X + np.dot(
             beta * (1 - rho_e**2) / sigma2_e, beta.T)
-        Gamma[0] = np.linalg.inv(Gamma_inv[0])
         # We might not need this and only use linalg.solve for related terms.
         mu_Gamma_inv[0] = np.dot(
             Y[0, :] * (1 - rho_e**2) / sigma2_e, beta.T)
-        mu[0] = np.dot(mu_Gamma_inv[0], Gamma[0])
+        mu[0] = np.linalg.solve(Gamma_inv[0], mu_Gamma_inv[0])
         log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)
 
         # log_p_data_alt = scipy.stats.multivariate_normal.logpdf(
@@ -1270,31 +1269,62 @@ class BRSA(BaseEstimator, TransformerMixin):
         # next_term = np.dot(np.dot(beta.T, Var_dX), beta) + np.diag(sigma2_e)
         # The two terms above are just for testing
 
+        deltaY = Y[1:, :] - rho_e * Y[:-1, :]
+        deltaY_sigma2inv_rho_betaT = np.dot(
+            deltaY / sigma2_e * rho_e, beta.T)
         for t in np.arange(1, n_T):
-            deltaY = Y[t, :] - rho_e * Y[t - 1, :]
+            # deltaY = Y[t, :] - rho_e * Y[t - 1, :]
             Gamma_tilde_inv = Lambda_0 + Gamma_inv[t - 1]
             tmp = np.linalg.solve(Gamma_tilde_inv, H.T)
             Gamma_inv[t] = Lambda_1 - np.dot(H, tmp)
-            Gamma[t] = np.linalg.inv(Gamma_inv[t])
-            deltaY_sigma2inv_rho_betaT = np.dot(
-                deltaY / sigma2_e * rho_e, beta.T)
-            mu_Gamma_inv[t] = np.dot(deltaY / sigma2_e, beta.T) \
+            # deltaY_sigma2inv_rho_betaT = np.dot(
+            #     deltaY[t - 1] / sigma2_e * rho_e, beta.T)
+            mu_Gamma_inv[t] = np.dot(deltaY[t - 1, :] / sigma2_e, beta.T) \
                 + np.dot(mu_Gamma_inv[t - 1]
-                         - deltaY_sigma2inv_rho_betaT, tmp)
-            mu[t] = np.dot(mu_Gamma_inv[t], Gamma[t])
-            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_betaT
+                         - deltaY_sigma2inv_rho_betaT[t - 1, :], tmp)
+            mu[t] = np.linalg.solve(Gamma_inv[t], mu_Gamma_inv[t])
+            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_betaT[t - 1, :]
             log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
-                - np.sum(deltaY**2 / sigma2_e) / 2.0 \
                 + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
+                # - np.sum(deltaY[t - 1]**2 / sigma2_e) / 2.0 \
             # log_p_data_alt += scipy.stats.multivariate_normal.logpdf(
             #     Y[t, :], mean=Y[t - 1, :] * rho_e + np.dot(
             #         mu[t - 1], Tbeta_betarho),
             #     cov=np.dot(np.dot(Tbeta_betarho.T, Gamma[t - 1]),
             #                Tbeta_betarho) + next_term)
-            
-        log_p_data += np.log(np.linalg.det(Gamma[-1])) / 2.0 \
-            + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0
-        return mu, mu_Gamma_inv, Gamma, Gamma_inv, log_p_data
+
+        log_p_data += -np.log(np.linalg.det(Gamma_inv[-1])) / 2.0 \
+            + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0 \
+            - np.sum(deltaY**2 / sigma2_e) / 2.0
+        return mu, mu_Gamma_inv, Gamma_inv, log_p_data, Lambda_0, \
+            Lambda_1, H, deltaY, deltaY_sigma2inv_rho_betaT
+
+    def _backward_step(self, deltaY, deltaY_sigma2inv_rho_betaT, sigma2_e,
+                       beta, mu, mu_Gamma_inv, Gamma_inv,
+                       Lambda_0, Lambda_1, H):
+        """ backward step for HMM """
+        n_V = np.shape(deltaY)[1]
+        n_T = len(Gamma_inv)
+        # This is because
+        Gamma_inv_hat = [None] * n_T
+        mu_Gamma_inv_hat = [None] * n_T
+        mu_hat = [None] * n_T
+
+        mu_hat[-1] = mu[-1].copy()
+        mu_Gamma_inv_hat[-1] = mu_Gamma_inv[-1].copy()
+        Gamma_inv_hat[-1] = Gamma_inv[-1].copy()
+
+        for t in np.arange(n_T - 2, -1, -1):
+            tmp = np.linalg.solve(Gamma_inv_hat[t + 1] - Gamma_inv[t + 1]
+                                  + Lambda_1, H)
+            Gamma_inv_hat[t] = Gamma_inv[t] + Lambda_0 - np.dot(H.T, tmp)
+            mu_Gamma_inv_hat[t] = mu_Gamma_inv[t] \
+                - deltaY_sigma2inv_rho_betaT[t, :] + np.dot(
+                    mu_Gamma_inv_hat[t + 1] - mu_Gamma_inv[t + 1]
+                    + np.dot(deltaY[t, :] / sigma2_e, beta.T), tmp)
+            mu_hat[t] = np.linalg.solve(Gamma_inv_hat[t],
+                                            mu_Gamma_inv_hat[t])
+        return mu_hat, mu_Gamma_inv_hat, Gamma_inv_hat
 
     def _initial_fit_singpara(self, XTX, XTDX, XTFX,
                               YTY_diag, YTDY_diag, YTFY_diag,
