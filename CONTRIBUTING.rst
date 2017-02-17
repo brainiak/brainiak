@@ -152,6 +152,9 @@ Standards
 .. _Python Logging Tutorial:
    https://docs.python.org/3/howto/logging.html
 
+* Remove the output of Jupyter notebooks before committing them, using
+  `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
+
 
 Testing
 =======
