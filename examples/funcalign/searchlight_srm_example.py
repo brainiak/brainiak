@@ -74,6 +74,10 @@ all_data = [] # first half train, second half test
 for s in range(nsubj):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        # To ignore "RuntimeWarning: invalid value encountered in true_divide"
+        # There are some 0 voxels in the data which I have to keep, so there will be a warning 
+        # when z-scoring the data. It should be safe to ignore this warning. If your data does
+        # not contain 0 voxel, you can remove the 2 lines above
         train_tmp = np.nan_to_num(stats.zscore(movie_data[:,:,:,:int(ntr/2),s],axis=3,ddof=1))
         test_tmp = np.nan_to_num(stats.zscore(movie_data[:,:,:,int(ntr/2):,s],axis=3,ddof=1))
     all_data.append(np.concatenate((train_tmp,test_tmp),axis=3))
