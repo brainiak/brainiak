@@ -14,6 +14,7 @@
 """Brain Imaging Analysis Kit."""
 
 import sys
+from . import isfc
 
 if sys.version_info < (3, 4):
     raise Exception(
