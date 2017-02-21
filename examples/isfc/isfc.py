@@ -11,11 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-"""Intersubject analyses (ISC/ISFC)
+"""Example of intersubject analyses (ISC/ISFC)
 
-Functions for computing intersubject correlation (ISC) and intersubject
-functional correlation (ISFC), and utility functions for loading subject data
-files and masks
+Computes ISC for all voxels within a brain mask, and
+computes ISFC for voxels with high ISC
 """
 
 # Authors: Christopher Baldassano and Mor Regev
@@ -27,14 +26,16 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import fcluster, linkage
 import sys, os
-dir = os.path.dirname(__file__)
+curr_dir = os.path.dirname(__file__)
 
-brain_fname = os.path.join(dir,'avg152T1_gray_3mm.nii.gz')
-fnames = [os.path.join(dir,'sub-0' + format(subj, '02') + '-task-intact1.nii.gz') for
+brain_fname = os.path.join(curr_dir,'avg152T1_gray_3mm.nii.gz')
+fnames = [os.path.join(curr_dir,
+          'sub-0' + format(subj, '02') + '-task-intact1.nii.gz') for
           subj in np.arange(1, 5)]
 
 print('Loading data from ', len(fnames), ' subjects...')
-D, coords = brainiak.isfc.load_subjects_nii(fnames, brain_fname, lambda x: x > 50)
+D, coords = brainiak.isfc.load_subjects_nii(fnames, brain_fname,
+                                            lambda x: x > 50)
 
 print('Calculating ISC on ', D.shape[0], ' voxels')
 ISC = brainiak.isfc.isc(D)
