@@ -20,12 +20,13 @@ computes ISFC for voxels with high ISC
 # Authors: Christopher Baldassano and Mor Regev
 # Princeton University, 2017
 
-import brainiak
+import brainiak.isfc
 import nibabel as nib
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import fcluster, linkage
 import sys, os
+
 curr_dir = os.path.dirname(__file__)
 
 brain_fname = os.path.join(curr_dir,'avg152T1_gray_3mm.nii.gz')
@@ -41,6 +42,7 @@ print('Calculating ISC on ', D.shape[0], ' voxels')
 ISC = brainiak.isfc.isc(D)
 ISC[np.isnan(ISC)] = 0
 
+print('Writing ISC map to file...')
 brain_nii = nib.load(brain_fname)
 ISC_vol = np.zeros(brain_nii.shape)
 ISC_vol[coords] = ISC

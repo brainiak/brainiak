@@ -25,8 +25,6 @@ from brainiak.fcma.util import compute_correlation
 from scipy import stats
 import nibabel as nib
 import numpy as np
-from matplotlib import pyplot as plt
-from scipy.cluster.hierarchy import fcluster, linkage
 
 
 def isc(D, collapse_subj=True):
@@ -68,10 +66,10 @@ def isc(D, collapse_subj=True):
 def isfc(D, collapse_subj=True):
     """Intersubject functional correlation
 
-    Computes the correlation between the timecoure of each voxel in each subject
-    with the average of all other subjects' timecourses in *all* voxels. By
-    default the result is averaged across subjects, unless collapse_subj is set
-    to False.
+    Computes the correlation between the timecoure of each voxel in each
+    subject with the average of all other subjects' timecourses in *all*
+    voxels. By default the result is averaged across subjects, unless
+    collapse_subj is set to False.
 
     Uses the high performance compute_correlation routine from fcma.util
 
