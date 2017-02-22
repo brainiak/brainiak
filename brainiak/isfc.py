@@ -127,8 +127,12 @@ def load_subjects_nii(data_files, mask_file, mask_func=None):
     Parameters
     ----------
     data_files : list of filenames of subject nii files
+        each nii file should be 4D (space+time), with all dimensions identical
+        for all subjects
 
     mask_file : filename of mask nii
+        mask should be 3D (space), with dimensions identical to the first
+        three dimensions of the data files
 
     mask_func : Callable[[ndarray], bool] : default x>0
 
