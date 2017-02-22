@@ -439,14 +439,15 @@ class BRSA(BaseEstimator, TransformerMixin):
             # If GP_space is not requested, then the model is fitted
             # without imposing any Gaussian Process prior on log(SNR^2)
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, _, _, _, self.X0_ = \
-                self._fit_RSA_UV(X=design, Y=X, X_base=nuisance,
-                                 scan_onsets=scan_onsets)
+                self._beta_latent_, self.sigma_, self.rho_, _, _, _,\
+                self.X0_ = self._fit_RSA_UV(X=design, Y=X, X_base=nuisance,
+                                            scan_onsets=scan_onsets)
         elif not self.GP_inten:
             # If GP_space is requested, but GP_inten is not, a GP prior
             # based on spatial locations of voxels will be imposed.
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.lGPspace_, self.bGP_, _, \
+                self._beta_latent_, self.sigma_, self.rho_, \
+                self.lGPspace_, self.bGP_, _, \
                 self.X0_ = self._fit_RSA_UV(
                     X=design, Y=X, X_base=nuisance,
                     scan_onsets=scan_onsets, coords=coords)
@@ -454,24 +455,31 @@ class BRSA(BaseEstimator, TransformerMixin):
             # If both self.GP_space and self.GP_inten are True,
             # a GP prior based on both location and intensity is imposed.
             self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-                self.sigma_, self.rho_, self.lGPspace_, self.bGP_,\
-                self.lGPinten_, self.X0_ = \
+                self._beta_latent_, self.sigma_, self.rho_, \
+                self.lGPspace_, self.bGP_, self.lGPinten_, self.X0_ = \
                 self._fit_RSA_UV(X=design, Y=X, X_base=nuisance,
                                  scan_onsets=scan_onsets,
                                  coords=coords, inten=inten)
 
         self.C_ = utils.cov2corr(self.U_)
         self.design_ = design.copy()
+        self._rho_design_, self._sigma2_design_ = \
+            self._est_AR1(self.design_, same_para=True)
+        self._rho_X0_, self._sigma2_X0_ = self._est_AR1(self.X0_)
+        # AR(1) parameters of the design matrix and nuisance regressors,
+        # which will be used in transform or score.
         return self
 
-    def transform(self, X, y=None, scan_onsets=None, prior_ts_cov=None):
+    def transform(self, X, y=None, scan_onsets=None):
         """ Use the model to estimate the time course of response to
             each condition, and the time course unrelated to task which
             is spread across the brain.
-            Notice: this can only be performed if full rank was requested
-            in the fit step (either not setting the rank parameter, or
-            setting it to be equal to the number of conditions). Otherwise
-            error will be thrown out.
+            Notice: if you set the rank to be lower than the number of
+            experimental conditions (number of columns in the design
+            matrix), the recovered task-related activity will have
+            collinearity (the recovered time courses of some conditions
+            can be linearly explained by the recovered time courses
+            of other conditions).
         ----------
         X : 2D arrays, shape=[time_points, voxels]
             fMRI data of new data of the same subject. The voxels should
@@ -482,14 +490,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         scan_onsets : A list of indices corresponding to the onsets of
             scans in the data X. If not provided, data will be assumed
             to be acquired in a continuous scan.
-        prior_ts_cov: The assumption of the shape of the covariance matrix
-            of the task-related and task-unrelated time series.
-            It can be set as 'Diag' for diagnal matrix, or 'Block'
-            for block-diagonal matrix. The former assumes independence
-            between all time series. The latter assumes independence
-            only between task-related and task-unrelated time series.
-            If not set, the setting during initialization is used.
-            (default: 'Block' in initialization)
         Returns
         -------
         ts : 2D arrays, shape = [time_points, condition]
@@ -499,11 +499,6 @@ class BRSA(BaseEstimator, TransformerMixin):
             The estimated time course spread across the brain, with the
             loading weights estimated during the fit step.
         """
-        assert self.rank is None or self.rank == self.beta_.shape[0], \
-            'The fit step was performed with a lower requested rank. '\
-            'Therefore, transform cannot be performed. In order to use '\
-            'the transform function, you have to request full rank in '\
-            'the fit step by ignoring the rank parameter'
         assert X.ndim == 2 and X.shape[1] == self.beta_.shape[1], \
             'The shape of X is not consistent with the shape of data '\
             'used in the fitting step. They should have the same number '\
@@ -512,64 +507,59 @@ class BRSA(BaseEstimator, TransformerMixin):
                                        0 in scan_onsets), \
             'scan_onsets should either be None or an array of indices '\
             'If it is given, it should include at least 0'
-        if prior_ts_cov is None:
-            prior_ts_cov = self.prior_ts_cov
-        # check the choice of prior_ts_cov
-        assert (type(prior_ts_cov) is str and
-                (prior_ts_cov == 'Diag' or prior_ts_cov == 'Block'
-                or prior_ts_cov == 'Full'))\
-            or ((type(prior_ts_cov) is float or type(prior_ts_cov) is int)
-                and prior_ts_cov > 0), \
-            'prior_ts_cov can only be "Diag" or "Block" or "Full"'\
-            'or a positive number'
-        diff_design = np.diff(self.design_, axis=0)
-        diff_X0 = np.diff(self.X0_, axis=0)
-        n_T = self.design_.shape[0]
-        if prior_ts_cov == 'Block':
-            self.cov_Delta_X = scipy.linalg.block_diag(
-                np.dot(diff_design.T, diff_design),
-                np.dot(diff_X0.T, diff_X0)) / n_T
-            self.cov_X = scipy.linalg.block_diag(
-                np.dot(self.design_.T, self.design_),
-                np.dot(self.X0_.T, self.X0_)) / n_T
-        elif prior_ts_cov == 'Diag':
-            self.cov_Delta_X = scipy.linalg.block_diag(
-                np.diag(np.mean(diff_design**2, axis=0)),
-                np.diag(np.mean(diff_X0**2, axis=0)))
-            self.cov_X = scipy.linalg.block_diag(
-                np.diag(np.mean(self.design_**2, axis=0)),
-                np.diag(np.mean(self.X0_**2, axis=0)))
-        elif prior_ts_cov == 'Full':
-            X1 = np.concatenate((self.design_, self.X0_), axis=1)
-            diff_X1 = np.diff(X1, axis=0)
-            self.cov_Delta_X = np.dot(diff_X1.T, diff_X1) / n_T
-            self.cov_X = np.dot(X1.T, X1) / n_T
-        else:
-            self.cov_Delta_X = prior_ts_cov * np.eye(
-                self.design_.shape[1] + self.X0_.shape[1])
-            self.cov_X = prior_ts_cov * np.eye(
-                self.design_.shape[1] + self.X0_.shape[1])
-
-        # cov_Delat_X describes the covariance structure of the temporal
-        # incremental of the design matrix and nuisance regressors.
-        # Since we assume that design matrix and nuisance regressors are
-        # independent, we should construct the covariance matrix
-        # as diagonal block. A stronger assumption is all time series
-        # should be independent.
-        # cov_X describes the prior covariance of the "design matrix"
-        # with zero-mean assumption
 
         if scan_onsets is None:
             scan_onsets = np.array([0])
         else:
             scan_onsets = np.int32(scan_onsets)
-        ts, ts0 = self._transform(Y=X, scan_onsets=scan_onsets,
-                                  beta=self.beta_, beta0=self.beta0_,
-                                  cov_X=self.cov_X,
-                                  cov_Delta_X=self.cov_Delta_X,
-                                  rho=self.rho_, sigma=self.sigma_)
+        ts, ts0, log_p = self._transform(
+            Y=X, scan_onsets=scan_onsets, beta=self.beta_,
+            beta0=self.beta0_, rho_e = self.rho_, sigma_e=self.sigma_,
+            rho_X=self._rho_design_, sigma2_X=self._sigma2_design_,
+            rho_X0=self._rho_X0_, sigma2_X0=self._sigma2_X0_)
         return ts, ts0
 
+    def score(self, X, design, scan_onsets=None):
+        """ Use the model and parameters estimated by fit function
+            from some data of a participant to evaluate the log
+            likelihood of some new data of the same participant.
+            Design matrix of the same set of experimental
+            conditions in the testing data should be provided, with each
+            column corresponding to the same condition as that column
+            in the design matrix of the training data.
+            Unknown nuisance time series will be marginalized, assuming
+            they follow the same spatial pattern as in the training
+            data. The hypothetical response captured by the design matrix
+            will be subtracted from data before the marginalization
+            when evaluating the log likelihood. For null model,
+            nothing will be subtracted before marginalization.
+            If you z-scored your data during fit step, you should 
+            z-score them for score function as well. If you did not
+            z-score in fitting, you should not z-score here either.
+        ----------
+        X : 2D arrays, shape=[time_points, voxels]
+            fMRI data of new data of the same subject. The voxels should
+            match those used in the fit() function. If data are z-scored
+            (recommended) when fitting the model, data should be z-scored
+            as well when calling transform()
+        design : design matrix expressing the hypothetical response of
+            the task conditions in data X.
+        scan_onsets : A list of indices corresponding to the onsets of
+            scans in the data X. If not provided, data will be assumed
+            to be acquired in a continuous scan.
+        Returns
+        -------
+        ll: scalar,
+            The log likelihood of the new data based on the model and its
+            parameters fit to the training data.
+        ll_null: scalar,
+            The log likelihood of the new data based on a null model
+            which assumes the same for everything except for that there
+            is no response to any of the task conditions.
+        """
+        _score(self, Y, design, beta, scan_onsets, beta0, rho_e, sigma_e,
+               rho_X0, sigma2_X0)
+        
     # The following 2 functions _D_gen and _F_gen generate templates used
     # for constructing inverse of covariance matrix of AR(1) noise
     # The inverse of covarian matrix is
@@ -1073,6 +1063,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         est_sigma_AR1_UV = sigma2**0.5
         est_beta_AR1_UV = est_sigma_AR1_UV * est_SNR_AR1_UV**2 \
             * np.dot(estU_chlsk_l_AR1_UV, YTAcorrXL_LAMBDA.T)
+        est_beta_AR1_UV_latent = est_sigma_AR1_UV \
+            * est_SNR_AR1_UV**2 * YTAcorrXL_LAMBDA.T
+        # the latent term means that X*L multiplied by this term
+        # is the same as X*beta. This will be used for decoding
+        # and cross-validating, in case L is low-rank
         est_beta0_AR1_UV = np.einsum(
             'ijk,ki->ji', X0TAX0_i,
             (X0TAY - np.einsum('ikj,ki->ji', XTAX0, est_beta_AR1_UV)))
@@ -1129,68 +1124,106 @@ class BRSA(BaseEstimator, TransformerMixin):
             est_intensity_kernel_r = None
             est_std_log_SNR = None
         return est_cov_AR1_UV, estU_chlsk_l_AR1_UV, est_SNR_AR1_UV, \
-            est_beta_AR1_UV, est_beta0_AR1_UV, est_sigma_AR1_UV, \
-            est_rho1_AR1_UV, est_space_smooth_r, \
+            est_beta_AR1_UV, est_beta0_AR1_UV, est_beta_AR1_UV_latent,\
+            est_sigma_AR1_UV, est_rho1_AR1_UV, est_space_smooth_r, \
             est_std_log_SNR, est_intensity_kernel_r, X0
 
-    def _transform(self, Y, scan_onsets, beta, beta0, cov_X, cov_Delta_X,
-                   rho, sigma):
+    def _transform(self, Y, scan_onsets, beta, beta0,
+                   rho_e, sigma_e, rho_X, sigma2_X, rho_X0, sigma2_X0):
         """ Given the data Y and the response amplitudes beta and beta0
             estimated in the fit step, estimate the corresponding X and X0.
-            It is done in Bayesian manner, keeping track of the posterior
-            of X and X0 after each time step. We assume X and X0 are
-            Weiner Process, to capture temporal smoothness.
+            It is done by a forward-backward algorithm.
+            We assume X and X0 both are vector autoregressive (VAR)
+            processes, to capture temporal smoothness. Their VAR
+            parameters are estimated from training data at the fit stage.
         """
         logger.info('Transforming new data.')
+        # Constructing the transition matrix and the variance of
+        # refreshing noise as prior for the latent variable X and X0
+        # in new data.
+        
         n_C = beta.shape[0]
         n_X0 = beta0.shape[0]
         n_T = Y.shape[0]
         n_V = Y.shape[1]
         X1 = np.empty((Y.shape[0], n_C + n_X0))
-        beta1 = np.concatenate((beta, beta0), axis=0)
-        beta1_outer = np.empty((n_V, n_C + n_X0, n_C + n_X0))
-        for i_v in range(n_V):
-            beta1_outer[i_v, :, :] = np.outer(beta1[:, i_v], beta1[:, i_v])
-        inv_cov_X = np.linalg.inv(cov_X)
-        posterior_cov0 = np.linalg.inv(
-            np.sum(beta1_outer * (1 - rho**2)[:, None, None]
-                   / sigma[:, None, None]**2, axis=0)
-            + inv_cov_X)
-
-        for i_t in range(n_T):
-            if i_t in scan_onsets:
-                posterior_Sigma_X1 = posterior_cov0.copy()
-                posterior_mu_X1 = np.dot(
-                    posterior_Sigma_X1, np.dot(
-                        beta1, Y[i_t, :] * (1 - rho**2)
-                        / sigma**2))
-                X1[i_t, :] = posterior_mu_X1
+        weight = np.concatenate((beta, beta0), axis=0)
+        T_X = np.diag(np.concatenate((rho_X, rho_X0)))
+        Var_X = np.diag(np.concatenate((sigma2_X / (1 - rho_X**2),
+                                        sigma2_X0 / (1 - rho_X0**2))))
+        Var_dX = np.diag(np.concatenate((sigma2_X, sigma2_X0)))
+        sigma2_e = sigma_e ** 2
+        scan_onsets = np.setdiff1d(scan_onsets, n_T)
+        n_scan = scan_onsets.size
+        X = [None] * scan_onsets.size
+        X0 = [None] * scan_onsets.size
+        total_log_p = 0
+        for scan, onset in enumerate(scan_onsets):
+            # Forward step
+            if scan == n_scan - 1:
+                offset = n_T
             else:
-                denom = (sigma**2 + rho**2
-                         * np.einsum('ij,ik,kj->j', beta1, posterior_Sigma_X1,
-                                     beta1))
-                posterior_Sigma_X1_new = np.linalg.inv(
-                    inv_cov_X
-                    + np.sum(beta1_outer / denom[:, None, None], axis=0)
-                    + np.linalg.inv(posterior_Sigma_X1 + cov_Delta_X))
+                offset = scan_onsets[scan + 1]
+            mu, mu_Gamma_inv, Gamma_inv, log_p_data, Lambda_0, \
+                Lambda_1, H, deltaY, deltaY_sigma2inv_rho_weightT = \
+                self._forward_step(Y[onset:offset],
+                                   T_X, Var_X, Var_dX, rho_e, sigma2_e,
+                                   weight)
+            total_log_p += log_p_data
+            # Backward step
+            mu_hat, mu_Gamma_inv_hat, Gamma_inv_hat \
+                = self._backward_step(
+                    deltaY, deltaY_sigma2inv_rho_weightT, sigma2_e,
+                    weight, mu, mu_Gamma_inv, Gamma_inv,
+                    Lambda_0, Lambda_1, H)
+            X[scan] = np.concatenate(
+                [mu_t[None, :n_C] for mu_t in mu_hat])
+            X0[scan] = np.concatenate(
+                [mu_t[None, n_C:] for mu_t in mu_hat])
+        X = np.concatenate(X)
+        X0 = np.concatenate(X0)
+        return X, X0, total_log_p
 
-                posterior_mu_X1 = np.dot(
-                    posterior_Sigma_X1_new,
-                    np.dot(beta1,
-                           (Y[i_t, :]
-                            - rho
-                            * (Y[i_t - 1, :] - np.dot(posterior_mu_X1, beta1)))
-                           / denom)
-                    + np.linalg.solve(posterior_Sigma_X1
-                                      + cov_Delta_X, posterior_mu_X1))
-                posterior_Sigma_X1 = posterior_Sigma_X1_new
+    def _score(self, Y, design, beta, scan_onsets, beta0, rho_e, sigma_e,
+               rho_X0, sigma2_X0):
+        """ Given the data Y, and the spatial pattern beta0
+            of nuisance time series, return the cross-validated score
+            of the data Y given all parameters of the subject estimated
+            during the fist step.
+            The hypothetic response to the task will be subtracted, and
+            the unknown nuisance activity which contributes to the data
+            through beta0 will be marginalized.
+        """
+        logger.info('Estimating cross-validated score for new data.')
+        # Constructing the transition matrix and the variance of
+        # refreshing noise as prior for the latent variable X0
+        # in new data.
+        
+        n_X0 = beta0.shape[0]
+        n_T = Y.shape[0]
+        n_V = Y.shape[1]
+        Y = Y - np.dot(design, beta)
+        T_X = np.diag(rho_X0)
+        Var_X = np.diag(sigma2_X0 / (1 - rho_X0**2))
+        Var_dX = np.diag(sigma2_X0)
+        sigma2_e = sigma_e ** 2
+        scan_onsets = np.setdiff1d(scan_onsets, n_T)
+        n_scan = scan_onsets.size
+        total_log_p = 0
+        for scan, onset in enumerate(scan_onsets):
+            # Forward step
+            if scan == n_scan - 1:
+                offset = n_T
+            else:
+                offset = scan_onsets[scan + 1]
+            _, _, _, log_p_data, _, _, _, _, _ = \
+                self._forward_step(
+                    Y[onset:offset], T_X, Var_X, Var_dX, rho_e, sigma2_e,
+                    weight)
+            total_log_p += log_p_data
+        return total_log_p
 
-                X1[i_t, :] = posterior_mu_X1
-        X = X1[:, :n_C]
-        X0 = X1[:, n_C:]
-        return X, X0
-
-    def _est_AR1(self, x): # , cov_form='diag'
+    def _est_AR1(self, x, same_para=False): # , cov_form='diag'
         """ Estimate the AR(1) parameters of input x. If cov_form is "diag"
             Then each column of x is assumed as independent from other columns,
             and each column is treated as an AR(1) process of a random variable.
@@ -1198,13 +1231,24 @@ class BRSA(BaseEstimator, TransformerMixin):
             AR(1) process. The transition matrix and covariance of update noise
             are both full matrices.
         """
-        rho = np.zeros(np.shape(x)[1])
-        sigma2 = np.zeros(np.shape(x)[1])
-        for c in np.arange(np.shape(x)[1]):
-            rho[c], sigma2[c] = alg.AR_est_YW(x[:, c], 1)
-        return rho, sigma2**0.5
+        if same_para:
+            n_c = x.shape[1]
+            x = np.reshape(x, x.size, order='F')
+            rho, sigma2 = alg.AR_est_YW(x, 1)
+            # We concatenate all the design matrix to estimate common AR(1)
+            # parameters. This creates some bias because the end of one column
+            # and the beginning of the next column of the design matrix are
+            # treated as consecutive samples.
+            rho = np.ones(n_c) * rho
+            sigma2 = np.ones(n_c) * sigma2
+        else:
+            rho = np.zeros(np.shape(x)[1])
+            sigma2 = np.zeros(np.shape(x)[1])
+            for c in np.arange(np.shape(x)[1]):
+                rho[c], sigma2[c] = alg.AR_est_YW(x[:, c], 1)
+        return rho, sigma2
 
-    def _forward_step(self, Y, T_X, Var_X, Var_dX, rho_e, sigma2_e, beta):
+    def _forward_step(self, Y, T_X, Var_X, Var_dX, rho_e, sigma2_e, weight):
         """ forward step for HMM """
         # cov_form='diag'  We currently only implement diagonal form
         # of covariance matrix for Var_X, Var_dX and T_X, which means
@@ -1249,58 +1293,58 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         # The following are a few fixed terms.
         Lambda_0 = np.dot(T_X, np.dot(inv_Var_dX, T_X.T)) \
-            + np.dot(beta * rho_e**2 / sigma2_e, beta.T)
-        H = np.dot(inv_Var_dX, T_X.T) + np.dot(beta * rho_e / sigma2_e,
-                                               beta.T)
-        Lambda_1 = inv_Var_dX + np.dot(beta / sigma2_e, beta.T)
+            + np.dot(weight * rho_e**2 / sigma2_e, weight.T)
+        H = np.dot(inv_Var_dX, T_X.T) + np.dot(weight * rho_e / sigma2_e,
+                                               weight.T)
+        Lambda_1 = inv_Var_dX + np.dot(weight / sigma2_e, weight.T)
 
         Gamma_inv[0] = inv_Var_X + np.dot(
-            beta * (1 - rho_e**2) / sigma2_e, beta.T)
+            weight * (1 - rho_e**2) / sigma2_e, weight.T)
         # We might not need this and only use linalg.solve for related terms.
         mu_Gamma_inv[0] = np.dot(
-            Y[0, :] * (1 - rho_e**2) / sigma2_e, beta.T)
+            Y[0, :] * (1 - rho_e**2) / sigma2_e, weight.T)
         mu[0] = np.linalg.solve(Gamma_inv[0], mu_Gamma_inv[0])
         log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)
 
         # log_p_data_alt = scipy.stats.multivariate_normal.logpdf(
-        #     Y[0, :], cov=np.dot(np.dot(beta.T, Var_X), beta)
+        #     Y[0, :], cov=np.dot(np.dot(weight.T, Var_X), weight)
         #     + np.diag(sigma2_e / (1 - rho_e**2)))
-        # Tbeta_betarho = np.dot(T_X, beta) - beta * rho_e
-        # next_term = np.dot(np.dot(beta.T, Var_dX), beta) + np.diag(sigma2_e)
+        # Tweight_weightrho = np.dot(T_X, weight) - weight * rho_e
+        # next_term = np.dot(np.dot(weight.T, Var_dX), weight) + np.diag(sigma2_e)
         # The two terms above are just for testing
 
         deltaY = Y[1:, :] - rho_e * Y[:-1, :]
-        deltaY_sigma2inv_rho_betaT = np.dot(
-            deltaY / sigma2_e * rho_e, beta.T)
+        deltaY_sigma2inv_rho_weightT = np.dot(
+            deltaY / sigma2_e * rho_e, weight.T)
         for t in np.arange(1, n_T):
             # deltaY = Y[t, :] - rho_e * Y[t - 1, :]
             Gamma_tilde_inv = Lambda_0 + Gamma_inv[t - 1]
             tmp = np.linalg.solve(Gamma_tilde_inv, H.T)
             Gamma_inv[t] = Lambda_1 - np.dot(H, tmp)
-            # deltaY_sigma2inv_rho_betaT = np.dot(
-            #     deltaY[t - 1] / sigma2_e * rho_e, beta.T)
-            mu_Gamma_inv[t] = np.dot(deltaY[t - 1, :] / sigma2_e, beta.T) \
+            # deltaY_sigma2inv_rho_weightT = np.dot(
+            #     deltaY[t - 1] / sigma2_e * rho_e, weight.T)
+            mu_Gamma_inv[t] = np.dot(deltaY[t - 1, :] / sigma2_e, weight.T) \
                 + np.dot(mu_Gamma_inv[t - 1]
-                         - deltaY_sigma2inv_rho_betaT[t - 1, :], tmp)
+                         - deltaY_sigma2inv_rho_weightT[t - 1, :], tmp)
             mu[t] = np.linalg.solve(Gamma_inv[t], mu_Gamma_inv[t])
-            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_betaT[t - 1, :]
+            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
             log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
                 + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
                 # - np.sum(deltaY[t - 1]**2 / sigma2_e) / 2.0 \
             # log_p_data_alt += scipy.stats.multivariate_normal.logpdf(
             #     Y[t, :], mean=Y[t - 1, :] * rho_e + np.dot(
-            #         mu[t - 1], Tbeta_betarho),
-            #     cov=np.dot(np.dot(Tbeta_betarho.T, Gamma[t - 1]),
-            #                Tbeta_betarho) + next_term)
+            #         mu[t - 1], Tweight_weightrho),
+            #     cov=np.dot(np.dot(Tweight_weightrho.T, Gamma[t - 1]),
+            #                Tweight_weightrho) + next_term)
 
         log_p_data += -np.log(np.linalg.det(Gamma_inv[-1])) / 2.0 \
             + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0 \
             - np.sum(deltaY**2 / sigma2_e) / 2.0
         return mu, mu_Gamma_inv, Gamma_inv, log_p_data, Lambda_0, \
-            Lambda_1, H, deltaY, deltaY_sigma2inv_rho_betaT
+            Lambda_1, H, deltaY, deltaY_sigma2inv_rho_weightT
 
-    def _backward_step(self, deltaY, deltaY_sigma2inv_rho_betaT, sigma2_e,
-                       beta, mu, mu_Gamma_inv, Gamma_inv,
+    def _backward_step(self, deltaY, deltaY_sigma2inv_rho_weightT,
+                       sigma2_e, weight, mu, mu_Gamma_inv, Gamma_inv,
                        Lambda_0, Lambda_1, H):
         """ backward step for HMM """
         n_V = np.shape(deltaY)[1]
@@ -1319,9 +1363,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                                   + Lambda_1, H)
             Gamma_inv_hat[t] = Gamma_inv[t] + Lambda_0 - np.dot(H.T, tmp)
             mu_Gamma_inv_hat[t] = mu_Gamma_inv[t] \
-                - deltaY_sigma2inv_rho_betaT[t, :] + np.dot(
+                - deltaY_sigma2inv_rho_weightT[t, :] + np.dot(
                     mu_Gamma_inv_hat[t + 1] - mu_Gamma_inv[t + 1]
-                    + np.dot(deltaY[t, :] / sigma2_e, beta.T), tmp)
+                    + np.dot(deltaY[t, :] / sigma2_e, weight.T), tmp)
             mu_hat[t] = np.linalg.solve(Gamma_inv_hat[t],
                                             mu_Gamma_inv_hat[t])
         return mu_hat, mu_Gamma_inv_hat, Gamma_inv_hat
@@ -2111,50 +2155,138 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         return -LL, -deriv
 
-    def _raw_loglike_grids(self, L, s2XTAcorrX, YTAcorrY_diag,
-                           sXTAcorrY, half_log_det_X0TAX0,
-                           log_weights, log_fixed_terms,
-                           n_C, n_T, n_V, n_X0,
-                           n_grid, rank):
-        LAMBDA_i = np.dot(np.einsum('ijk,jl->ilk', s2XTAcorrX, L), L) \
-            + np.identity(rank)
-        # dimension: n_grid * rank * rank
-        Chol_LAMBDA_i = np.linalg.cholesky(LAMBDA_i)
-        # dimension: n_grid * rank * rank
-        half_log_det_LAMBDA_i = np.sum(
-            np.log(np.abs(np.diagonal(Chol_LAMBDA_i, axis1=1, axis2=2))),
-            axis=1)
-        # 0.5*log(det(LAMBDA_i))
-        # dimension: n_grid
-        L_LAMBDA = np.empty((n_grid, n_C, rank))
-        L_LAMBDA_LT = np.empty((n_grid, rank, rank))
-        s2YTAcorrXL_LAMBDA_LTXTAcorrY = np.empty((n_grid, n_V))
-        # dimension: space * n_grid
+    def _loglike_AR1_null(self, param, X0TAX0, X0TAY, X0TAX0_i,
+                          YTAcorrY, n_T, n_V, n_run, n_X0):
 
-        for grid in np.arange(n_grid):
-            L_LAMBDA[grid, :, :] = scipy.linalg.cho_solve(
-                (Chol_LAMBDA_i[grid, :, :], True), L.T).T
-            L_LAMBDA_LT[grid, :, :] = np.dot(L_LAMBDA[grid, :, :], L.T)
-            s2YTAcorrXL_LAMBDA_LTXTAcorrY[grid, :] = np.sum(
-                sXTAcorrY[grid, :, :] * np.dot(L_LAMBDA_LT[grid, :, :],
-                                               sXTAcorrY[grid, :, :]),
-                axis=0)
-        denominator = (YTAcorrY_diag - s2YTAcorrXL_LAMBDA_LTXTAcorrY)
-        # dimension: n_grid * space
-        # Not necessary the best name for it. But this term appears
-        # as the denominator within the gradient wrt L
-        # In the equation of the log likelihood, this "denominator"
-        # term is in fact divided by 2. But we absorb that into the
-        # log fixted term.
-        LL_raw = -half_log_det_X0TAX0[:, None] \
-            - half_log_det_LAMBDA_i[:, None] \
-            - (n_T - n_X0 - 2) / 2 * np.log(denominator) \
-            + log_weights[:, None] + log_fixed_terms[:, None]
-        # dimension: n_grid * space
-        # The log likelihood at each pair of values of SNR and rho1.
-        # half_log_det_X0TAX0 is 0.5*log(det(X0TAX0)) with the size of
-        # number of parameter grids. So is the size of log_weights
-        return LL_raw, denominator, L_LAMBDA, L_LAMBDA_LT
+        # This function calculates the log likelihood of data given
+        # the AR(1) parameters of each voxel.
+        a1 = param.copy()
+        rho1 = 2.0 / np.pi * np.arctan(a1)
+        # AR(1) coefficient, dimension: space
+        LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
+            = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY, X0TAX0,
+                            SNR2, n_V, n_T, n_run, rank, n_X0)
+        # Log likelihood of data given parameters, without the GP prior.
+        deriv_log_SNR2 = (-rank + np.trace(LAMBDA, axis1=1, axis2=2)) * 0.5\
+            + np.sum(YTAcorrXL_LAMBDA**2, axis=1) * SNR2 / sigma2 / 2
+        # Partial derivative of log likelihood over log(SNR^2)
+        # dimension: space,
+        # The second term above is due to the equation for calculating
+        # sigma2
+        if GP_space:
+            # Imposing GP prior on log(SNR) at least over
+            # spatial coordinates
+            c_space = param[idx_param_fitV['c_space']]
+            l2_space = np.exp(c_space)
+            # The square of the length scale of the GP kernel defined on
+            # the spatial coordinates of voxels
+            dl2_dc_space = l2_space
+            # partial derivative of l^2 over b
+
+            if GP_inten:
+                c_inten = param[idx_param_fitV['c_inten']]
+                l2_inten = np.exp(c_inten)
+                # The square of the length scale of the GP kernel defined
+                # on the image intensity of voxels
+                dl2_dc_inten = l2_inten
+                # partial derivative of l^2 over b
+                K_major = np.exp(- (dist2 / l2_space
+                                    + inten_dist2 / l2_inten)
+                                 / 2.0)
+            else:
+                K_major = np.exp(- dist2 / l2_space / 2.0)
+                # The kernel defined over the spatial coordinates of voxels.
+                # This is a template: the diagonal values are all 1, meaning
+                # the variance of log(SNR) has not been multiplied
+            K_tilde = K_major + np.diag(np.ones(n_V) * self.eta)
+            # We add a small number to the diagonal to make sure the matrix
+            # is invertible.
+            # Note that the K_tilder here is still template:
+            # It is the correct K divided by the variance tau^2
+            # So it does not depend on the variance of the GP.
+            L_K_tilde = np.linalg.cholesky(K_tilde)
+            inv_L_K_tilde = np.linalg.solve(L_K_tilde, np.identity(n_V))
+            inv_K_tilde = np.dot(inv_L_K_tilde.T, inv_L_K_tilde)
+            log_det_K_tilde = np.sum(np.log(np.diag(L_K_tilde)**2))
+
+            invK_tilde_log_SNR = np.dot(inv_K_tilde, log_SNR2) / 2
+            log_SNR_invK_tilde_log_SNR = np.dot(log_SNR2,
+                                                invK_tilde_log_SNR) / 2
+
+            # MAP estimate of the variance of the Gaussian Process given
+            # other parameters.
+            if self.tau2_prior == 'halfCauchy':
+                tau2 = (log_SNR_invK_tilde_log_SNR - n_V * self.tau_range**2
+                        + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
+                                  * self.tau_range**2
+                                  * log_SNR_invK_tilde_log_SNR
+                                  + log_SNR_invK_tilde_log_SNR**2))\
+                    / 2 / (n_V + 2)
+                # Prior on the standar deviation of GP
+                LL += scipy.stats.halfcauchy.logpdf(
+                    tau2**0.5, scale=self.tau_range)
+                # Note that the form of the maximum likelihood estimate
+                # of tau2 depends on the form of prior imposed.
+            else:
+                tau2 = (log_SNR_invK_tilde_log_SNR + 2 * self.tau_range**2) /\
+                    (2 * 2 + 2 + n_V)
+                LL += scipy.stats.invgamma.logpdf(
+                    tau2, scale=self.tau_range**2, a=2)
+
+            # GP prior terms added to the log likelihood
+            LL = LL - log_det_K_tilde / 2.0 - n_V / 2.0 * np.log(tau2) \
+                - np.log(2 * np.pi) * n_V / 2.0 \
+                - log_SNR_invK_tilde_log_SNR / tau2 / 2
+
+            deriv_log_SNR2 -= invK_tilde_log_SNR / tau2 / 2.0
+            # Note that the derivative to log(SNR) is
+            # invK_tilde_log_SNR / tau2, but we are calculating the
+            # derivative to log(SNR^2)
+
+            dK_tilde_dl2_space = dist2 * (K_major) / 2.0 \
+                / l2_space**2
+
+            deriv_c_space = \
+                (np.dot(np.dot(invK_tilde_log_SNR, dK_tilde_dl2_space),
+                        invK_tilde_log_SNR) / tau2 / 2.0
+                 - np.sum(inv_K_tilde * dK_tilde_dl2_space) / 2.0)\
+                * dl2_dc_space
+
+            # Prior on the length scales
+            LL += scipy.stats.halfcauchy.logpdf(
+                l2_space**0.5, scale=space_smooth_range)
+            deriv_c_space -= 1 / (l2_space + space_smooth_range**2)\
+                * dl2_dc_space
+
+            if GP_inten:
+                dK_tilde_dl2_inten = inten_dist2 * K_major \
+                    / 2.0 / l2_inten**2
+                deriv_c_inten = \
+                    (np.dot(np.dot(invK_tilde_log_SNR, dK_tilde_dl2_inten),
+                            invK_tilde_log_SNR) / tau2 / 2.0
+                     - np.sum(inv_K_tilde * dK_tilde_dl2_inten) / 2.0)\
+                    * dl2_dc_inten
+                # Prior on the length scale
+                LL += scipy.stats.halfcauchy.logpdf(
+                    l2_inten**0.5, scale=inten_smooth_range)
+                deriv_c_inten -= 1 / (l2_inten + inten_smooth_range**2)\
+                    * dl2_dc_inten
+        else:
+            LL += np.sum(scipy.stats.norm.logpdf(log_SNR2 / 2.0,
+                                                 scale=self.tau_range))
+            # If GP prior is not requested, we still want to regularize on
+            # the magnitude of log(SNR).
+            deriv_log_SNR2 += - log_SNR2 / self.tau_range**2 / 4.0
+
+        deriv = np.empty(np.size(param))
+        deriv[idx_param_fitV['log_SNR2']] = \
+            deriv_log_SNR2[0:n_V - 1] - deriv_log_SNR2[n_V - 1]
+        if GP_space:
+            deriv[idx_param_fitV['c_space']] = deriv_c_space
+            if GP_inten:
+                deriv[idx_param_fitV['c_inten']] = deriv_c_inten
+
+        return -LL, -deriv
 
 
 class GBRSA(BRSA):
