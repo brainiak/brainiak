@@ -25,7 +25,8 @@ import nibabel as nib
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.cluster.hierarchy import fcluster, linkage
-import sys, os
+import sys
+import os
 
 curr_dir = os.path.dirname(__file__)
 
@@ -46,20 +47,19 @@ print('Writing ISC map to file...')
 brain_nii = nib.load(brain_fname)
 ISC_vol = np.zeros(brain_nii.shape)
 ISC_vol[coords] = ISC
-ISC_nifti = nib.Nifti1Image(ISC_vol,
-                            brain_nii.get_affine(), brain_nii.header)
+ISC_nifti = nib.Nifti1Image(ISC_vol, brain_nii.affine(), brain_nii.header)
 nib.save(ISC_nifti, 'ISC.nii.gz')
 
 ISC_mask = ISC > 0.2
 print('Calculating ISFC on ', np.sum(ISC_mask), ' voxels...')
 D_masked = D[ISC_mask, :, :]
 ISFC = brainiak.isfc.isfc(D_masked)
-coords_ISFC = [x[ISC_mask] for x in coords]
 
 print('Clustering ISFC...')
 Z = linkage(ISFC, 'ward')
 z = fcluster(Z, 2, criterion='maxclust')
 clust_inds = np.argsort(z)
 
+# Show the ISFC matrix, sorted to show the two main clusters
 plt.imshow(ISFC[np.ix_(clust_inds,clust_inds)])
 plt.show()

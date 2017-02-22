@@ -16,13 +16,21 @@
 Functions for computing intersubject correlation (ISC) and intersubject
 functional correlation (ISFC), and utility functions for loading subject data
 files and masks
+
+Paper references:
+ISC: Hasson, U., Nir, Y., Levy, I., Fuhrmann, G. & Malach, R. Intersubject
+synchronization of cortical activity during natural vision. Science 303,
+1634–1640 (2004).
+
+ISFC: Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
+(2016) Dynamic reconfiguration of the default mode network during narrative
+comprehension. Nat Commun 7.
 """
 
 # Authors: Christopher Baldassano and Mor Regev
 # Princeton University, 2017
 
 from brainiak.fcma.util import compute_correlation
-from scipy import stats
 import nibabel as nib
 import numpy as np
 
@@ -52,11 +60,12 @@ def isc(D, collapse_subj=True):
     n_subj = D.shape[2]
     ISC = np.zeros((n_vox, n_subj))
 
+    # Loop across choice of leave-one-out subject
     for loo_subj in range(n_subj):
         group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
         subj = D[:, :, loo_subj]
         for v in range(n_vox):
-            ISC[v, loo_subj] = stats.pearsonr(group[v, :], subj[v, :])[0]
+            ISC[v, loo_subj] = compute_correlation(group[v, :], subj[v, :])
 
     if collapse_subj:
         ISC = np.mean(ISC, axis=1)
@@ -91,10 +100,14 @@ def isfc(D, collapse_subj=True):
     n_vox = D.shape[0]
     n_subj = D.shape[2]
     ISFC = np.zeros((n_vox, n_vox, n_subj))
+
+    # Loop across choice of leave-one-out subject
     for loo_subj in range(D.shape[2]):
         group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
         subj = D[:, :, loo_subj]
         ISFC[:, :, loo_subj] = compute_correlation(group, subj)
+
+        # Symmetrize matrix
         ISFC[:, :, loo_subj] = (ISFC[:, :, loo_subj] +
                                 ISFC[:, :, loo_subj].T) / 2
 
@@ -121,9 +134,10 @@ def load_subjects_nii(data_files, mask_file, mask_func=None):
 
     Returns
     -------
-    (D, coords) : tuple of voxel by time by subject ndarray, and
-        x,y,x (as provided by nibabel) coordinates of voxel locations (as a
-        tuple of ndarrays
+    D : voxel by time by subject ndarray
+        all data within mask, from all subjects
+    coords : tuple of 3 ndarrays
+        x,y,z (as provided by nibabel) coordinates of mask voxel locations
     """
 
     mask_nii = nib.load(mask_file)

@@ -31,11 +31,11 @@ def test_loading_and_ISFC():
 
     ISFC = brainiak.isfc.isfc(D)
     
-    gt = \
+    ground_truth = \
         [[ 1,  1,  0, -1],
          [ 1,  1,  0, -1],
          [ 0,  0,  1,  0],
          [-1, -1,  0,  1]]
 
-    assert np.isclose(ISFC, gt).all(), \
+    assert np.isclose(ISFC, ground_truth).all(), \
         "Calculated ISFC does not match ground truth"
