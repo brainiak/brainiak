@@ -47,7 +47,7 @@ print('Writing ISC map to file...')
 brain_nii = nib.load(brain_fname)
 ISC_vol = np.zeros(brain_nii.shape)
 ISC_vol[coords] = ISC
-ISC_nifti = nib.Nifti1Image(ISC_vol, brain_nii.affine(), brain_nii.header)
+ISC_nifti = nib.Nifti1Image(ISC_vol, brain_nii.affine, brain_nii.header)
 nib.save(ISC_nifti, 'ISC.nii.gz')
 
 ISC_mask = ISC > 0.2
