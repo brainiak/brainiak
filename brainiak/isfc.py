@@ -33,6 +33,7 @@ comprehension. Nat Commun 7.
 from brainiak.fcma.util import compute_correlation
 import nibabel as nib
 import numpy as np
+from scipy import stats
 
 
 def isc(D, collapse_subj=True):
@@ -65,9 +66,7 @@ def isc(D, collapse_subj=True):
         group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
         subj = D[:, :, loo_subj]
         for v in range(n_vox):
-            ISC[v, loo_subj] = compute_correlation(
-                                np.expand_dims(group[v, :], 0),
-                                np.expand_dims(subj[v, :], 0))
+            ISC[v, loo_subj] = stats.pearsonr(group[v, :], subj[v, :])[0]
 
     if collapse_subj:
         ISC = np.mean(ISC, axis=1)
