@@ -449,7 +449,7 @@ def generate_stimfunction(onsets,
 
     # Generate the time course as empty, each element is a millisecond by
     # default
-    stimfunction = [0] * round(total_time * temporal_resolution)
+    stimfunction = [0] * round(int(total_time * temporal_resolution))
 
     # Cycle through the onsets
     for onset_counter in list(range(len(onsets))):
