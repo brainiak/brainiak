@@ -155,7 +155,7 @@ stimfunction = sim.generate_stimfunction(onsets=[],
 
 # Calculate the mask
 mask = sim.mask_brain(volume=volume,
-                      mask_name='self',
+                      mask_self=True,
                       )
 
 # Calculate the noise parameters
