@@ -473,6 +473,7 @@ def generate_stimfunction(onsets,
 
 def export_stimfunction(stimfunction,
                         filename,
+                        temporal_resolution = 1000.0
                         ):
     """ Output a tab separated timing file
 
@@ -489,6 +490,9 @@ def export_stimfunction(stimfunction,
         filename : str
             The name of the three column text file to be output
 
+        temporal_resolution : float
+            How many elements per second will be created
+
     """
 
     # Iterate through the stim function
@@ -500,7 +504,7 @@ def export_stimfunction(stimfunction,
         if stimfunction[stim_counter] != 0:
 
             # When did the event start?
-            event_onset = str(stim_counter / 1000)
+            event_onset = str(stim_counter / temporal_resolution)
 
             # The weight of the stimulus
             weight = str(stimfunction[stim_counter])
@@ -519,7 +523,7 @@ def export_stimfunction(stimfunction,
                 stim_counter = stim_counter + 1
 
             # How long was the event in seconds
-            event_duration = str(event_duration / 1000)
+            event_duration = str(event_duration / temporal_resolution)
 
             # Append this row to the data file
             with open(filename, "a") as file:
@@ -623,7 +627,8 @@ def double_gamma_hrf(stimfunction,
     signal_function = np.convolve(stimfunction, hrf)
 
     # Decimate the signal function so that it only has one element per TR
-    signal_function = signal_function[0::int(tr_duration * temporal_resolution)]
+    temp = int(tr_duration * temporal_resolution)
+    signal_function = signal_function[0::temp]
 
     # Cut off the HRF
     signal_function = signal_function[0:int(len(stimfunction) / tr_duration
@@ -1213,7 +1218,6 @@ def _generate_noise_temporal(stimfunction_tr,
                              drift_sigma,
                              auto_reg_sigma,
                              physiological_sigma,
-                             temporal_resolution=1000.0,
                              ):
     """Generate the signal dependent noise
 
