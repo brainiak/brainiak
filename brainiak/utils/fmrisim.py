@@ -378,6 +378,7 @@ def generate_stimfunction(onsets,
                           total_time,
                           weights=[1],
                           timing_file=None,
+                          temporal_resolution = 1000,
                           ):
     """Return the function for the onset of events
 
@@ -407,6 +408,9 @@ def generate_stimfunction(onsets,
         timing_file : string
             The filename (with path) to a three column timing file (FSL) to
             make the events. Still requires tr_duration and total_time
+
+        temporal_resolution : int
+            How many elements per second are you modeling for the stim function
 
     Returns
     ----------
@@ -443,10 +447,8 @@ def generate_stimfunction(onsets,
     if len(weights) == 1:
         weights = weights * len(onsets)
 
-    # How many elements per second are you modeling
-    temporal_resolution = 1000
-
-    # Generate the time course as empty, each element is a millisecond
+    # Generate the time course as empty, each element is a millisecond by
+    # default
     stimfunction = [0] * round(total_time * temporal_resolution)
 
     # Cycle through the onsets
@@ -539,7 +541,9 @@ def double_gamma_hrf(stimfunction,
                      undershoot_dispersion=0.9,
                      response_scale=1,
                      undershoot_scale=0.035,
-                     scale_function=1,):
+                     scale_function=1,
+                     temporal_resolution=1000,
+                     ):
     """Return a double gamma HRF
 
     Parameters
@@ -571,6 +575,9 @@ def double_gamma_hrf(stimfunction,
         scale_function : bool
             Do you want to scale the function to a range of 1
 
+        temporal_resolution : int
+          What is the temporal resolution (in s) of the stimulus function.
+          In other words, how many elements per second?
     Returns
     ----------
 
@@ -580,12 +587,10 @@ def double_gamma_hrf(stimfunction,
 
     """
 
-    temporal_resolution = 0.001  # What is the temporal resolution (in s)
-
     hrf_length = 30  # How long is the HRF being created
 
     # How many seconds of the HRF will you model?
-    hrf = [0] * int(hrf_length / temporal_resolution)
+    hrf = [0] * int(hrf_length * temporal_resolution)
 
     # When is the peak of the two aspects of the HRF
     response_peak = response_delay * response_dispersion
@@ -594,18 +599,18 @@ def double_gamma_hrf(stimfunction,
     for hrf_counter in list(range(len(hrf) - 1)):
 
         # Specify the elements of the HRF for both the response and undershoot
-        resp_pow = math.pow((hrf_counter * temporal_resolution) /
+        resp_pow = math.pow((hrf_counter / temporal_resolution) /
                             response_peak, response_delay)
-        resp_exp = math.exp(-((hrf_counter * temporal_resolution) -
+        resp_exp = math.exp(-((hrf_counter / temporal_resolution) -
                               response_peak) /
                             response_dispersion)
 
         response_model = response_scale * resp_pow * resp_exp
 
-        undershoot_pow = math.pow((hrf_counter * temporal_resolution) /
+        undershoot_pow = math.pow((hrf_counter / temporal_resolution) /
                                   undershoot_peak,
                                   undershoot_delay)
-        undershoot_exp = math.exp(-((hrf_counter * temporal_resolution) -
+        undershoot_exp = math.exp(-((hrf_counter / temporal_resolution) -
                                     undershoot_peak /
                                     undershoot_dispersion))
 
@@ -618,11 +623,11 @@ def double_gamma_hrf(stimfunction,
     signal_function = np.convolve(stimfunction, hrf)
 
     # Decimate the signal function so that it only has one element per TR
-    signal_function = signal_function[0::int(tr_duration * 1000)]
+    signal_function = signal_function[0::int(tr_duration * temporal_resolution)]
 
     # Cut off the HRF
     signal_function = signal_function[0:int(len(stimfunction) / tr_duration
-                                            / 1000)]
+                                            / temporal_resolution)]
 
     # Scale the function so that the peak response is 1
     if scale_function == 1:
