@@ -473,7 +473,7 @@ def generate_stimfunction(onsets,
 
 def export_stimfunction(stimfunction,
                         filename,
-                        temporal_resolution = 1000.0
+                        temporal_resolution=1000.0
                         ):
     """ Output a tab separated timing file
 
