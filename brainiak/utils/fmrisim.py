@@ -378,7 +378,7 @@ def generate_stimfunction(onsets,
                           total_time,
                           weights=[1],
                           timing_file=None,
-                          temporal_resolution = 1000,
+                          temporal_resolution=1000.0,
                           ):
     """Return the function for the onset of events
 
@@ -409,7 +409,7 @@ def generate_stimfunction(onsets,
             The filename (with path) to a three column timing file (FSL) to
             make the events. Still requires tr_duration and total_time
 
-        temporal_resolution : int
+        temporal_resolution : float
             How many elements per second are you modeling for the stim function
 
     Returns
@@ -542,7 +542,7 @@ def double_gamma_hrf(stimfunction,
                      response_scale=1,
                      undershoot_scale=0.035,
                      scale_function=1,
-                     temporal_resolution=1000,
+                     temporal_resolution=1000.0,
                      ):
     """Return a double gamma HRF
 
@@ -575,7 +575,7 @@ def double_gamma_hrf(stimfunction,
         scale_function : bool
             Do you want to scale the function to a range of 1
 
-        temporal_resolution : int
+        temporal_resolution : float
           What is the temporal resolution (in s) of the stimulus function.
           In other words, how many elements per second?
     Returns
