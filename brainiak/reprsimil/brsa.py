@@ -43,6 +43,7 @@ import logging
 import brainiak.utils.utils as utils
 import scipy.spatial.distance as spdist
 from nitime import algorithms as alg
+import copy
 warnings.filterwarnings('ignore')
 
 
@@ -567,24 +568,21 @@ class BRSA(BaseEstimator, TransformerMixin):
             parameters fit to the training data.
         ll_null: scalar,
             The log likelihood of the new data based on a null model
-            which assumes the same for everything except for that there
-            is no response to any of the task conditions.
+            which assumes the same as the full model for everything
+            except for that there is no response to any of the
+            task conditions.
         """
         ll = self._score(Y=X, design=design, beta=self.beta_,
                          scan_onsets=scan_onsets, beta0=self.beta0_,
                          rho_e=self.rho_, sigma_e=self.sigma_,
                          rho_X0=self._rho_X0_, sigma2_X0=self._sigma2_X0_)
-        # ll_null = self._score(Y=X, design=None, beta=None,
-        #                  scan_onsets=scan_onsets, beta0=self.beta0_null_,
-        #                  rho_e=self.rho_null_, sigma_e=self.sigma_null_,
-        #                  rho_X0=self._rho_X0_null_,
-        #                  sigma2_X0=self._sigma2_X0_null_)
         ll_null = self._score(Y=X, design=None, beta=None,
                          scan_onsets=scan_onsets, beta0=self.beta0_,
                          rho_e=self.rho_, sigma_e=self.sigma_,
                          rho_X0=self._rho_X0_,
                          sigma2_X0=self._sigma2_X0_)
         return ll, ll_null
+
     # The following 2 functions _D_gen and _F_gen generate templates used
     # for constructing inverse of covariance matrix of AR(1) noise
     # The inverse of covarian matrix is
@@ -1086,10 +1084,12 @@ class BRSA(BaseEstimator, TransformerMixin):
                             X0TAX0, est_SNR_AR1_UV**2,
                             n_V, n_T, n_run, rank, n_X0)
         est_sigma_AR1_UV = sigma2**0.5
-        est_beta_AR1_UV = est_sigma_AR1_UV * est_SNR_AR1_UV**2 \
+        est_beta_AR1_UV = est_SNR_AR1_UV**2 \
             * np.dot(estU_chlsk_l_AR1_UV, YTAcorrXL_LAMBDA.T)
-        est_beta_AR1_UV_latent = est_sigma_AR1_UV \
-            * est_SNR_AR1_UV**2 * YTAcorrXL_LAMBDA.T
+            # est_sigma_AR1_UV *
+        est_beta_AR1_UV_latent =  \
+            est_SNR_AR1_UV**2 * YTAcorrXL_LAMBDA.T
+            # est_sigma_AR1_UV *
         # the latent term means that X*L multiplied by this term
         # is the same as X*beta. This will be used for decoding
         # and cross-validating, in case L is low-rank
@@ -1591,8 +1591,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
                                     n_V, n_T, n_run, rank, n_X0)
-                betas = current_sigma2**0.5 * current_SNR2 \
+                betas = current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
+                    # current_sigma2**0.5 * 
                 beta0s = np.einsum(
                     'ijk,ki->ji', X0TAX0_i,
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
@@ -1727,8 +1728,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
                                     n_V, n_T, n_run, rank, n_X0)
-                betas = current_sigma2**0.5 * current_SNR2 \
+                betas = current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
+                    # current_sigma2**0.5 * 
                 beta0s = np.einsum(
                     'ijk,ki->ji', X0TAX0_i,
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
@@ -2629,7 +2631,11 @@ class GBRSA(BRSA):
         # Checking all inputs.
         X = self._check_data_GBRSA(X)
         design = self._check_design_GBRSA(design, X)
-        nuisance = self._check_nuisance_GBRSA(nuisance, X)
+        nuisance = self._check_nuisance_GBRSA(
+            copy.deepcopy(nuisance), X)
+        # The reason that we use copy of nuisance is because they
+        # may be modified inside our code.
+
         scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
         # Run Marginalized Bayesian RSA
         # Note that we have a change of notation here.
@@ -2647,9 +2653,9 @@ class GBRSA(BRSA):
             'The minimum grid of log(SNR) should not be larger than 0.5.'\
             ' Please consider increasing SNR_bins or reducing logS_range'
         self.n_subj_ = len(X)
-        self.n_V_ = [None] * self.n_subj
-        for i, x in enumerate(X):
-            self.n_V_[i] = x.shape[1]
+        self.n_V_ = [None] * self.n_subj_
+        for subj, x in enumerate(X):
+            self.n_V_[subj] = x.shape[1]
         self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
             self.sigma_, self.rho_, self.X0_ = \
             self._fit_RSA_marginalized(
@@ -2658,7 +2664,155 @@ class GBRSA(BRSA):
 
         self.C_ = utils.cov2corr(self.U_)
         self.design_ = design.copy()
+
+        self.beta0_null_, self.sigma_null_, self.rho_null_, \
+            self.X0_null_ = self._fit_RSA_marginalized_null(
+                Y=X, X_base=nuisance, scan_onsets=scan_onsets)
+
+        self._rho_design_ = [None] * self.n_subj_
+        self._sigma2_design_ = [None] * self.n_subj_
+        self._rho_X0_ = [None] * self.n_subj_
+        self._sigma2_X0_ = [None] * self.n_subj_
+        self._rho_X0_null_ = [None] * self.n_subj_
+        self._sigma2_X0_null_ = [None] * self.n_subj_
+        for subj in np.arange(self.n_subj_):
+            self._rho_design_[subj], self._sigma2_design_[subj] = \
+                self._est_AR1(self.design_[subj], same_para=True)
+            self._rho_X0_[subj], self._sigma2_X0_[subj] = \
+                self._est_AR1(self.X0_[subj])
+            self._rho_X0_null_[subj], self._sigma2_X0_null_[subj] =\
+                self._est_AR1(self.X0_null_[subj])
+        # AR(1) parameters of the design matrix and nuisance regressors,
+        # which will be used in transform or score.
+
         return self
+
+    def transform(self, X, y=None, scan_onsets=None):
+        """ Use the model to estimate the time course of response to
+            each condition, and the time course unrelated to task which
+            is spread across the brain.
+        ----------
+        X : list of 2-D arrays. For each item, shape=[time_points, voxels]
+            New fMRI data of the same subjects. The voxels should
+            match those used in the fit() function.
+            The size of the list should match the size of the list X fed
+            to fit(), with each item in the list corresponding to data
+            from the same subject in the X fed to fit(). If you do not
+            need to transform some subjects' data, leave the entry
+            corresponding to that subject as None.
+            If data are z-scored when fitting the model,
+            data should be z-scored as well when calling transform()
+        y : not used (as it is unsupervised learning)
+        scan_onsets : A list of 1-d numpy arrays,
+            Each array corresponds to the onsets of
+            scans in the data X for the particular subject.
+            If not provided, data will be assumed
+            to be acquired in a continuous scan.
+        Returns
+        -------
+        ts : list of 2-D arrays. For each item,
+            shape = [time_points, condition]
+            The estimated response to the cognitive dimensions
+            （task dimensions) whose response amplitudes were estimated
+            during the fit step.
+            One item for each subject. If some subjects' data are
+            not provided, None will be returned.
+        ts0: list of 2-D array. For each item,
+            shape = [time_points, n_nureg]
+            The estimated time courses spread across the brain, with the
+            loading weights estimated during the fit step.
+            One item for each subject. If some subjects' data are
+            not provided, None will be returned.
+        """
+        assert len(X) == self.n_subj_
+        X = self._check_data_GBRSA(X, for_fit=False)
+        scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
+        ts = [None] * self.n_subj_
+        ts0 = [None] * self.n_subj_
+        log_p = [None] * self.n_subj_
+        for i, x in enumerate(X):
+            if x is not None:
+                s = scan_onsets[i]
+                if s is None:
+                    s = np.array([0])
+                else:
+                    s = np.int32(s)
+                ts[i], ts0[i], log_p[i] = self._transform(
+                    Y=x, scan_onsets=s, beta=self.beta_[i],
+                    beta0=self.beta0_[i], rho_e = self.rho_[i],
+                    sigma_e=self.sigma_[i], rho_X=self._rho_design_[i],
+                    sigma2_X=self._sigma2_design_[i],
+                    rho_X0=self._rho_X0_[i], sigma2_X0=self._sigma2_X0_[i])
+        return ts, ts0
+
+    def score(self, X, design, scan_onsets=None):
+        """ Use the model and parameters estimated by fit function
+            from some data of a set of participants to evaluate
+            the log likelihood of some new data of the same participants.
+            Design matrices of the same set of experimental
+            conditions in the testing data should be provided, with each
+            column corresponding to the same condition as that column
+            in the design matrix of the training data.
+            Unknown nuisance time series will be marginalized, assuming
+            they follow the same spatial pattern as in the training
+            data. The hypothetical response captured by the design matrix
+            will be subtracted from data before the marginalization
+            when evaluating the log likelihood. For null model,
+            nothing will be subtracted before marginalization.
+            If you z-scored your data during fit step, you should 
+            z-score them for score function as well. If you did not
+            z-score in fitting, you should not z-score here either.
+        ----------
+        X : List of 2-D arrays. For each item, shape=[time_points, voxels]
+            fMRI data of new data of the same participants.
+            The voxels of each participants should
+            match those used in the fit() function. If data are z-scored
+            (recommended) when fitting the model, data should be z-scored
+            as well when calling transform()
+        design : List of 2-D arrays. One for each participant.
+            For each item, shape=[time_points, conditions]. 
+            Design matrices expressing the hypothetical response of
+            the task conditions in data X.
+        scan_onsets : List of 2-D arrays.  One for each participant.
+            For each item, shape=[number of fMRI scans (runs)]. 
+            Lists of indices corresponding to the onsets of
+            scans in the data X.
+            If not provided, data will be assumed
+            to be acquired in a continuous scan.
+        Returns
+        -------
+        ll: list, shape=[number of participants]
+            The log likelihoods of the new data based on the model and its
+            parameters fit to the training data.
+            If data of some participants are not provided, the corresponding
+            entry will be None.
+        ll_null: list, shape=[number of participants]
+            The log likelihood of the new data based on a null model
+            which assumes the same as the full model for everything
+            except for that there is no response to any of the
+            task conditions.
+        """
+        assert len(X) == self.n_subj_
+        X = self._check_data_GBRSA(X, for_fit=False)
+        scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
+        design = self._check_design_GBRSA(design, X)
+        ll = [None] * self.n_subj_
+        ll_null = [None] * self.n_subj_
+        for subj in np.arange(self.n_subj_):
+            if X[subj] is not None:
+                ll[subj] = self._score(
+                    Y=X[subj], design=design[subj], beta=self.beta_[subj],
+                    scan_onsets=scan_onsets[subj], beta0=self.beta0_[subj],
+                    rho_e=self.rho_[subj], sigma_e=self.sigma_[subj],
+                    rho_X0=self._rho_X0_[subj],
+                    sigma2_X0=self._sigma2_X0_[subj])
+                ll_null[subj] = self._score(
+                    Y=X[subj], design=None, beta=None,
+                    scan_onsets=scan_onsets[subj], beta0=self.beta0_[subj],
+                    rho_e=self.rho_[subj], sigma_e=self.sigma_[subj],
+                    rho_X0=self._rho_X0_[subj],
+                    sigma2_X0=self._sigma2_X0_[subj])
+        return ll, ll_null
 
     def _calc_sandwidge_marginalized(
             self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
@@ -2673,7 +2827,7 @@ class GBRSA(BRSA):
         # dimension: #rho*feature*space
         YTAY_diag = YTY_diag - rho1[:, None] * YTDY_diag \
             + rho1[:, None]**2 * YTFY_diag
-        # dimension: #rho*feature*space,
+        # dimension: #rho*space,
         # A/sigma2 is the inverse of noise covariance matrix in each voxel.
         # YTAY means Y'AY
         XTAX = XTX - rho1[:, None, None] * XTDX \
@@ -2756,7 +2910,6 @@ class GBRSA(BRSA):
                            'If you have a good reason to specify a rank '
                            'lower than the number of experiment conditions,'
                            ' do so.')
-        t_start = time.time()
         logger.info('Starting to fit the model. Maximum iteration: '
                     '{}.'.format(self.n_iter))
 
@@ -2909,7 +3062,7 @@ class GBRSA(BRSA):
             logger.info('Iteration {}'.format(it))
             # Re-estimate part of X0: X_res
             for subj in range(n_subj):
-                if self.auto_nuisance and it > 1:
+                if self.auto_nuisance and it > 0:
                     residuals = Y[subj] - np.dot(X[subj], beta_post[subj]) \
                         - np.dot(
                             X_base[subj],
@@ -3021,15 +3174,17 @@ class GBRSA(BRSA):
                 for grid in range(n_grid):
                     beta_post[subj] += np.dot(L_LAMBDA_LT[grid, :, :],
                                               sXTAcorrY[subj][grid, :, :])\
-                        * sigma_means[grid, :] * all_SNR_grids[grid] \
-                        * weight_post[grid, :]
+                        * all_SNR_grids[grid] \
+                        * weight_post[grid, :] # * sigma_means[grid, :]
                     beta0_post[subj] += weight_post[grid, :] * np.dot(
                         X0TAX0_i[subj][grid, :, :],
                         (X0TAY[subj][grid, :, :]
                          - np.dot(np.dot(XTAX0[subj][grid, :, :].T,
                                          L_LAMBDA_LT[grid, :, :]),
                                   sXTAcorrY[subj][grid, :, :])
-                         * all_SNR_grids[grid] * sigma_means[grid, :]))
+                         * all_SNR_grids[grid]))
+                        
+                        # * sigma_means[grid, :]))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -3041,6 +3196,173 @@ class GBRSA(BRSA):
         return np.dot(L, L.T), L, s_post, \
             beta_post, beta0_post, sigma_post, \
             rho_post, X0
+
+    def _fit_RSA_marginalized_null(self, Y, X_base,
+                              scan_onsets=None):
+        """ The marginalized version of the null model for Bayesian RSA.
+            The null model assumes no task-related response to the
+            design matrix.
+            Note that there is a naming change of variable. X in fit()
+            is changed to Y here.
+            This is because we follow the tradition that Y corresponds
+            to data.
+            However, in wrapper function fit(), we follow the naming
+            routine of scikit-learn.
+        """
+        # Because there is nothing to learn that is shared across
+        # participants, we can run each subject in serial.
+        # The only fitting required is to re-estimate X0 after
+        # each iteration
+        n_subj = len(Y)
+        t_start = time.time()
+        logger.info('Starting to fit the model. Maximum iteration: '
+                    '{}.'.format(self.n_iter))
+
+        rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
+            + 1 / self.rho_bins
+        rho_weights = np.ones(self.rho_bins) / self.rho_bins
+        logger.info('The grids of rho used to do numerical integration '
+                    'is {}.'.format(rho_grids))
+        n_grid = self.rho_bins
+        log_weights = np.log(rho_weights)
+        rho_post = [None] * n_subj
+        sigma_post = [None] * n_subj
+        beta0_post = [None] * n_subj
+        X0 = [None] * n_subj
+
+        for subj in range(n_subj):
+            np.random.seed(self.rand_seed)
+            logger.debug('Running on subject {}.'.format(subj))
+            logger.debug('Random seed set to {}.'.format(self.rand_seed))
+            # setting random seed
+            [n_T, n_V] = np.shape(Y[subj])
+            D, F, run_TRs, n_run = self._prepare_DF(
+                n_T, scan_onsets=scan_onsets[subj])
+            YTY_diag = np.sum(Y[subj] * Y[subj], axis=0)
+            YTDY_diag = np.sum(Y[subj] * np.dot(D, Y[subj]), axis=0)
+            YTFY_diag = np.sum(Y[subj] * np.dot(F, Y[subj]), axis=0)
+
+            # Add DC components capturing run-specific baselines.
+            X_DC = []
+            for r_l in run_TRs:
+                X_DC = scipy.linalg.block_diag(X_DC, np.ones(r_l)[:, None])
+            if X_base[subj] is not None:
+                res0 = np.linalg.lstsq(X_DC, X_base[subj])
+                if not np.any(np.isclose(res0[1], 0)):
+                    # No columns in X_base can be explained by the
+                    # baseline regressors. So we insert them.
+                    X_base[subj] = np.concatenate(
+                        (X_base[subj], X_DC), axis=1)
+                    idx_DC = np.arange(
+                        X_base[subj].shape[1] - X_DC.shape[1],
+                        X_base[subj].shape[1])
+                else:
+                    logger.warning('Provided regressors for uninteresting '
+                                   'time series of subject {} '
+                                   'already include baseline. No additional '
+                                   'baseline is inserted.'.format(subj))
+                    idx_DC = np.where(np.isclose(res0[1], 0))[0]
+            else:
+                # If a set of regressors for non-interested signals is not
+                # provided, then we simply include one baseline for each run.
+                X_base[subj] = X_DC
+                idx_DC = np.arange(0, X_base[subj].shape[1])
+                logger.info('You did not provide time series of no interest '
+                            'such as DC component for subject {}. '
+                            'Trivial regressors of DC component are '
+                            'included for further modeling.'
+                            ' The final covariance matrix won''t '
+                            'reflet these components.'.format(subj))
+            X_res = None
+            for it in range(0, self.n_iter):
+                if X_res is None:
+                    X0[subj] = X_base[subj].copy()
+                else:
+                    X0[subj] = np.concatenate(
+                        (X_base[subj], X_res), axis=1)
+                n_X0 = X0[subj].shape[1]
+                X0TX0, X0TDX0, X0TFX0 = self._make_templates(
+                    D, F, X0[subj], X0[subj])
+                X0TY, X0TDY, X0TFY = self._make_templates(
+                    D, F, X0[subj], Y[subj])
+
+                YTAY_diag = YTY_diag - rho_grids[:, None] * YTDY_diag \
+                    + rho_grids[:, None]**2 * YTFY_diag
+                # dimension: #rho*space,
+                # A/sigma2 is the inverse of noise covariance matrix in each voxel.
+                # YTAY means Y'AY
+
+                X0TAX0 = X0TX0[np.newaxis, :, :] \
+                    - rho_grids[:, np.newaxis, np.newaxis] \
+                    * X0TDX0[np.newaxis, :, :] \
+                    + rho_grids[:, np.newaxis, np.newaxis]**2 \
+                    * X0TFX0[np.newaxis, :, :]
+                # dimension: #rho*#baseline*#baseline
+                X0TAY = X0TY - rho_grids[:, None, None] * X0TDY \
+                    + rho_grids[:, None, None]**2 * X0TFY
+                # dimension: #rho*#baseline*space
+                X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
+                # dimension: #rho*#baseline*#baseline
+                YTAcorrY_diag = np.empty(np.shape(YTAY_diag))
+                for i_r in range(np.size(rho_grids)):
+                    YTAcorrY_diag[i_r, :] = YTAY_diag[i_r, :] \
+                        - np.sum(X0TAY[i_r, :, :] * np.dot(
+                                X0TAX0_i[i_r, :, :], X0TAY[i_r, :, :]),
+                                 axis=0)
+
+                log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi)\
+                    + n_run / 2 * np.log(1 - rho_grids**2) \
+                    + scipy.special.gammaln((n_T - n_X0 - 2) / 2) \
+                    + (n_T - n_X0 - 2) / 2 * np.log(2)
+                    # These are terms in the log likelihood that do not
+                    # depend on L. Notice that the last term comes from
+                    # ther term of marginalizing sigma. We take the 2 in
+                    # the denominator out. Accordingly, the "denominator"
+                    # variable in the _raw_loglike_grids() function is not
+                    # divided by 2
+                half_log_det_X0TAX0 = np.log(np.linalg.det(X0TAX0)) / 2
+
+                LL_raw = -half_log_det_X0TAX0[:, None] \
+                    - (n_T - n_X0 - 2) / 2 * np.log(YTAcorrY_diag) \
+                    + log_weights[:, None] + log_fixed_terms[:, None]
+                # dimension: n_grid * space
+                # The log likelihood at each pair of values of rho1.
+                # half_log_det_X0TAX0 is 0.5*log(det(X0TAX0)) with the size of
+                # number of parameter grids. So is the size of log_weights
+
+                result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+                weight_post = result_exp / result_sum
+                rho_post[subj] = np.sum(rho_grids[:, None] * weight_post,
+                                        axis=0)
+                # Mean-posterior estimate of rho.
+                sigma_means = YTAcorrY_diag ** 0.5 \
+                    * (np.exp(scipy.special.gammaln((n_T - n_X0 - 3) / 2)
+                              - scipy.special.gammaln((n_T - n_X0 - 2) / 2))
+                       / 2**0.5)
+                sigma_post[subj] = np.sum(sigma_means * weight_post, axis=0)
+                beta0_post[subj] = np.zeros((n_X0, n_V))
+                for grid in range(n_grid):
+                    beta0_post[subj] += weight_post[grid, :] * np.dot(
+                        X0TAX0_i[grid, :, :], X0TAY[grid, :, :])
+                if self.auto_nuisance:
+                    residuals = Y[subj] - np.dot(
+                        X_base[subj],
+                        beta0_post[subj][:np.size(X_base[subj], 1), :])
+                    X_res_new = self.nureg_method.fit_transform(residuals)
+                    if it >= 1:
+                        if np.max(np.abs(X_res_new - X_res)) <= self.tol:
+                            logger.info('The change of X_res is '
+                                        'smaller than the tolerance value {}.'
+                                        'Fitting is finished after {} '
+                                        'iterations'.format(self.tol, it+1))
+                            break
+                    X_res = X_res_new
+                LL_total = np.sum(np.log(result_sum) + max_value)
+
+        t_finish = time.time()
+        logger.info(
+            'total time of fitting: {} seconds'.format(t_finish - t_start))
+        return beta0_post, sigma_post, rho_post, X0
 
     def _raw_loglike_grids(self, L, s2XTAcorrX, YTAcorrY_diag,
                            sXTAcorrY, half_log_det_X0TAX0,
@@ -3178,6 +3500,31 @@ class GBRSA(BRSA):
 
         return -LL_total, -grad_L[l_idx]
 
+    def _loglike_marginalized_null(self, YTAcorrY_diag,
+                              half_log_det_X0TAX0,
+                              log_weights, log_fixed_terms):
+        # In this version, X0 captures the
+        # co-flucturation between voxels.
+        # marginalized version marginalize sigma^2 rho1
+        # for all voxels. n_grid is the number of grid on which the numeric
+        # integration is performed to marginalize rho1 for each voxel.
+        # The log likelihood is an inverse-Gamma distribution sigma^2,
+        # so we can analytically marginalize it assuming uniform prior.
+        # n_grid is the number of grid in the parameter space of (rho1)
+
+        LL_raw = -half_log_det_X0TAX0[:, None] \
+            - (n_T - n_X0 - 2) / 2 * np.log(YTAcorrY_diag) \
+            + log_weights[:, None] + log_fixed_terms[:, None]
+        # dimension: n_grid * space
+        # The log likelihood at each pair of values of rho1.
+        # half_log_det_X0TAX0 is 0.5*log(det(X0TAX0)) with the size of
+        # number of parameter grids. So is the size of log_weights
+        
+        result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+        LL_total = np.sum(np.log(result_sum) + max_value)
+
+        return -LL_total
+
     def _check_data_GBRSA(self, X, for_fit=True):
         # Check input data
         if type(X) is np.ndarray:
@@ -3220,27 +3567,28 @@ class GBRSA(BRSA):
             'for single participant.'
 
         for i, d in enumerate(design):
-            assert_all_finite(d)
-            assert d.ndim == 2,\
-                'The design matrix should be 2 dimension ndarray'
-            assert np.linalg.matrix_rank(d) == d.shape[1], \
-                'Your design matrix of subject {} has rank ' \
-                'smaller than the number of columns. Some columns '\
-                'can be explained by linear combination of other columns.'\
-                'Please check your design matrix.'.format(i)
-            assert np.size(d, axis=0) == np.size(X[i], axis=0),\
-                'Design matrix and data of subject {} do not '\
-                'have the same number of time points.'.format(i)
-            assert self.rank is None or self.rank <= d.shape[1],\
-                'Your design matrix of subject {} '\
-                'has fewer columns than the rank you set'.format(i)
-            if i == 0:
-                n_C = np.shape(d)[1]
-            else:
-                assert n_C == np.shape(d)[1], \
-                    'In Group Bayesian RSA, all subjects should have the '\
-                    'set of experiment conditions, thus the same number '\
-                    'of columns in design matrix'
+            if X[i] is not None:
+                assert_all_finite(d)
+                assert d.ndim == 2,\
+                    'The design matrix should be 2 dimension ndarray'
+                assert np.linalg.matrix_rank(d) == d.shape[1], \
+                    'Your design matrix of subject {} has rank ' \
+                    'smaller than the number of columns. Some columns '\
+                    'can be explained by linear combination of other columns.'\
+                    'Please check your design matrix.'.format(i)
+                assert np.size(d, axis=0) == np.size(X[i], axis=0),\
+                    'Design matrix and data of subject {} do not '\
+                    'have the same number of time points.'.format(i)
+                assert self.rank is None or self.rank <= d.shape[1],\
+                    'Your design matrix of subject {} '\
+                    'has fewer columns than the rank you set'.format(i)
+                if i == 0:
+                    n_C = np.shape(d)[1]
+                else:
+                    assert n_C == np.shape(d)[1], \
+                        'In Group Bayesian RSA, all subjects should have'\
+                        ' the same set of experiment conditions, t'\
+                        'hus the same number of columns in design matrix'
         return design
 
     def _check_nuisance_GBRSA(sef, nuisance, X):
@@ -3274,7 +3622,7 @@ class GBRSA(BRSA):
                         'Nuisance regressor and data do not have the same '\
                         'number of time points.'
         else:
-            nuisance = [nuisance] * len(X)
+            nuisance = [None] * len(X)
             logger.info('None was provided for nuisance matrix. Replicating '
                         'it for all subjects.')
         return nuisance
@@ -3296,64 +3644,3 @@ class GBRSA(BRSA):
                     'Scan onsets of subject {} has formatting ' \
                     'issues: {}'.format(i, s)
         return scan_onsets
-
-    def transform(self, X, y=None, scan_onsets=None):
-        """ Use the model to estimate the time course of response to
-            each condition, and the time course unrelated to task which
-            is spread across the brain.
-            Notice: this can only be performed if full rank was requested
-            in the fit step (either not setting the rank parameter, or
-            setting it to be equal to the number of conditions). Otherwise
-            error will be thrown out.
-        ----------
-        X : list of 2-D arrays. For each item, shape=[time_points, voxels]
-            new fMRI data of the same subjects. The voxels should
-            match those used in the fit() function. If data are z-scored
-            when fitting the model, data should be z-scored
-            as well when calling transform()
-            The size of the list should match the size of the list X fed
-            to fit(), with each item in the list corresponding to data
-            from the same subject in the X fed to fit(). If you do not
-            need to transform some subjects' data, leave the entry
-            corresponding to that subject as None.
-        y : not used (as it is unsupervised learning)
-        scan_onsets : A list of 1-d numpy arrays,
-            Each array corresponds to the onsets of
-            scans in the data X for the particular subject.
-            If not provided, data will be assumed
-            to be acquired in a continuous scan.
-        Returns
-        -------
-        ts : list of 2-D arrays. For each item,
-            shape = [time_points, condition]
-            The estimated response to the task conditions whose
-            response amplitudes were estimated during the fit step.
-            One item for each subject. If some subjects' data are
-            not provided, None will be returned.
-        ts0: list of 2-D array. For each item,
-            shape = [time_points, n_nureg]
-            The estimated time courses spread across the brain, with the
-            loading weights estimated during the fit step.
-            One item for each subject. If some subjects' data are
-            not provided, None will be returned.
-        """
-        assert len(X) == self.n_subj_
-        X = self._check_data_GBRSA(X, for_fit=False)
-        scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
-        ts = [None] * self.n_subj_
-        ts0 = [None] * self.n_subj_
-        log_p = [None] * self.n_subj_
-        for i, x in enumerate(X):
-            if x is not None:
-                s = scan_onsets[i]
-                if s is None:
-                    s = np.array([0])
-                else:
-                    s = np.int32(s)
-                ts[i], ts0[i], log_p[i] = self._transform(
-                    Y=x, scan_onsets=s, beta=self.beta_[i],
-                    beta0=self.beta0_[i], rho_e = self.rho_[i],
-                    sigma_e=self.sigma_[i], rho_X=self._rho_design_[i],
-                    sigma2_X=self._sigma2_design_[i],
-                    rho_X0=self._rho_X0_[i], sigma2_X0=self._sigma2_X0_[i])
-        return ts, ts0
