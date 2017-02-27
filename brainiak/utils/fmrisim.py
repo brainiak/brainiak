@@ -1204,7 +1204,7 @@ def _generate_noise_spatial(dimensions,
     return noise_spatial
 
 
-def _generate_noise_temporal(stimfunction,
+def _generate_noise_temporal(stimfunction_tr,
                              tr_duration,
                              dimensions,
                              mask,
@@ -1213,6 +1213,7 @@ def _generate_noise_temporal(stimfunction,
                              drift_sigma,
                              auto_reg_sigma,
                              physiological_sigma,
+                             temporal_resolution=1000.0,
                              ):
     """Generate the signal dependent noise
 
@@ -1222,8 +1223,9 @@ def _generate_noise_temporal(stimfunction,
     Parameters
     ----------
 
-    stimfunction : 1 Dimensional array
-        This is the timecourse of the stimuli in this experiment
+    stimfunction_tr : 1 Dimensional array
+        This is the timecourse of the stimuli in this experiment,
+        each element represents a TR
 
     tr_duration : int
         How long is a TR, in seconds
@@ -1258,7 +1260,7 @@ def _generate_noise_temporal(stimfunction,
 
     # Set up common parameters
     # How many TRs are there
-    trs = int(len(stimfunction) / (tr_duration * 1000))
+    trs = len(stimfunction_tr)
 
     # What time points are sampled by a TR?
     timepoints = list(range(0, trs * tr_duration))[::tr_duration]
@@ -1303,9 +1305,8 @@ def _generate_noise_temporal(stimfunction,
                                        auto_reg_sigma)
 
     # Only do this if you are making motion variance
-    if motion_sigma != 0 and np.sum(stimfunction) > 0:
+    if motion_sigma != 0 and np.sum(stimfunction_tr) > 0:
         # Make each noise type
-        stimfunction_tr = stimfunction[::(tr_duration * 1000)]
         noise_task = _generate_noise_temporal_task(stimfunction_tr,
                                                    )
         volume_task = _generate_noise_spatial(dimensions=dimensions,
@@ -1456,7 +1457,7 @@ def _noise_dict_update(noise_dict):
 
 
 def generate_noise(dimensions,
-                   stimfunction,
+                   stimfunction_tr,
                    tr_duration,
                    mask=None,
                    noise_dict=None,
@@ -1472,8 +1473,8 @@ def generate_noise(dimensions,
     dimensions : nd array
         What is the shape of the volume to be generated
 
-    stimfunction :  Iterable, list
-        When do the stimuli events occur
+    stimfunction_tr :  Iterable, list
+        When do the stimuli events occur. Each element is a TR
 
     tr_duration : float
         What is the duration, in seconds, of each TR?
@@ -1504,14 +1505,14 @@ def generate_noise(dimensions,
     dimensions_tr = (dimensions[0],
                      dimensions[1],
                      dimensions[2],
-                     int(len(stimfunction) / (tr_duration * 1000)))
+                     len(stimfunction_tr))
 
     # Get the mask of the brain and set it to be 3d
     if mask is None:
         mask = np.ones(dimensions_tr)
 
     # Generate the noise
-    noise_temporal = _generate_noise_temporal(stimfunction=stimfunction,
+    noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
                                               mask=mask[:, :, :, 0],
