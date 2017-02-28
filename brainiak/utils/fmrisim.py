@@ -449,7 +449,7 @@ def generate_stimfunction(onsets,
 
     # Generate the time course as empty, each element is a millisecond by
     # default
-    stimfunction = [0] * round(int(total_time * temporal_resolution))
+    stimfunction = [0] * round(total_time * temporal_resolution)
 
     # Cycle through the onsets
     for onset_counter in list(range(len(onsets))):
@@ -491,7 +491,7 @@ def export_stimfunction(stimfunction,
             The name of the three column text file to be output
 
         temporal_resolution : float
-            How many elements per second will be created
+            How many elements per second are you modeling for the stim function
 
     """
 
@@ -580,8 +580,7 @@ def double_gamma_hrf(stimfunction,
             Do you want to scale the function to a range of 1
 
         temporal_resolution : float
-          What is the temporal resolution (in s) of the stimulus function.
-          In other words, how many elements per second?
+            How many elements per second are you modeling for the stim function
     Returns
     ----------
 
@@ -627,8 +626,8 @@ def double_gamma_hrf(stimfunction,
     signal_function = np.convolve(stimfunction, hrf)
 
     # Decimate the signal function so that it only has one element per TR
-    temp = int(tr_duration * temporal_resolution)
-    signal_function = signal_function[0::temp]
+    decimate_interval = int(tr_duration * temporal_resolution)
+    signal_function = signal_function[0::decimate_interval]
 
     # Cut off the HRF
     signal_function = signal_function[0:int(len(stimfunction) / tr_duration
@@ -1019,6 +1018,8 @@ def _generate_noise_temporal_drift(trs,
 
     # Calculate the coefficients of the drift for a given function
     degree = round(trs * tr_duration / 150) + 1
+    if degree > 50:
+        degree = 50  # Max out in order to avoid precision errors
     coefficients = np.random.normal(0, 1, size=degree)
 
     # What are the values of this drift
