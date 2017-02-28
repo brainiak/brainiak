@@ -192,9 +192,10 @@ def test_generate_noise():
 
     assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
 
+    stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction=stimfunction,
+                               stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                mask=mask,
                                )
@@ -205,7 +206,7 @@ def test_generate_noise():
     assert np.std(signal) < np.std(noise), "Noise was not created"
 
     noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction=stimfunction,
+                               stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                mask=mask,
                                noise_dict={'overall': 0},
@@ -285,8 +286,9 @@ def test_calc_noise():
 
     # Mask the volume to be the same shape as a brain
     mask = sim.mask_brain(dimensions_tr)
+    stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
-                               stimfunction=stimfunction,
+                               stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                mask=mask,
                                noise_dict=nd_orig,
