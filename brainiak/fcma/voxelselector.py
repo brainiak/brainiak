@@ -75,7 +75,8 @@ class VoxelSelector:
 
     process_num: Optional[int]
         The number of processes used in cross validation.
-        If None, it will use up all available cores.
+        If None, the number of processes will equal
+        the number of hardware threads.
 
     master_rank: int, default 0
         The process which serves as the master
