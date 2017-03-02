@@ -528,7 +528,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             scan_onsets = np.int32(scan_onsets)
         ts, ts0, log_p = self._transform(
             Y=X, scan_onsets=scan_onsets, beta=self.beta_,
-            beta0=self.beta0_, rho_e = self.rho_, sigma_e=self.sigma_,
+            beta0=self.beta0_, rho_e=self.rho_, sigma_e=self.sigma_,
             rho_X=self._rho_design_, sigma2_X=self._sigma2_design_,
             rho_X0=self._rho_X0_, sigma2_X0=self._sigma2_X0_)
         return ts, ts0
@@ -547,7 +547,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             will be subtracted from data before the marginalization
             when evaluating the log likelihood. For null model,
             nothing will be subtracted before marginalization.
-            If you z-scored your data during fit step, you should 
+            If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
         ----------
@@ -577,10 +577,10 @@ class BRSA(BaseEstimator, TransformerMixin):
                          rho_e=self.rho_, sigma_e=self.sigma_,
                          rho_X0=self._rho_X0_, sigma2_X0=self._sigma2_X0_)
         ll_null = self._score(Y=X, design=None, beta=None,
-                         scan_onsets=scan_onsets, beta0=self.beta0_,
-                         rho_e=self.rho_, sigma_e=self.sigma_,
-                         rho_X0=self._rho_X0_,
-                         sigma2_X0=self._sigma2_X0_)
+                              scan_onsets=scan_onsets, beta0=self.beta0_,
+                              rho_e=self.rho_, sigma_e=self.sigma_,
+                              rho_X0=self._rho_X0_,
+                              sigma2_X0=self._sigma2_X0_)
         return ll, ll_null
 
     # The following 2 functions _D_gen and _F_gen generate templates used
@@ -701,6 +701,21 @@ class BRSA(BaseEstimator, TransformerMixin):
                              'included baseline time series.'
                              'Either remove them, or move them to'
                              ' nuisance regressors.')
+        X_DC, X_base, idx_DC = self._merge_DC_to_base(X_DC, X_base,
+                                                      no_DC)
+        if X_res is None:
+            X0 = X_base
+        else:
+            X0 = np.concatenate((X_base, X_res), axis=1)
+        n_X0 = X0.shape[1]
+        X0TX0, X0TDX0, X0TFX0 = self._make_templates(D, F, X0, X0)
+        XTX0, XTDX0, XTFX0 = self._make_templates(D, F, X, X0)
+        X0TY, X0TDY, X0TFY = self._make_templates(D, F, X0, Y)
+
+        return X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
+            X0TY, X0TDY, X0TFY, X0, X_base, n_X0, idx_DC
+
+    def _merge_DC_to_base(self, X_DC, X_base, no_DC):
         if X_base is not None:
             res0 = np.linalg.lstsq(X_DC, X_base)
             if not no_DC:
@@ -727,17 +742,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                         ' DC component are included for further modeling.'
                         ' The final covariance matrix won''t '
                         'reflet these components.')
-        if X_res is None:
-            X0 = X_base
-        else:
-            X0 = np.concatenate((X_base, X_res), axis=1)
-        n_X0 = X0.shape[1]
-        X0TX0, X0TDX0, X0TFX0 = self._make_templates(D, F, X0, X0)
-        XTX0, XTDX0, XTFX0 = self._make_templates(D, F, X, X0)
-        X0TY, X0TDY, X0TFY = self._make_templates(D, F, X0, Y)
-
-        return X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, \
-            X0TY, X0TDY, X0TFY, X0, X_base, n_X0, idx_DC
+        return X_DC, X_base, idx_DC
 
     def _make_sandwidge(self, XTX, XTDX, XTFX, rho1):
         return XTX - rho1 * XTDX + rho1**2 * XTFX
@@ -1086,10 +1091,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         est_sigma_AR1_UV = sigma2**0.5
         est_beta_AR1_UV = est_SNR_AR1_UV**2 \
             * np.dot(estU_chlsk_l_AR1_UV, YTAcorrXL_LAMBDA.T)
-            # est_sigma_AR1_UV *
+        # est_sigma_AR1_UV *
         est_beta_AR1_UV_latent =  \
             est_SNR_AR1_UV**2 * YTAcorrXL_LAMBDA.T
-            # est_sigma_AR1_UV *
+        # est_sigma_AR1_UV *
         # the latent term means that X*L multiplied by this term
         # is the same as X*beta. This will be used for decoding
         # and cross-validating, in case L is low-rank
@@ -1120,7 +1125,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             if GP_inten:
                 est_intensity_kernel_r = np.exp(current_GP[1] / 2.0)
                 K_major = np.exp(- (dist2 / est_space_smooth_r**2 +
-                                 inten_diff2 / est_intensity_kernel_r**2)
+                                    inten_diff2 / est_intensity_kernel_r**2)
                                  / 2.0)
             else:
                 est_intensity_kernel_r = None
@@ -1132,7 +1137,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                                                     invK_tilde_log_SNR) / 2
                 est_std_log_SNR = np.sqrt(
                     (np.dot(current_logSNR2, np.linalg.solve(
-                                K, current_logSNR2))
+                        K, current_logSNR2))
                      - n_V * self.tau_range**2
                      + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
                                * self.tau_range**2
@@ -1142,7 +1147,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             else:
                 est_std_log_SNR = np.sqrt(
                     (np.dot(current_logSNR2, np.linalg.solve(
-                                K, current_logSNR2))
+                        K, current_logSNR2))
                      + 2 * self.tau_range**2) / (2 * 2 + 2 + n_V))
         else:
             est_space_smooth_r = None
@@ -1166,12 +1171,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         # Constructing the transition matrix and the variance of
         # refreshing noise as prior for the latent variable X and X0
         # in new data.
-        
+
         n_C = beta.shape[0]
-        n_X0 = beta0.shape[0]
         n_T = Y.shape[0]
-        n_V = Y.shape[1]
-        X1 = np.empty((Y.shape[0], n_C + n_X0))
         weight = np.concatenate((beta, beta0), axis=0)
         T_X = np.diag(np.concatenate((rho_X, rho_X0)))
         Var_X = np.diag(np.concatenate((sigma2_X / (1 - rho_X**2),
@@ -1220,9 +1222,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             through beta0 will be marginalized.
         """
         logger.info('Estimating cross-validated score for new data.')
-        n_X0 = beta0.shape[0]
         n_T = Y.shape[0]
-        n_V = Y.shape[1]
         if design is not None:
             Y = Y - np.dot(design, beta)
         # The function works for both full model and null model.
@@ -1253,13 +1253,15 @@ class BRSA(BaseEstimator, TransformerMixin):
             total_log_p += log_p_data
         return total_log_p
 
-    def _est_AR1(self, x, same_para=False): # , cov_form='diag'
-        """ Estimate the AR(1) parameters of input x. If cov_form is "diag"
-            Then each column of x is assumed as independent from other columns,
-            and each column is treated as an AR(1) process of a random variable.
-            Otherwise if cov_form="full", then x is assumed to follow a vector
-            AR(1) process. The transition matrix and covariance of update noise
-            are both full matrices.
+    def _est_AR1(self, x, same_para=False):
+        """ Estimate the AR(1) parameters of input x.
+            Each column of x is assumed as independent from other columns,
+            and each column is treated as an AR(1) process.
+            If same_para is set as True, then all columns of x
+            are concatenated and a single set of AR(1) parameters
+            is estimated. Strictly speaking the breaking point
+            between each concatenated column should be considered.
+            But for long time series, this is ignored.
         """
         if same_para:
             n_c = x.shape[1]
@@ -1307,15 +1309,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         mu = [None] * n_T
         # posterior mean of X, conditioned on all data up till the current
         # time point
-        Gamma = [None] * n_T
-        # posterior variance of X, conditioned on all data up till the current
-        # time point
         Gamma_inv = [None] * n_T
         # inverse of poterior Gamma.
         mu_Gamma_inv = [None] * n_T
         # mu * inv(Gamma)
         log_p_data = - np.log(np.pi * 2) * (n_T * n_V) / 2 \
-            - log_det_Var_X / 2.0 - np.sum(np.log(sigma2_e)) * n_T /2.0\
+            - log_det_Var_X / 2.0 - np.sum(np.log(sigma2_e)) * n_T / 2.0\
             + np.sum(np.log(1 - rho_e**2)) / 2.0 - log_det_Var_dX / 2.0 \
             * (n_T - 1)
         # This is the term to be incremented by c_n at each time step.
@@ -1340,7 +1339,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         #     Y[0, :], cov=np.dot(np.dot(weight.T, Var_X), weight)
         #     + np.diag(sigma2_e / (1 - rho_e**2)))
         # Tweight_weightrho = np.dot(T_X, weight) - weight * rho_e
-        # next_term = np.dot(np.dot(weight.T, Var_dX), weight) + np.diag(sigma2_e)
+        # next_term = np.dot(np.dot(weight.T, Var_dX), weight) \
+        #     + np.diag(sigma2_e)
         # The two terms above are just for testing
 
         deltaY = Y[1:, :] - rho_e * Y[:-1, :]
@@ -1360,7 +1360,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
             log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
                 + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
-                # - np.sum(deltaY[t - 1]**2 / sigma2_e) / 2.0 \
+            # - np.sum(deltaY[t - 1]**2 / sigma2_e) / 2.0 \
             # log_p_data_alt += scipy.stats.multivariate_normal.logpdf(
             #     Y[t, :], mean=Y[t - 1, :] * rho_e + np.dot(
             #         mu[t - 1], Tweight_weightrho),
@@ -1377,9 +1377,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                        sigma2_e, weight, mu, mu_Gamma_inv, Gamma_inv,
                        Lambda_0, Lambda_1, H):
         """ backward step for HMM """
-        n_V = np.shape(deltaY)[1]
         n_T = len(Gamma_inv)
-        # This is because
         Gamma_inv_hat = [None] * n_T
         mu_Gamma_inv_hat = [None] * n_T
         mu_hat = [None] * n_T
@@ -1397,7 +1395,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     mu_Gamma_inv_hat[t + 1] - mu_Gamma_inv[t + 1]
                     + np.dot(deltaY[t, :] / sigma2_e, weight.T), tmp)
             mu_hat[t] = np.linalg.solve(Gamma_inv_hat[t],
-                                            mu_Gamma_inv_hat[t])
+                                        mu_Gamma_inv_hat[t])
         return mu_hat, mu_Gamma_inv_hat, Gamma_inv_hat
 
     def _initial_fit_singpara(self, XTX, XTDX, XTFX,
@@ -1570,7 +1568,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             logger.debug('norm of parameter change after fitting V: '
                          '{}'.format(norm_fitVchange))
             logger.debug('E[log(SNR2)^2]: {}'.format(
-                    np.mean(current_logSNR2**2)))
+                np.mean(current_logSNR2**2)))
 
             # The lines below are for debugging purpose.
             # If any voxel's log(SNR^2) gets to non-finite number,
@@ -1593,7 +1591,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                                     n_V, n_T, n_run, rank, n_X0)
                 betas = current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                    # current_sigma2**0.5 * 
+                # current_sigma2**0.5 *
                 beta0s = np.einsum(
                     'ijk,ki->ji', X0TAX0_i,
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
@@ -1730,7 +1728,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                                     n_V, n_T, n_run, rank, n_X0)
                 betas = current_SNR2 \
                     * np.dot(L, YTAcorrXL_LAMBDA.T)
-                    # current_sigma2**0.5 * 
+                # current_sigma2**0.5 *
                 beta0s = np.einsum(
                     'ijk,ki->ji', X0TAX0_i,
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
@@ -1840,7 +1838,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
-                            'after {} iterations'.format(self.tol, it+1))
+                            'after {} iterations'.format(self.tol, it + 1))
                 break
         X0TAX0 = X0TX0[np.newaxis, :, :] \
             - est_rho1_AR1_null[:, np.newaxis, np.newaxis] \
@@ -2002,7 +2000,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                                dX0TAX0_drho1[i_v, :, :]) * 0.5
                    - np.einsum('ij,ij', LAMBDA[i_v, :, :],
                                np.dot(np.dot(
-                                L.T, dXTAcorrX_drho1_ele), L))
+                                   L.T, dXTAcorrX_drho1_ele), L))
                    * (SNR2[i_v] * 0.5)
                    - dYTAcorrY_drho1_ele * 0.5 / sigma2[i_v]
                    + SNR2[i_v] / sigma2[i_v]
@@ -2292,9 +2290,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) \
             * (n_V * (- n_run * rho1 / (1 - rho1**2)
                       - 0.5 * np.trace(np.linalg.solve(
-                            X0TAX0, dX0TAX0_drho1))
+                          X0TAX0, dX0TAX0_drho1))
                       - 0.5 * np.trace(np.linalg.solve(
-                            LAMBDA_i, dLTXTAcorrXL_drho1)))
+                          LAMBDA_i, dLTXTAcorrXL_drho1)))
                - 0.5 * np.sum(dYTAcorrY_drho1) / sigma2
                + np.sum(dXTAcorrY_drho1 * L_LAMBDA_LTXTAcorrY) / sigma2
                - 0.5 * np.sum(np.dot(dXTAcorrX_drho1, L_LAMBDA_LTXTAcorrY)
@@ -2541,7 +2539,7 @@ class GBRSA(BRSA):
     """
 
     def __init__(
-            self, n_iter=50, n_iter_inner=10,rank=None,
+            self, n_iter=50, n_iter_inner=10, rank=None,
             auto_nuisance=True, n_nureg=6,
             nureg_method='PCA', logS_range=2.0, SNR_bins=41,
             rho_bins=20, prior_ts_cov='Full', tol=2e-3, verbose=False,
@@ -2739,7 +2737,7 @@ class GBRSA(BRSA):
                     s = np.int32(s)
                 ts[i], ts0[i], log_p[i] = self._transform(
                     Y=x, scan_onsets=s, beta=self.beta_[i],
-                    beta0=self.beta0_[i], rho_e = self.rho_[i],
+                    beta0=self.beta0_[i], rho_e=self.rho_[i],
                     sigma_e=self.sigma_[i], rho_X=self._rho_design_[i],
                     sigma2_X=self._sigma2_design_[i],
                     rho_X0=self._rho_X0_[i], sigma2_X0=self._sigma2_X0_[i])
@@ -2759,7 +2757,7 @@ class GBRSA(BRSA):
             will be subtracted from data before the marginalization
             when evaluating the log likelihood. For null model,
             nothing will be subtracted before marginalization.
-            If you z-scored your data during fit step, you should 
+            If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
         ----------
@@ -2770,11 +2768,11 @@ class GBRSA(BRSA):
             (recommended) when fitting the model, data should be z-scored
             as well when calling transform()
         design : List of 2-D arrays. One for each participant.
-            For each item, shape=[time_points, conditions]. 
+            For each item, shape=[time_points, conditions].
             Design matrices expressing the hypothetical response of
             the task conditions in data X.
         scan_onsets : List of 2-D arrays.  One for each participant.
-            For each item, shape=[number of fMRI scans (runs)]. 
+            For each item, shape=[number of fMRI scans (runs)].
             Lists of indices corresponding to the onsets of
             scans in the data X.
             If not provided, data will be assumed
@@ -2950,9 +2948,9 @@ class GBRSA(BRSA):
         log_weights = np.reshape(
             np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
         all_rho_grids = np.reshape(np.repeat(
-                rho_grids[None, :], self.SNR_bins, axis=0), n_grid)
+            rho_grids[None, :], self.SNR_bins, axis=0), n_grid)
         all_SNR_grids = np.reshape(np.repeat(
-                SNR_grids[:, None], self.rho_bins, axis=1), n_grid)
+            SNR_grids[:, None], self.rho_bins, axis=1), n_grid)
         # Prepare the data for fitting. These pre-calculated matrices
         # will be re-used a lot in evaluating likelihood function and
         # gradient.
@@ -3106,15 +3104,15 @@ class GBRSA(BRSA):
                               self.SNR_bins, axis=0),
                     (n_grid, n_X0[subj], n_X0[subj]))
                 X0TAX0_i[subj] = np.reshape(np.repeat(
-                        X0TAX0_i[subj][None, :, :, :],
-                        self.SNR_bins, axis=0),
-                                            (n_grid, n_X0[subj], n_X0[subj]))
+                    X0TAX0_i[subj][None, :, :, :],
+                    self.SNR_bins, axis=0),
+                    (n_grid, n_X0[subj], n_X0[subj]))
                 s2XTAcorrX[subj] = np.reshape(
                     SNR_grids[:, None, None, None]**2 * XTAcorrX[subj],
                     (n_grid, n_C, n_C))
                 YTAcorrY_diag[subj] = np.reshape(np.repeat(
-                        YTAcorrY_diag[subj][None, :, :],
-                        self.SNR_bins, axis=0), (n_grid, n_V[subj]))
+                    YTAcorrY_diag[subj][None, :, :],
+                    self.SNR_bins, axis=0), (n_grid, n_V[subj]))
                 sXTAcorrY[subj] = np.reshape(SNR_grids[:, None, None, None]
                                              * XTAcorrY[subj],
                                              (n_grid, n_C, n_V[subj]))
@@ -3159,9 +3157,9 @@ class GBRSA(BRSA):
                 # Mean-posterior estimate of rho.
                 sigma_means = denominator ** 0.5 \
                     * (np.exp(scipy.special.gammaln(
-                                (n_T[subj] - n_X0[subj] - 3) / 2)
-                              - scipy.special.gammaln(
-                                (n_T[subj] - n_X0[subj] - 2) / 2)) / 2**0.5)
+                        (n_T[subj] - n_X0[subj] - 3) / 2)
+                        - scipy.special.gammaln(
+                        (n_T[subj] - n_X0[subj] - 2) / 2)) / 2**0.5)
                 sigma_post[subj] = np.sum(sigma_means * weight_post, axis=0)
                 # The mean of inverse-Gamma distribution is beta/(alpha-1)
                 # The mode is beta/(alpha+1). Notice that beta here does not
@@ -3175,7 +3173,7 @@ class GBRSA(BRSA):
                     beta_post[subj] += np.dot(L_LAMBDA_LT[grid, :, :],
                                               sXTAcorrY[subj][grid, :, :])\
                         * all_SNR_grids[grid] \
-                        * weight_post[grid, :] # * sigma_means[grid, :]
+                        * weight_post[grid, :]  # * sigma_means[grid, :]
                     beta0_post[subj] += weight_post[grid, :] * np.dot(
                         X0TAX0_i[subj][grid, :, :],
                         (X0TAY[subj][grid, :, :]
@@ -3183,12 +3181,12 @@ class GBRSA(BRSA):
                                          L_LAMBDA_LT[grid, :, :]),
                                   sXTAcorrY[subj][grid, :, :])
                          * all_SNR_grids[grid]))
-                        
-                        # * sigma_means[grid, :]))
+
+                    # * sigma_means[grid, :]))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
-                            'after {} iterations'.format(self.tol, it+1))
+                            'after {} iterations'.format(self.tol, it + 1))
                 break
         t_finish = time.time()
         logger.info(
@@ -3198,7 +3196,7 @@ class GBRSA(BRSA):
             rho_post, X0
 
     def _fit_RSA_marginalized_null(self, Y, X_base,
-                              scan_onsets=None):
+                                   scan_onsets=None):
         """ The marginalized version of the null model for Bayesian RSA.
             The null model assumes no task-related response to the
             design matrix.
@@ -3246,40 +3244,15 @@ class GBRSA(BRSA):
             X_DC = []
             for r_l in run_TRs:
                 X_DC = scipy.linalg.block_diag(X_DC, np.ones(r_l)[:, None])
-            if X_base[subj] is not None:
-                res0 = np.linalg.lstsq(X_DC, X_base[subj])
-                if not np.any(np.isclose(res0[1], 0)):
-                    # No columns in X_base can be explained by the
-                    # baseline regressors. So we insert them.
-                    X_base[subj] = np.concatenate(
-                        (X_base[subj], X_DC), axis=1)
-                    idx_DC = np.arange(
-                        X_base[subj].shape[1] - X_DC.shape[1],
-                        X_base[subj].shape[1])
-                else:
-                    logger.warning('Provided regressors for uninteresting '
-                                   'time series of subject {} '
-                                   'already include baseline. No additional '
-                                   'baseline is inserted.'.format(subj))
-                    idx_DC = np.where(np.isclose(res0[1], 0))[0]
-            else:
-                # If a set of regressors for non-interested signals is not
-                # provided, then we simply include one baseline for each run.
-                X_base[subj] = X_DC
-                idx_DC = np.arange(0, X_base[subj].shape[1])
-                logger.info('You did not provide time series of no interest '
-                            'such as DC component for subject {}. '
-                            'Trivial regressors of DC component are '
-                            'included for further modeling.'
-                            ' The final covariance matrix won''t '
-                            'reflet these components.'.format(subj))
-            X_res = None
+            X_DC, X_base[subj], idx_DC = self._merge_DC_to_base(
+                X_DC, X_base[subj], no_DC=False)
+            X_res = np.empty((n_T, 0))
             for it in range(0, self.n_iter):
-                if X_res is None:
-                    X0[subj] = X_base[subj].copy()
-                else:
-                    X0[subj] = np.concatenate(
-                        (X_base[subj], X_res), axis=1)
+                # if X_res is None:
+                #     X0[subj] = X_base[subj].copy()
+                # else:
+                X0[subj] = np.concatenate(
+                    (X_base[subj], X_res), axis=1)
                 n_X0 = X0[subj].shape[1]
                 X0TX0, X0TDX0, X0TFX0 = self._make_templates(
                     D, F, X0[subj], X0[subj])
@@ -3289,7 +3262,7 @@ class GBRSA(BRSA):
                 YTAY_diag = YTY_diag - rho_grids[:, None] * YTDY_diag \
                     + rho_grids[:, None]**2 * YTFY_diag
                 # dimension: #rho*space,
-                # A/sigma2 is the inverse of noise covariance matrix in each voxel.
+                # A/sigma2 is the inverse of noise covariance matrix.
                 # YTAY means Y'AY
 
                 X0TAX0 = X0TX0[np.newaxis, :, :] \
@@ -3301,25 +3274,26 @@ class GBRSA(BRSA):
                 X0TAY = X0TY - rho_grids[:, None, None] * X0TDY \
                     + rho_grids[:, None, None]**2 * X0TFY
                 # dimension: #rho*#baseline*space
-                X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
+                X0TAX0_i = np.linalg.solve(
+                    X0TAX0, np.identity(n_X0)[None, :, :])
                 # dimension: #rho*#baseline*#baseline
                 YTAcorrY_diag = np.empty(np.shape(YTAY_diag))
                 for i_r in range(np.size(rho_grids)):
                     YTAcorrY_diag[i_r, :] = YTAY_diag[i_r, :] \
                         - np.sum(X0TAY[i_r, :, :] * np.dot(
-                                X0TAX0_i[i_r, :, :], X0TAY[i_r, :, :]),
-                                 axis=0)
+                            X0TAX0_i[i_r, :, :], X0TAY[i_r, :, :]),
+                        axis=0)
 
                 log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi)\
                     + n_run / 2 * np.log(1 - rho_grids**2) \
                     + scipy.special.gammaln((n_T - n_X0 - 2) / 2) \
                     + (n_T - n_X0 - 2) / 2 * np.log(2)
-                    # These are terms in the log likelihood that do not
-                    # depend on L. Notice that the last term comes from
-                    # ther term of marginalizing sigma. We take the 2 in
-                    # the denominator out. Accordingly, the "denominator"
-                    # variable in the _raw_loglike_grids() function is not
-                    # divided by 2
+                # These are terms in the log likelihood that do not
+                # depend on L. Notice that the last term comes from
+                # ther term of marginalizing sigma. We take the 2 in
+                # the denominator out. Accordingly, the "denominator"
+                # variable in the _raw_loglike_grids() function is not
+                # divided by 2
                 half_log_det_X0TAX0 = np.log(np.linalg.det(X0TAX0)) / 2
 
                 LL_raw = -half_log_det_X0TAX0[:, None] \
@@ -3354,11 +3328,17 @@ class GBRSA(BRSA):
                             logger.info('The change of X_res is '
                                         'smaller than the tolerance value {}.'
                                         'Fitting is finished after {} '
-                                        'iterations'.format(self.tol, it+1))
+                                        'iterations'.format(self.tol, it + 1))
                             break
                     X_res = X_res_new
-                LL_total = np.sum(np.log(result_sum) + max_value)
-
+            if idx_DC.size > 1:
+                collapsed_DC = np.sum(X0[subj][:, idx_DC], axis=1)
+                X0[subj] = np.insert(np.delete(X0[subj], idx_DC, axis=1), 0,
+                                     collapsed_DC, axis=1)
+                collapsed_beta0 = np.mean(beta0_post[subj][idx_DC, :], axis=0)
+                beta0_post[subj] = np.insert(
+                    np.delete(beta0_post[subj], idx_DC, axis=0),
+                    0, collapsed_beta0, axis=0)
         t_finish = time.time()
         logger.info(
             'total time of fitting: {} seconds'.format(t_finish - t_start))
@@ -3499,31 +3479,6 @@ class GBRSA(BRSA):
         # dimension: condition * rank
 
         return -LL_total, -grad_L[l_idx]
-
-    def _loglike_marginalized_null(self, YTAcorrY_diag,
-                              half_log_det_X0TAX0,
-                              log_weights, log_fixed_terms):
-        # In this version, X0 captures the
-        # co-flucturation between voxels.
-        # marginalized version marginalize sigma^2 rho1
-        # for all voxels. n_grid is the number of grid on which the numeric
-        # integration is performed to marginalize rho1 for each voxel.
-        # The log likelihood is an inverse-Gamma distribution sigma^2,
-        # so we can analytically marginalize it assuming uniform prior.
-        # n_grid is the number of grid in the parameter space of (rho1)
-
-        LL_raw = -half_log_det_X0TAX0[:, None] \
-            - (n_T - n_X0 - 2) / 2 * np.log(YTAcorrY_diag) \
-            + log_weights[:, None] + log_fixed_terms[:, None]
-        # dimension: n_grid * space
-        # The log likelihood at each pair of values of rho1.
-        # half_log_det_X0TAX0 is 0.5*log(det(X0TAX0)) with the size of
-        # number of parameter grids. So is the size of log_weights
-        
-        result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
-        LL_total = np.sum(np.log(result_sum) + max_value)
-
-        return -LL_total
 
     def _check_data_GBRSA(self, X, for_fit=True):
         # Check input data
