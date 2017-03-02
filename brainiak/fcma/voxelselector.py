@@ -73,6 +73,11 @@ class VoxelSelector:
     voxel_unit: int, default 64
         The number of voxels assigned to a worker each time
 
+    process_num: Optional[int]
+        The number of processes used in cross validation.
+        If None, the number of processes will equal
+        the number of hardware threads.
+
     master_rank: int, default 0
         The process which serves as the master
     """
@@ -83,6 +88,7 @@ class VoxelSelector:
                  raw_data,
                  raw_data2=None,
                  voxel_unit=64,
+                 process_num=None,
                  master_rank=0):
         self.labels = labels
         self.epochs_per_subj = epochs_per_subj
@@ -93,6 +99,7 @@ class VoxelSelector:
         self.num_voxels2 = raw_data2[0].shape[1] \
             if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
+        self.process_num = process_num
         self.master_rank = master_rank
         if self.raw_data2 is not None \
                 and len(self.raw_data) != len(self.raw_data2):
@@ -412,7 +419,7 @@ class VoxelSelector:
             inlist = [(i + task[0], self.num_folds, data[i, :, :],
                        self.labels) for i in range(task[1])]
 
-            with multiprocess.Pool(None) as pool:
+            with multiprocess.Pool(self.process_num) as pool:
                 results = list(pool.starmap(_cross_validation_for_one_voxel,
                                             inlist))
         else:
