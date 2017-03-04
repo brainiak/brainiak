@@ -285,10 +285,10 @@ def generate_signal(dimensions,
     Parameters
     ----------
 
-    dimensions : 3 length array, int
+    dimensions : 1d array, ndarray
         What are the dimensions of the volume you wish to create
 
-    feature_coordinates : multidimensional array, int
+    feature_coordinates : multidimensional array
         What are the feature_coordinates of the signal being created.
         Be aware of clipping: features far from the centre of the
         brain will be clipped. If you wish to have multiple features
@@ -378,6 +378,7 @@ def generate_stimfunction(onsets,
                           total_time,
                           weights=[1],
                           timing_file=None,
+                          temporal_resolution=1000.0,
                           ):
     """Return the function for the onset of events
 
@@ -407,6 +408,9 @@ def generate_stimfunction(onsets,
         timing_file : string
             The filename (with path) to a three column timing file (FSL) to
             make the events. Still requires tr_duration and total_time
+
+        temporal_resolution : float
+            How many elements per second are you modeling for the stim function
 
     Returns
     ----------
@@ -443,11 +447,9 @@ def generate_stimfunction(onsets,
     if len(weights) == 1:
         weights = weights * len(onsets)
 
-    # How many elements per second are you modeling
-    temporal_resolution = 1000
-
-    # Generate the time course as empty, each element is a millisecond
-    stimfunction = [0] * round(total_time * temporal_resolution)
+    # Generate the time course as empty, each element is a millisecond by
+    # default
+    stimfunction = [0] * int(round(total_time * temporal_resolution))
 
     # Cycle through the onsets
     for onset_counter in list(range(len(onsets))):
@@ -471,6 +473,7 @@ def generate_stimfunction(onsets,
 
 def export_stimfunction(stimfunction,
                         filename,
+                        temporal_resolution=1000.0
                         ):
     """ Output a tab separated timing file
 
@@ -487,6 +490,9 @@ def export_stimfunction(stimfunction,
         filename : str
             The name of the three column text file to be output
 
+        temporal_resolution : float
+            How many elements per second are you modeling for the stim function
+
     """
 
     # Iterate through the stim function
@@ -498,7 +504,7 @@ def export_stimfunction(stimfunction,
         if stimfunction[stim_counter] != 0:
 
             # When did the event start?
-            event_onset = str(stim_counter / 1000)
+            event_onset = str(stim_counter / temporal_resolution)
 
             # The weight of the stimulus
             weight = str(stimfunction[stim_counter])
@@ -517,7 +523,7 @@ def export_stimfunction(stimfunction,
                 stim_counter = stim_counter + 1
 
             # How long was the event in seconds
-            event_duration = str(event_duration / 1000)
+            event_duration = str(event_duration / temporal_resolution)
 
             # Append this row to the data file
             with open(filename, "a") as file:
@@ -538,7 +544,10 @@ def double_gamma_hrf(stimfunction,
                      response_dispersion=0.9,
                      undershoot_dispersion=0.9,
                      response_scale=1,
-                     undershoot_scale=0.035):
+                     undershoot_scale=0.035,
+                     scale_function=1,
+                     temporal_resolution=1000.0,
+                     ):
     """Return a double gamma HRF
 
     Parameters
@@ -546,6 +555,8 @@ def double_gamma_hrf(stimfunction,
         stimfunction : list, bool
             What is the time course of events to be modelled in this
             experiment
+
+        tr_duration : float
 
         response_delay : float
             How many seconds until the peak of the HRF
@@ -565,6 +576,11 @@ def double_gamma_hrf(stimfunction,
         undershoot_scale :float
             How big is the undershoot relative to the trough
 
+        scale_function : bool
+            Do you want to scale the function to a range of 1
+
+        temporal_resolution : float
+            How many elements per second are you modeling for the stim function
     Returns
     ----------
 
@@ -576,23 +592,29 @@ def double_gamma_hrf(stimfunction,
 
     hrf_length = 30  # How long is the HRF being created
 
-    hrf = [0] * hrf_length  # How many seconds of the HRF will you model?
+    # How many seconds of the HRF will you model?
+    hrf = [0] * int(hrf_length * temporal_resolution)
 
-    for hrf_counter in list(range(0, hrf_length - 1)):
-        # When is the peak of the two aspects of the HRF
-        response_peak = response_delay * response_dispersion
-        undershoot_peak = undershoot_delay * undershoot_dispersion
+    # When is the peak of the two aspects of the HRF
+    response_peak = response_delay * response_dispersion
+    undershoot_peak = undershoot_delay * undershoot_dispersion
+
+    for hrf_counter in list(range(len(hrf) - 1)):
 
         # Specify the elements of the HRF for both the response and undershoot
-        resp_pow = math.pow(hrf_counter / response_peak, response_delay)
-        resp_exp = math.exp(-(hrf_counter - response_peak) /
+        resp_pow = math.pow((hrf_counter / temporal_resolution) /
+                            response_peak, response_delay)
+        resp_exp = math.exp(-((hrf_counter / temporal_resolution) -
+                              response_peak) /
                             response_dispersion)
 
         response_model = response_scale * resp_pow * resp_exp
 
-        undershoot_pow = math.pow(hrf_counter / undershoot_peak,
+        undershoot_pow = math.pow((hrf_counter / temporal_resolution) /
+                                  undershoot_peak,
                                   undershoot_delay)
-        undershoot_exp = math.exp(-(hrf_counter - undershoot_peak /
+        undershoot_exp = math.exp(-((hrf_counter / temporal_resolution) -
+                                    undershoot_peak /
                                     undershoot_dispersion))
 
         undershoot_model = undershoot_scale * undershoot_pow * undershoot_exp
@@ -600,17 +622,20 @@ def double_gamma_hrf(stimfunction,
         # For this time point find the value of the HRF
         hrf[hrf_counter] = response_model - undershoot_model
 
-    # Decimate the stim function so that it only has one element per TR
-    stimfunction = stimfunction[0::tr_duration * 1000]
-
     # Convolve the hrf that was created with the boxcar input
     signal_function = np.convolve(stimfunction, hrf)
 
+    # Decimate the signal function so that it only has one element per TR
+    decimate_interval = int(tr_duration * temporal_resolution)
+    signal_function = signal_function[0::decimate_interval]
+
     # Cut off the HRF
-    signal_function = signal_function[0:len(stimfunction)]
+    signal_function = signal_function[0:int(len(stimfunction) / tr_duration
+                                            / temporal_resolution)]
 
     # Scale the function so that the peak response is 1
-    signal_function = signal_function / np.max(signal_function)
+    if scale_function == 1:
+        signal_function = signal_function / np.max(signal_function)
 
     return signal_function
 
@@ -993,6 +1018,8 @@ def _generate_noise_temporal_drift(trs,
 
     # Calculate the coefficients of the drift for a given function
     degree = round(trs * tr_duration / 150) + 1
+    if degree > 50:
+        degree = 50  # Max out in order to avoid precision errors
     coefficients = np.random.normal(0, 1, size=degree)
 
     # What are the values of this drift
@@ -1183,7 +1210,7 @@ def _generate_noise_spatial(dimensions,
     return noise_spatial
 
 
-def _generate_noise_temporal(stimfunction,
+def _generate_noise_temporal(stimfunction_tr,
                              tr_duration,
                              dimensions,
                              mask,
@@ -1201,8 +1228,9 @@ def _generate_noise_temporal(stimfunction,
     Parameters
     ----------
 
-    stimfunction : 1 Dimensional array
-        This is the timecourse of the stimuli in this experiment
+    stimfunction_tr : 1 Dimensional array
+        This is the timecourse of the stimuli in this experiment,
+        each element represents a TR
 
     tr_duration : int
         How long is a TR, in seconds
@@ -1237,7 +1265,7 @@ def _generate_noise_temporal(stimfunction,
 
     # Set up common parameters
     # How many TRs are there
-    trs = int(len(stimfunction) / (tr_duration * 1000))
+    trs = len(stimfunction_tr)
 
     # What time points are sampled by a TR?
     timepoints = list(range(0, trs * tr_duration))[::tr_duration]
@@ -1282,9 +1310,8 @@ def _generate_noise_temporal(stimfunction,
                                        auto_reg_sigma)
 
     # Only do this if you are making motion variance
-    if motion_sigma != 0 and np.sum(stimfunction) > 0:
+    if motion_sigma != 0 and np.sum(stimfunction_tr) > 0:
         # Make each noise type
-        stimfunction_tr = stimfunction[::(tr_duration * 1000)]
         noise_task = _generate_noise_temporal_task(stimfunction_tr,
                                                    )
         volume_task = _generate_noise_spatial(dimensions=dimensions,
@@ -1435,7 +1462,7 @@ def _noise_dict_update(noise_dict):
 
 
 def generate_noise(dimensions,
-                   stimfunction,
+                   stimfunction_tr,
                    tr_duration,
                    mask=None,
                    noise_dict=None,
@@ -1448,11 +1475,11 @@ def generate_noise(dimensions,
 
     Parameters
     ----------
-    dimensions : n length array, int
+    dimensions : nd array
         What is the shape of the volume to be generated
 
-    stimfunction :  Iterable, bool
-        When do the stimuli events occur
+    stimfunction_tr :  Iterable, list
+        When do the stimuli events occur. Each element is a TR
 
     tr_duration : float
         What is the duration, in seconds, of each TR?
@@ -1483,14 +1510,14 @@ def generate_noise(dimensions,
     dimensions_tr = (dimensions[0],
                      dimensions[1],
                      dimensions[2],
-                     int(len(stimfunction) / (tr_duration * 1000)))
+                     len(stimfunction_tr))
 
     # Get the mask of the brain and set it to be 3d
     if mask is None:
         mask = np.ones(dimensions_tr)
 
     # Generate the noise
-    noise_temporal = _generate_noise_temporal(stimfunction=stimfunction,
+    noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
                                               mask=mask[:, :, :, 0],

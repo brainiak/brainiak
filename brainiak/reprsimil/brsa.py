@@ -18,7 +18,7 @@
 
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",
-    M. Cai, N. Schuck, J. Pillow, Y. Niv,
+    M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
     Advances in Neural Information Processing Systems 29, 2016, 4952--4960
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing
@@ -69,7 +69,7 @@ class BRSA(BaseEstimator, TransformerMixin):
     will be provided as a quantification of neural representational similarity.
 
     .. math::
-        Y = X \\cdot \\beta + \\epsilon
+        Y = X \\cdot \\beta + X_0 \\cdot \\beta_0 + \\epsilon
 
         \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
