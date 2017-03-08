@@ -275,11 +275,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                                           max_iter=20, tol=tol)
         elif nureg_method == 'ICA':
             self.nureg_method = FastICA(n_components=n_nureg, whiten=True)
-        elif type(nureg_method) is str:
+        else:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
-        else:
-            self.nureg_method = nureg_method
         self.DC_single = DC_single
         self.verbose = verbose
         self.eta = eta

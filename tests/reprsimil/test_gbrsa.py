@@ -167,25 +167,7 @@ def test_fit():
     ts, ts0 = gbrsa.transform(X=[None]*3,scan_onsets=scan_onsets)
     assert ts == [None] * 3 and  ts0 == [None] * 3, "transform did not return list of None when data is None"
     
-    
-    # # Test fitting with lower rank, nuisance regressors 
-    # rank = n_C - 1
-    # n_nureg = 3
-    # gbrsa = GBRSA(rank=rank,n_nureg=n_nureg,auto_nuisance=True,logS_range=0.5, SNR_bins=15)
-    # gbrsa.fit(X=Y, design=design_mat, scan_onsets=scan_onsets)
-    # u_b = gbrsa.U_
-    # u_i = ideal_cov
-    # p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b)],u_i[np.tril_indices_from(u_i)])[1]
-    # assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
-    # # check that the recovered SNRs makes sense
-    # p = scipy.stats.pearsonr(gbrsa.nSNR_[1],snr[1])[1]
-    # assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
-    # p = scipy.stats.pearsonr(gbrsa.sigma_[2],noise_level[2])[1]
-    # assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
-    # p = scipy.stats.pearsonr(gbrsa.rho_[0],rho1[0])[1]
-    # assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
-    # p = scipy.stats.pearsonr(gbrsa.beta0_[0][0, :],inten[0])[1]
-    # assert p < 0.01, "Fitted intensity level does not correlate with the simulated value!"
+
     
     
     
