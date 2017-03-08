@@ -46,7 +46,7 @@ def test_fit():
     n_run = [2, 1, 1]
     design_mat = [None] * 3
     n_T = [None] * 3
-    n_V = [50, 60, 60]
+    n_V = [40, 60, 60]
     for i in range(3):
         design_mat[i] = np.tile(design.design_task[:,:-1],[n_run[i],1])
         n_T[i] = n_run[i] * design.n_TR
@@ -119,7 +119,7 @@ def test_fit():
 
     # Test fitting.
     n_nureg = 2
-    gbrsa = GBRSA(n_iter = 20,auto_nuisance=True,logS_range=0.5, SNR_bins=11,n_nureg=n_nureg)
+    gbrsa = GBRSA(n_iter = 20,auto_nuisance=True,logS_range=0.5, SNR_bins=11, rho_bins=16, n_nureg=n_nureg)
 
     gbrsa.fit(X=Y, design=design_mat, scan_onsets=scan_onsets)
     

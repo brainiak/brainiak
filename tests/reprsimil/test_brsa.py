@@ -119,7 +119,7 @@ def test_fit():
 
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuisance=False)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuisance=False, tol=2e-3)
 
     # We also test that it can detect baseline regressor included in the design matrix for task conditions
     wrong_design = np.insert(design.design_task, 0, 1, axis=1)
@@ -170,7 +170,7 @@ def test_fit():
     # Test fitting with lower rank, nuisance regressors and without GP prior
     rank = n_C - 1
     n_nureg = 1
-    brsa = BRSA(rank=rank,n_nureg=n_nureg)
+    brsa = BRSA(rank=rank,n_nureg=n_nureg, tol=2e-3)
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets)
     u_b = brsa.U_
     u_i = ideal_cov
@@ -193,7 +193,7 @@ def test_fit():
     assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
 
     # Test fitting with GP over just spatial coordinates.
-    brsa = BRSA(GP_space=True, DC_single=False)
+    brsa = BRSA(GP_space=True, DC_single=False, tol=2e-3)
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets, coords=coords)
     # Check that result is significantly correlated with the ideal covariance matrix
     u_b = brsa.U_
