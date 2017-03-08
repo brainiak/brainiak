@@ -193,24 +193,24 @@ def test_fit():
     assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
 
     # Test fitting with GP over just spatial coordinates.
-    # brsa = BRSA(GP_space=True, DC_single=False)
-    # brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets, coords=coords)
-    # # Check that result is significantly correlated with the ideal covariance matrix
-    # u_b = brsa.U_
-    # u_i = ideal_cov
-    # p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b)],u_i[np.tril_indices_from(u_i)])[1]
-    # assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
-    # # check that the recovered SNRs makes sense
-    # p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
-    # assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
-    # assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
-    # p = scipy.stats.pearsonr(brsa.sigma_,noise_level)[1]
-    # assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
-    # p = scipy.stats.pearsonr(brsa.rho_,rho1)[1]
-    # assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
-    # assert not hasattr(brsa,'lGPinten_'),\
-    #     'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
-    # GP parameters are not set if not requested
+    brsa = BRSA(GP_space=True, DC_single=False)
+    brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets, coords=coords)
+    # Check that result is significantly correlated with the ideal covariance matrix
+    u_b = brsa.U_
+    u_i = ideal_cov
+    p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b)],u_i[np.tril_indices_from(u_i)])[1]
+    assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
+    # check that the recovered SNRs makes sense
+    p = scipy.stats.pearsonr(brsa.nSNR_,snr)[1]
+    assert p < 0.01, "Fitted SNR does not correlate with simulated SNR!"
+    assert np.isclose(np.mean(np.log(brsa.nSNR_)),0), "nSNR_ not normalized!"
+    p = scipy.stats.pearsonr(brsa.sigma_,noise_level)[1]
+    assert p < 0.01, "Fitted noise level does not correlate with simulated noise level!"
+    p = scipy.stats.pearsonr(brsa.rho_,rho1)[1]
+    assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
+    assert not hasattr(brsa,'lGPinten_'),\
+        'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
+    GP parameters are not set if not requested
     
 
 def test_gradient():
