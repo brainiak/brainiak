@@ -501,6 +501,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             collinearity (the recovered time courses of some conditions
             can be linearly explained by the recovered time courses
             of other conditions).
+
         Parameters
         ----------
         X : 2D arrays, shape=[time_points, voxels]
@@ -521,6 +522,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             The estimated time course spread across the brain, with the
             loading weights estimated during the fit step.
         """
+
         assert X.ndim == 2 and X.shape[1] == self.beta_.shape[1], \
             'The shape of X is not consistent with the shape of data '\
             'used in the fitting step. They should have the same number '\
@@ -558,6 +560,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
+
         Parameters
         ----------
         X : 2D arrays, shape=[time_points, voxels]
