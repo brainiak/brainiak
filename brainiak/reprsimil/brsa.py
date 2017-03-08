@@ -2403,6 +2403,7 @@ class GBRSA(BRSA):
 
         \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
+    See also `.BRSA`.
     Parameters
     ----------
     n_iter : int, default: 50
