@@ -581,6 +581,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             except for that there is no response to any of the
             task conditions.
         """
+
         assert X.ndim == 2 and X.shape[1] == self.beta_.shape[1], \
             'The shape of X is not consistent with the shape of data '\
             'used in the fitting step. They should have the same number '\
