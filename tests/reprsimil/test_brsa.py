@@ -210,7 +210,7 @@ def test_fit():
     assert p < 0.01, "Fitted AR(1) coefficient does not correlate with simulated values!"
     assert not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
-    GP parameters are not set if not requested
+    # GP parameters are not set if not requested
     
 
 def test_gradient():
