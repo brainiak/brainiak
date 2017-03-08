@@ -21,8 +21,7 @@
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
     Advances in Neural Information Processing Systems 29, 2016, 4952--4960
     Available at:
-    http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing
-    -bias-in-neural-representational-similarity-analysis.pdf
+    http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis.pdf
     Some extensions not described in the paper have been made here.
 """
 
@@ -144,7 +143,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         GP_space should be True as well if you want to use this,
         because the smoothness should be primarily in space.
         Smoothness in intensity is just complementary.
-    space_smooth_range: scalar
+    space_smooth_range: float
         The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
         each voxel, typically millimeter) which you believe is
@@ -153,14 +152,14 @@ class BRSA(BaseEstimator, TransformerMixin):
         used to impose a half-Cauchy prior on the length scale.
         If not provided, the program will set it to half of the
         maximum distance between all voxels.
-    inten_smooth_range: scalar
+    inten_smooth_range: float
         The difference in image intensity which
         you believe is the maximum range of plausible length
         scale for the Gaussian Process defined over image
         intensity. Length scales larger than this are allowed,
         but will be penalized. If not supplied, this parameter
         will be set to half of the maximal intensity difference.
-    tau_range: scalar
+    tau_range: float
         The reasonable range of the standard deviation
         of log(SNR). This range should not be too
         large. 5 is a loose range.
@@ -168,7 +167,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: string, Default: 'invGamma'.
+    tau2_prior: string, 'invGamma' or 'halfCauchy',
+        Default: 'invGamma'.
         The form of prior for tau^2, the variance of the
         GP prior on log(SNR).
         It can be either 'invGamma' for inverse-Gamma or
@@ -176,7 +176,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         actually imposed on tau. tau_range still describes the
         range of tau in the prior for both cases. 'invGamma'
         penalizes for very small tau, while 'halfCauchy' does not.
-    eta: scalar, default: 0.0001
+    eta: float, default: 0.0001
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
         to ensure that the matrix is invertible.
@@ -191,7 +191,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         optimizer.
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
-    anneal_speed: scalar, default: 5
+    anneal_speed: float, default: 5
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -199,7 +199,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         time constant of the exponential.
         anneal_speed=5 means by n_iter/5 iterations,
         the amount of perturbation is reduced by 2.713 times.
-    tol: tolerance parameter passed to the minimizer.
+    tol: float, default: 1e-3
+        tolerance parameter passed to the minimizer.
     verbose : boolean, default: False
         Verbose mode flag.
 
@@ -219,11 +220,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         of the refreshing noise.
     rho_ : array, shape=[voxels,]
         The estimated autoregressive coefficient of each voxel
-    bGP_ : scalar, only if GP_space or GP_inten is True.
+    bGP_ : float, only if GP_space or GP_inten is True.
         the standard deviation of the GP prior
-    lGPspace_ : scalar, only if GP_space or GP_inten is True
+    lGPspace_ : float, only if GP_space or GP_inten is True
         the length scale of Gaussian Process prior of log(SNR)
-    lGPinten_: scalar, only if GP_inten is True
+    lGPinten_: float, only if GP_inten is True
         the length scale in fMRI intensity of the GP prior of log(SNR)
     beta_: array, shape=[conditions, voxels]
         The maximum a posterior estimation of the response amplitudes
@@ -255,7 +256,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             tau_range=5.0, tau2_prior='invGamma',
             eta=0.0001, init_iter=20, optimizer='BFGS',
             rand_seed=0, anneal_speed=5,
-            tol=2e-3, verbose=False):
+            tol=1e-3, verbose=False):
 
         self.n_iter = n_iter
         self.n_iter_inner = n_iter_inner
@@ -274,9 +275,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                                           max_iter=20, tol=tol)
         elif nureg_method == 'ICA':
             self.nureg_method = FastICA(n_components=n_nureg, whiten=True)
-        else:
+        elif type(nureg_method) is str:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
+        else:
+            self.nureg_method = nureg_method
         self.DC_single = DC_single
         self.verbose = verbose
         self.eta = eta
@@ -321,6 +324,9 @@ class BRSA(BaseEstimator, TransformerMixin):
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
             with every column for one condition across runs.
+            For example, if you have 3 runs of experiment of one participant,
+            with each run lasting 200 TR. And you have 4 conditions,
+            then design should be a 600 x 4 numpy array.
         nuisance: optional, 2-D numpy array,
             shape=[time_points, nuisance_factors]
             The responses to these regressors will be marginalized out from
@@ -495,6 +501,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             collinearity (the recovered time courses of some conditions
             can be linearly explained by the recovered time courses
             of other conditions).
+        Parameters
         ----------
         X : 2D arrays, shape=[time_points, voxels]
             fMRI data of new data of the same subject. The voxels should
@@ -551,6 +558,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
+        Parameters
         ----------
         X : 2D arrays, shape=[time_points, voxels]
             fMRI data of new data of the same subject. The voxels should
@@ -564,15 +572,23 @@ class BRSA(BaseEstimator, TransformerMixin):
             to be acquired in a continuous scan.
         Returns
         -------
-        ll: scalar,
+        ll: float,
             The log likelihood of the new data based on the model and its
             parameters fit to the training data.
-        ll_null: scalar,
+        ll_null: float,
             The log likelihood of the new data based on a null model
             which assumes the same as the full model for everything
             except for that there is no response to any of the
             task conditions.
         """
+        assert X.ndim == 2 and X.shape[1] == self.beta_.shape[1], \
+            'The shape of X is not consistent with the shape of data '\
+            'used in the fitting step. They should have the same number '\
+            'of voxels'
+        assert scan_onsets is None or (scan_onsets.ndim == 1 and
+                                       0 in scan_onsets), \
+            'scan_onsets should either be None or an array of indices '\
+            'If it is given, it should include at least 0'
         ll = self._score(Y=X, design=design, beta=self.beta_,
                          scan_onsets=scan_onsets, beta0=self.beta0_,
                          rho_e=self.rho_, sigma_e=self.sigma_,
@@ -723,15 +739,21 @@ class BRSA(BaseEstimator, TransformerMixin):
             X0TY, X0TDY, X0TFY, X0, X_base, n_X0, idx_DC
 
     def _merge_DC_to_base(self, X_DC, X_base, no_DC):
+        """ Merge DC components X_DC to the baseline time series
+            X_base (By baseline, this means any fixed nuisance
+            regressors not updated during fitting, including DC
+            components and any nuisance regressors provided by
+            the user.
+            X_DC is always in the first few columns of X_base.
+        """
         if X_base is not None:
             res0 = np.linalg.lstsq(X_DC, X_base)
             if not no_DC:
                 if not np.any(np.isclose(res0[1], 0)):
                     # No columns in X_base can be explained by the
                     # baseline regressors. So we insert them.
-                    X_base = np.concatenate((X_base, X_DC), axis=1)
-                    idx_DC = np.arange(X_base.shape[1] - X_DC.shape[1],
-                                       X_base.shape[1])
+                    X_base = np.concatenate((X_DC, X_base), axis=1)
+                    idx_DC = np.arange(0, X_DC.shape[1])
                 else:
                     logger.warning('Provided regressors for uninteresting '
                                    'time series already include baseline. '
@@ -891,6 +913,29 @@ class BRSA(BaseEstimator, TransformerMixin):
         return dist2, inten_diff2, space_smooth_range, inten_smooth_range,\
             n_smooth
 
+    def _calc_tau2(self, log_SNR_invK_tilde_log_SNR, n_V):
+        """ Calculate the MAP estimation of the standar deviation of GP
+            on log(SNR)
+            Note that the form of the MAP estimate
+            of tau2 depends on the form of prior imposed.
+        """
+        if self.tau2_prior == 'halfCauchy':
+            tau2 = (log_SNR_invK_tilde_log_SNR - n_V * self.tau_range**2
+                    + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
+                              * self.tau_range**2
+                              * log_SNR_invK_tilde_log_SNR
+                              + log_SNR_invK_tilde_log_SNR**2))\
+                / 2 / (n_V + 2)
+            log_ptau = scipy.stats.halfcauchy.logpdf(
+                tau2**0.5, scale=self.tau_range)
+        else:
+            tau2 = (log_SNR_invK_tilde_log_SNR + 2 * self.tau_range**2) /\
+                (2 * 2 + 2 + n_V)
+            log_ptau = scipy.stats.invgamma.logpdf(
+                tau2, scale=self.tau_range**2, a=2)
+        # LL_inc is  p(tau2)
+        return tau2, log_ptau
+
     def _build_index_param(self, n_l, n_V, n_smooth):
         """ Build dictionaries to retrieve each parameter
             from the combined parameters.
@@ -953,7 +998,6 @@ class BRSA(BaseEstimator, TransformerMixin):
                            ' do so.')
 
         n_l = np.size(l_idx[0])  # the number of parameters for L
-
         D, F, run_TRs, n_run = self._prepare_DF(
             n_T, scan_onsets=scan_onsets)
         XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
@@ -1136,24 +1180,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                 est_intensity_kernel_r = None
                 K_major = np.exp(- dist2 / est_space_smooth_r**2 / 2.0)
             K = K_major + np.diag(np.ones(n_V) * self.eta)
-            if self.tau2_prior == 'halfCauchy':
-                invK_tilde_log_SNR = np.linalg.solve(K, current_logSNR2) / 2
-                log_SNR_invK_tilde_log_SNR = np.dot(current_logSNR2,
-                                                    invK_tilde_log_SNR) / 2
-                est_std_log_SNR = np.sqrt(
-                    (np.dot(current_logSNR2, np.linalg.solve(
-                        K, current_logSNR2))
-                     - n_V * self.tau_range**2
-                     + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
-                               * self.tau_range**2
-                               * log_SNR_invK_tilde_log_SNR
-                               + log_SNR_invK_tilde_log_SNR**2))
-                    / 2 / (n_V + 2))
-            else:
-                est_std_log_SNR = np.sqrt(
-                    (np.dot(current_logSNR2, np.linalg.solve(
-                        K, current_logSNR2))
-                     + 2 * self.tau_range**2) / (2 * 2 + 2 + n_V))
+            invK_tilde_log_SNR = np.linalg.solve(K, current_logSNR2) / 2
+            log_SNR_invK_tilde_log_SNR = np.dot(current_logSNR2,
+                                                invK_tilde_log_SNR) / 2
+            tau2, _ = self._calc_tau2(log_SNR_invK_tilde_log_SNR, n_V)
+            est_std_log_SNR = tau2 ** 0.5
         else:
             est_space_smooth_r = None
             est_intensity_kernel_r = None
@@ -1181,9 +1212,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         n_T = Y.shape[0]
         weight = np.concatenate((beta, beta0), axis=0)
         T_X = np.diag(np.concatenate((rho_X, rho_X0)))
-        Var_X = np.diag(np.concatenate((sigma2_X / (1 - rho_X**2),
-                                        sigma2_X0 / (1 - rho_X0**2))))
-        Var_dX = np.diag(np.concatenate((sigma2_X, sigma2_X0)))
+        Var_X = np.concatenate((sigma2_X / (1 - rho_X**2),
+                                sigma2_X0 / (1 - rho_X0**2)))
+        Var_dX = np.concatenate((sigma2_X, sigma2_X0))
         sigma2_e = sigma_e ** 2
         scan_onsets = np.setdiff1d(scan_onsets, n_T)
         n_scan = scan_onsets.size
@@ -1198,7 +1229,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 offset = scan_onsets[scan + 1]
             mu, mu_Gamma_inv, Gamma_inv, log_p_data, Lambda_0, \
                 Lambda_1, H, deltaY, deltaY_sigma2inv_rho_weightT = \
-                self._forward_step(Y[onset:offset],
+                self._forward_step(Y[onset:offset, :],
                                    T_X, Var_X, Var_dX, rho_e, sigma2_e,
                                    weight)
             total_log_p += log_p_data
@@ -1235,8 +1266,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         # used as input for _forward_step. If design matrix is provided,
         # residual after subtracting design * beta is fed to _forward_step
         T_X = np.diag(rho_X0)
-        Var_X = np.diag(sigma2_X0 / (1 - rho_X0**2))
-        Var_dX = np.diag(sigma2_X0)
+        Var_X = sigma2_X0 / (1 - rho_X0**2)
+        Var_dX = sigma2_X0
         # Prior parmeters for X0: T_X is transitioning matrix, Var_X
         # is the marginal variance of the first time point. Var_dX is the
         # variance of the updating noise.
@@ -1253,7 +1284,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 offset = scan_onsets[scan + 1]
             _, _, _, log_p_data, _, _, _, _, _ = \
                 self._forward_step(
-                    Y[onset:offset], T_X, Var_X, Var_dX, rho_e, sigma2_e,
+                    Y[onset:offset, :], T_X, Var_X, Var_dX, rho_e, sigma2_e,
                     beta0)
             total_log_p += log_p_data
         return total_log_p
@@ -1297,7 +1328,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             Var_X = np.diag(Var_X)
             # the marginal variance of X
         else:
-            log_det_Var_X = np.linalg.det(Var_X)
+            log_det_Var_X = np.log(np.linalg.det(Var_X))
             inv_Var_X = np.linalg.inv(Var_X)
         if Var_dX.ndim == 1:
             inv_Var_dX = np.diag(1 / Var_dX)
@@ -1306,7 +1337,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             # the marginal variance of Delta X
         else:
             inv_Var_dX = np.linalg.inv(Var_dX)
-            log_det_Var_dX = np.linalg.det(Var_dX)
+            log_det_Var_dX = np.log(np.linalg.det(Var_dX))
         if T_X.ndim == 1:
             T_X = np.diag(T_X)
         [n_T, n_V] = np.shape(Y)
@@ -1357,7 +1388,6 @@ class BRSA(BaseEstimator, TransformerMixin):
             tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
             log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
                 + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
-
         log_p_data += -np.log(np.linalg.det(Gamma_inv[-1])) / 2.0 \
             + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0 \
             - np.sum(deltaY**2 / sigma2_e) / 2.0
@@ -2113,23 +2143,9 @@ class BRSA(BaseEstimator, TransformerMixin):
 
             # MAP estimate of the variance of the Gaussian Process given
             # other parameters.
-            if self.tau2_prior == 'halfCauchy':
-                tau2 = (log_SNR_invK_tilde_log_SNR - n_V * self.tau_range**2
-                        + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
-                                  * self.tau_range**2
-                                  * log_SNR_invK_tilde_log_SNR
-                                  + log_SNR_invK_tilde_log_SNR**2))\
-                    / 2 / (n_V + 2)
-                # Prior on the standar deviation of GP
-                LL += scipy.stats.halfcauchy.logpdf(
-                    tau2**0.5, scale=self.tau_range)
-                # Note that the form of the maximum likelihood estimate
-                # of tau2 depends on the form of prior imposed.
-            else:
-                tau2 = (log_SNR_invK_tilde_log_SNR + 2 * self.tau_range**2) /\
-                    (2 * 2 + 2 + n_V)
-                LL += scipy.stats.invgamma.logpdf(
-                    tau2, scale=self.tau_range**2, a=2)
+            tau2, log_ptau = self._calc_tau2(log_SNR_invK_tilde_log_SNR, n_V)
+            # log_ptau is log(p(tau)) given the form of prior for tau
+            LL += log_ptau
 
             # GP prior terms added to the log likelihood
             LL = LL - log_det_K_tilde / 2.0 - n_V / 2.0 * np.log(tau2) \
@@ -2476,7 +2492,7 @@ class GBRSA(BRSA):
         optimizer.
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
-    anneal_speed: scalar, default: 10
+    anneal_speed: float, default: 10
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -2676,6 +2692,7 @@ class GBRSA(BRSA):
         """ Use the model to estimate the time course of response to
             each condition, and the time course unrelated to task which
             is spread across the brain.
+        Parameters
         ----------
         X : list of 2-D arrays. For each item, shape=[time_points, voxels]
             New fMRI data of the same subjects. The voxels should
@@ -2747,6 +2764,7 @@ class GBRSA(BRSA):
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
+        Parameters
         ----------
         X : List of 2-D arrays. For each item, shape=[time_points, voxels]
             fMRI data of new data of the same participants.
