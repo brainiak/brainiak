@@ -119,7 +119,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         A time course of constant 1 will be included to the nuisance
         regressor regardless of whether the user requests. If DC_single
         is set to False, one such regressor is included for each fMRI run,
-        but a single component in beta0_ will be computed as the average
+        but a single component in beta0\_ will be computed as the average
         of the weight maps corresponding to these regressors. This might
         cause underestimation of noise variance.
         If DC_single is True, only one regressor of constant 1 will be
@@ -239,10 +239,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
     beta0_null_: array, shape=[n_nureg + n_base, voxels]
-        The equivalent of beta0_ in a null model which does not
+        The equivalent of beta0\_ in a null model which does not
         include the design matrix and response pattern beta
     X0_null_: array, shape=[time_points, n_nureg + n_base]
-        The equivalent of X0_ in a null model which does not
+        The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
 
     """
@@ -2408,6 +2408,7 @@ class GBRSA(BRSA):
         \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
     See also `.BRSA`.
+
     Parameters
     ----------
     n_iter : int, default: 50
@@ -2455,7 +2456,7 @@ class GBRSA(BRSA):
         A time course of constant 1 will be included to the nuisance
         regressor for each participant. If DC_single is set to False,
         one such regressor is included for each fMRI run, but at the end of
-        fitting, a single component in beta0_ will be computed as the average
+        fitting, a single component in beta0\_ will be computed as the average
         of the weight maps corresponding to these regressors. This might
         cause underestimation of noise variance.
         If DC_single is True, only one regressor of constant 1 will be
@@ -2537,11 +2538,11 @@ class GBRSA(BRSA):
         unrelated to the events of interest (design matrix).
     beta0_null_: list of ndarrays, shape=[n_nureg + n_base, voxels]
         for each subject.
-        The equivalent of beta0_ in a null model which does not
+        The equivalent of beta0\_ in a null model which does not
         include the design matrix and response pattern beta
     X0_null_: list of ndarrays, shape=[time_points, n_nureg + n_base]
         for each subject.
-        The equivalent of X0_ in a null model which does not
+        The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
 
     """
@@ -2697,6 +2698,7 @@ class GBRSA(BRSA):
         """ Use the model to estimate the time course of response to
             each condition, and the time course unrelated to task which
             is spread across the brain.
+
         Parameters
         ----------
         X : list of 2-D arrays. For each item, shape=[time_points, voxels]
@@ -2715,6 +2717,7 @@ class GBRSA(BRSA):
             scans in the data X for the particular subject.
             If not provided, data will be assumed
             to be acquired in a continuous scan.
+
         Returns
         -------
         ts : list of 2-D arrays. For each item,
@@ -2769,6 +2772,7 @@ class GBRSA(BRSA):
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
+
         Parameters
         ----------
         X : List of 2-D arrays. For each item, shape=[time_points, voxels]
@@ -2787,6 +2791,7 @@ class GBRSA(BRSA):
             scans in the data X.
             If not provided, data will be assumed
             to be acquired in a continuous scan.
+
         Returns
         -------
         ll: list, shape=[number of participants]
@@ -3082,7 +3087,7 @@ class GBRSA(BRSA):
                         self._prepare_data_XYX0(
                             X[subj], Y[subj], X_base[subj], X_res[subj],
                             D[subj], F[subj], run_TRs[subj], no_DC=True)
-                X0TAX0[subj], X0TAX0_i[subj], XTAcorrX[subj],  XTAcorrY[subj],\
+                X0TAX0[subj], X0TAX0_i[subj], XTAcorrX[subj], XTAcorrY[subj],\
                     YTAcorrY_diag[subj], X0TAY[subj], XTAX0[subj] \
                     = self._calc_sandwidge_marginalized(
                         XTY[subj], XTDY[subj], XTFY[subj], YTY_diag[subj],
