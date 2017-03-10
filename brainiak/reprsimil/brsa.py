@@ -53,6 +53,103 @@ __all__ = [
 ]
 
 
+def prior_GP_var_half_cauchy(log_SNR_invK_tilde_log_SNR, n_V, tau_range):
+    """ A prior imposed onto the variance (tau^2) of the Gaussian
+        Process prior imposed on log(SNR) (prior of prior).
+        Strictly speaking, it imposes half-Cauchy prior on tau.
+        You typically do not use this function by itself,
+        but give it to the argument tau2_prior of BRSA.
+        It is used internally by BRSA, returns the MAP estimation
+        of tau2 based on a half-Cauchy prior of tau, and
+        log(p(tau)) given this prior.
+        The alternative provided is inverse-Gamma prior on tau^2.
+        Half-Cauchy prior penalizes very large values of tau, while
+        inverse-Gamma prior penalizes for both very small and very
+        large values of tau.
+
+        Example usage:
+        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
+        brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
+
+    Parameters
+    ----------
+    log_SNR_invK_tilde_log_SNR: float
+        log(s) * inv(K_tild) * log(s)^T, where s is the vector
+        of SNRs in all voxels, K_tilde is covariance matrix of log(s)
+        following a Gaussian Process over voxel location (and intensity)
+        but without multiplying the variance of the Gaussian Process.
+        (which means it is the correlation of log(s) across voxels)
+    n_V: int, number of voxels
+    tau_range: float,
+        The reasonable range of tau, the standard deviation of the
+        Gaussian Process imposed on log(SNR). The smaller it is,
+        the more penalization is imposed on large variation of
+        SNR across voxels.
+    Returns:
+    --------
+    tau2: The MAP estimation of tau^2 based on the prior on tau
+        and the current input (log_SNR_invK_tilde_log_SNR).
+        tau_range is part of the parameter of the half-Cauchy prior
+    log_ptau: log(p(tau)) based on the prior on tau, which
+        will be added to the total log likelihood.
+    """
+    tau2 = (log_SNR_invK_tilde_log_SNR - n_V * tau_range**2
+            + np.sqrt(n_V**2 * tau_range**4 + (2 * n_V + 8)
+                      * tau_range**2
+                      * log_SNR_invK_tilde_log_SNR
+                      + log_SNR_invK_tilde_log_SNR**2))\
+        / 2 / (n_V + 2)
+    log_ptau = scipy.stats.halfcauchy.logpdf(
+        tau2**0.5, scale=tau_range)
+    return tau2, log_ptau
+
+
+def prior_GP_var_inv_gamma(log_SNR_invK_tilde_log_SNR, n_V, tau_range):
+    """ An inverse-Gamma prior imposed onto the variance (tau^2)
+        of the Gaussian Process prior imposed on log(SNR) (prior of prior).
+        You typically do not use this function by itself,
+        but give it to the argument tau2_prior of BRSA.
+        It is used internally by BRSA, returns the MAP estimation
+        of tau2 based on a half-Cauchy prior of tau, and
+        log(p(tau)) given this prior.
+        The alternative provided is half-Cauchy prior on tau^2.
+        Inverse-Gamma prior penalizes for both very small and very
+        large values of tau. while half-Cauchy prior only penalizes
+        very large values of tau.
+
+        Example usage:
+        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
+        brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
+
+    Parameters
+    ----------
+    log_SNR_invK_tilde_log_SNR: float
+        log(s) * inv(K_tild) * log(s)^T, where s is the vector
+        of SNRs in all voxels, K_tilde is covariance matrix of log(s)
+        following a Gaussian Process over voxel location (and intensity)
+        but without multiplying the variance of the Gaussian Process.
+        (which means it is the correlation of log(s) across voxels)
+    n_V: int, number of voxels
+    tau_range: float,
+        The reasonable range of tau, the standard deviation of the
+        Gaussian Process imposed on log(SNR). The smaller it is,
+        the more penalization is imposed on large variation of
+        SNR across voxels.
+    Returns:
+    --------
+    tau2: The MAP estimation of tau^2 based on the prior on tau
+        and the current input (log_SNR_invK_tilde_log_SNR).
+        tau_range is part of the parameter of the inverse-Gamma prior
+    log_ptau: log(p(tau)) based on the prior on tau, which
+        will be added to the total log likelihood.
+    """
+    tau2 = (log_SNR_invK_tilde_log_SNR + 2 * tau_range**2) /\
+        (2 * 2 + 2 + n_V)
+    log_ptau = scipy.stats.invgamma.logpdf(
+        tau2, scale=tau_range**2, a=2)
+    return tau2, log_ptau
+
+
 class BRSA(BaseEstimator, TransformerMixin):
     """Bayesian representational Similarity Analysis (BRSA)
 
@@ -167,15 +264,27 @@ class BRSA(BaseEstimator, TransformerMixin):
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: string, 'invGamma' or 'halfCauchy',
-        Default: 'invGamma'.
-        The form of prior for tau^2, the variance of the
-        GP prior on log(SNR).
-        It can be either 'invGamma' for inverse-Gamma or
-        'halfCauchy' for half-Cauchy. But half-Cauchy prior is
-        actually imposed on tau. tau_range still describes the
-        range of tau in the prior for both cases. 'invGamma'
-        penalizes for very small tau, while 'halfCauchy' does not.
+    tau2_prior: function, prior_GP_var_inv_gamma or
+        prior_GP_var_half_cauchy or custom function
+        Default: prior_GP_var_inv_gamma.
+        The function which impose a prior for tau^2, the variance of the
+        GP prior on log(SNR), and returns the MAP estimate of tau^2.
+        It can be either prior_GP_var_inv_gamma for inverse-Gamma
+        or prior_GP_var_half_cauchy for half-Cauchy.
+        But half-Cauchy prior is actually imposed on tau.
+        tau_range still describes the range of tau in the prior
+        in both cases. Inverse-Gamma prior
+        penalizes for very small tau and very large tau,
+        while half-Cauchy prior only penalizes for very large tau.
+        Both the functions are part of brsa module, which you need
+        to import together with BRSA in order to use.
+        For example::
+            from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
+            brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
+        Or, if you do are happy with the default inverse-Gamma prior,
+        then you can ignore this argument::
+            from brainiak.reprsimil.brsa import BRSA
+            brsa = BRSA()
     eta: float, default: 0.0001
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
@@ -253,7 +362,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             DC_single=True,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
-            tau_range=5.0, tau2_prior='invGamma',
+            tau_range=5.0,
+            tau2_prior=prior_GP_var_half_cauchy,
             eta=0.0001, init_iter=20, optimizer='BFGS',
             rand_seed=0, anneal_speed=5,
             tol=1e-3, verbose=False):
@@ -291,8 +401,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         # defined on spatial coordinate and a kernel defined on
         # image intensity.
         self.tau_range = tau_range
-        assert tau2_prior == 'invGamma' or tau2_prior == 'halfCauchy',\
-            'tau2_prior can only be "invGamma" or "halfCauchy"'
         self.tau2_prior = tau2_prior
         self.init_iter = init_iter
         # When imposing smoothness prior, fit the model without this
@@ -915,29 +1023,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         return dist2, inten_diff2, space_smooth_range, inten_smooth_range,\
             n_smooth
 
-    def _calc_tau2(self, log_SNR_invK_tilde_log_SNR, n_V):
-        """ Calculate the MAP estimation of the standar deviation of GP
-            on log(SNR)
-            Note that the form of the MAP estimate
-            of tau2 depends on the form of prior imposed.
-        """
-        if self.tau2_prior == 'halfCauchy':
-            tau2 = (log_SNR_invK_tilde_log_SNR - n_V * self.tau_range**2
-                    + np.sqrt(n_V**2 * self.tau_range**4 + (2 * n_V + 8)
-                              * self.tau_range**2
-                              * log_SNR_invK_tilde_log_SNR
-                              + log_SNR_invK_tilde_log_SNR**2))\
-                / 2 / (n_V + 2)
-            log_ptau = scipy.stats.halfcauchy.logpdf(
-                tau2**0.5, scale=self.tau_range)
-        else:
-            tau2 = (log_SNR_invK_tilde_log_SNR + 2 * self.tau_range**2) /\
-                (2 * 2 + 2 + n_V)
-            log_ptau = scipy.stats.invgamma.logpdf(
-                tau2, scale=self.tau_range**2, a=2)
-        # LL_inc is  p(tau2)
-        return tau2, log_ptau
-
     def _build_index_param(self, n_l, n_V, n_smooth):
         """ Build dictionaries to retrieve each parameter
             from the combined parameters.
@@ -1185,7 +1270,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             invK_tilde_log_SNR = np.linalg.solve(K, current_logSNR2) / 2
             log_SNR_invK_tilde_log_SNR = np.dot(current_logSNR2,
                                                 invK_tilde_log_SNR) / 2
-            tau2, _ = self._calc_tau2(log_SNR_invK_tilde_log_SNR, n_V)
+            tau2, _ = self.tau2_prior(log_SNR_invK_tilde_log_SNR, n_V,
+                                      self.tau_range)
             est_std_log_SNR = tau2 ** 0.5
         else:
             est_space_smooth_r = None
@@ -1387,9 +1473,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                 + np.dot(mu_Gamma_inv[t - 1]
                          - deltaY_sigma2inv_rho_weightT[t - 1, :], tmp)
             mu[t] = np.linalg.solve(Gamma_inv[t], mu_Gamma_inv[t])
-            tmp = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
+            tmp2 = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
             log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
-                + np.dot(tmp, np.linalg.solve(Gamma_tilde_inv, tmp)) / 2.0
+                + np.dot(tmp2, np.linalg.solve(Gamma_tilde_inv, tmp2)) / 2.0
         log_p_data += -np.log(np.linalg.det(Gamma_inv[-1])) / 2.0 \
             + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0 \
             - np.sum(deltaY**2 / sigma2_e) / 2.0
@@ -2145,7 +2231,8 @@ class BRSA(BaseEstimator, TransformerMixin):
 
             # MAP estimate of the variance of the Gaussian Process given
             # other parameters.
-            tau2, log_ptau = self._calc_tau2(log_SNR_invK_tilde_log_SNR, n_V)
+            tau2, log_ptau = self.tau2_prior(log_SNR_invK_tilde_log_SNR, n_V,
+                                             self.tau_range)
             # log_ptau is log(p(tau)) given the form of prior for tau
             LL += log_ptau
 

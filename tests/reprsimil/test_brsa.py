@@ -29,7 +29,8 @@ def test_can_instantiate():
                                      GP_space=True, GP_inten=True, tol=2e-3,
                                      eta=0.001,space_smooth_range=10.0,
                                      inten_smooth_range=100.0, tau_range=2.0,
-                                     tau2_prior='halfCauchy',optimizer='CG',
+                                     tau2_prior=brainiak.reprsimil.brsa.prior_GP_var_inv_gamma,
+                                     optimizer='CG',
                                      rand_seed=100, anneal_speed=20)
     assert s, "Invalid BRSA instance!"
 
