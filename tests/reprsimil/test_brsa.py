@@ -212,7 +212,7 @@ def test_fit():
     assert not hasattr(brsa,'lGPinten_'),\
         'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
     # GP parameters are not set if not requested
-    
+
 
 def test_gradient():
     from brainiak.reprsimil.brsa import BRSA
