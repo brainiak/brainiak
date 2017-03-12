@@ -279,12 +279,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         Both the functions are part of brsa module, which you need
         to import together with BRSA in order to use.
         For example::
-            from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
-            brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
+        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
+        brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
         Or, if you do are happy with the default inverse-Gamma prior,
         then you can ignore this argument::
-            from brainiak.reprsimil.brsa import BRSA
-            brsa = BRSA()
+        from brainiak.reprsimil.brsa import BRSA
+        brsa = BRSA()
     eta: float, default: 0.0001
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
@@ -779,12 +779,6 @@ class BRSA(BaseEstimator, TransformerMixin):
             F_ele = map(self._F_gen, run_TRs)
             D = scipy.linalg.block_diag(*D_ele)
             F = scipy.linalg.block_diag(*F_ele)
-            # D = []
-            # for d_ele in D_ele:
-            #     D = scipy.linalg.block_diag(D, d_ele)
-            # F = []
-            # for f_ele in F_ele:
-            #     F = scipy.linalg.block_diag(F, f_ele)
             # D and F above are templates for constructing
             # the inverse of temporal covariance matrix of noise
         return D, F, run_TRs, n_run
@@ -815,9 +809,6 @@ class BRSA(BaseEstimator, TransformerMixin):
             X_DC = np.ones((np.sum(run_TRs), 1))
         else:
             X_DC = scipy.linalg.block_diag(*map(np.ones, run_TRs)).T
-            # X_DC = []
-            # for r_l in run_TRs:
-            #     X_DC = scipy.linalg.block_diag(X_DC, np.ones(r_l)[:, None])
         return X_DC
 
     def _prepare_data_XYX0(self, X, Y, X_base, X_res, D, F, run_TRs,
