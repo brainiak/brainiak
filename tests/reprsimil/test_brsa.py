@@ -300,6 +300,10 @@ def test_gradient():
     X0 = np.ones(n_T)[:, None]
     D, F, run_TRs, n_run_returned = brsa._prepare_DF(
         n_T, scan_onsets=scan_onsets)
+    assert np.shape(D) == (n_T, n_T), 'D has wrong shape'
+    assert np.shape(F) == (n_T, n_T), 'F has wrong shape'
+    assert np.sum(D) == (n_T - n_run) * 2, 'D is initialized incorrectly.'
+    assert np.sum(F) == n_T - n_run * 2, 'F is initialized incorrectly.'
     assert n_run_returned == n_run, 'There is mistake in counting number of runs'
     assert np.sum(run_TRs) == n_T, 'The segmentation of the total experiment duration is wrong'
     XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \

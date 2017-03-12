@@ -785,7 +785,6 @@ class BRSA(BaseEstimator, TransformerMixin):
                 F = scipy.linalg.block_diag(F, f_ele)
             # D and F above are templates for constructing
             # the inverse of temporal covariance matrix of noise
-        print(np.shape(D))
         return D, F, run_TRs, n_run
 
     def _prepare_data_XY(self, X, Y, D, F):
