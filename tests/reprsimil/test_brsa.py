@@ -215,6 +215,7 @@ def test_fit():
 
 def test_DF():
     from brainiak.reprsimil.brsa import BRSA
+    import numpy as np
     BRSA = BRSA()
     D, F, run_TRs, n_run_returned = BRSA._prepare_DF(
             5, scan_onsets=[0,2])
