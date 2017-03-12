@@ -814,9 +814,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         if self.DC_single:
             X_DC = np.ones((np.sum(run_TRs), 1))
         else:
-            X_DC = []
-            for r_l in run_TRs:
-                X_DC = scipy.linalg.block_diag(X_DC, np.ones(r_l)[:, None])
+            X_DC = scipy.linalg.block_diag(*map(np.ones, run_TRs)).T
+            # X_DC = []
+            # for r_l in run_TRs:
+            #     X_DC = scipy.linalg.block_diag(X_DC, np.ones(r_l)[:, None])
         return X_DC
 
     def _prepare_data_XYX0(self, X, Y, X_base, X_res, D, F, run_TRs,
