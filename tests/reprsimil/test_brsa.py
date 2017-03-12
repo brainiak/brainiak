@@ -124,13 +124,10 @@ def test_fit():
 
     # We also test that it can detect baseline regressor included in the design matrix for task conditions
     wrong_design = np.insert(design.design_task, 0, 1, axis=1)
-    print(np.shape(wrong_design))
-    print(np.shape(Y))
-    print(scan_onsets)
-    # with pytest.raises(ValueError) as excinfo:
-    #     brsa.fit(X=Y, design=wrong_design, scan_onsets=scan_onsets,
-    #          coords=coords, inten=inten)
-    # assert 'Your design matrix appears to have included baseline time series.' in str(excinfo.value)
+    with pytest.raises(ValueError) as excinfo:
+        brsa.fit(X=Y, design=wrong_design, scan_onsets=scan_onsets,
+             coords=coords, inten=inten)
+    assert 'Your design matrix appears to have included baseline time series.' in str(excinfo.value)
     # Now we fit with the correct design matrix.
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets,
              coords=coords, inten=inten)
