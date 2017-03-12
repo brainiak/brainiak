@@ -213,6 +213,12 @@ def test_fit():
         'the BRSA object should not have parameters of lGPinten_ if only smoothness in space is requested.'
     # GP parameters are not set if not requested
 
+def test_DF():
+    from brainiak.reprsimil.brsa import BRSA
+    BRSA = BRSA()
+    D, F, run_TRs, n_run_returned = BRSA._prepare_DF(
+            5, scan_onsets=[0,2])
+    print('D:',D)
 
 def test_gradient():
     from brainiak.reprsimil.brsa import BRSA
