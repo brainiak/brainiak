@@ -219,6 +219,7 @@ def test_DF():
     D, F, run_TRs, n_run_returned = BRSA._prepare_DF(
             5, scan_onsets=[0,2])
     print('D:',D)
+    assert np.shape(D) == (5, 5)
 
 def test_gradient():
     from brainiak.reprsimil.brsa import BRSA
