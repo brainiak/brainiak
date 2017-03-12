@@ -216,10 +216,25 @@ def test_fit():
 def test_DF():
     from brainiak.reprsimil.brsa import BRSA
     import numpy as np
+    import scipy
     BRSA = BRSA()
+    
+    D_ele = map(BRSA._D_gen, [2, 3])
+    print('D_ele:',list(D_ele))
+    D_ele = map(BRSA._D_gen, [2, 3])
+    # D = []
+    # for d_ele in D_ele:
+    #     D = scipy.linalg.block_diag(D, d_ele)
+    D = scipy.linalg.block_diag(*D_ele)
+    print('manually generated D:',D)
+    assert np.shape(D) == (5, 5)
+    
+    D, F, run_TRs, n_run_returned = BRSA._prepare_DF(
+            5)
+    print('D generated without scan_onsets:',D)
     D, F, run_TRs, n_run_returned = BRSA._prepare_DF(
             5, scan_onsets=[0,2])
-    print('D:',D)
+    print('D generated without scan_onsets:',D)
     assert np.shape(D) == (5, 5)
 
 def test_gradient():
