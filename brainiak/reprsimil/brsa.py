@@ -53,98 +53,110 @@ __all__ = [
 ]
 
 
-def prior_GP_var_half_cauchy(log_SNR_invK_tilde_log_SNR, n_V, tau_range):
-    """ A prior imposed onto the variance (tau^2) of the Gaussian
-        Process prior imposed on log(SNR) (prior of prior).
-        Strictly speaking, it imposes half-Cauchy prior on tau.
-        You typically do not use this function by itself,
-        but give it to the argument tau2_prior of BRSA.
-        It is used internally by BRSA, returns the MAP estimation
-        of tau2 based on a half-Cauchy prior of tau, and
-        log(p(tau)) given this prior.
-        The alternative provided is inverse-Gamma prior on tau^2.
-        Half-Cauchy prior penalizes very large values of tau, while
+def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
+    """ Imposing a prior onto the variance (tau^2) of the Gaussian
+        Process which is in turn a prior imposed over
+        a function y = f(x).
+        Strictly speaking, this function imposes half-Cauchy prior
+        on tau instead of tau^2, with a scale parameter
+        gamma=tau_range.
+        The function returns the MAP estimate of tau^2 and
+        log(p(tau|tau_range)) for the estimated value of tau^2,
+        where tau_range describes the reasonable range of tau
+        in the half-Cauchy prior.
+        This function is written primarily for BRSA but can also
+        be used elsewhere.
+        An alternative form of prior is inverse-Gamma prior on tau^2.
+        Half-Cauchy prior penalizes for very large values of tau, while
         inverse-Gamma prior penalizes for both very small and very
         large values of tau.
 
         Example usage:
         from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
         brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
+        See also: `.prior_GP_var_inv_gamma`
 
     Parameters
     ----------
-    log_SNR_invK_tilde_log_SNR: float
-        log(s) * inv(K_tild) * log(s)^T, where s is the vector
-        of SNRs in all voxels, K_tilde is covariance matrix of log(s)
-        following a Gaussian Process over voxel location (and intensity)
-        but without multiplying the variance of the Gaussian Process.
-        (which means it is the correlation of log(s) across voxels)
-    n_V: int, number of voxels
+    y_invK_y: float
+        y * inv(K) * y^T, where y=f(x) is a vector of observations
+        of unknown function f at different locations x.
+        K is correlation matrix of f between different locations, based
+        on a Gaussian Process (GP) describing the smoothness property
+        of f. K fully incorporates the form of the kernel
+        and the length scale of the GP, but not the variance of the GP
+        (the purpose of this function is to estimate the variance).
+    n_y: int, number of observations
     tau_range: float,
         The reasonable range of tau, the standard deviation of the
-        Gaussian Process imposed on log(SNR). The smaller it is,
-        the more penalization is imposed on large variation of
-        SNR across voxels.
+        Gaussian Process imposed on y=f(x). tau_range is parameter
+        of the half-Cauchy prior.
+        The smaller it is, the more penalization is imposed
+        on large variation of y.
     Returns:
     --------
     tau2: The MAP estimation of tau^2 based on the prior on tau
-        and the current input (log_SNR_invK_tilde_log_SNR).
-        tau_range is part of the parameter of the half-Cauchy prior
-    log_ptau: log(p(tau)) based on the prior on tau, which
-        will be added to the total log likelihood.
+        and y_invK_y.
+    log_ptau: log(p(tau)) of the returned tau^2 based on the half-Cauchy
+        prior.
     """
-    tau2 = (log_SNR_invK_tilde_log_SNR - n_V * tau_range**2
-            + np.sqrt(n_V**2 * tau_range**4 + (2 * n_V + 8)
-                      * tau_range**2
-                      * log_SNR_invK_tilde_log_SNR
-                      + log_SNR_invK_tilde_log_SNR**2))\
-        / 2 / (n_V + 2)
+    tau2 = (y_invK_y - n_y * tau_range**2
+            + np.sqrt(n_y**2 * tau_range**4 + (2 * n_y + 8)
+                      * tau_range**2 * y_invK_y + y_invK_y**2))\
+        / 2 / (n_y + 2)
     log_ptau = scipy.stats.halfcauchy.logpdf(
         tau2**0.5, scale=tau_range)
     return tau2, log_ptau
 
 
-def prior_GP_var_inv_gamma(log_SNR_invK_tilde_log_SNR, n_V, tau_range):
-    """ An inverse-Gamma prior imposed onto the variance (tau^2)
-        of the Gaussian Process prior imposed on log(SNR) (prior of prior).
-        You typically do not use this function by itself,
-        but give it to the argument tau2_prior of BRSA.
-        It is used internally by BRSA, returns the MAP estimation
-        of tau2 based on a half-Cauchy prior of tau, and
-        log(p(tau)) given this prior.
-        The alternative provided is half-Cauchy prior on tau^2.
+def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
+    """ Imposing a prior onto the variance (tau^2) of the Gaussian
+        Process which is in turn a prior imposed over
+        a function y = f(x).
+        This function imposes an inverse-Gamma prior on tau^2
+        with a shape parameter alpha=2 and rate parameter
+        beta=tau_range^2.
+        The function returns the MAP estimate of tau^2 and
+        log(p(tau^2|tau_range)) for the estimated value of tau^2,
+        where tau_range describes the reasonable range of tau
+        in the inverse-Gamma prior.
+        This function is written primarily for BRSA but can also
+        be used elsewhere.
+        An alternative form of prior is half-Cauchy prior on tau.
         Inverse-Gamma prior penalizes for both very small and very
-        large values of tau. while half-Cauchy prior only penalizes
-        very large values of tau.
+        large values of tau, while half-Cauchy prior only penalizes
+        for very large values of tau.
 
         Example usage:
         from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
         brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
+        See also: `.prior_GP_var_half_cauchy`
 
     Parameters
     ----------
-    log_SNR_invK_tilde_log_SNR: float
-        log(s) * inv(K_tild) * log(s)^T, where s is the vector
-        of SNRs in all voxels, K_tilde is covariance matrix of log(s)
-        following a Gaussian Process over voxel location (and intensity)
-        but without multiplying the variance of the Gaussian Process.
-        (which means it is the correlation of log(s) across voxels)
-    n_V: int, number of voxels
+    y_invK_y: float
+        y * inv(K) * y^T, where y=f(x) is a vector of observations
+        of unknown function f at different locations x.
+        K is correlation matrix of f between different locations, based
+        on a Gaussian Process (GP) describing the smoothness property
+        of f. K fully incorporates the form of the kernel
+        and the length scale of the GP, but not the variance of the GP
+        (the purpose of this function is to estimate the variance).
+    n_y: int, number of observations
     tau_range: float,
         The reasonable range of tau, the standard deviation of the
-        Gaussian Process imposed on log(SNR). The smaller it is,
-        the more penalization is imposed on large variation of
-        SNR across voxels.
+        Gaussian Process imposed on y=f(x). tau_range is parameter
+        of the inverse-Gamma prior.
+        The smaller it is, the more penalization is imposed
+        on large variation of y.
     Returns:
     --------
     tau2: The MAP estimation of tau^2 based on the prior on tau
-        and the current input (log_SNR_invK_tilde_log_SNR).
-        tau_range is part of the parameter of the inverse-Gamma prior
-    log_ptau: log(p(tau)) based on the prior on tau, which
-        will be added to the total log likelihood.
+        and y_invK_y.
+    log_ptau: log(p(tau)) of the returned tau^2 based on the
+        inverse-Gamma prior.
     """
-    tau2 = (log_SNR_invK_tilde_log_SNR + 2 * tau_range**2) /\
-        (2 * 2 + 2 + n_V)
+    tau2 = (y_invK_y + 2 * tau_range**2) / (2 * 2 + 2 + n_y)
     log_ptau = scipy.stats.invgamma.logpdf(
         tau2, scale=tau_range**2, a=2)
     return tau2, log_ptau
@@ -171,20 +183,20 @@ class BRSA(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-    n_iter : int, default: 50
+    n_iter : int. Default: 50
         Number of maximum iterations to run the algorithm.
     n_iter_inner : int, default: 6
         Number of maximum iterations in the inner loop of optimization (within
         each iteration of n_iter). Users typically do not need to adjust this
         parameter.
-    rank : int, default: None
+    rank : int. Default: None
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
         to be full rank. When you have many conditions
         (e.g., calculating the similarity matrix of responses to each event),
         you might want to start with specifying a lower rank and use metrics
         such as AIC or BIC to decide the optimal rank.
-    auto_nuisance: boolean, default: True
+    auto_nuisance: boolean. Default: True
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
         we assume that a set of time courses not related to the task
@@ -205,12 +217,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int, default: 6
+    n_nureg: int. Default: 6
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'PCA'
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'PCA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean, default: True
         A time course of constant 1 will be included to the nuisance
@@ -228,19 +240,19 @@ class BRSA(BaseEstimator, TransformerMixin):
         field inhomogeneity. Setting DC_single to True will force the
         nuisance regressors automatically estimated from residuals to
         capture this.
-    GP_space: boolean, default: False
+    GP_space: boolean. Default: False
         Whether to impose a Gaussion Process (GP) prior on the log(pseudo-SNR).
         If true, the GP has a kernel defined over spatial coordinate.
         This is relatively slow for big ROI. We find that when SNR
         is generally low, smoothness can be overestimated.
         But such regularization may reduce variance in the estimated
         SNR map and similarity matrix.
-    GP_inten: boolean, defualt: False
+    GP_inten: boolean. Defualt: False
         Whether to include a kernel defined over the intensity of image.
         GP_space should be True as well if you want to use this,
         because the smoothness should be primarily in space.
         Smoothness in intensity is just complementary.
-    space_smooth_range: float
+    space_smooth_range: float. Default: None
         The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
         each voxel, typically millimeter) which you believe is
@@ -249,14 +261,14 @@ class BRSA(BaseEstimator, TransformerMixin):
         used to impose a half-Cauchy prior on the length scale.
         If not provided, the program will set it to half of the
         maximum distance between all voxels.
-    inten_smooth_range: float
+    inten_smooth_range: float. Default: None
         The difference in image intensity which
         you believe is the maximum range of plausible length
         scale for the Gaussian Process defined over image
         intensity. Length scales larger than this are allowed,
         but will be penalized. If not supplied, this parameter
         will be set to half of the maximal intensity difference.
-    tau_range: float
+    tau_range: float. Default: 5.0
         The reasonable range of the standard deviation
         of log(SNR). This range should not be too
         large. 5 is a loose range.
@@ -264,9 +276,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: function, prior_GP_var_inv_gamma or
-        prior_GP_var_half_cauchy or custom function
+    tau2_prior: callable[[float, int, float], [float, float]],
         Default: prior_GP_var_inv_gamma.
+        Can be prior_GP_var_inv_gamma or prior_GP_var_half_cauchy,
+        or a custom function.
         The function which impose a prior for tau^2, the variance of the
         GP prior on log(SNR), and returns the MAP estimate of tau^2.
         It can be either prior_GP_var_inv_gamma for inverse-Gamma
@@ -285,22 +298,23 @@ class BRSA(BaseEstimator, TransformerMixin):
         then you can ignore this argument::
         from brainiak.reprsimil.brsa import BRSA
         brsa = BRSA()
-    eta: float, default: 0.0001
+    eta: float. Default: 0.0001
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
         to ensure that the matrix is invertible.
-    init_iter: int, default: 20
+    init_iter: int. Default: 20
         How many initial iterations to fit the model
         without introducing the GP prior before fitting with it,
         if GP_space or GP_inten is requested. This initial
         fitting is to give the parameters a good starting point.
-    optimizer: the optimizer to use for minimizing cost function.
-        We use 'BFGS' as a default. Users can try other optimizer
-        coming with scipy.optimize.minimize, or a custom
-        optimizer.
-    rand_seed : int, default: 0
+    optimizer: str or callable. Default: 'BFGS'
+        The optimizer to use for minimizing cost function.
+        We use 'BFGS' as a default. Users can try other strings
+        corresponding to optimizer provided by scipy.optimize.minimize,
+        or a custom optimizer.
+    rand_seed : int. Default: 0
         Seed for initializing the random number generator.
-    anneal_speed: float, default: 5
+    anneal_speed: float. Default: 5
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -308,49 +322,51 @@ class BRSA(BaseEstimator, TransformerMixin):
         time constant of the exponential.
         anneal_speed=5 means by n_iter/5 iterations,
         the amount of perturbation is reduced by 2.713 times.
-    tol: float, default: 1e-3
+    tol: float. Default: 1e-3
         tolerance parameter passed to the minimizer.
-    verbose : boolean, default: False
+    verbose : boolean. Default: False
         Verbose mode flag.
 
     Attributes
     ----------
-    U_ : The shared covariance matrix, shape=[condition,condition].
-    L_ : The Cholesky factor of the shared covariance matrix
-        (lower-triangular matrix), shape=[condition,condition].
-    C_: the correlation matrix derived from the shared covariance matrix,
-        shape=[condition,condition]
-    nSNR_ : array, shape=[voxels,]
+    U_ : numpy array, shape=[condition,condition].
+        The shared covariance matrix.
+    L_ : numpy array, shape=[condition,rank].
+        The Cholesky factor of the shared covariance matrix
+        (lower-triangular matrix).
+    C_: numpy array, shape=[condition,condition].
+        The correlation matrix derived from the shared covariance matrix,
+    nSNR_ : numpy array, shape=[voxels,].
         The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
-    sigma_ : array, shape=[voxels,]
+    sigma_ : numpy array, shape=[voxels,].
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
         of the refreshing noise.
-    rho_ : array, shape=[voxels,]
+    rho_ : numpy array, shape=[voxels,].
         The estimated autoregressive coefficient of each voxel
     bGP_ : float, only if GP_space or GP_inten is True.
-        the standard deviation of the GP prior
+        The standard deviation of the GP prior
     lGPspace_ : float, only if GP_space or GP_inten is True
-        the length scale of Gaussian Process prior of log(SNR)
+        The length scale of Gaussian Process prior of log(SNR)
     lGPinten_: float, only if GP_inten is True
-        the length scale in fMRI intensity of the GP prior of log(SNR)
+        The length scale in fMRI intensity of the GP prior of log(SNR)
     beta_: array, shape=[conditions, voxels]
         The maximum a posterior estimation of the response amplitudes
         of each voxel to each task condition.
-    beta0_: array, shape=[n_nureg + n_base, voxels]
+    beta0_: numpy array, shape=[n_nureg + n_base, voxels]
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix. This helps capture the
         structure of spatial covariance of task-unrelated signal.
         n_base is the number of columns of the user-supplied nuisance
         regressors plus one for DC component
-    X0_: array, shape=[time_points, n_nureg + n_base]
+    X0_: numpy array, shape=[time_points, n_nureg + n_base]
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
-    beta0_null_: array, shape=[n_nureg + n_base, voxels]
+    beta0_null_: numpy array, shape=[n_nureg + n_base, voxels]
         The equivalent of beta0\_ in a null model which does not
-        include the design matrix and response pattern beta
-    X0_null_: array, shape=[time_points, n_nureg + n_base]
+        include the design matrix and response pattern beta.
+    X0_null_: numpy array, shape=[time_points, n_nureg + n_base]
         The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
 
@@ -416,12 +432,12 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        X: 2-D numpy array, shape=[time_points, voxels]
+        X: numpy array, shape=[time_points, voxels]
             If you have multiple scans of the same participants that you
             want to analyze together, you should concatenate them along
             the time dimension after proper preprocessing (e.g. spatial
             alignment), and specify the onsets of each scan in scan_onsets.
-        design: 2-D numpy array, shape=[time_points, conditions]
+        design: numpy array, shape=[time_points, conditions]
             This is the design matrix. It should only include the hypothetic
             response for task conditions. You should not include
             regressors for a DC component or motion parameters, unless with
@@ -433,8 +449,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             For example, if you have 3 runs of experiment of one participant,
             with each run lasting 200 TR. And you have 4 conditions,
             then design should be a 600 x 4 numpy array.
-        nuisance: optional, 2-D numpy array,
-            shape=[time_points, nuisance_factors]
+        nuisance: optional, numpy array, shape=[time_points, nuisance_factors]
             The responses to these regressors will be marginalized out from
             each voxel, which means they are considered, but won't be assumed
             to share the same pseudo-SNR map with the design matrix.
@@ -452,7 +467,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             by the users together with DC components will be used as
             nuisance time series.
             Please do not include time course of constant baseline in nuisance.
-        scan_onsets: optional, an 1-D numpy array, shape=[runs,]
+        scan_onsets: optional, numpy array, shape=[runs,]
             This specifies the indices of X which correspond to the onset
             of each scanning run. For example, if you have two experimental
             runs of the same subject, each with 100 TRs, then scan_onsets
@@ -461,10 +476,10 @@ class BRSA(BaseEstimator, TransformerMixin):
             assume all data are from the same run.
             The effect of them is to make the inverse matrix
             of the temporal covariance matrix of noise block-diagonal.
-        coords: optional, 2-D numpy array, shape=[voxels,3]
+        coords: optional, numpy array, shape=[voxels,3]
             This is the coordinate of each voxel,
             used for implementing Gaussian Process prior.
-        inten: optional, 1-D numpy array, shape=[voxel,]
+        inten: optional, numpy array, shape=[voxel,]
             This is the average fMRI intensity in each voxel.
             It should be calculated from your data without any preprocessing
             such as z-scoring. Because it should reflect
@@ -610,21 +625,22 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        X : 2D arrays, shape=[time_points, voxels]
+        X : numpy arrays, shape=[time_points, voxels]
             fMRI data of new data of the same subject. The voxels should
             match those used in the fit() function. If data are z-scored
             (recommended) when fitting the model, data should be z-scored
             as well when calling transform()
         y : not used (as it is unsupervised learning)
-        scan_onsets : A list of indices corresponding to the onsets of
+        scan_onsets : numpy array, shape=[number of runs]. Default: None.
+            A list of indices corresponding to the onsets of
             scans in the data X. If not provided, data will be assumed
             to be acquired in a continuous scan.
         Returns
         -------
-        ts : 2D arrays, shape = [time_points, condition]
+        ts : numpy arrays, shape = [time_points, condition]
             The estimated response to the task conditions which have the
             response amplitudes estimated during the fit step.
-        ts0: 2D array, shape = [time_points, n_nureg]
+        ts0: numpy array, shape = [time_points, n_nureg]
             The estimated time course spread across the brain, with the
             loading weights estimated during the fit step.
         """
@@ -669,14 +685,16 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        X : 2D arrays, shape=[time_points, voxels]
+        X : numpy arrays, shape=[time_points, voxels]
             fMRI data of new data of the same subject. The voxels should
             match those used in the fit() function. If data are z-scored
             (recommended) when fitting the model, data should be z-scored
             as well when calling transform()
-        design : design matrix expressing the hypothetical response of
+        design : numpy array, shape=[time_points, conditions]
+            Design matrix expressing the hypothetical response of
             the task conditions in data X.
-        scan_onsets : A list of indices corresponding to the onsets of
+        scan_onsets : numpy array, shape=[number of runs]. Default: None.
+            A list of indices corresponding to the onsets of
             scans in the data X. If not provided, data will be assumed
             to be acquired in a continuous scan.
         Returns
@@ -2490,20 +2508,20 @@ class GBRSA(BRSA):
 
     Parameters
     ----------
-    n_iter : int, default: 50
+    n_iter : int. Default: 50
         Number of maximum iterations to run the algorithm.
-    n_iter_inner : int, default: 10
+    n_iter_inner : int. Default: 10
         Number of maximum iterations in the inner loop of optimization (within
         each iteration of n_iter). Users typically do not need to adjust this
         parameter.
-    rank : int, default: None
+    rank : int. Default: None
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
         to be full rank. When you have many conditions
         (e.g., calculating the similarity matrix of responses to each event),
         you might want to start with specifying a lower rank and use metrics
         such as AIC or BIC to decide the optimal rank.
-    auto_nuisance: boolean, default: True
+    auto_nuisance: boolean. Default: True
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
         we assume that a set of time courses not related to the task
@@ -2524,14 +2542,14 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int, default: 6
+    n_nureg: int. Default: 6
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA', default: 'PCA'
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'PCA'
         The method to estimate the shared component in noise across voxels.
-    DC_single: boolean, default: True
+    DC_single: boolean. Default: True
         A time course of constant 1 will be included to the nuisance
         regressor for each participant. If DC_single is set to False,
         one such regressor is included for each fMRI run, but at the end of
@@ -2547,7 +2565,8 @@ class GBRSA(BRSA):
         field inhomogeneity. Setting DC_single to True will force the
         nuisance regressors automatically estimated from residuals to
         capture this.
-    logS_range: the reasonable range of the spread of SNR
+    logS_range: float. Default: 1.0
+        The reasonable range of the spread of SNR
         in log scale. This range should not be too large.
         We use 1.0 as default. If it is set too small,
         the estimated SNR will turn to be too close to each other.
@@ -2558,26 +2577,27 @@ class GBRSA(BRSA):
         SNR_bins accordingly, otherwise the SNR values evaluated might be
         too sparse, causing the posterior SNR estimations to be clustered
         around the bins.
-    SNR_bins: optional, integer. Default: 21
+    SNR_bins: integer. Default: 21
         The number of bins to divide the region of
         [-3*logS_range, 3*logS_range] for the log of pseudo-SNR.
         The default value 21 is based on the default value of logS_range=1.0
         and the bin width of 0.3 on log scale.
-    rho_bins: optional, integer. Default: 20
+    rho_bins: integer. Default: 20
         The number of bins to divide the region of (-1, 1) for rho.
         This only takes effect for fitting the marginalized version.
         If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
     tol: tolerance parameter passed to the minimizer.
-    verbose : boolean, default: False
+    verbose : boolean. Default: False
         Verbose mode flag.
-    optimizer: the optimizer to use for minimizing cost function.
-        We use 'BFGS' as a default. Users can try other optimizer
-        coming with scipy.optimize.minimize, or a custom
-        optimizer.
-    rand_seed : int, default: 0
+    optimizer: str or callable. Default: 'BFGS'
+        The optimizer to use for minimizing cost function.
+        We use 'BFGS' as a default. Users can try other strings
+        corresponding to optimizer provided by scipy.optimize.minimize,
+        or a custom optimizer.
+    rand_seed : int. Default: 0
         Seed for initializing the random number generator.
-    anneal_speed: float, default: 10
+    anneal_speed: float. Default: 10
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -2588,38 +2608,40 @@ class GBRSA(BRSA):
 
     Attributes
     ----------
-    U_ : The shared covariance matrix, shape=[condition,condition].
-    L_ : The Cholesky factor of the shared covariance matrix
-        (lower-triangular matrix), shape=[condition,condition].
-    C_: the correlation matrix derived from the shared covariance matrix,
-        shape=[condition,condition]
-    nSNR_ : list of ndarrays, shape=[voxels,] for each subject in the list.
+    U_ : numpy array, shape=[condition,condition].
+        The shared covariance matrix
+    L_ : numpy array, shape=[condition,condition].
+        The Cholesky factor of the shared covariance matrix
+        (lower-triangular matrix).
+    C_: numpy array, shape=[condition,condition].
+        The correlation matrix derived from the shared covariance matrix,
+    nSNR_ : list of numpy arrays, shape=[voxels,] for each subject in the list.
         The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
-    sigma_ : list of ndarrays, shape=[voxels,] for each subject.
+    sigma_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
         of the refreshing noise.
-    rho_ : list of ndarrays, shape=[voxels,] for each subject.
+    rho_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated autoregressive coefficient of each voxel
-    beta_: list of ndarrays, shape=[conditions, voxels] for each subject.
+    beta_: list of numpy arrays, shape=[conditions, voxels] for each subject.
         The maximum a posterior estimation of the response amplitudes
         of each voxel to each task condition.
-    beta0_: list of ndarrays, shape=[n_nureg + n_base, voxels]
+    beta0_: list of numpy arrays, shape=[n_nureg + n_base, voxels]
         for each subject.
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
         n_base is the number of columns of the user-supplied nuisance
         regressors plus one for DC component.
-    X0_: list of ndarrays, shape=[time_points, n_nureg + n_base]
+    X0_: list of numpy arrays, shape=[time_points, n_nureg + n_base]
         for each subject.
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
-    beta0_null_: list of ndarrays, shape=[n_nureg + n_base, voxels]
+    beta0_null_: list of numpy arrays, shape=[n_nureg + n_base, voxels]
         for each subject.
         The equivalent of beta0\_ in a null model which does not
         include the design matrix and response pattern beta
-    X0_null_: list of ndarrays, shape=[time_points, n_nureg + n_base]
+    X0_null_: list of numpy arrays, shape=[time_points, n_nureg + n_base]
         for each subject.
         The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
@@ -2666,26 +2688,27 @@ class GBRSA(BRSA):
 
         Parameters
         ----------
-        X: list of 2-D numpy arrays, shape=[time_points, voxels]
-            for each subject in the list.
-            If you have multiple scans of the same participants that you
-            want to analyze together, you should concatenate them along
-            the time dimension after proper preprocessing (e.g. spatial
+        X: list of numpy arrays, shape=[time_points, voxels] for each entry.
+            Data to be fitted. Each participant corresponds to one item in
+            the list. If you have multiple scans of the same participants
+            that you want to analyze together, you should concatenate them
+            along the time dimension after proper preprocessing (e.g. spatial
             alignment), and specify the onsets of each scan in scan_onsets.
-        design: list of 2-D numpy arrays, shape=[time_points, conditions]
-            for each subject in the list.
-            This is the design matrix. It should only include the hypothetic
-            response for task conditions. You should not include
-            regressors for a DC component or motion parameters, unless with
-            a strong reason. If you want to model head motion,
-            you should include them in nuisance regressors.
+        design: list of numpy arrays, shape=[time_points, conditions] for each.
+            This is the design matrix of each participant.
+            It should only include the hypothetic response for task conditions.
+            You should not include regressors for a DC component or
+            motion parameters, unless with a strong reason.
+            If you want to model head motion, you should include them
+            in nuisance regressors.
             If you have multiple run, the design matrix
-            of all runs should be concatenated along the time dimension,
-            with every column for one condition across runs.
+            of all runs should be concatenated along the time dimension for
+            each participant, with every column for one condition across runs.
             If the design matrix is the same for all subjects,
             either provide a list as required, or provide single numpy array.
-        nuisance: optional, list of 2-D numpy arrays,
+        nuisance: optional, list of numpy arrays,
             shape=[time_points, nuisance_factors] for each subject in the list.
+            Nuisance regressors of each participant.
             The responses to these regressors will be marginalized out from
             each voxel, which means they are considered, but won't be assumed
             to share the same pseudo-SNR map with the design matrix.
@@ -2701,16 +2724,17 @@ class GBRSA(BRSA):
             If auto_nuisance is set to False, the nuisance regressors supplied
             by the users together with DC components will be used as
             nuisance time series.
-        scan_onsets: optional, list 1-D numpy arrays, shape=[runs,]
-            for each subject in the list.
-            This specifies the indices of X which correspond to the onset
-            of each scanning run. For example, if you have two experimental
-            runs of the same subject, each with 100 TRs, then scan_onsets
-            should be [0,100].
-            If you do not provide the argument, the program will
-            assume all data are from the same run.
-            The effect of them is to make the inverse matrix
+        scan_onsets: optional, list numpy arrays, shape=[runs,] for each.
+            Each item in the list specifies the indices of X which correspond
+            to the onset of each scanning run for one participant.
+            For example, if you have two experimental runs of
+            the first participant, each with 100 TRs, and one run of the
+            second participant, with 150 TR, then scan_onsets should be
+            [ndarry([0, 100]), ndarry([150])].
+            The effect of this argument is to make the inverse matrix
             of the temporal covariance matrix of noise block-diagonal.
+            If you do not provide the argument, the program will
+            assume all data are from the same run for each participant.
         """
 
         logger.info('Running Marginalized Bayesian RSA')
@@ -2791,7 +2815,7 @@ class GBRSA(BRSA):
             If data are z-scored when fitting the model,
             data should be z-scored as well when calling transform()
         y : not used (as it is unsupervised learning)
-        scan_onsets : A list of 1-d numpy arrays,
+        scan_onsets : list of 1-D numpy arrays,
             Each array corresponds to the onsets of
             scans in the data X for the particular subject.
             If not provided, data will be assumed
@@ -2799,15 +2823,13 @@ class GBRSA(BRSA):
 
         Returns
         -------
-        ts : list of 2-D arrays. For each item,
-            shape = [time_points, condition]
+        ts : list of 2-D arrays. For each, shape = [time_points, condition]
             The estimated response to the cognitive dimensions
             （task dimensions) whose response amplitudes were estimated
             during the fit step.
             One item for each subject. If some subjects' data are
             not provided, None will be returned.
-        ts0: list of 2-D array. For each item,
-            shape = [time_points, n_nureg]
+        ts0: list of 2-D array. For each, shape = [time_points, n_nureg]
             The estimated time courses spread across the brain, with the
             loading weights estimated during the fit step.
             One item for each subject. If some subjects' data are
@@ -2860,12 +2882,12 @@ class GBRSA(BRSA):
             match those used in the fit() function. If data are z-scored
             (recommended) when fitting the model, data should be z-scored
             as well when calling transform()
-        design : List of 2-D arrays. One for each participant.
-            For each item, shape=[time_points, conditions].
+        design : List of 2-D arrays. shape=[time_points, conditions] for each
+            Each corresponds to one participant.
             Design matrices expressing the hypothetical response of
             the task conditions in data X.
-        scan_onsets : List of 2-D arrays.  One for each participant.
-            For each item, shape=[number of fMRI scans (runs)].
+        scan_onsets : List of 2-D arrays, shape=[#fMRI runs] for each
+            Each array corresponds to one participant.
             Lists of indices corresponding to the onsets of
             scans in the data X.
             If not provided, data will be assumed

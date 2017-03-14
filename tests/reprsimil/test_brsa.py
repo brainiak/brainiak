@@ -93,7 +93,7 @@ def test_fit():
     inten = np.random.rand(n_V) * 20.0
 
     # parameters of Gaussian process to generate pseuso SNR
-    tau = 0.8
+    tau = 1.0
     smooth_width = 5.0
     inten_kernel = 1.0
     
@@ -120,7 +120,7 @@ def test_fit():
 
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuisance=False, tol=2e-3)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 5,init_iter=10,auto_nuisance=False, tol=2e-3)
 
     # We also test that it can detect baseline regressor included in the design matrix for task conditions
     wrong_design = np.insert(design.design_task, 0, 1, axis=1)
@@ -168,9 +168,9 @@ def test_fit():
     # Test fitting with lower rank, nuisance regressors and without GP prior
     rank = n_C - 1
     n_nureg = 1
-    brsa = BRSA(rank=rank,n_nureg=n_nureg, tol=2e-3)
+    brsa = BRSA(rank=rank,n_nureg=n_nureg, tol=2e-3, n_iter=4,init_iter=4)
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets)
-    u_b = brsa.U_
+    # u_b = brsa.U_
     u_i = ideal_cov
     p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b)],u_i[np.tril_indices_from(u_i)])[1]
     assert p < 0.01, "Fitted covariance matrix does not correlate with ideal covariance matrix!"
@@ -189,11 +189,12 @@ def test_fit():
     assert brsa.beta0_.shape[0] == n_nureg + 1, 'Shape of beta0 incorrect'
     p = scipy.stats.pearsonr(brsa.beta0_[0,:],inten)[1]
     assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
+    assert np.shape(brsa.L_) == (n_C, rank), 'Cholesky factor should have shape of (n_C, rank)'
 
     # Test fitting with GP over just spatial coordinates.
-    brsa = BRSA(GP_space=True, DC_single=False, tol=2e-3)
+    brsa = BRSA(GP_space=True, DC_single=False, tol=2e-3, n_iter=4,init_iter=4)
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets, coords=coords)
-    # Check that result is significantly correlated with the ideal covariance matrix
+    # # Check that result is significantly correlated with the ideal covariance matrix
     u_b = brsa.U_
     u_i = ideal_cov
     p = scipy.stats.spearmanr(u_b[np.tril_indices_from(u_b)],u_i[np.tril_indices_from(u_i)])[1]
@@ -229,7 +230,7 @@ def test_gradient():
     design.n_TR = design.n_TR * n_run
 
     # start simulating some data
-    n_V = 200
+    n_V = 30
     n_C = np.size(design.design_task,axis=1)
     n_T = design.n_TR
 
@@ -291,7 +292,7 @@ def test_gradient():
     scan_onsets = np.linspace(0,design.n_TR,num=n_run+1)
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,rank=n_C)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,rank=n_C)
 
     # Additionally, we test the generation of re-used terms.
     X0 = np.ones(n_T)[:, None]
@@ -407,16 +408,6 @@ def test_gradient():
                                                                    idx_param_fitU, n_C)[0], param0_fitU, vec)
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitU wrt Cholesky factor incorrect'
 
-
-    # We test if the numerical and analytical gradient wrt to the first element of Cholesky factor is correct
-    vec = np.zeros(np.size(param0_fitU))
-    vec[idx_param_fitU['Cholesky'][0]] = 1
-    dd = nd.directionaldiff(lambda x: brsa._loglike_AR1_diagV_fitU(x, XTX, XTDX, XTFX, YTY_diag, YTDY_diag, YTFY_diag,
-                                                                   XTY, XTDY, XTFY, X0TX0, X0TDX0, X0TFX0,
-                                                                   XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                                                   np.log(snr)*2, l_idx, n_C, n_T, n_V, n_run,n_X0,
-                                                                   idx_param_fitU, n_C)[0], param0_fitU, vec)
-    assert np.isclose(dd, np.dot(deriv0,vec), rtol=0.01), 'gradient of fitU wrt Cholesky factor incorrect'
 
     # Test on a random direction
     vec = np.random.randn(np.size(param0_fitU))

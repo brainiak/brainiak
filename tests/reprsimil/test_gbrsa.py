@@ -119,7 +119,7 @@ def test_fit():
 
     # Test fitting.
     n_nureg = 2
-    gbrsa = GBRSA(n_iter = 20,auto_nuisance=True,logS_range=0.5, SNR_bins=11, rho_bins=16, n_nureg=n_nureg)
+    gbrsa = GBRSA(n_iter = 15, n_iter_inner=5, auto_nuisance=True,logS_range=0.5, SNR_bins=11, rho_bins=16, n_nureg=n_nureg)
 
     gbrsa.fit(X=Y, design=design_mat, scan_onsets=scan_onsets)
     
@@ -194,7 +194,7 @@ def test_gradient():
     n_run = [1, 2, 1]
     design_mat = [None] * 3
     n_T = [None] * 3
-    n_V = [150, 100, 100]
+    n_V = [30, 30, 20]
     for i in range(3):
         design_mat[i] = np.tile(design.design_task[:,:-1],[n_run[i],1])
         n_T[i] = n_run[i] * design.n_TR
