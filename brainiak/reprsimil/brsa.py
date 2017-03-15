@@ -53,62 +53,6 @@ __all__ = [
 ]
 
 
-def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
-    """ Imposing a prior onto the variance (tau^2) of the Gaussian
-        Process which is in turn a prior imposed over
-        a function y = f(x).
-        Strictly speaking, this function imposes half-Cauchy prior
-        on tau instead of tau^2, with a scale parameter
-        gamma=tau_range.
-        The function returns the MAP estimate of tau^2 and
-        log(p(tau|tau_range)) for the estimated value of tau^2,
-        where tau_range describes the reasonable range of tau
-        in the half-Cauchy prior.
-        This function is written primarily for BRSA but can also
-        be used elsewhere.
-        An alternative form of prior is inverse-Gamma prior on tau^2.
-        Half-Cauchy prior penalizes for very large values of tau, while
-        inverse-Gamma prior penalizes for both very small and very
-        large values of tau.
-
-        Example usage:
-        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
-        brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
-        See also: `.prior_GP_var_inv_gamma`
-
-    Parameters
-    ----------
-    y_invK_y: float
-        y * inv(K) * y^T, where y=f(x) is a vector of observations
-        of unknown function f at different locations x.
-        K is correlation matrix of f between different locations, based
-        on a Gaussian Process (GP) describing the smoothness property
-        of f. K fully incorporates the form of the kernel
-        and the length scale of the GP, but not the variance of the GP
-        (the purpose of this function is to estimate the variance).
-    n_y: int, number of observations
-    tau_range: float,
-        The reasonable range of tau, the standard deviation of the
-        Gaussian Process imposed on y=f(x). tau_range is parameter
-        of the half-Cauchy prior.
-        The smaller it is, the more penalization is imposed
-        on large variation of y.
-    Returns:
-    --------
-    tau2: The MAP estimation of tau^2 based on the prior on tau
-        and y_invK_y.
-    log_ptau: log(p(tau)) of the returned tau^2 based on the half-Cauchy
-        prior.
-    """
-    tau2 = (y_invK_y - n_y * tau_range**2
-            + np.sqrt(n_y**2 * tau_range**4 + (2 * n_y + 8)
-                      * tau_range**2 * y_invK_y + y_invK_y**2))\
-        / 2 / (n_y + 2)
-    log_ptau = scipy.stats.halfcauchy.logpdf(
-        tau2**0.5, scale=tau_range)
-    return tau2, log_ptau
-
-
 def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
     """ Imposing a prior onto the variance (tau^2) of the Gaussian
         Process which is in turn a prior imposed over
@@ -159,6 +103,32 @@ def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
     tau2 = (y_invK_y + 2 * tau_range**2) / (2 * 2 + 2 + n_y)
     log_ptau = scipy.stats.invgamma.logpdf(
         tau2, scale=tau_range**2, a=2)
+    return tau2, log_ptau
+
+
+def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
+    """ Imposing a half-Cauchy prior onto the standard deviation (tau)
+        of the Gaussian Process which is in turn a prior imposed over
+        a function y = f(x).
+        The scale parameter of the half-Cauchy prior is gamma=tau_range.
+        The function returns the MAP estimate of tau^2 and
+        log(p(tau|tau_range)) for the estimated value of tau^2,
+        where tau_range describes the reasonable range of tau
+        in the half-Cauchy prior.
+
+        Example usage:
+        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
+        brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
+
+        The usage is the same as prior_GP_var_half_cauchy
+        For more information on usage, see also: `.prior_GP_var_inv_gamma`
+    """
+    tau2 = (y_invK_y - n_y * tau_range**2
+            + np.sqrt(n_y**2 * tau_range**4 + (2 * n_y + 8)
+                      * tau_range**2 * y_invK_y + y_invK_y**2))\
+        / 2 / (n_y + 2)
+    log_ptau = scipy.stats.halfcauchy.logpdf(
+        tau2**0.5, scale=tau_range)
     return tau2, log_ptau
 
 
