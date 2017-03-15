@@ -17,6 +17,7 @@ from mpi4py import MPI
 import sys
 
 from brainiak.searchlight.searchlight import Searchlight
+from brainiak.searchlight.searchlight import Diamond5x5x5
 
 """Distributed Searchlight Test
 """
@@ -34,7 +35,7 @@ def test_correctness():
     
     nsubj = len(data)
     (dim0, dim1, dim2) = mask.shape
-    
+
     # Initialize dataset with known pattern
     for subj in data:
       if subj is not None:
@@ -45,6 +46,9 @@ def test_correctness():
                 subj[d1,d2,d3,tr] = np.array([d1, d2, d3, tr])
     
     def sfn(l,msk,myrad,bcast_var):
+      assert msk.shape[0] == 2*myrad+1
+      assert msk.shape[1] == 2*myrad+1
+      assert msk.shape[2] == 2*myrad+1
       # Check each point
       for subj in l:
         for _tr in range(subj.shape[3]):
@@ -136,3 +140,4 @@ def test_correctness():
   do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=3)
 
 test_correctness()
+
