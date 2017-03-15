@@ -120,7 +120,7 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
         from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
         brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
 
-        The usage is the same as prior_GP_var_half_cauchy
+        The usage is the same as prior_GP_var_inv_gamma
         For more information on usage, see also: `.prior_GP_var_inv_gamma`
     """
     tau2 = (y_invK_y - n_y * tau_range**2
