@@ -110,7 +110,7 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
     """ Imposing a half-Cauchy prior onto the standard deviation (tau)
         of the Gaussian Process which is in turn a prior imposed over
         a function y = f(x).
-        The scale parameter of the half-Cauchy prior is gamma=tau_range.
+        The scale parameter of the half-Cauchy prior is tau_range.
         The function returns the MAP estimate of tau^2 and
         log(p(tau|tau_range)) for the estimated value of tau^2,
         where tau_range describes the reasonable range of tau
