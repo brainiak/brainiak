@@ -625,7 +625,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             'If it is given, it should include at least 0'
 
         if scan_onsets is None:
-            scan_onsets = np.array([0])
+            scan_onsets = np.array([0], dtype=int)
         else:
             scan_onsets = np.int32(scan_onsets)
         ts, ts0, log_p = self._transform(
@@ -687,6 +687,10 @@ class BRSA(BaseEstimator, TransformerMixin):
                                        0 in scan_onsets), \
             'scan_onsets should either be None or an array of indices '\
             'If it is given, it should include at least 0'
+        if scan_onsets is None:
+            scan_onsets = np.array([0], dtype=int)
+        else:
+            scan_onsets = np.int32(scan_onsets)
         ll = self._score(Y=X, design=design, beta=self.beta_,
                          scan_onsets=scan_onsets, beta0=self.beta0_,
                          rho_e=self.rho_, sigma_e=self.sigma_,
@@ -749,7 +753,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             F[0, 0] = 0
             F[n_T - 1, n_T - 1] = 0
             n_run = 1
-            run_TRs = np.array([n_T])
+            run_TRs = np.array([n_T], dtype=int)
         else:
             # Each value in the scan_onsets tells the index at which
             # a new scan starts. For example, if n_T = 500, and
@@ -2815,7 +2819,7 @@ class GBRSA(BRSA):
             if x is not None:
                 s = scan_onsets[i]
                 if s is None:
-                    s = np.array([0])
+                    s = np.array([0], dtype=int)
                 else:
                     s = np.int32(s)
                 ts[i], ts0[i], log_p[i] = self._transform(
