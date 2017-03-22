@@ -19,9 +19,8 @@
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
-    Neural Information Processing Systems 29, 2016.
-    A preprint is available at
-    https://doi.org/10.1101/073932
+    Neural Information Processing Systems (NIPS) 29, 2016.
+    http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis
 """
 
 # Authors: Mingbo Cai

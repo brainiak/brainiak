@@ -41,13 +41,20 @@ if __name__ == '__main__':
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, labels = prepare_fcma_data(data_dir, extension, mask_file, epoch_file)
+    raw_data, _, labels = prepare_fcma_data(data_dir, extension, epoch_file, mask_file)
+    # if providing two masks, just append the second mask as the last input argument
+    # and specify raw_data2
+    #raw_data, raw_data2, labels = prepare_fcma_data(data_dir, extension, epoch_file,
+    #                                                mask_file,
+    #                                                mask_file2='face_scene/mask.nii.gz')
     epochs_per_subj = int(sys.argv[5])
     num_subjs = int(sys.argv[6])
     # the following line is an example to leaving a subject out
-    #vs = VoxelSelector(raw_data[0:204], epochs_per_subj, labels[0:204], num_subjs-1)
+    #vs = VoxelSelector(labels[0:204], epochs_per_subj, num_subjs-1, raw_data[0:204])
     # if using all subjects
-    vs = VoxelSelector(raw_data, epochs_per_subj, labels, num_subjs)
+    vs = VoxelSelector(labels, epochs_per_subj, num_subjs, raw_data)
+    # if providing two masks, just append raw_data2 as the last input argument
+    #vs = VoxelSelector(labels, epochs_per_subj, num_subjs, raw_data, raw_data2=raw_data2)
     # for cross validation, use SVM with precomputed kernel
     clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
     results = vs.run(clf)
