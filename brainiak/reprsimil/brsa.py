@@ -349,7 +349,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
-            tau2_prior=prior_GP_var_half_cauchy,
+            tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
             rand_seed=0, anneal_speed=5,
             tol=1e-3, verbose=False):
@@ -365,7 +365,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         if nureg_method == 'FA':
             self.nureg_method = FactorAnalysis(n_components=n_nureg)
         elif nureg_method == 'PCA':
-            self.nureg_method = PCA(n_components=n_nureg)
+            self.nureg_method = PCA(n_components=n_nureg, whiten=True)
         elif nureg_method == 'SPCA':
             self.nureg_method = SparsePCA(n_components=n_nureg,
                                           max_iter=20, tol=tol)
@@ -748,10 +748,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             And we denote A = I - rho1*D + rho1**2 * F"""
         if scan_onsets is None:
             # assume that all data are acquired within the same scan.
-            D = np.diag(np.ones(n_T - 1), -1) + np.diag(np.ones(n_T - 1), 1)
-            F = np.eye(n_T)
-            F[0, 0] = 0
-            F[n_T - 1, n_T - 1] = 0
+            D = self._D_gen(n_T)
+            F = self._F_gen(n_T)
             n_run = 1
             run_TRs = np.array([n_T], dtype=int)
         else:
