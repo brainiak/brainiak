@@ -253,8 +253,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         It can be either prior_GP_var_inv_gamma for inverse-Gamma
         or prior_GP_var_half_cauchy for half-Cauchy.
         half-Cauchy prior is in fact imposed on tau.
-        tau_range still describes the range of tau in the prior
-        in both cases.
+        But tau_range describes the range of tau in the prior in both cases.
         Both functions are part of brsa module.
         See also `.prior_GP_var_inv_gamma` and
         `.prior_GP_var_half_cauchy`
