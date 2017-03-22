@@ -188,24 +188,26 @@ class MSDL(BaseEstimator, TransformerMixin):
 
         Returns
         -------
-        s : list of 2D arrays, element i has shape=[features_i, samples_i]
-            Shared responses from input data (X)
+        Us : list of 2D arrays, element i has shape=[factors, samples]
+            Loadings for each subject new given data.
         """
 
         # Check if the model exist
-        if hasattr(self, 'w_') is False:
+        if hasattr(self, 'Vs_') is False:
             raise NotFittedError("The model fit has not been run yet.")
 
         # Check the number of subjects
-        if len(X) != len(self.w_):
+        if len(X) != len(self.Vs_):
             raise ValueError("The number of subjects does not match the one"
                              " in the model.")
 
-        s = [None] * len(X)
+        Us = [None] * len(X)
+        Vu, Vsig, Vv = np.linalg.svd(self.V_, full_matrices=False)
         for subject in range(len(X)):
-            s[subject] = self.w_[subject].T.dot(X[subject])
+            U = X[subject].T.dot(Vu).dot(np.diag(Vsig / (Vsig**2)).dot(Vv))
+            Us[subject] = self._update_us(X[subject], self.Vs_[subject], U)
 
-        return s
+        return Us
 
     @staticmethod
     def _create_laplacian_operator(R):
@@ -300,7 +302,8 @@ class MSDL(BaseEstimator, TransformerMixin):
         objective += self.lam * (np.sum(np.abs(V)) + 0.5 * np.sum(V * self._laplacian(V)))
         return objective
 
-    def _update_us(self, data, Vs, Us):
+    @staticmethod
+    def _update_us(data, Vs, Us):
         """Dictionary (loadings) update for a subject
 
         Parameters
@@ -467,8 +470,6 @@ class MSDL(BaseEstimator, TransformerMixin):
         Us = [None] * subjects
 
         V = self._init_template(data, self.factors)
-        print(V.shape)
-        print(data[0].shape)
 
         Vu, Vsig, Vv = np.linalg.svd(V, full_matrices=False)
         for i in range(subjects):
