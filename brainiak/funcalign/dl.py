@@ -83,11 +83,14 @@ class MSDL(BaseEstimator, TransformerMixin):
     Attributes
     ----------
 
-    w_ : list of array, element i has shape=[voxels_i, features]
-        The orthogonal transforms (mappings) for each subject.
+    Us_ : list of 2D arrays, element i has shape=[samples, factors]
+        The loadings :math:`U_s` for each subject.
 
-    s_ : array, shape=[features, samples]
-        The shared response.
+    Vs_ : list of 2D arrays, element i has shape=[voxels, factors]
+        The spatial maps :math:`V_s` for each subject.
+
+    V_ : 2D array, shape=[voxels, factors]
+        The spatial map template :math:`V`.
 
     Note
     ----
@@ -447,14 +450,14 @@ class MSDL(BaseEstimator, TransformerMixin):
         Returns
         -------
 
-        Us : list of array, element i has shape=[voxels, factors]
-            The orthogonal transforms (mappings) :math:`W_i` for each subject.
+        Us : list of 2D arrays, element i has shape=[samples, factors]
+            The loadings :math:`U_s` for each subject.
 
-        Vs : list of array, element i has shape=[factors, samples]
-            The shared response :math:`V_i` for each subject.
+        Vs : list of 2D arrays, element i has shape=[voxels, factors]
+            The spatial maps :math:`V_s` for each subject.
 
-        V  : array, shape=[factors, samples]
-            The spatial map template.
+        V : 2D array, shape=[voxels, factors]
+            The spatial map template :math:`V`.
         """
         subjects = len(data)
         np.random.seed(self.rand_seed)
