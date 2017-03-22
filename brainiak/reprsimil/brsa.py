@@ -70,10 +70,9 @@ def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
         Inverse-Gamma prior penalizes for both very small and very
         large values of tau, while half-Cauchy prior only penalizes
         for very large values of tau.
+        For more information on usage, see description in BRSA class:
+        `.BRSA`
 
-        Example usage:
-        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
-        brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
         See also: `.prior_GP_var_half_cauchy`
 
     Parameters
@@ -115,13 +114,12 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
         log(p(tau|tau_range)) for the estimated value of tau^2,
         where tau_range describes the reasonable range of tau
         in the half-Cauchy prior.
-
-        Example usage:
-        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
-        brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
-
-        The usage is the same as prior_GP_var_inv_gamma
-        For more information on usage, see also: `.prior_GP_var_inv_gamma`
+        An alternative form of prior is inverse-Gamma prior on tau^2.
+        Inverse-Gamma prior penalizes for both very small and very
+        large values of tau, while half-Cauchy prior only penalizes
+        for very large values of tau.
+        For more information on usage, see description in BRSA class:
+        `.BRSA`
     """
     tau2 = (y_invK_y - n_y * tau_range**2
             + np.sqrt(n_y**2 * tau_range**4 + (2 * n_y + 8)
@@ -254,20 +252,23 @@ class BRSA(BaseEstimator, TransformerMixin):
         GP prior on log(SNR), and returns the MAP estimate of tau^2.
         It can be either prior_GP_var_inv_gamma for inverse-Gamma
         or prior_GP_var_half_cauchy for half-Cauchy.
-        But half-Cauchy prior is actually imposed on tau.
+        half-Cauchy prior is in fact imposed on tau.
         tau_range still describes the range of tau in the prior
-        in both cases. Inverse-Gamma prior
-        penalizes for very small tau and very large tau,
-        while half-Cauchy prior only penalizes for very large tau.
-        Both the functions are part of brsa module, which you need
-        to import together with BRSA in order to use.
-        For example::
-        from brainiak.reprsimil.brsa import BRSA, prior_GP_var_inv_gamma
-        brsa = BRSA(tau2_prior=prior_GP_var_inv_gamma)
-        Or, if you do are happy with the default inverse-Gamma prior,
-        then you can ignore this argument::
-        from brainiak.reprsimil.brsa import BRSA
-        brsa = BRSA()
+        in both cases.
+        Both functions are part of brsa module.
+        See also `.prior_GP_var_inv_gamma` and
+        `.prior_GP_var_half_cauchy`
+        To use the default inverse-Gamma prior, you can ignore this argument::
+
+            from brainiak.reprsimil.brsa import BRSA
+            brsa = BRSA()
+
+        If you want to try the alternative half-Cauchy prior,
+        then you need to import it in addition to BRSA::
+
+            from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
+            brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
+
     eta: float. Default: 0.0001
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
