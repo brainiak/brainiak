@@ -30,6 +30,7 @@ import logging
 import numpy as np
 import scipy
 import scipy.sparse
+from sklearn.decomposition import FastICA
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
 from sklearn.utils.validation import NotFittedError
@@ -204,7 +205,7 @@ class MSDL(BaseEstimator, TransformerMixin):
         Us = [None] * len(X)
         Vu, Vsig, Vv = np.linalg.svd(self.V_, full_matrices=False)
         for subject in range(len(X)):
-            U = X[subject].T.dot(Vu).dot(np.diag(Vsig / (Vsig**2)).dot(Vv))
+            U = X[subject].T.dot(Vu).dot(np.diag(Vsig / (Vsig**2).dot(Vv)))
             Us[subject] = self._update_us(X[subject], self.Vs_[subject], U)
 
         return Us
@@ -508,8 +509,8 @@ class MSDL(BaseEstimator, TransformerMixin):
 
         return Us, Vs, V
 
-    def _init_template(data, factors):
-        """Initialize the template spatial map (V) for the MSDL with random orthogonal matrices.
+    def _init_template(self, data, factors):
+        """Initialize the template spatial map (V) for the MSDL with ICA.
 
         Parameters
         ----------
@@ -524,25 +525,22 @@ class MSDL(BaseEstimator, TransformerMixin):
         Returns
         -------
 
-        v : array, shape=[voxels, factors]
+        V : array, shape=[voxels, factors]
             The initialized template spatial map :math:`V`.
-
-        Note
-        ----
-
-            This function assumes that the numpy random number generator was
-            initialized.
-
-            Not thread safe.
         """
-        #v = np.empty(data[0].shape[0], factors)
-        #subjects = len(data)
-        V = np.random.random((data[0].shape[0], factors))
-        # Set Wi to a random orthogonal voxels by features matrix
-        # for subject in range(subjects):
-        #     voxels[subject] = data[subject].shape[0]
-        #     rnd_matrix = np.random.random((voxels[subject], features))
-        #     q, r = np.linalg.qr(rnd_matrix)
-        #     w.append(q)
+        subjects = len(data)
+        voxels = data[0].shape[0]
+        fica = FastICA(n_components=factors, whiten=True, max_iter=200, random_state=self.rand_seed)
+        samples = 0
+        for i in range(subjects):
+            samples += data[i].shape[1]
+
+        data_stacked = np.empty((voxels, samples))
+        samples = 0
+        for i in range(subjects):
+            data_stacked[:, samples:(samples+data[i].shape[1])] = data[i]
+            samples += data[i].shape[1]
+
+        V = fica.fit_transform(data_stacked)
 
         return V
