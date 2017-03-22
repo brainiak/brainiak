@@ -1682,8 +1682,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
                                     n_V, n_T, n_run, rank, n_X0)
-                betas = current_SNR2 \
-                    * np.dot(L, YTAcorrXL_LAMBDA.T)
+                betas = current_SNR2 * np.dot(L, YTAcorrXL_LAMBDA.T)
                 beta0s = np.einsum(
                     'ijk,ki->ji', X0TAX0_i,
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))

@@ -46,7 +46,7 @@ def test_fit():
     design = utils.ReadDesign(fname=file_path)
 
 
-    # concatenate it by 3 times, mimicking 3 runs of itenditcal timing
+    # concatenate it by 2 times, mimicking 2 runs of itenditcal timing
     n_run = 2
     design.design_task = np.tile(design.design_task[:,:-1],[n_run,1])
     design.n_TR = design.n_TR * n_run
