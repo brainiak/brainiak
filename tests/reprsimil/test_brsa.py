@@ -42,17 +42,18 @@ def test_fit():
     design = utils.ReadDesign(fname=file_path)
 
 
-    # concatenate it by 4 times, mimicking 4 runs of itenditcal timing
-    design.design_task = np.tile(design.design_task[:,:-1],[4,1])
-    design.n_TR = design.n_TR * 4
+    # concatenate it by 2 times, mimicking 2 runs of itenditcal timing
+    n_run = 2
+    design.design_task = np.tile(design.design_task[:,:-1],[n_run,1])
+    design.n_TR = design.n_TR * n_run
 
     # start simulating some data
-    n_V = 200
+    n_V = 50
     n_C = np.size(design.design_task,axis=1)
     n_T = design.n_TR
 
     noise_bot = 0.5
-    noise_top = 1.5
+    noise_top = 5.0
     noise_level = np.random.rand(n_V)*(noise_top-noise_bot)+noise_bot
     # noise level is random.
 
@@ -110,14 +111,14 @@ def test_fit():
     signal = np.dot(design.design_task,betas_simulated)
 
     # Adding noise to signal as data
-    Y = signal + noise
+    Y = signal + noise + inten
 
 
     scan_onsets = np.linspace(0,design.n_TR,num=5)
 
 
     # Test fitting with GP prior.
-    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 200,auto_nuisance=False)
+    brsa = BRSA(GP_space=True,GP_inten=True,verbose=False,n_iter = 5,auto_nuisance=False)
 
     # We also test that it can detect baseline regressor included in the design matrix for task conditions
     wrong_design = np.insert(design.design_task, 0, 1, axis=1)
@@ -167,7 +168,7 @@ def test_fit():
         'the BRSA object should not have parameters of GP if GP is not requested.'
     # GP parameters are not set if not requested
     assert brsa.beta0_.shape[0] == n_nureg, 'Shape of beta0 incorrect'
-    p = scipy.stats.pearsonr(brsa.beta0_[0,:],np.mean(noise,axis=0))[1]
+    p = scipy.stats.pearsonr(brsa.beta0_[0,:],inten)[1]
     assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
 
     # Test fitting with GP over just spatial coordinates.
@@ -209,7 +210,7 @@ def test_gradient():
     design.n_TR = design.n_TR * n_run
 
     # start simulating some data
-    n_V = 200
+    n_V = 30
     n_C = np.size(design.design_task,axis=1)
     n_T = design.n_TR
 
