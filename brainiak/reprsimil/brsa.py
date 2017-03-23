@@ -3665,6 +3665,8 @@ class GBRSA(BRSA):
     def _check_scan_onsets_GBRSA(self, scan_onsets, X):
         # check scan_onsets validity
         if scan_onsets is None or type(scan_onsets) is np.ndarray:
+            if scan_onsets is None:
+                scan_onsets = np.array([0], dtype=int)
             scan_onsets = [scan_onsets] * len(X)
             if len(X) > 1:
                 logger.warning('There are multiple subjects while '
