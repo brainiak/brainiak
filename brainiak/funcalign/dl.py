@@ -164,7 +164,10 @@ class MSDL(BaseEstimator, TransformerMixin):
                              .format(len(X)))
 
         if self.kappa < 0.0 or self.kappa >= 1.0:
-            raise ValueError("Kappa should be in range (0,1)")
+            raise ValueError("Kappa should be in range (0,1).")
+
+        if self.lam <= 0.0 or self.mu <= 0.0:
+            raise ValueError("Lambda and Mu regularization parameters should positive.")
 
         # Prepare the laplacian operator for this data
         self.L_ = self._create_laplacian_operator(R)
