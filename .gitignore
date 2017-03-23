@@ -22,7 +22,7 @@ build
 coverage.xml
 dist
 docs/*.rst
-examples/data
+data
 htmlcov
 .idea
 .ipynb_checkpoints
