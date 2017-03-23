@@ -27,7 +27,8 @@ matrix:
       env: &macos_env
         - CC=/usr/local/opt/llvm/bin/clang
         - CXX=/usr/local/opt/llvm/bin/clang++
-        - LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+        - LDFLAGS="-L/usr/local/opt/llvm/lib
+          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
         - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
       before_install: &macos_before_install
         - brew install llvm mpich python3
