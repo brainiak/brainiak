@@ -2634,7 +2634,7 @@ class GBRSA(BRSA):
         if nureg_method == 'FA':
             self.nureg_method = FactorAnalysis(n_components=n_nureg)
         elif nureg_method == 'PCA':
-            self.nureg_method = PCA(n_components=n_nureg)
+            self.nureg_method = PCA(n_components=n_nureg, whiten=True)
         elif nureg_method == 'SPCA':
             self.nureg_method = SparsePCA(n_components=n_nureg,
                                           max_iter=20, tol=tol)
@@ -3653,7 +3653,7 @@ class GBRSA(BRSA):
                         'Some columns can be explained by linear '\
                         'combination of other columns. Please check your' \
                         ' nuisance regressors.'.format(i)
-                    assert np.size(n, axis=0) == np.size(X, axis=0), \
+                    assert np.size(n, axis=0) == np.size(X[i], axis=0), \
                         'Nuisance regressor and data do not have the same '\
                         'number of time points.'
         else:
