@@ -18,7 +18,8 @@ The implementation is based on the following publication:
 .. [Varoquaux2011] "Multi-subject Dictionary Learning to Segment an Atlas of
    Brain Spontaneous Activity",
    G. Varoquaux, A. Gramfort, F. Pedregosa, V. Michel, .B. Thirion
-   Information Processing in Medical Imaging: 22nd International Conference, IPMI 2011
+   22nd International Conference Information Processing in Medical Imaging
+   (IPMI 2011)
    http://rd.springer.com/chapter/10.1007/978-3-642-22092-0_46
 
 """
@@ -51,9 +52,11 @@ class MSDL(BaseEstimator, TransformerMixin):
     .. math:: X_i \\approx U_i V_i^T + E_i, \\forall i=1 \\dots N
 
     E_i is assumed to be white Gaussian Noise N(0,\\sigmaI)
-    U_i is assumed to be Gaussian N(0,\\Sigma_U) (same covariance for all subjects)
+    U_i is assumed to be Gaussian N(0,\\Sigma_U) (same covariance for all
+    subjects)
     V_i = V + F_i, where F_i is Gaussian N(0,\\xsiI)
-    V is a shared template across all subjects and it is assumed to have unit column norm
+    V is a shared template across all subjects and it is assumed to have
+    unit column norm
 
 
     Parameters
@@ -78,7 +81,8 @@ class MSDL(BaseEstimator, TransformerMixin):
         Step size for the FISTA algorithm. Should be a value in (0.0, 1.0).
 
     fista_iter : int, default: 20
-        Number of iterations to run the FISTA algorithm to update the spatial map template.
+        Number of iterations to run the FISTA algorithm to update the spatial
+        map template.
 
 
     Attributes
@@ -103,13 +107,15 @@ class MSDL(BaseEstimator, TransformerMixin):
 
         This is a single node version.
 
-        The run-time complexity is :math:`O(S (V T K + (V + T) K^2 + K^3 + K I_{V}))` with
+        The run-time complexity is
+        :math:`O(S (V T K + (V + T) K^2 + K^3 + K I_{V}))` with
         I - the number of iterations of FISTA, V - the voxels from a subject,
-        T - the number of time samples, K - the number of features/factors (typically, :math:`V \\gg T \\gg K`),
-        and S - the number of subjects.
+        T - the number of time samples, K - the number of features/factors
+        (typically, :math:`V \\gg T \\gg K`), and S - the number of subjects.
     """
 
-    def __init__(self, n_iter=10, factors=10, rand_seed=0, mu=1.0, lam=1.0, kappa=0.5, fista_iter=20):
+    def __init__(self, n_iter=10, factors=10, rand_seed=0, mu=1.0, lam=1.0,
+                 kappa=0.5, fista_iter=20):
         self.n_iter = n_iter
         self.factors = factors
         self.rand_seed = rand_seed
@@ -167,13 +173,16 @@ class MSDL(BaseEstimator, TransformerMixin):
             raise ValueError("Kappa should be in range (0,1).")
 
         if self.lam <= 0.0 or self.mu <= 0.0:
-            raise ValueError("Lambda and Mu regularization parameters should positive.")
+            raise ValueError("Lambda and Mu regularization parameters should "
+                             "positive.")
 
         # Prepare the laplacian operator for this data
         self.L_ = self._create_laplacian_operator(R)
-        self.max_eigval_L_ = scipy.sparse.linalg.svds(self.L_, k=1, which='LM', return_singular_vectors=False)
-        self.max_eigval_L_ =  (self.max_eigval_L_[0]**2)
-        logger.info("Lipschitz Constant of L ",self.max_eigval_L_)
+        self.max_eigval_L_ = \
+            scipy.sparse.linalg.svds(self.L_, k=1, which='LM',
+                                     return_singular_vectors=False)
+        self.max_eigval_L_ = (self.max_eigval_L_[0]**2)
+        logger.info("Lipschitz Constant of L ", self.max_eigval_L_)
 
         # Run MSDL
         self.Us_, self.Vs_, self.V_ = self._msdl(X)
@@ -225,29 +234,34 @@ class MSDL(BaseEstimator, TransformerMixin):
 
         Returns
         -------
-        2D sparse array, shape=[voxels,voxels]
+        2D sparse array, shape=[voxels, voxels]
             The laplacian matrix.
         """
         nmax = R.max(axis=0)+1
         voxels = R.shape[0]
         cube = -np.ones((nmax))
-        cube[R[:,0],R[:,1],R[:,2]] = np.arange(voxels)
+        cube[R[:, 0], R[:, 1], R[:, 2]] = np.arange(voxels)
 
         data = np.zeros(7*voxels)
         row_ind = np.zeros(7*voxels)
         col_ind = np.zeros(7*voxels)
-        kernel = np.array([[-1,0,0],[1,0,0],[0,-1,0],[0,1,0],[0,0,-1],[0,0,1]])
+        kernel = np.array([[-1, 0, 0], [1, 0, 0],
+                           [0, -1, 0], [0, 1, 0],
+                           [0, 0, -1], [0, 0, 1]])
         total_values = 0
         for v in range(voxels):
             offset = 0
-            positions = kernel + R[v,:]
+            positions = kernel + R[v, :]
             for i in range(positions.shape[0]):
-                if np.any(positions[i,:] < 0) or np.any(positions[i,:]>= nmax)\
-                    or cube[positions[i,0],positions[i,1],positions[i,2]]<0:
+                if np.any(positions[i, :] < 0) or \
+                   np.any(positions[i, :] >= nmax) or \
+                   cube[positions[i, 0], positions[i, 1], positions[i, 2]] < 0:
                     continue
                 data[total_values+offset] = -1.0
                 row_ind[total_values+offset] = v
-                col_ind[total_values+offset] = cube[positions[i,0],positions[i,1],positions[i,2]]
+                col_ind[total_values+offset] = cube[positions[i, 0],
+                                                    positions[i, 1],
+                                                    positions[i, 2]]
                 offset += 1
 
             data[total_values+offset] = offset
@@ -255,7 +269,10 @@ class MSDL(BaseEstimator, TransformerMixin):
             col_ind[total_values+offset] = v
             total_values += offset+1
 
-        L = scipy.sparse.csr_matrix((data[:total_values], (row_ind[:total_values], col_ind[:total_values])), shape=(voxels, voxels))
+        L = scipy.sparse.csr_matrix((data[:total_values],
+                                     (row_ind[:total_values],
+                                      col_ind[:total_values])),
+                                    shape=(voxels, voxels))
         return L
 
     def _laplacian(self, x):
@@ -263,9 +280,9 @@ class MSDL(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        x : array, shape=[voxels,] or [voxels, n]
-            An array with one or more volumes represented as a column vectorized
-            set of voxels.
+        x : array, shape=[voxels, ] or [voxels, n]
+            An array with one or more volumes represented as a column
+            vectorized set of voxels.
 
         Returns
         -------
@@ -301,9 +318,12 @@ class MSDL(BaseEstimator, TransformerMixin):
         subjects = len(data)
         objective = 0.0
         for s in range(subjects):
-            objective += np.linalg.norm(data[s].T - Us[s].dot(Vs[s].T), 'fro')**2 + self.mu * np.linalg.norm(Vs[s] - V, 'fro')**2
+            objective += np.linalg.norm(data[s].T - Us[s].dot(Vs[s].T),
+                                        'fro')**2 \
+                         + self.mu * np.linalg.norm(Vs[s] - V, 'fro')**2
         objective /= 2
-        objective += self.lam * (np.sum(np.abs(V)) + 0.5 * np.sum(V * self._laplacian(V)))
+        objective += self.lam * (np.sum(np.abs(V)) + 0.5 *
+                                 np.sum(V * self._laplacian(V)))
         return objective
 
     @staticmethod
@@ -330,7 +350,7 @@ class MSDL(BaseEstimator, TransformerMixin):
         A = Vs.T.dot(Vs)
         B = data.T.dot(Vs)
         for l in range(factors):
-            dir = Us[:, l] + (B[:,l] - Us.dot(A[:, l])) / A[l,l]
+            dir = Us[:, l] + (B[:, l] - Us.dot(A[:, l])) / A[l, l]
             Us[:, l] = dir / np.amax((np.linalg.norm(dir, ord=2), 1.0))
         return Us
 
@@ -385,15 +405,15 @@ class MSDL(BaseEstimator, TransformerMixin):
         Parameters
         ----------
 
-        v : array, shape=[voxels,]  or [voxels,n]
+        v : array, shape=[voxels, ]  or [voxels, n]
             One or more column-vectors containing each a volume
 
 
         Returns
         -------
 
-        v_star : (shape=same as input) with the proximal operator applied to the
-        input vectors in v
+        v_star : (shape=same as input) with the proximal operator applied to
+            the input vectors in v
         """
         v_star = v.copy()
         z = v_star
@@ -402,10 +422,15 @@ class MSDL(BaseEstimator, TransformerMixin):
         obj_fun_prev = 0
         for l in range(self.fista_iter):
             v0 = v_star
-            v_star = self._shrink(z - kappa * (z - v + self.gamma * self._laplacian(z)), kappa * self.gamma)
+            v_star = self._shrink(z - kappa * (z - v + self.gamma *
+                                               self._laplacian(z)),
+                                  kappa * self.gamma)
 
             # Check for convergence
-            obj_fun = np.sum((v_star-v)**2,0) + self.gamma * (np.sum(np.abs(v_star),0) + 0.5 * np.sum(v * self._laplacian(v),0))
+            obj_fun = \
+                np.sum((v_star-v)**2, 0) + \
+                self.gamma * (np.sum(np.abs(v_star), 0) +
+                              0.5 * np.sum(v * self._laplacian(v), 0))
             if l > 0 and obj_fun > obj_fun_prev:
                 return v0
             obj_fun_prev = obj_fun
@@ -441,7 +466,7 @@ class MSDL(BaseEstimator, TransformerMixin):
         meanVs /= subjects
         V = np.zeros(Vs[0].shape)
         for l in range(Vs[0].shape[1]):
-            V[:,l] = self._prox(meanVs[:,l])
+            V[:, l] = self._prox(meanVs[:, l])
         return V
 
     def _msdl(self, data):
@@ -479,7 +504,10 @@ class MSDL(BaseEstimator, TransformerMixin):
         for i in range(subjects):
             Vs[i] = V.copy()
             Us[i] = data[i].T.dot(Vu).dot(np.diag(Vsig / (Vsig**2)).dot(Vv))
-            logger.info('SVD initialization %f ' % np.linalg.norm(np.linalg.solve(V.T.dot(V), V.T.dot(data[i])).T - Us[i]))
+            logger.info('SVD initialization %f ' %
+                        np.linalg.norm(
+                            np.linalg.solve(V.T.dot(V), V.T.dot(data[i])).T
+                            - Us[i]))
 
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
@@ -497,13 +525,16 @@ class MSDL(BaseEstimator, TransformerMixin):
             for i in range(subjects):
                 logger.info('Subject %d' % (i))
                 Us[i] = self._update_us(data[i], Vs[i], Us[i])
-                logger.info('After Us update %d' % self._objective_function(data, Us, Vs, V))
+                logger.info('After Us update %d' %
+                            self._objective_function(data, Us, Vs, V))
                 Vs[i] = self._update_vs(data[i], V, Us[i])
-                logger.info('After Vs update %d' %self._objective_function(data, Us, Vs, V))
+                logger.info('After Vs update %d' %
+                            self._objective_function(data, Us, Vs, V))
 
             # Update the spatial maps template:
             V = self._update_v(data, Vs)
-            logger.info('After V update %d' %self._objective_function(data, Us, Vs, V))
+            logger.info('After V update %d' %
+                        self._objective_function(data, Us, Vs, V))
 
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
@@ -533,7 +564,8 @@ class MSDL(BaseEstimator, TransformerMixin):
         """
         subjects = len(data)
         voxels = data[0].shape[0]
-        fica = FastICA(n_components=factors, whiten=True, max_iter=200, random_state=self.rand_seed)
+        fica = FastICA(n_components=factors, whiten=True, max_iter=200,
+                       random_state=self.rand_seed)
         samples = 0
         for i in range(subjects):
             samples += data[i].shape[1]
