@@ -71,7 +71,7 @@ def test_wrong_input():
         X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
 
     # Check that runs with 2 subject
-    model.fit(X)
+    model.fit(X, None, R)
 
     assert len(model.Vs_) == subjects, "Invalid computation of MSDL! (wrong # subjects in Vs)"
     assert len(model.Us_) == subjects, "Invalid computation of MSDL! (wrong # subjects in Us)"
@@ -99,15 +99,8 @@ def test_wrong_input():
     # Check that it does not run without enough samples (TRs).
     with pytest.raises(ValueError) as excinfo:
         model.set_params(features=(samples+1))
-        model.fit(X)
+        model.fit(X, None, R)
     print("Test: not enough samples")
-
-    # Check that it does not run with different number of samples (TRs)
-    S2 = S[:,:-2]
-    X.append(Q.dot(S2))
-    with pytest.raises(ValueError) as excinfo:
-        model.fit(X)
-    print("Test: different number of samples per subject")
 
     # Check that kappa is in (0,1) range
     model_bad = brainiak.funcalign.dl.MSDL(n_iter=1, factors=features, kappa=1.5)
