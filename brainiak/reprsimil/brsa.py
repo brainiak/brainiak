@@ -49,7 +49,7 @@ warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BRSA", "GBRSA"
+    "BRSA", "GBRSA", "prior_GP_var_inv_gamma", "prior_GP_var_half_cauchy"
 ]
 
 
@@ -284,13 +284,13 @@ class BRSA(BaseEstimator, TransformerMixin):
         or a custom optimizer.
     rand_seed : int. Default: 0
         Seed for initializing the random number generator.
-    anneal_speed: float. Default: 5
+    anneal_speed: float. Default: 20
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
         the ratio of the maximum number of iteration to the
         time constant of the exponential.
-        anneal_speed=5 means by n_iter/5 iterations,
+        anneal_speed=5 means by n_iter/20 iterations,
         the amount of perturbation is reduced by 2.713 times.
     tol: float. Default: 1e-3
         tolerance parameter passed to the minimizer.
@@ -351,7 +351,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
-            rand_seed=0, anneal_speed=5,
+            rand_seed=0, anneal_speed=20,
             tol=1e-3, verbose=False):
 
         self.n_iter = n_iter
@@ -362,6 +362,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         self.tol = tol
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
+        if auto_nuisance:
+            assert n_nureg > 0, 'n_nureg should be a positive number '\
+                'if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = FactorAnalysis(n_components=n_nureg)
         elif nureg_method == 'PCA':
@@ -2568,13 +2571,13 @@ class GBRSA(BRSA):
         or a custom optimizer.
     rand_seed : int. Default: 0
         Seed for initializing the random number generator.
-    anneal_speed: float. Default: 10
+    anneal_speed: float. Default: 20
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
         the ratio of the maximum number of iteration to the
         time constant of the exponential.
-        anneal_speed=10 means by n_iter/10 iterations,
+        anneal_speed=10 means by n_iter/20 iterations,
         the amount of perturbation is reduced by 2.713 times.
 
     Attributes
@@ -2624,13 +2627,16 @@ class GBRSA(BRSA):
             auto_nuisance=True, n_nureg=6, nureg_method='PCA',
             DC_single=True, logS_range=1.0, SNR_bins=21,
             rho_bins=20, tol=2e-3, verbose=False,
-            optimizer='BFGS', rand_seed=0, anneal_speed=10):
+            optimizer='BFGS', rand_seed=0, anneal_speed=20):
 
         self.n_iter = n_iter
         self.n_iter_inner = n_iter_inner
         self.rank = rank
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
+        if auto_nuisance:
+            assert n_nureg > 0, 'n_nureg should be a positive number '\
+                'if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = FactorAnalysis(n_components=n_nureg)
         elif nureg_method == 'PCA':
@@ -2737,18 +2743,17 @@ class GBRSA(BRSA):
         self.n_V_ = [None] * self.n_subj_
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
+        self.beta0_null_, self.sigma_null_, self.rho_null_, self.X0_null_,\
+            self._LL_null_train_ = self._fit_RSA_marginalized_null(
+                Y=X, X_base=nuisance, scan_onsets=scan_onsets)
         self.U_, self.L_, self.nSNR_, self.beta_, self.beta0_,\
-            self.sigma_, self.rho_, self.X0_ = \
+            self.sigma_, self.rho_, self.X0_, self._LL_train_ = \
             self._fit_RSA_marginalized(
                 X=design, Y=X, X_base=nuisance,
                 scan_onsets=scan_onsets)
 
         self.C_ = utils.cov2corr(self.U_)
         self.design_ = design.copy()
-
-        self.beta0_null_, self.sigma_null_, self.rho_null_, \
-            self.X0_null_ = self._fit_RSA_marginalized_null(
-                Y=X, X_base=nuisance, scan_onsets=scan_onsets)
 
         self._rho_design_ = [None] * self.n_subj_
         self._sigma2_design_ = [None] * self.n_subj_
@@ -3004,6 +3009,7 @@ class GBRSA(BRSA):
         #     = np.polynomial.hermite.hermgauss(SNR_bins)
         # SNR_weights = SNR_weights / np.pi**0.5
         # SNR_grids = np.exp(log_SNR_grids * self.logS_range * 2**.5)
+
         log_SNR_grids = ((np.arange(self.SNR_bins)
                           - (self.SNR_bins - 1) / 2)) \
             / self.SNR_bins * self.logS_range * 6
@@ -3018,6 +3024,9 @@ class GBRSA(BRSA):
                                               scale=self.logS_range)
         SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
                                                    scale=self.logS_range)
+
+        # SNR_grids = np.linspace(0, 1, self.SNR_bins)
+        # SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         logger.info('The grids of pseudo-SNR used for numerical integration '
                     'is {}.'.format(SNR_grids))
         assert np.isclose(np.sum(SNR_weights), 1), \
@@ -3070,10 +3079,12 @@ class GBRSA(BRSA):
         idx_DC = [None] * n_subj
 
         # Initialization for L.
-        cov_point_est = np.zeros((n_C, n_C))
-        std_residual = np.empty(n_subj)
         # There are several possible ways of initializing the covariance.
         # (1) start from the point estimation of covariance
+
+        cov_point_est = np.zeros((n_C, n_C))
+        std_residual = np.empty(n_subj)
+
 
         for subj in range(n_subj):
             D[subj], F[subj], run_TRs[subj], n_run[subj] = self._prepare_DF(
@@ -3143,6 +3154,7 @@ class GBRSA(BRSA):
         # The contents below can be updated during fitting.
         # e.g., X0 will be re-estimated
         logger.info('start real fitting')
+        LL = np.zeros(n_subj)
         for it in range(self.n_iter):
             logger.info('Iteration {}'.format(it))
             # Re-estimate part of X0: X_res
@@ -3235,6 +3247,7 @@ class GBRSA(BRSA):
                         log_weights, log_fixed_terms[subj], n_C, n_T[subj],
                         n_V[subj], n_X0[subj], n_grid, rank)
                 result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+                LL[subj] = np.sum(np.log(result_sum) + max_value)
                 weight_post = result_exp / result_sum
                 s_post[subj] = np.sum(all_SNR_grids[:, None] * weight_post,
                                       axis=0)
@@ -3268,7 +3281,6 @@ class GBRSA(BRSA):
                                          L_LAMBDA_LT[grid, :, :]),
                                   sXTAcorrY[subj][grid, :, :])
                          * all_SNR_grids[grid]))
-
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -3279,7 +3291,7 @@ class GBRSA(BRSA):
             'total time of fitting: {} seconds'.format(t_finish - t_start))
         return np.dot(L, L.T), L, s_post, \
             beta_post, beta0_post, sigma_post, \
-            rho_post, X0
+            rho_post, X0, LL
 
     def _fit_RSA_marginalized_null(self, Y, X_base,
                                    scan_onsets=None):
@@ -3313,7 +3325,7 @@ class GBRSA(BRSA):
         sigma_post = [None] * n_subj
         beta0_post = [None] * n_subj
         X0 = [None] * n_subj
-
+        LL_null = np.zeros(n_subj)
         for subj in range(n_subj):
             np.random.seed(self.rand_seed)
             logger.debug('Running on subject {}.'.format(subj))
@@ -3420,10 +3432,11 @@ class GBRSA(BRSA):
                 beta0_post[subj] = np.insert(
                     np.delete(beta0_post[subj], idx_DC, axis=0),
                     0, collapsed_beta0, axis=0)
+            LL_null[subj] = np.sum(np.log(result_sum) + max_value)
         t_finish = time.time()
         logger.info(
             'total time of fitting: {} seconds'.format(t_finish - t_start))
-        return beta0_post, sigma_post, rho_post, X0
+        return beta0_post, sigma_post, rho_post, X0, LL_null
 
     def _raw_loglike_grids(self, L, s2XTAcorrX, YTAcorrY_diag,
                            sXTAcorrY, half_log_det_X0TAX0,
