@@ -2811,9 +2811,9 @@ class GBRSA(BRSA):
             One item for each subject. If some subjects' data are
             not provided, None will be returned.
         """
-        assert len(X) == self.n_subj_
         X = self._check_data_GBRSA(X, for_fit=False)
         scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
+        assert len(X) == self.n_subj_
         ts = [None] * self.n_subj_
         ts0 = [None] * self.n_subj_
         log_p = [None] * self.n_subj_
@@ -2882,10 +2882,10 @@ class GBRSA(BRSA):
             except for that there is no response to any of the
             task conditions.
         """
-        assert len(X) == self.n_subj_
         X = self._check_data_GBRSA(X, for_fit=False)
         scan_onsets = self._check_scan_onsets_GBRSA(scan_onsets, X)
         design = self._check_design_GBRSA(design, X)
+        assert len(X) == self.n_subj_
         ll = [None] * self.n_subj_
         ll_null = [None] * self.n_subj_
         for subj in np.arange(self.n_subj_):
