@@ -3085,7 +3085,6 @@ class GBRSA(BRSA):
         cov_point_est = np.zeros((n_C, n_C))
         std_residual = np.empty(n_subj)
 
-
         for subj in range(n_subj):
             D[subj], F[subj], run_TRs[subj], n_run[subj] = self._prepare_DF(
                 n_T[subj], scan_onsets=scan_onsets[subj])
