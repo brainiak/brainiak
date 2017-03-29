@@ -684,15 +684,15 @@ def _calc_fwhm(volume,
                voxel_size=[1.0, 1.0, 1.0],
                ):
     """ Calculate the FWHM of a volume
-    Takes in a volume and mask and outputs the FWHM (mm) of each TR of this
+    Takes in a 3d volume and mask and outputs the FWHM (mm) of this
     volume for the non-masked voxels
 
     Parameters
     ----------
-    volume : multidimensional array
-    Functional data to have the FWHM measured. Can be 3d or 4d data
+    volume : 3 dimensional array
+    Functional data to have the FWHM measured.
 
-    mask : 4 dimensional array
+    mask : 3 dimensional array
     A mask of the voxels to have the FWHM measured from
 
     voxel_size : length 3 list, float
@@ -707,97 +707,80 @@ def _calc_fwhm(volume,
     # What are the dimensions of the volume
     dimensions = volume.shape
 
-    # Identify the number of TRs
-    if len(dimensions) == 3:
-        trs = 1
-    else:
-        trs = dimensions[3]
-        dimensions = dimensions[0:3]
-        volume_all = volume  # Store for later
-
-    # Preset size
-    fwhm = np.zeros(trs)
-
     # Iterate through the TRs, creating a FWHM for each TR
 
-    for tr_counter in list(range(0, trs)):
+    # Preset
+    v_count = 0
+    v_sum = 0
+    v_sq = 0
 
-        # Preset
-        v_count = 0
-        v_sum = 0
-        v_sq = 0
+    d_sum = [0.0, 0.0, 0.0]
+    d_sq = [0.0, 0.0, 0.0]
+    d_count = [0, 0, 0]
 
-        d_sum = [0.0, 0.0, 0.0]
-        d_sq = [0.0, 0.0, 0.0]
-        d_count = [0, 0, 0]
+    # Pull out all the voxel coordinates
+    coordinates = list(product(range(dimensions[0]),
+                               range(dimensions[1]),
+                               range(dimensions[2])))
 
-        # If there is more than one TR, just pull out that volume
-        if trs > 1:
-            volume = volume_all[:, :, :, tr_counter]
+    # Find the sum of squared error for the non-masked voxels in the brain
+    for i in list(range(len(coordinates))):
 
-        # Pull out all the voxel coordinates
-        coordinates = list(product(range(dimensions[0]),
-                                   range(dimensions[1]),
-                                   range(dimensions[2])))
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
 
-        # Find the sum of squared error for the non-masked voxels in the brain
-        for i in list(range(len(coordinates))):
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
 
-            # Pull out this coordinate
-            x, y, z = coordinates[i]
+            # Find the the volume sum and squared values
+            v_count += 1
+            v_sum += np.abs(volume[x, y, z])
+            v_sq += volume[x, y, z] ** 2
 
-            # Is this within the mask?
-            if mask[x, y, z, tr_counter] > 0:
+    # Get the volume variance
+    v_var = (v_sq - ((v_sum ** 2) / v_count)) / (v_count - 1)
 
-                # Find the the volume sum and squared values
-                v_count += 1
-                v_sum += np.abs(volume[x, y, z])
-                v_sq += volume[x, y, z] ** 2
+    for i in list(range(len(coordinates))):
 
-        # Get the volume variance
-        v_var = (v_sq - ((v_sum ** 2) / v_count)) / (v_count - 1)
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
 
-        for i in list(range(len(coordinates))):
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
+            # For each xyz dimension calculate the squared
+            # difference of this voxel and the next
 
-            # Pull out this coordinate
-            x, y, z = coordinates[i]
+            inrange = (x < dimensions[0] - 1)
+            inmask = inrange and (mask[x + 1, y, z] > 0)
+            included = inmask and (~np.isnan(volume[x + 1, y, z]))
+            if included:
+                d_sum[0] += volume[x, y, z] - volume[x + 1, y, z]
+                d_sq[0] += (volume[x, y, z] - volume[x + 1, y, z]) ** 2
+                d_count[0] += 1
 
-            # Is this within the mask?
-            if mask[x, y, z, tr_counter] > 0:
-                # For each xyz dimension calculate the squared
-                # difference of this voxel and the next
+            inrange = (y < dimensions[1] - 1)
+            inmask = inrange and (mask[x, y + 1, z] > 0)
+            included = inmask and (~np.isnan(volume[x, y + 1, z]))
+            if included:
+                d_sum[1] += volume[x, y, z] - volume[x, y + 1, z]
+                d_sq[1] += (volume[x, y, z] - volume[x, y + 1, z]) ** 2
+                d_count[1] += 1
 
-                inrange = (x < dimensions[0] - 1)
-                inmask = inrange and (mask[x + 1, y, z, tr_counter] > 0)
-                included = inmask and (~np.isnan(volume[x + 1, y, z]))
-                if included:
-                    d_sum[0] += volume[x, y, z] - volume[x + 1, y, z]
-                    d_sq[0] += (volume[x, y, z] - volume[x + 1, y, z]) ** 2
-                    d_count[0] += 1
+            inrange = (z < dimensions[2] - 1)
+            inmask = inrange and (mask[x, y, z + 1] > 0)
+            included = inmask and (~np.isnan(volume[x, y, z + 1]))
+            if included:
+                d_sum[2] += volume[x, y, z] - volume[x, y, z + 1]
+                d_sq[2] += (volume[x, y, z] - volume[x, y, z + 1]) ** 2
+                d_count[2] += 1
 
-                inrange = (y < dimensions[1] - 1)
-                inmask = inrange and (mask[x, y + 1, z, tr_counter] > 0)
-                included = inmask and (~np.isnan(volume[x, y + 1, z]))
-                if included:
-                    d_sum[1] += volume[x, y, z] - volume[x, y + 1, z]
-                    d_sq[1] += (volume[x, y, z] - volume[x, y + 1, z]) ** 2
-                    d_count[1] += 1
+    # Find the variance
+    d_var = np.divide((d_sq - np.divide(np.power(d_sum, 2),
+                                        d_count)), (np.add(d_count, -1)))
 
-                inrange = (z < dimensions[2] - 1)
-                inmask = inrange and (mask[x, y, z + 1, tr_counter] > 0)
-                included = inmask and (~np.isnan(volume[x, y, z + 1]))
-                if included:
-                    d_sum[2] += volume[x, y, z] - volume[x, y, z + 1]
-                    d_sq[2] += (volume[x, y, z] - volume[x, y, z + 1]) ** 2
-                    d_count[2] += 1
-
-        # Find the variance
-        d_var = np.divide((d_sq - np.divide(np.power(d_sum, 2),
-                                            d_count)), (np.add(d_count, -1)))
-
-        o_var = np.divide(-1, (4 * np.log(1 - (0.5 * d_var / v_var))))
-        fwhm3 = np.sqrt(o_var) * 2 * np.sqrt(2 * np.log(2))
-        fwhm[tr_counter] = np.prod(np.multiply(fwhm3, voxel_size)) ** (1 / 3)
+    o_var = np.divide(-1, (4 * np.log(1 - (0.5 * d_var / v_var))))
+    fwhm3 = np.sqrt(o_var) * 2 * np.sqrt(2 * np.log(2))
+    fwhm = np.prod(np.multiply(fwhm3, voxel_size)) ** (1 / 3)
 
     return fwhm
 
@@ -953,10 +936,16 @@ def calc_noise(volume,
     else:
         trs = list(range(0, volume.shape[3]))
 
-    noise_dict['fwhm'] = _calc_fwhm(volume[:, :, :, trs],
-                                    mask[:, :, :, trs],
-                                    noise_dict['voxel_size'],
-                                    ).mean()
+    # Go through the trs and pull out the fwhm
+    fwhm = [0] * len(trs)
+    for tr in list(range(0, len(trs))):
+        fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
+                              mask[:, :, :, trs[tr]],
+                              noise_dict['voxel_size'],
+                              )
+
+    # Keep only the mean
+    noise_dict['fwhm'] = np.mean(fwhm)
 
     # Calculate the autoregressive and drift noise
     auto_reg_sigma, drift_sigma = _calc_autoregression(volume, mask)
