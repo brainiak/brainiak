@@ -52,7 +52,7 @@ Show the brain as it unfolds over time with a given opacity.
 
  Authors:
  Cameron Ellis (Princeton) 2016-2017
- Chris Boldassano (Princeton) 2016-2017
+ Chris Baldassano (Princeton) 2016-2017
 """
 import logging
 
@@ -750,25 +750,25 @@ def _calc_fwhm(volume,
             # For each xyz dimension calculate the squared
             # difference of this voxel and the next
 
-            inrange = (x < dimensions[0] - 1)
-            inmask = inrange and (mask[x + 1, y, z] > 0)
-            included = inmask and (~np.isnan(volume[x + 1, y, z]))
+            in_range = (x < dimensions[0] - 1)
+            in_mask = in_range and (mask[x + 1, y, z] > 0)
+            included = in_mask and (~np.isnan(volume[x + 1, y, z]))
             if included:
                 d_sum[0] += volume[x, y, z] - volume[x + 1, y, z]
                 d_sq[0] += (volume[x, y, z] - volume[x + 1, y, z]) ** 2
                 d_count[0] += 1
 
-            inrange = (y < dimensions[1] - 1)
-            inmask = inrange and (mask[x, y + 1, z] > 0)
-            included = inmask and (~np.isnan(volume[x, y + 1, z]))
+                in_range = (y < dimensions[1] - 1)
+            in_mask = in_range and (mask[x, y + 1, z] > 0)
+            included = in_mask and (~np.isnan(volume[x, y + 1, z]))
             if included:
                 d_sum[1] += volume[x, y, z] - volume[x, y + 1, z]
                 d_sq[1] += (volume[x, y, z] - volume[x, y + 1, z]) ** 2
                 d_count[1] += 1
 
-            inrange = (z < dimensions[2] - 1)
-            inmask = inrange and (mask[x, y, z + 1] > 0)
-            included = inmask and (~np.isnan(volume[x, y, z + 1]))
+            in_range = (z < dimensions[2] - 1)
+            in_mask = in_range and (mask[x, y, z + 1] > 0)
+            included = in_mask and (~np.isnan(volume[x, y, z + 1]))
             if included:
                 d_sum[2] += volume[x, y, z] - volume[x, y, z + 1]
                 d_sq[2] += (volume[x, y, z] - volume[x, y, z + 1]) ** 2
@@ -887,7 +887,7 @@ def _calc_autoregression(volume,
 
 def calc_noise(volume,
                mask=None,
-               noise_dict={'voxel_size': [1.0, 1.0, 1.0]},
+               noise_dict=None,
                ):
     """ Calculates the noise properties of the volume supplied.
     This estimates what noise properties the volume has. For instance it
@@ -918,6 +918,12 @@ def calc_noise(volume,
     # Create the mask
     if mask is None:
         mask = np.ones(volume.shape)
+
+    # Update noise dict
+    if noise_dict is None:
+        noise_dict = {'voxel_size': [1.0, 1.0, 1.0]}
+    elif 'voxel_size' not in noise_dict:
+        noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
 
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
@@ -1233,13 +1239,35 @@ def _generate_noise_spatial(dimensions,
     if len(dimensions) == 4:
         return
 
-    # Convert from fwhm to sigma (relationship discovered empirical, only an
-    #  approximation up to sigma=0-5 which corresponds to fwhm=0-8, relies
-    # on an assumption of brain size).
-    def logcurve(x, a, b, c):
+    def logfunc(x, a, b, c):
+        """Solve for y given x for log function.
+
+            Parameters
+            ----------
+            x : float
+                x value of log function
+
+            a : float
+                x shift of function
+
+            b : float
+                rate of change
+
+            c : float
+                y shift of function
+
+            Returns
+            ----------
+
+            float
+                y value of log function
+            """
         return (np.log(x + a) / np.log(b)) + c
 
-    spatial_sigma = logcurve(fwhm, -0.36778719, 2.10601011, 2.15439247)
+    # Convert from fwhm to sigma (relationship discovered empirical, only an
+    #  approximation up to sigma = 0 -> 5 which corresponds to fwhm = 0 -> 8,
+    # relies on an assumption of brain size).
+    spatial_sigma = logfunc(fwhm, -0.36778719, 2.10601011, 2.15439247)
 
     # Set up the input to the fast fourier transform
     def fftIndgen(n):

@@ -276,7 +276,7 @@ def test_calc_noise():
                'temporal_noise': 5,
                'snr': 30,
                'max_activity': 1000,
-               'spatial_sigma': 4,
+               'fwhm': 4,
                }
 
     # Create the time course for the signal to be generated
