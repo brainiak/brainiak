@@ -57,14 +57,12 @@ Show the brain as it unfolds over time with a given opacity.
 import logging
 
 from itertools import product
-import os
 import nitime.algorithms.autoregressive as ar
 import math
 import numpy as np
 from pkg_resources import resource_stream
 from scipy import stats
 import scipy.ndimage as ndimage
-import nibabel
 
 __all__ = [
     "generate_signal",
@@ -947,7 +945,7 @@ def calc_noise(volume,
 
     # Calculate the fwhm on a subset of volumes
 
-    if volume.shape[3]>100:
+    if volume.shape[3] > 100:
         # Take only 100 shuffled TRs
         trs = np.arange(volume.shape[3])
         np.random.shuffle(trs)
