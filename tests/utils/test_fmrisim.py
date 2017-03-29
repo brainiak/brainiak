@@ -209,11 +209,12 @@ def test_generate_noise():
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                mask=mask,
-                               noise_dict={'overall': 0},
+                               noise_dict={'temporal_noise': 0, 'snr': 10000},
                                )
 
-    assert np.sum(noise) == 0, "Noise strength could not be manipulated"
-    assert np.std(noise) == 0, "Noise strength could not be manipulated"
+    temporal_noise = np.std(noise[mask[:,:,:,0]>0],1).mean()
+
+    assert temporal_noise <= 0.1, "Noise strength could not be manipulated"
 
 
 def test_mask_brain():
@@ -235,7 +236,7 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:,:,:,0]
+    mask = sim.mask_brain(volume)[:, :, :, 0]
     brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) == np.sum(volume != 0), "Masking did not work"
@@ -270,12 +271,12 @@ def test_calc_noise():
     dimensions_tr = np.array([10, 10, 10, tr_number])
 
     # Preset the noise dict
-    nd_orig = {'auto_reg_sigma': 1,
-               'drift_sigma': 0.5,
-               'overall': 0.1,
+    nd_orig = {'auto_reg_sigma': 0.6,
+               'drift_sigma': 0.4,
+               'temporal_noise': 5,
                'snr': 30,
-               'spatial_sigma': 0.15,
-               'system_sigma': 1,
+               'max_activity': 1000,
+               'spatial_sigma': 4,
                }
 
     # Create the time course for the signal to be generated
@@ -297,12 +298,9 @@ def test_calc_noise():
     # Calculate the noise
     nd_calc = sim.calc_noise(noise, mask)
 
-    assert abs(nd_calc['overall'] - nd_orig['overall']) < 0.1, 'overall ' \
-                                                               'calculated ' \
-                                                               'incorrectly'
+    # How precise are these estimates
+    precision = abs(nd_calc['temporal_noise'] - nd_orig['temporal_noise'])
+    assert precision < 1, 'temporal_noise calculated incorrectly'
 
-    assert abs(nd_calc['snr'] - nd_orig['snr']) < 10, 'snr calculated ' \
-                                                      'incorrectly'
-
-    assert abs(nd_calc['system_sigma'] - nd_orig['system_sigma']) < 1, \
-        'snr calculated incorrectly'
+    precision = abs(nd_calc['snr'] - nd_orig['snr'])
+    assert precision < 10, 'snr calculated incorrectly'
