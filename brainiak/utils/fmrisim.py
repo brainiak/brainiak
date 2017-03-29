@@ -50,7 +50,9 @@ plot_brain
 Show the brain as it unfolds over time with a given opacity.
 
 
- Authors: Cameron Ellis (Princeton) 2016
+ Authors:
+ Cameron Ellis (Princeton) 2016-2017
+ Chris Baldassano (Princeton) 2016-2017
 """
 import logging
 
@@ -630,8 +632,9 @@ def double_gamma_hrf(stimfunction,
     signal_function = signal_function[0::decimate_interval]
 
     # Cut off the HRF
-    signal_function = signal_function[0:int(len(stimfunction) / tr_duration
-                                            / temporal_resolution)]
+    signal_function = signal_function[0:int((len(stimfunction) /
+                                             tr_duration) /
+                                            temporal_resolution)]
 
     # Scale the function so that the peak response is 1
     if scale_function == 1:
@@ -678,90 +681,106 @@ def apply_signal(signal_function,
 
 def _calc_fwhm(volume,
                mask,
+               voxel_size=[1.0, 1.0, 1.0],
                ):
     """ Calculate the FWHM of a volume
-    Takes in a volume and mask and outputs the FWHM of each TR of this
+    Takes in a 3d volume and mask and outputs the FWHM (mm) of this
     volume for the non-masked voxels
 
     Parameters
     ----------
-    volume : multidimensional array
-    Functional data to have the FWHM measured. Can be 3d or 4d data
+    volume : 3 dimensional array
+    Functional data to have the FWHM measured.
 
-    mask : 4 dimensional array
+    mask : 3 dimensional array
     A mask of the voxels to have the FWHM measured from
+
+    voxel_size : length 3 list, float
+    Millimeters per voxel for x, y and z.
 
     Returns
     -------
 
     float, list
-    Returns the FWHM of each TR """
+    Returns the FWHM of each TR in mm"""
 
     # What are the dimensions of the volume
     dimensions = volume.shape
 
-    # Identify the number of TRs
-    if len(dimensions) == 3:
-        trs = 1
-    else:
-        trs = dimensions[3]
-        dimensions = dimensions[0:3]
-        volume_all = volume  # Store for later
-
-    # Preset size
-    fwhm = np.zeros(trs)
-
     # Iterate through the TRs, creating a FWHM for each TR
 
-    for tr_counter in list(range(0, trs)):
+    # Preset
+    v_count = 0
+    v_sum = 0
+    v_sq = 0
 
-        # Preset
-        sum_sq_der = [0.0, 0.0, 0.0]
-        countSqDer = [0, 0, 0]
+    d_sum = [0.0, 0.0, 0.0]
+    d_sq = [0.0, 0.0, 0.0]
+    d_count = [0, 0, 0]
 
-        # If there is more than one TR, just pull out that volume
-        if trs > 1:
-            volume = volume_all[:, :, :, tr_counter]
+    # Pull out all the voxel coordinates
+    coordinates = list(product(range(dimensions[0]),
+                               range(dimensions[1]),
+                               range(dimensions[2])))
 
-        # Pull out all the voxel coordinates
-        coordinates = list(product(range(dimensions[0]),
-                                   range(dimensions[1]),
-                                   range(dimensions[2])))
+    # Find the sum of squared error for the non-masked voxels in the brain
+    for i in list(range(len(coordinates))):
 
-        # Find the sum of squared error for the non-masked voxels in the brain
-        for i in list(range(len(coordinates))):
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
 
-            # Pull out this coordinate
-            x, y, z = coordinates[i]
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
 
-            # Is this within the mask?
-            if mask[x, y, z, tr_counter] > 0:
+            # Find the the volume sum and squared values
+            v_count += 1
+            v_sum += np.abs(volume[x, y, z])
+            v_sq += volume[x, y, z] ** 2
 
-                # For each xyz dimension calculate the squared
-                # difference of this voxel and the next
+    # Get the volume variance
+    v_var = (v_sq - ((v_sum ** 2) / v_count)) / (v_count - 1)
 
-                if x < dimensions[0] - 1 and mask[x + 1, y, z,
-                                                  tr_counter] > 0:
-                    temp = (volume[x, y, z] - volume[x + 1, y, z]) ** 2
-                    sum_sq_der[0] += temp
-                    countSqDer[0] += + 1
+    for i in list(range(len(coordinates))):
 
-                if y < dimensions[1] - 1 and mask[x, y + 1, z,
-                                                  tr_counter] > 0:
-                    temp = (volume[x, y, z] - volume[x, y + 1, z]) ** 2
-                    sum_sq_der[1] += temp
-                    countSqDer[1] += + 1
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
 
-                if z < dimensions[2] - 1 and mask[x, y, z + 1,
-                                                  tr_counter] > 0:
-                    temp = (volume[x, y, z] - volume[x, y, z + 1]) ** 2
-                    sum_sq_der[2] += temp
-                    countSqDer[2] += 1
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
+            # For each xyz dimension calculate the squared
+            # difference of this voxel and the next
 
-        # What is the FWHM for each dimension
-        fwhm3 = np.sqrt(np.divide(4 * np.log(2), np.divide(sum_sq_der,
-                                                           countSqDer)))
-        fwhm[tr_counter] = np.prod(fwhm3) ** (1 / 3)  # Calculate the average
+            in_range = (x < dimensions[0] - 1)
+            in_mask = in_range and (mask[x + 1, y, z] > 0)
+            included = in_mask and (~np.isnan(volume[x + 1, y, z]))
+            if included:
+                d_sum[0] += volume[x, y, z] - volume[x + 1, y, z]
+                d_sq[0] += (volume[x, y, z] - volume[x + 1, y, z]) ** 2
+                d_count[0] += 1
+
+                in_range = (y < dimensions[1] - 1)
+            in_mask = in_range and (mask[x, y + 1, z] > 0)
+            included = in_mask and (~np.isnan(volume[x, y + 1, z]))
+            if included:
+                d_sum[1] += volume[x, y, z] - volume[x, y + 1, z]
+                d_sq[1] += (volume[x, y, z] - volume[x, y + 1, z]) ** 2
+                d_count[1] += 1
+
+            in_range = (z < dimensions[2] - 1)
+            in_mask = in_range and (mask[x, y, z + 1] > 0)
+            included = in_mask and (~np.isnan(volume[x, y, z + 1]))
+            if included:
+                d_sum[2] += volume[x, y, z] - volume[x, y, z + 1]
+                d_sq[2] += (volume[x, y, z] - volume[x, y, z + 1]) ** 2
+                d_count[2] += 1
+
+    # Find the variance
+    d_var = np.divide((d_sq - np.divide(np.power(d_sum, 2),
+                                        d_count)), (np.add(d_count, -1)))
+
+    o_var = np.divide(-1, (4 * np.log(1 - (0.5 * d_var / v_var))))
+    fwhm3 = np.sqrt(o_var) * 2 * np.sqrt(2 * np.log(2))
+    fwhm = np.prod(np.multiply(fwhm3, voxel_size)) ** (1 / 3)
 
     return fwhm
 
@@ -800,24 +819,35 @@ def _calc_snr(volume,
 
     # Divide by the mask (if the middle slice was low in grey matter mass
     # then you would have a lower mean signal by default)
-    mean_signal = (slice_volume[slice_mask > 0] / slice_mask[slice_mask >
-                                                             0]).mean()
+    mean_signal = (slice_volume[slice_mask > 0]).mean()
 
-    # What is the overall noise
-    overall_noise = float(slice_volume[slice_mask == 0].std())
+    # What is the noise in the non brain
+    background_noise = float(slice_volume[slice_mask == 0].std())
+
+    # What is the max activation of this volume
+    max_activity = volume.max()
+
+    # What is the brain voxel by time activity.
+    brain_voxels = volume[mask[:, :, :, 0] > 0]
+
+    # Find the noise to brain voxels
+    temporal_noise = np.std(brain_voxels, 1).mean()
+
+    # Convert temporal noise into percent signal change
+    temporal_noise = temporal_noise / mean_signal * 100
 
     # Calculate snr
-    snr = mean_signal / overall_noise
+    snr = mean_signal / background_noise
 
     # Convert from memmap
     snr = float(snr)
 
-    return overall_noise, snr
+    return temporal_noise, snr, max_activity
 
 
 def _calc_autoregression(volume,
                          mask,
-                         ar_order=2,
+                         auto_reg_order=1,
                          ):
     """ Calculate the autoregressive sigma of the data.
 
@@ -829,7 +859,7 @@ def _calc_autoregression(volume,
     mask : 4d array, float
     What voxels of the input are within the brain
 
-    ar_order : int
+    auto_reg_order : int
     What order of the autoregression do you want to pull out
 
     Returns
@@ -837,13 +867,17 @@ def _calc_autoregression(volume,
     float
     A sigma of the autoregression in the data
 
+    float
+    Sigma of the drift in the data
+
     """
 
     # Calculate the time course
     timecourse = np.mean(volume[mask[:, :, :, 0] > 0], 0)
 
     # Pull out the AR values (depends on order)
-    auto_reg_sigma = ar.AR_est_YW(timecourse, ar_order)[0][1]
+    auto_reg_sigma = ar.AR_est_YW(timecourse, auto_reg_order)[1]
+    auto_reg_sigma = np.sqrt(auto_reg_sigma)
 
     # What is the size of the change in the time course
     drift_sigma = timecourse.std().tolist()
@@ -853,6 +887,7 @@ def _calc_autoregression(volume,
 
 def calc_noise(volume,
                mask=None,
+               noise_dict=None,
                ):
     """ Calculates the noise properties of the volume supplied.
     This estimates what noise properties the volume has. For instance it
@@ -879,30 +914,57 @@ def calc_noise(volume,
     """
 
     # Preset
-    noise_dict = {}
 
     # Create the mask
     if mask is None:
         mask = np.ones(volume.shape)
 
+    # Update noise dict
+    if noise_dict is None:
+        noise_dict = {'voxel_size': [1.0, 1.0, 1.0]}
+    elif 'voxel_size' not in noise_dict:
+        noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
+
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
 
-    # Calculate the overall noise and SNR of the volume
-    noise_dict['overall'], noise_dict['snr'] = _calc_snr(volume, mask)
+    # Calculate the temporal_noise noise and SNR of the volume
+    noise_dict['temporal_noise'], noise_dict['snr'], noise_dict[
+        'max_activity'] = _calc_snr(volume, mask)
 
-    # Calculate the fwhm of the data and use the average as your spatial sigma
-    noise_dict['spatial_sigma'] = _calc_fwhm(volume, mask).mean()
+    # Calculate the fwhm on a subset of volumes
+
+    if volume.shape[3] > 100:
+        # Take only 100 shuffled TRs
+        trs = np.arange(volume.shape[3])
+        np.random.shuffle(trs)
+        trs = trs[0:100]
+    else:
+        trs = list(range(0, volume.shape[3]))
+
+    # Go through the trs and pull out the fwhm
+    fwhm = [0] * len(trs)
+    for tr in list(range(0, len(trs))):
+        fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
+                              mask[:, :, :, trs[tr]],
+                              noise_dict['voxel_size'],
+                              )
+
+    # Keep only the mean
+    noise_dict['fwhm'] = np.mean(fwhm)
 
     # Calculate the autoregressive and drift noise
     auto_reg_sigma, drift_sigma = _calc_autoregression(volume, mask)
 
-    noise_dict['auto_reg_sigma'] = auto_reg_sigma / noise_dict['overall']
-    noise_dict['drift_sigma'] = drift_sigma / noise_dict['overall']
+    # Calibrate for how sigma is originally calculated
+    auto_reg_sigma = auto_reg_sigma / noise_dict['temporal_noise']
 
-    # Calculate the white noise
-    noise_dict['system_sigma'] = float(volume[mask == 0].std() / noise_dict[
-        'overall'])
+    # Total temporal noise, since these values only make sense relatively
+    total_temporal_noise = auto_reg_sigma + drift_sigma
+
+    # What proportion of noise is accounted for by these variables?
+    noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
+    noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
 
     # Return the noise dictionary
     return noise_dict
@@ -930,18 +992,18 @@ def _generate_noise_system(dimensions_tr,
         """
 
     # Generate the Rician noise
-    noise_rician = stats.rice.rvs(1, 1, size=dimensions_tr)
+    noise_rician = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions_tr)
+    #
+    # # Apply the gaussian noise
+    # noise_gaussian = np.random.normal(0, 1, size=dimensions_tr)
+    #
+    # # Combine these two noise types
+    # noise_system = noise_rician + noise_gaussian
+    #
+    # # Normalize
+    # noise_system = stats.zscore(noise_system)
 
-    # Apply the gaussian noise
-    noise_gaussian = np.random.normal(0, 1, size=dimensions_tr)
-
-    # Combine these two noise types
-    noise_system = noise_rician + noise_gaussian
-
-    # Normalize
-    noise_system = stats.zscore(noise_system)
-
-    return noise_system
+    return noise_rician
 
 
 def _generate_noise_temporal_task(stimfunction_tr,
@@ -1130,7 +1192,7 @@ def _generate_noise_temporal_phys(timepoints,
 
 def _generate_noise_spatial(dimensions,
                             mask=None,
-                            spatial_sigma=-4.0,
+                            fwhm=4.0,
                             ):
     """Generate code for Gaussian Random Fields.
 
@@ -1150,16 +1212,22 @@ def _generate_noise_spatial(dimensions,
     mask : 3d array
         The mask describing the boundaries of the brain
 
-    spatial_sigma : float
-        Approximately, what is the FWHM of the gaussian fields being
-        created. Use calc_fwhm to check this.
-        This is approximate for two reasons: firstly, although the
+    fwhm : float
+        What is the full width half max of the gaussian fields being created.
+        This is converted into a sigma which is used in this function.
+        However, this conversion was found empirically by testing values of
+        sigma and how it relates to fwhm values. The relationship that would be
+        found in such a test depends on the size of the brain (bigger brains
+        can have bigger fwhm).
+        However, small errors shouldn't matter too much since the fwhm
+        generated here can only be approximate anyway: firstly, although the
         distribution that is being drawn from is set to this value,
         this will manifest differently on every draw. Secondly, because of
         the masking and dimensions of the generated volume, this does not
-        behave simply. For instance, values over 10 do not work well because
-        the size of the volume. Moreover, wrapping effects matter (the
-        outputs are closer to this value if you have no mask).
+        behave simply- wrapping effects matter (the outputs are
+        closer to this value if you have no mask).
+        Use _calc_fwhm on this volume alone if you have concerns about the
+        accuracy of the fwhm.
 
     Returns
     ----------
@@ -1167,6 +1235,39 @@ def _generate_noise_spatial(dimensions,
     3d array, float
         Generates the spatial noise volume for these parameters
     """
+
+    if len(dimensions) == 4:
+        return
+
+    def logfunc(x, a, b, c):
+        """Solve for y given x for log function.
+
+            Parameters
+            ----------
+            x : float
+                x value of log function
+
+            a : float
+                x shift of function
+
+            b : float
+                rate of change
+
+            c : float
+                y shift of function
+
+            Returns
+            ----------
+
+            float
+                y value of log function
+            """
+        return (np.log(x + a) / np.log(b)) + c
+
+    # Convert from fwhm to sigma (relationship discovered empirical, only an
+    #  approximation up to sigma = 0 -> 5 which corresponds to fwhm = 0 -> 8,
+    # relies on an assumption of brain size).
+    spatial_sigma = logfunc(fwhm, -0.36778719, 2.10601011, 2.15439247)
 
     # Set up the input to the fast fourier transform
     def fftIndgen(n):
@@ -1214,16 +1315,17 @@ def _generate_noise_temporal(stimfunction_tr,
                              tr_duration,
                              dimensions,
                              mask,
-                             spatial_sigma,
+                             fwhm,
                              motion_sigma,
                              drift_sigma,
                              auto_reg_sigma,
                              physiological_sigma,
                              ):
-    """Generate the signal dependent noise
+    """Generate the temporal noise
 
-    This noise depends on things like the signal or the timing of the
-    experiment.
+    To increase or decrease the amount of total noise change the
+    temporal_noise noise_dict entry. To change the relative mixing of the
+    noise components, change the sigma's specified below.
 
     Parameters
     ----------
@@ -1282,18 +1384,19 @@ def _generate_noise_temporal(stimfunction_tr,
 
     # Generate the volumes that will differ depending on the type of noise
     # that it will be used for
-    volume_drift = _generate_noise_spatial(dimensions=dimensions,
-                                           spatial_sigma=spatial_sigma,
-                                           )
+    volume_drift = np.ones(dimensions)
+    # volume_drift = _generate_noise_spatial(dimensions=dimensions,
+    #                                        fwhm=fwhm,
+    #                                        )
 
     volume_phys = _generate_noise_spatial(dimensions=dimensions,
                                           mask=mask,
-                                          spatial_sigma=spatial_sigma,
+                                          fwhm=fwhm,
                                           )
 
     volume_autoreg = _generate_noise_spatial(dimensions=dimensions,
                                              mask=mask,
-                                             spatial_sigma=spatial_sigma,
+                                             fwhm=fwhm,
                                              )
 
     # Multiply the noise by the spatial volume
@@ -1316,10 +1419,13 @@ def _generate_noise_temporal(stimfunction_tr,
                                                    )
         volume_task = _generate_noise_spatial(dimensions=dimensions,
                                               mask=mask,
-                                              spatial_sigma=spatial_sigma,
+                                              fwhm=fwhm,
                                               )
         noise_task_volume = np.multiply.outer(volume_task, noise_task)
         noise_temporal = noise_temporal + (noise_task_volume * motion_sigma)
+
+    # Finally, z score each voxel so things mix nicely
+    noise_temporal = stats.zscore(noise_temporal, 3)
 
     return noise_temporal
 
@@ -1350,7 +1456,7 @@ def mask_brain(volume,
         What is the threshold (0 -> 1) for including a voxel in the mask?
 
     mask_self : bool
-        If set to 1 then it makes a mask from the volume supplied (by
+        If set to true then it makes a mask from the volume supplied (by
         averaging across time points and changing the range).
 
     Returns
@@ -1371,7 +1477,7 @@ def mask_brain(volume,
         mask_raw = np.load(mask_name)
 
     # Is the mask based on the volume
-    if mask_self is 1:
+    if mask_self is True:
         mask_raw = np.zeros([volume.shape[0], volume.shape[1], volume.shape[
             2], 1])
 
@@ -1380,8 +1486,13 @@ def mask_brain(volume,
         else:
             mask_raw[:, :, :, 0] = np.array(volume)
 
-    # Make sure the mask values range from 0 to 1
-    mask_raw = mask_raw / mask_raw.max()
+        mask_max = volume.max()
+    else:
+        mask_max = 1
+
+    # Make sure the mask values range from 0 to 1 (make out of max of volume
+    #  so that this is invertible later)
+    mask_raw = mask_raw / mask_max
 
     # If there is only one brain volume then make this a forth dimension
     if len(volume.shape) == 3:
@@ -1420,7 +1531,12 @@ def _noise_dict_update(noise_dict):
     ----------
     noise_dict : dict
 
-    A dictionary specifying the types of noise in this experiment
+    A dictionary specifying the types of noise in this experiment. The noise
+    types interact in important ways. First, all noise types ending with
+    sigma (e.g. motion sigma) are mixed together in
+    _generate_temporal_noise. These values describe the proportion of mixing
+    of these elements. However critically, temporal_noise is the parameter
+    that describes how much noise these components contribute to the brain.
 
     Returns
     -------
@@ -1431,32 +1547,24 @@ def _noise_dict_update(noise_dict):
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
 
-    if 'overall' not in noise_dict:
-        noise_dict['overall'] = 0.1
+    if 'temporal_noise' not in noise_dict:
+        noise_dict['temporal_noise'] = 5
     if 'motion_sigma' not in noise_dict:
-        noise_dict['motion_sigma'] = 0.1
+        noise_dict['motion_sigma'] = 0
     if 'drift_sigma' not in noise_dict:
-        noise_dict['drift_sigma'] = 0.5
+        noise_dict['drift_sigma'] = 0.45
     if 'auto_reg_sigma' not in noise_dict:
-        noise_dict['auto_reg_sigma'] = 1
+        noise_dict['auto_reg_sigma'] = 0.45
     if 'physiological_sigma' not in noise_dict:
         noise_dict['physiological_sigma'] = 0.1
-    if 'system_sigma' not in noise_dict:
-        noise_dict['system_sigma'] = 1
     if 'snr' not in noise_dict:
         noise_dict['snr'] = 30
-    if 'spatial_sigma' not in noise_dict:
-        if noise_dict['overall'] == 0:
-            noise_dict['spatial_sigma'] = 0.015
-        else:
-            noise_dict['spatial_sigma'] = 0.015 / noise_dict['overall']
-
-    # Print the mixing of the noise
-    total_var = noise_dict['motion_sigma'] ** 2
-    total_var += noise_dict['drift_sigma'] ** 2
-    total_var += noise_dict['auto_reg_sigma'] ** 2
-    total_var += noise_dict['physiological_sigma'] ** 2
-    total_var += noise_dict['system_sigma'] ** 2
+    if 'max_activity' not in noise_dict:
+        noise_dict['max_activity'] = 1000
+    if 'voxel_size' not in noise_dict:
+        noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
+    if 'fwhm' not in noise_dict:
+        noise_dict['fwhm'] = 4
 
     return noise_dict
 
@@ -1488,8 +1596,9 @@ def generate_noise(dimensions,
         The mask of the brain volume, using
 
     noise_dict : dictionary, float
-        This is a dictionary that must contain the key: overall. If there
-        are no other variables provided then it will default values
+        This is a dictionary which describes the noise parameters of the
+        data. If there are no other variables provided then it will default
+        values
 
     Returns
     ----------
@@ -1521,8 +1630,8 @@ def generate_noise(dimensions,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
                                               mask=mask[:, :, :, 0],
-                                              spatial_sigma=noise_dict[
-                                                 'spatial_sigma'],
+                                              fwhm=noise_dict[
+                                                 'fwhm'],
                                               motion_sigma=noise_dict[
                                                  'motion_sigma'],
                                               drift_sigma=noise_dict[
@@ -1533,17 +1642,34 @@ def generate_noise(dimensions,
                                                  'physiological_sigma'],
                                               )
 
-    noise_system = (_generate_noise_system(dimensions_tr=dimensions_tr)
-                    * noise_dict['system_sigma'])
+    # Create the base (this inverts the process to make the mask)
+    base = mask * noise_dict['max_activity']
 
-    # Find the outer product for the brain and nonbrain and add white noise
-    noise = noise_temporal + noise_system
+    # Set the amount of background based on the snr value
 
-    # Z score the volume and multiply it by the overall noise
-    noise = stats.zscore(noise) * noise_dict['overall']
+    # What are the midpoints to be extracted
+    mid_x_idx = int(np.ceil(base.shape[0] / 2))
+    mid_tr_idx = int(np.ceil(base.shape[3] / 2))
 
-    # Set the SNR of the brain
-    noise = noise + (mask * noise_dict['snr'] * noise_dict['overall'])
+    # Pull out the slices
+    slice_volume = base[mid_x_idx, :, :, mid_tr_idx]
+    slice_mask = mask[mid_x_idx, :, :, mid_tr_idx]
+
+    # What is the mean signal of the non masked voxels in this slice?
+    mean_signal = (slice_volume[slice_mask > 0]).mean()
+
+    # What is the standard deviation of the background activity
+    system_sigma = mean_signal / noise_dict['snr']
+
+    # Set up the machine noise
+    noise_system = (_generate_noise_system(dimensions_tr=dimensions_tr) *
+                    system_sigma)
+
+    # Convert temporal noise (in percent) to real numbers
+    abs_change = noise_dict['temporal_noise'] * mean_signal / 100
+
+    # Sum up the noise of the brain
+    noise = base + (noise_temporal * abs_change) + noise_system
 
     return noise
 
