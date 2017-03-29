@@ -7,9 +7,13 @@
 *.o
 *.npy
 *.log
+*.nii
 *.nii.gz
+*.png
 *.zip
 *.pkl
+
+data
 
 brainiak.egg-info
 build
@@ -29,4 +33,4 @@ __MACOSX
 
 brainiak/fcma/cython_blas.c
 brainiak/eventseg/_utils.c
-brainiak/examples/fcma/face_scene/
+examples/fcma/face_scene/

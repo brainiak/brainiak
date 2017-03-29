@@ -20,23 +20,23 @@ data representing a pair of conditions that are then combined
  Authors: Cameron Ellis (Princeton) 2016
 """
 import logging
-
 import numpy as np
 from brainiak.utils import fmrisim as sim
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D # noqa: F401
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+import nibabel
 
 logger = logging.getLogger(__name__)
 
 # Inputs for generate_signal
-dimensions = np.array([64, 64, 36]) # What is the size of the brain
+dimensions = np.array([64, 64, 36])  # What is the size of the brain
 feature_size = [9, 4, 9, 9]
 feature_type = ['loop', 'cube', 'cavity', 'sphere']
-feature_coordinates_A = np.array(
+coordinates_A = np.array(
     [[32, 32, 18], [26, 32, 18], [32, 26, 18], [32, 32, 12]])
-feature_coordinates_B = np.array(
+coordinates_B = np.array(
     [[32, 32, 18], [38, 32, 18], [32, 38, 18], [32, 32, 24]])
-signal_magnitude = [30, 30, 30, 30]
+signal_magnitude = [1, 0.5, 0.25, -1]
 
 
 # Inputs for generate_stimfunction
@@ -44,18 +44,22 @@ onsets_A = [10, 30, 50, 70, 90]
 onsets_B = [0, 20, 40, 60, 80]
 event_durations = [6]
 tr_duration = 2
+temporal_res = 1000.0  # How many elements per second are there
 duration = 100
+
+# Specify a name to save this generated volume.
+savename = 'examples/utils/example.nii'
 
 # Generate a volume representing the location and quality of the signal
 volume_static_A = sim.generate_signal(dimensions=dimensions,
-                                      feature_coordinates=feature_coordinates_A,
+                                      feature_coordinates=coordinates_A,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
                                       signal_magnitude=signal_magnitude,
                                       )
 
 volume_static_B = sim.generate_signal(dimensions=dimensions,
-                                      feature_coordinates=feature_coordinates_B,
+                                      feature_coordinates=coordinates_B,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
                                       signal_magnitude=signal_magnitude,
@@ -72,20 +76,24 @@ plt.show()
 stimfunction_A = sim.generate_stimfunction(onsets=onsets_A,
                                            event_durations=event_durations,
                                            total_time=duration,
-                                           tr_duration=tr_duration,
+                                           temporal_resolution=temporal_res,
                                            )
 
 stimfunction_B = sim.generate_stimfunction(onsets=onsets_B,
                                            event_durations=event_durations,
                                            total_time=duration,
-                                           tr_duration=tr_duration,
+                                           temporal_resolution=temporal_res,
                                            )
 
 # Convolve the HRF with the stimulus sequence
 signal_function_A = sim.double_gamma_hrf(stimfunction=stimfunction_A,
+                                         tr_duration=tr_duration,
+                                         temporal_resolution=temporal_res,
                                          )
 
 signal_function_B = sim.double_gamma_hrf(stimfunction=stimfunction_B,
+                                         tr_duration=tr_duration,
+                                         temporal_resolution=temporal_res,
                                          )
 
 # Multiply the HRF timecourse with the signal
@@ -102,18 +110,24 @@ signal = signal_A + signal_B
 
 # Combine the stim functions
 stimfunction = list(np.add(stimfunction_A, stimfunction_B))
+stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
+
+# Generate the mask of the signal
+mask = sim.mask_brain(signal)
+
+# Mask the signal to the shape of a brain (attenuates signal according to grey
+# matter likelihood)
+signal *= mask
 
 # Create the noise volumes (using the default parameters
 noise = sim.generate_noise(dimensions=dimensions,
-                           stimfunction=stimfunction,
+                           stimfunction_tr=stimfunction_tr,
                            tr_duration=tr_duration,
+                           mask=mask,
                            )
 
 # Combine the signal and the noise
-volume = signal + noise
-
-# Mask the volume to be the same shape as a brain
-brain = sim.mask_brain(volume)
+brain = signal + noise
 
 # Display the brain
 fig = plt.figure()
@@ -122,8 +136,47 @@ for tr_counter in list(range(0, brain.shape[3])):
     # Get the axis to be plotted
     ax = sim.plot_brain(fig,
                         brain[:, :, :, tr_counter],
+                        mask=mask[:, :, :, tr_counter],
                         percentile=99.9)
 
     # Wait for an input
     logging.info(tr_counter)
     plt.pause(0.5)
+
+# Save the volume
+affine_matrix = np.diag([-1, 1, 1, 1])  # LR gets flipped
+brain_nifti = nibabel.Nifti1Image(brain, affine_matrix)  # Create a nifti brain
+nibabel.save(brain_nifti, savename)
+
+# Load in the test dataset and generate a random volume based on it
+
+# Pull out the data and associated data
+volume = nibabel.load(savename).get_data()
+dimensions = volume.shape[0:3]
+total_time = volume.shape[3] * tr_duration
+stimfunction = sim.generate_stimfunction(onsets=[],
+                                         event_durations=[0],
+                                         total_time=total_time,
+                                         )
+stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
+
+# Calculate the mask
+mask = sim.mask_brain(volume=volume,
+                      mask_self=True,
+                      )
+
+# Calculate the noise parameters
+noise_dict = sim.calc_noise(volume=volume,
+                            mask=mask,
+                            )
+
+# Create the noise volumes (using the default parameters
+noise = sim.generate_noise(dimensions=dimensions,
+                           tr_duration=tr_duration,
+                           stimfunction_tr=stimfunction_tr,
+                           mask=mask,
+                           noise_dict=noise_dict,
+                           )
+
+brain_noise = nibabel.Nifti1Image(noise, affine_matrix)  # Create a nifti brain
+nibabel.save(brain_noise, 'examples/utils/example2.nii')  # Save

@@ -19,9 +19,8 @@
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",
     M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
-    Neural Information Processing Systems 29, 2016.
-    A preprint is available at
-    https://doi.org/10.1101/073932
+    Neural Information Processing Systems (NIPS) 29, 2016.
+    http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis
 """
 
 # Authors: Mingbo Cai
@@ -419,10 +418,8 @@ class BRSA(BaseEstimator):
             And we denote A = I - rho1*D + rho1**2 * F"""
         if scan_onsets is None:
             # assume that all data are acquired within the same scan.
-            D = np.diag(np.ones(n_T - 1), -1) + np.diag(np.ones(n_T - 1), 1)
-            F = np.eye(n_T)
-            F[0, 0] = 0
-            F[n_T - 1, n_T - 1] = 0
+            D = self._D_gen(n_T)
+            F = self._F_gen(n_T)
             n_run = 1
             run_TRs = np.array([n_T])
         else:
@@ -440,12 +437,8 @@ class BRSA(BaseEstimator):
 
             D_ele = map(self._D_gen, run_TRs)
             F_ele = map(self._F_gen, run_TRs)
-            D = []
-            for d_ele in D_ele:
-                D = scipy.linalg.block_diag(D, d_ele)
-            F = []
-            for f_ele in F_ele:
-                F = scipy.linalg.block_diag(F, f_ele)
+            D = scipy.linalg.block_diag(*D_ele)
+            F = scipy.linalg.block_diag(*F_ele)
             # D and F above are templates for constructing
             # the inverse of temporal covariance matrix of noise
         return D, F, run_TRs, n_run
@@ -481,9 +474,7 @@ class BRSA(BaseEstimator):
             It will only take effect if X0 is not None.
         """
 
-        X_base = []
-        for r_l in run_TRs:
-            X_base = scipy.linalg.block_diag(X_base, np.ones(r_l)[:, None])
+        X_base = scipy.linalg.block_diag(*map(np.ones, run_TRs)).T
         res = np.linalg.lstsq(X_base, X)
         if np.any(np.isclose(res[1], 0)):
             raise ValueError('Your design matrix appears to have '
@@ -861,7 +852,7 @@ class BRSA(BaseEstimator):
                             X0TAX0, est_SNR_AR1_UV**2,
                             n_V, n_T, n_run, rank, n_base)
         est_sigma_AR1_UV = sigma2**0.5
-        est_beta_AR1_UV = est_sigma_AR1_UV * est_SNR_AR1_UV**2 \
+        est_beta_AR1_UV = est_SNR_AR1_UV**2 \
             * np.dot(estU_chlsk_l_AR1_UV, YTAcorrXL_LAMBDA.T)
         est_beta0_AR1_UV = np.einsum(
             'ijk,ki->ji', X0TAX0_i,
@@ -1089,8 +1080,7 @@ class BRSA(BaseEstimator):
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
                                     n_V, n_T, n_run, rank, n_base)
-                betas = current_sigma2**0.5 * current_SNR2 \
-                    * np.dot(L, YTAcorrXL_LAMBDA.T)
+                betas = current_SNR2 * np.dot(L, YTAcorrXL_LAMBDA.T)
                 residuals = Y - np.dot(X, betas)
                 u, s, v = np.linalg.svd(residuals)
                 X0 = u[:, :self.n_nureg]
@@ -1214,8 +1204,7 @@ class BRSA(BaseEstimator):
                     = self._calc_LL(rho1, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                                     X0TAX0, current_SNR2,
                                     n_V, n_T, n_run, rank, n_base)
-                betas = current_sigma2**0.5 * current_SNR2 \
-                    * np.dot(L, YTAcorrXL_LAMBDA.T)
+                betas = current_SNR2 * np.dot(L, YTAcorrXL_LAMBDA.T)
                 residuals = Y - np.dot(X, betas)
                 u, s, v = np.linalg.svd(residuals)
                 X0 = u[:, :self.n_nureg]

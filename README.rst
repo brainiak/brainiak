@@ -77,7 +77,8 @@ shell, e.g., ``bash -l``::
 In addition, you also need to specify the directories that the newly installed `clang`
 will seek for compiling and linking::
 
-    export LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+    export LDFLAGS="-L/usr/local/opt/llvm/lib "\
+    "-Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
 
 Install updated versions of the following Python packages::
@@ -115,3 +116,14 @@ We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
 
 .. _CONTRIBUTING.rst:
    https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
+
+
+Citing
+======
+
+Please cite BrainIAK in your publications as: "Brain Imaging Analysis Kit,
+http://brainiak.org." Additionally, if you use `RRIDs
+<https://scicrunch.org/resolver>`_ to identify resources, please mention
+BrainIAK as "Brain Imaging Analysis Kit, RRID:SCR_014824". Finally, please cite
+the publications referenced in the documentation of the BrainIAK modules you
+use, e.g., `SRM <http://pythonhosted.org/brainiak/brainiak.funcalign.html>`_.
