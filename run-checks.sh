@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -ev
+set -e
 set -o pipefail
 
 flake8 --config setup.cfg brainiak
