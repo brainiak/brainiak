@@ -3577,7 +3577,7 @@ class GBRSA(BRSA):
         if type(X) is np.ndarray:
             X = [X]
         assert type(X) is list, 'Input data X must be either a list '\
-            'with each entry for one participant, or an numpy arrary '\
+            'with each entry for one participant, or a numpy arrary '\
             'for single participant.'
         if for_fit:
             for i, x in enumerate(X):
