@@ -758,7 +758,7 @@ def _calc_fwhm(volume,
                 d_sq[0] += (volume[x, y, z] - volume[x + 1, y, z]) ** 2
                 d_count[0] += 1
 
-                in_range = (y < dimensions[1] - 1)
+            in_range = (y < dimensions[1] - 1)
             in_mask = in_range and (mask[x, y + 1, z] > 0)
             included = in_mask and (~np.isnan(volume[x, y + 1, z]))
             if included:
