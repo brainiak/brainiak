@@ -3325,6 +3325,8 @@ class GBRSA(BRSA):
         beta0_post = [None] * n_subj
         X0 = [None] * n_subj
         LL_null = np.zeros(n_subj)
+        if scan_onsets is None:
+            scan_onsets = [None] * n_subj
         for subj in range(n_subj):
             np.random.seed(self.rand_seed)
             logger.debug('Running on subject {}.'.format(subj))
