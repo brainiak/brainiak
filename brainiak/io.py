@@ -13,6 +13,13 @@
 #  limitations under the License.
 """I/O functionality."""
 
+__all__ = [
+    "load_boolean_mask",
+    "load_images_from_dir",
+    "load_labels",
+    "save_as_nifti_file",
+]
+
 from pathlib import Path
 from typing import Iterable, List, Union
 

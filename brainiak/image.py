@@ -13,6 +13,13 @@
 #  limitations under the License.
 """Generic image functionality."""
 
+__all__ = [
+    "ConditionSpec",
+    "SingleConditionSpec",
+    "mask_image",
+    "multimask_images",
+]
+
 from typing import Iterable, List
 
 import numpy as np
