@@ -100,7 +100,8 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
     mask2: Optional[np.ndarray]
         Mask to apply to each image.
         If it is not specified, the method will assign None to the returning
-        variable raw_data2
+        variable raw_data2 and the self-correlation on raw_data1 will be
+        computed
     comm: MPI.Comm
         MPI communicator to use for MPI operations.
 
@@ -256,12 +257,12 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32):
 
     Parameters
     ----------
-    data_dir: str
-        the path to all subject files
-    extension: str
-        the file extension, usually nii.gz or nii
-    epoch_file: str
-        the absolute path of the epoch file
+    images: Iterable[SpatialImage]
+        Data.
+    conditions: List[UniqueLabelConditionSpec]
+        Condition specification.
+    data_type
+        Type to cast image to.
 
     Returns
     -------

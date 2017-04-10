@@ -29,8 +29,11 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
                          ) -> Iterable[SpatialImage]:
     """Load images from directory.
 
-    A new generator must be created by calling the function for every new
-    iteration through the images.
+    For efficiency, returns an iterator, not a sequence, so the results cannot
+    be accessed by indexing.
+
+    For every new iteration through the images, load_images_from_dir must be
+    called again.
 
     Parameters
     ----------

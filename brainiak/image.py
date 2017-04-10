@@ -52,7 +52,7 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
     image
         Image to mask.
     mask
-        Mask to apply.
+        Mask to apply. Must have the same shape as the image data.
     data_type
         Type to cast image to.
 
@@ -60,8 +60,15 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
     -------
     np.ndarray
         Masked image.
+
+    Raises
+    ------
+    ValueError
+        Image data and masks have different shapes.
     """
     image_data = image.get_data()
+    if image_data.shape != mask.shape:
+        raise ValueError("Image data and mask have different shapes.")
     if data_type is not None:
         cast_data = image_data.astype(data_type)
     else:
