@@ -50,7 +50,7 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
     Parameters
     ----------
     image
-        Image to mask.
+        Image to mask. Can include time as the last dimension.
     mask
         Mask to apply. Must have the same shape as the image data.
     data_type
@@ -67,7 +67,7 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
         Image data and masks have different shapes.
     """
     image_data = image.get_data()
-    if image_data.shape != mask.shape:
+    if image_data.shape[:3] != mask.shape:
         raise ValueError("Image data and mask have different shapes.")
     if data_type is not None:
         cast_data = image_data.astype(data_type)

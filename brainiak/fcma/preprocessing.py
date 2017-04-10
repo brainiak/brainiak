@@ -122,12 +122,14 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
     raw_data1 = []
     raw_data2 = []
     if rank == 0:
-        activity_data1, activity_data2 = multimask_images(images,
-                                                          [mask1, mask2],
-                                                          np.float32)
-        raw_data1, labels = _separate_epochs(activity_data1, conditions)
         if mask2 is not None:
+            activity_data1, activity_data2 = multimask_images(images,
+                                                              [mask1, mask2],
+                                                              np.float32)
             raw_data2, _ = _separate_epochs(activity_data2, conditions)
+        else:
+            (activity_data1,) = multimask_images(images, (mask1,), np.float32)
+        raw_data1, labels = _separate_epochs(activity_data1, conditions)
         time1 = time.time()
     raw_data_length = len(raw_data1)
     raw_data_length = comm.bcast(raw_data_length)
