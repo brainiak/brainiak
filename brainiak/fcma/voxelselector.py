@@ -25,8 +25,8 @@ from mpi4py import MPI
 from scipy.stats.mstats import zscore
 from sklearn import model_selection
 import sklearn
-from . import fcma_extension
-from . import cython_blas as blas
+from . import fcma_extension  # type: ignore
+from . import cython_blas as blas  # type: ignore
 import logging
 import multiprocess
 

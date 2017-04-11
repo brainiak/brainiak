@@ -139,4 +139,4 @@ cd -
 $deactivate_venv
 $remove_venv $venv
 
-echo "Check successful"
+echo "pr-check finished successfully."

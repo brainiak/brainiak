@@ -19,8 +19,8 @@ __all__ = [
     "mask_image",
     "multimask_images",
 ]
-
-from typing import Iterable, List
+from typing import Iterable, Sequence
+from typing import List  # noqa F401 https://gitlab.com/pycqa/flake8/issues/118
 
 import numpy as np
 
@@ -84,8 +84,8 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
 
 
 def multimask_images(images: Iterable[SpatialImage],
-                     masks: Iterable[np.ndarray], image_type: type = None
-                     ) -> List[List[np.ndarray]]:
+                     masks: Sequence[np.ndarray], image_type: type = None
+                     ) -> Sequence[Sequence[np.ndarray]]:
     """Mask images with multiple masks.
 
     Parameters
@@ -102,7 +102,8 @@ def multimask_images(images: Iterable[SpatialImage],
     List[List[np.ndarray]]
         For each mask, a list of masked images.
     """
-    masked_images = [[] for _ in range(len(masks))]
+    masked_images = [[] for _ in range(len(masks))
+                     ]  # type: List[List[np.ndarray]]
     for image in images:
         for i, mask in enumerate(masks):
             masked_images[i].append(mask_image(image, mask, image_type))

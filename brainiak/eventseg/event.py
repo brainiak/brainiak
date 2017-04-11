@@ -34,7 +34,7 @@ import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
 
-from . import _utils as utils
+from . import _utils as utils  # type: ignore
 
 logger = logging.getLogger(__name__)
 
