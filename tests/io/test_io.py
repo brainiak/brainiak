@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 from pathlib import Path
-from typing import Sequence
+from typing import Iterable, Sequence
 
 import nibabel as nib
 import numpy as np
@@ -52,21 +52,40 @@ def expected_n_subjects() -> int:
     return 2
 
 
+@pytest.fixture
+def image_paths(in_dir: Path) -> Iterable[Path]:
+    return (in_dir / "subject1_bet.nii.gz", in_dir / "subject2_bet.nii.gz")
+
+
 def test_load_images_from_dir_data_shape(
         in_dir: Path,
         expected_image_data_shape: Sequence[int],
         expected_n_subjects: int
         ) -> None:
-    i = 0
-    for image in io.load_images_from_dir(in_dir, "bet.nii.gz"):
+    for i, image in enumerate(io.load_images_from_dir(in_dir, "bet.nii.gz")):
         assert image.get_data().shape == (64, 64, 26, 10)
-        i += 1
-    assert i == expected_n_subjects
+    assert i + 1 == expected_n_subjects
+
+
+def test_load_images_data_shape(
+        image_paths: Iterable[Path],
+        expected_image_data_shape: Sequence[int],
+        expected_n_subjects: int
+        ) -> None:
+    for i, image in enumerate(io.load_images(image_paths)):
+        assert image.get_data().shape == (64, 64, 26, 10)
+    assert i + 1 == expected_n_subjects
 
 
 def test_load_boolean_mask(mask_path: Path) -> None:
     mask = io.load_boolean_mask(mask_path)
     assert mask.dtype == np.bool
+
+
+def test_load_boolean_mask_predicate(mask_path: Path) -> None:
+    mask = io.load_boolean_mask(mask_path, lambda x: np.logical_not(x))
+    expected_mask = np.logical_not(io.load_boolean_mask(mask_path))
+    assert np.array_equal(mask, expected_mask)
 
 
 def test_load_labels(labels_path: Path,
