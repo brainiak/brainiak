@@ -36,8 +36,7 @@ coordinates_A = np.array(
     [[32, 32, 18], [26, 32, 18], [32, 26, 18], [32, 32, 12]])
 coordinates_B = np.array(
     [[32, 32, 18], [38, 32, 18], [32, 38, 18], [32, 32, 24]])
-signal_magnitude = [1, 0.5, 0.25, -1]
-
+signal_magnitude = [1, 0.5, 0.25, -1] # In percent signal change
 
 # Inputs for generate_stimfunction
 onsets_A = [10, 30, 50, 70, 90]
@@ -64,7 +63,6 @@ volume_static_B = sim.generate_signal(dimensions=dimensions,
                                       feature_size=feature_size,
                                       signal_magnitude=signal_magnitude,
                                       )
-
 
 # Visualize the signal that was generated for condition A
 fig = plt.figure()
@@ -119,12 +117,20 @@ mask = sim.mask_brain(signal)
 # matter likelihood)
 signal *= mask
 
+# Generate original noise dict for comparison later
+orig_noise_dict = sim._noise_dict_update({})
+
 # Create the noise volumes (using the default parameters
 noise = sim.generate_noise(dimensions=dimensions,
                            stimfunction_tr=stimfunction_tr,
                            tr_duration=tr_duration,
                            mask=mask,
+                           noise_dict=orig_noise_dict,
                            )
+
+# Standardize the signal activity to make it percent signal change
+mean_act = (mask * orig_noise_dict['max_activity']).sum() / (mask > 0).sum()
+signal = signal * mean_act / 100
 
 # Combine the signal and the noise
 brain = signal + noise
@@ -178,5 +184,6 @@ noise = sim.generate_noise(dimensions=dimensions,
                            noise_dict=noise_dict,
                            )
 
-brain_noise = nibabel.Nifti1Image(noise, affine_matrix)  # Create a nifti brain
+# Create a nifti brain
+brain_noise = nibabel.Nifti1Image(noise, affine_matrix)
 nibabel.save(brain_noise, 'examples/utils/example2.nii')  # Save
