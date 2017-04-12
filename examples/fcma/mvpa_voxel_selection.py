@@ -13,7 +13,8 @@
 #  limitations under the License.
 
 from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
-import brainiak.fcma.io as io
+from brainiak.fcma.preprocessing import prepare_searchlight_mvpa_data
+from brainiak import io
 from sklearn import svm
 import sys
 from mpi4py import MPI
@@ -43,8 +44,8 @@ if __name__ == '__main__':
     epoch_file = sys.argv[4]
 
     # all MPI processes read the mask; the mask file is small
-    mask_img = nib.load(mask_file)
-    mask = mask_img.get_data().astype(np.bool)
+    mask_image = nib.load(mask_file)
+    mask = io.load_boolean_mask(mask_file)
     data = None
     labels = None
     if MPI.COMM_WORLD.Get_rank()==0:
@@ -52,7 +53,9 @@ if __name__ == '__main__':
             'mask size: %d' %
             np.sum(mask)
         )
-        data, labels = io.prepare_searchlight_mvpa_data(data_dir, extension, epoch_file)
+        images = io.load_images_from_dir(data_dir, extension)
+        conditions = io.load_labels(epoch_file)
+        data, labels = prepare_searchlight_mvpa_data(images, conditions)
         # the following line is an example to leaving a subject out
         #epoch_info = [x for x in epoch_info if x[1] != 0]
     num_subjs = int(sys.argv[5])
@@ -65,7 +68,8 @@ if __name__ == '__main__':
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
         score_volume = np.nan_to_num(score_volume.astype(np.float))
-        io.write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
+        io.save_as_nifti_file(score_volume, mask_image.affine,
+                                   'result_score.nii.gz')
         seq_volume = np.zeros(mask.shape, dtype=np.int)
         seq = np.zeros(len(results), dtype=np.int)
         with open('result_list.txt', 'w') as fp:
@@ -73,4 +77,5 @@ if __name__ == '__main__':
                 fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
                 seq[tuple[0]] = idx
         seq_volume[mask] = seq
-        io.write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
+        io.save_as_nifti_file(seq_volume, mask_image.affine,
+                                   'result_seq.nii.gz')

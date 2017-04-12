@@ -16,7 +16,8 @@ from sklearn import svm
 #from sklearn.linear_model import LogisticRegression
 import sys
 import logging
-import brainiak.fcma.io as io
+from brainiak.fcma.preprocessing import prepare_mvpa_data
+from brainiak import io
 import numpy as np
 from scipy.spatial.distance import hamming
 from sklearn import model_selection
@@ -28,7 +29,7 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-# python mvpa_classification.py face_scene bet.nii.gz face_scene/visual_top_mask.nii.gz face_scene/fs_epoch_labels.npy
+# python3 mvpa_classification.py face_scene bet.nii.gz face_scene/visual_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
     data_dir = sys.argv[1]
     extension = sys.argv[2]
@@ -44,7 +45,10 @@ if __name__ == '__main__':
         (num_subjects, num_epochs_per_subj)
     )
 
-    processed_data, labels = io.prepare_mvpa_data(data_dir, extension, epoch_file, mask_file)
+    images = io.load_images_from_dir(data_dir, extension)
+    mask = io.load_boolean_mask(mask_file)
+    conditions = io.load_labels(epoch_file)
+    processed_data, labels = prepare_mvpa_data(images, conditions, mask)
 
     # transpose data to facilitate training and prediction
     processed_data = processed_data.T
