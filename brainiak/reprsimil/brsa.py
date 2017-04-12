@@ -130,6 +130,57 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
     return tau2, log_ptau
 
 
+def Ncomp_BIC_Minka(X):
+    """ This implements the BIC metric written in Minka 2000:
+        Automatic choice of dimensionality for PCA
+        The paper mainly proposed a Laplace approximation of the posterior
+        of the number of components but also provided this BIC approximation.
+        For cases in which feature number is smaller than sample size,
+        there is ambiguity for the author of this code to decide how to
+        set some variables. Empirically the number of components estimated
+        turn to be very large by the Laplace approximation method. The BIC
+        method appear to perform well in a limited number of datasets.
+    Parameters
+    ----------
+    X: 2-D numpy array of size [n_T, n_V]
+        The data to estimate the dimensionality for PCA.
+        Each column is one feature. Each row is one sample.
+        X is z-scored before further calculation.
+    Returns:
+    --------
+    ncomp: integer
+        The optimal number of components determined by BIC approximation
+        of the likelihood of each candidate number of component
+    log_p: 1-D numpy array
+        log(p(X|k)) for each candidate number of component k, calculated
+        by the BIC approximation provided by Minka 2000.
+    """
+    [n_T, n_V] = X.shape
+    X = scipy.stats.zscore(X)
+    sing = np.linalg.svd(X, full_matrices=False, compute_uv=False)
+    # singular values of data X
+    sing = sing[np.logical_not(np.isclose(sing, 0))]
+    # Remove the singular values that are close to 0.
+    Lambda = sing ** 2
+    # eigen values of the sample covariance matrix.
+    d_max = Lambda.size - 1
+    # Our goal is dimensionality reduction, so at least reducing by 1.
+    K = np.arange(1, d_max + 1)
+    log_p = np.zeros(d_max)
+    # alpha = 2 # A small number corresponding to equation (48) of Minka 2000
+    # n = n_T + 1 + alpha
+    m = Lambda.size * K - K * (K + 1) / 2
+    v_hat = (np.sum(Lambda) - np.cumsum(Lambda[:d_max])) / (Lambda.size - K)
+    log_Lambda = np.log(Lambda)
+    log_p = - n_T / 2 * np.cumsum(log_Lambda[:d_max]) \
+        - n_T * (Lambda.size - K) / 2 * np.log(v_hat) \
+        - (m + K) / 2 * np.log(n_T)
+    # Equation (78) of Minka 2000. Notice that we operate on the
+    # space spanned by the eigen vectors.
+    ncomp = np.argmax(log_p) + 1
+    return ncomp, log_p
+
+
 class BRSA(BaseEstimator, TransformerMixin):
     """Bayesian representational Similarity Analysis (BRSA)
 
@@ -185,12 +236,15 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int. Default: 6
+    n_nureg: int or string. Default: 'BIC'
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'PCA'
+        If set to 'BIC', the number of nuisance regressor will be
+        automatically determined based on BIC metric
+        of probabalistic PCA model. (Minka 2000, NIPS)
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean, default: True
         A time course of constant 1 will be included to the nuisance
@@ -339,12 +393,16 @@ class BRSA(BaseEstimator, TransformerMixin):
     X0_null_: numpy array, shape=[time_points, n_nureg + n_base]
         The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
-
+    n_nureg_: int
+        Number of nuisance regressor in addition to such
+        regressors provided by the user (if any), if auto_nuisance
+        is set to True. If n_nureg is set to 'BIC', this will be
+        estimated from data.
     """
 
     def __init__(
             self, n_iter=50, n_iter_inner=6, rank=None,
-            auto_nuisance=True, n_nureg=6, nureg_method='PCA',
+            auto_nuisance=True, n_nureg='BIC', nureg_method='ICA',
             DC_single=True,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
@@ -363,17 +421,20 @@ class BRSA(BaseEstimator, TransformerMixin):
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         if auto_nuisance:
-            assert n_nureg > 0, 'n_nureg should be a positive number '\
+            assert (type(n_nureg) is str and n_nureg == 'BIC') \
+                or (type(n_nureg) is int and n_nureg > 0), \
+                'n_nureg should be a positive number or "BIC"'\
                 'if auto_nuisance is True.'
         if nureg_method == 'FA':
-            self.nureg_method = FactorAnalysis(n_components=n_nureg)
+            self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
-            self.nureg_method = PCA(n_components=n_nureg, whiten=True)
+            self.nureg_method = lambda x: PCA(n_components=x, whiten=True)
         elif nureg_method == 'SPCA':
-            self.nureg_method = SparsePCA(n_components=n_nureg,
-                                          max_iter=20, tol=tol)
+            self.nureg_method = lambda x: SparsePCA(n_components=x,
+                                                    max_iter=20, tol=tol)
         elif nureg_method == 'ICA':
-            self.nureg_method = FastICA(n_components=n_nureg, whiten=True)
+            self.nureg_method = lambda x: FastICA(n_components=x,
+                                                  whiten=True)
         else:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
@@ -533,6 +594,17 @@ class BRSA(BaseEstimator, TransformerMixin):
                            ' but GP_space or GP_inten is not set '
                            'to True. The coordinates or intensity are'
                            ' ignored.')
+        # Estimate the number of necessary nuisance regressors
+        if self.auto_nuisance and self.n_nureg == 'BIC':
+            ts_dc = self._gen_X_DC([X.shape[0]])
+            _, ts_base, _ = self._merge_DC_to_base(ts_dc, nuisance, False)
+            ts_reg = np.concatenate((ts_base, design), axis=1)
+            beta_hat = np.linalg.lstsq(ts_reg, X)[0]
+            residuals = X - np.dot(ts_reg, beta_hat)
+            self.n_nureg_, _ = Ncomp_BIC_Minka(residuals)
+        else:
+            self.n_nureg_ = self.n_nureg
+
         # Run Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
@@ -1693,7 +1765,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 # u, s, v = np.linalg.svd(residuals)
                 # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
-                X_res = self.nureg_method.fit_transform(residuals)
+                X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                    scipy.stats.zscore(residuals))
 
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
                     and norm_fitUchange / np.sqrt(param0_fitU.size) \
@@ -1829,7 +1902,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 # u, s, v = np.linalg.svd(residuals)
                 # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
-                X_res = self.nureg_method.fit_transform(residuals)
+                X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                    scipy.stats.zscore(residuals))
 
             if GP_space:
                 logger.debug('current GP[0]: {}'.format(current_GP[0]))
@@ -1925,7 +1999,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                 # dimension: #baseline*space
                 beta0s = np.linalg.solve(X0TAX0, X0TAY.T).T
                 residuals = Y - np.dot(X_base, beta0s[:np.shape(X_base)[1], :])
-                X_res = self.nureg_method.fit_transform(residuals)
+                X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                    scipy.stats.zscore(residuals))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -2516,12 +2591,15 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int. Default: 6
+    n_nureg: int or string. Default: 'BIC'
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'PCA'
+        If set to 'BIC', the number of nuisance regressor will be
+        automatically determined based on BIC metric
+        of probabalistic PCA model. (Minka 2000, NIPS)
+    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean. Default: True
         A time course of constant 1 will be included to the nuisance
@@ -2619,12 +2697,16 @@ class GBRSA(BRSA):
         for each subject.
         The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
-
+    n_nureg_: int
+        Number of nuisance regressor in addition to such
+        regressors provided by the user (if any), if auto_nuisance
+        is set to True. If n_nureg is set to 'BIC', this will be
+        estimated from data.
     """
 
     def __init__(
             self, n_iter=50, n_iter_inner=10, rank=None,
-            auto_nuisance=True, n_nureg=6, nureg_method='PCA',
+            auto_nuisance=True, n_nureg='BIC', nureg_method='ICA',
             DC_single=True, logS_range=1.0, SNR_bins=21,
             rho_bins=20, tol=2e-3, verbose=False,
             optimizer='BFGS', rand_seed=0, anneal_speed=20):
@@ -2635,17 +2717,20 @@ class GBRSA(BRSA):
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         if auto_nuisance:
-            assert n_nureg > 0, 'n_nureg should be a positive number '\
+            assert (type(n_nureg) is str and n_nureg == 'BIC') \
+                or (type(n_nureg) is int and n_nureg > 0), \
+                'n_nureg should be a positive number or "BIC"'\
                 'if auto_nuisance is True.'
         if nureg_method == 'FA':
-            self.nureg_method = FactorAnalysis(n_components=n_nureg)
+            self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
-            self.nureg_method = PCA(n_components=n_nureg, whiten=True)
+            self.nureg_method = lambda x: PCA(n_components=x, whiten=True)
         elif nureg_method == 'SPCA':
-            self.nureg_method = SparsePCA(n_components=n_nureg,
-                                          max_iter=20, tol=tol)
+            self.nureg_method = lambda x: SparsePCA(n_components=x,
+                                                    max_iter=20, tol=tol)
         elif nureg_method == 'ICA':
-            self.nureg_method = FastICA(n_components=n_nureg, whiten=True)
+            self.nureg_method = lambda x: FastICA(n_components=x,
+                                                  whiten=True)
         else:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
@@ -2743,6 +2828,24 @@ class GBRSA(BRSA):
         self.n_V_ = [None] * self.n_subj_
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
+        if self.auto_nuisance and self.n_nureg == 'BIC':
+            log_p_BIC = [None] * self.n_subj_
+            d_max = np.zeros(self.n_subj_)
+            for s_id in np.arange(self.n_subj_):
+                ts_dc = self._gen_X_DC([X[s_id].shape[0]])
+                _, ts_base, _ = self._merge_DC_to_base(
+                    ts_dc, nuisance[s_id], False)
+                ts_reg = np.concatenate((ts_base, design[s_id]), axis=1)
+                beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
+                residuals = X[s_id] - np.dot(ts_reg, beta_hat)
+                _, log_p_BIC[s_id] = Ncomp_BIC_Minka(residuals)
+                d_max[s_id] = log_p_BIC[s_id].size
+            self.n_nureg_ = 1 + np.argmax(np.sum(np.concatenate(
+                [log_p_BIC[s_id][:np.min(d_max), None]
+                 for s_id in np.arange(self.n_subj_)], axis=1), axis=1))
+        else:
+            self.n_nureg_ = self.n_nureg
+
         self.beta0_null_, self.sigma_null_, self.rho_null_, self.X0_null_,\
             self._LL_null_train_ = self._fit_RSA_marginalized_null(
                 Y=X, X_base=nuisance, scan_onsets=scan_onsets)
@@ -3163,7 +3266,9 @@ class GBRSA(BRSA):
                         - np.dot(
                             X_base[subj],
                             beta0_post[subj][:np.shape(X_base[subj])[1], :])
-                    X_res[subj] = self.nureg_method.fit_transform(residuals)
+                    X_res[subj] = self.nureg_method(
+                        self.n_nureg_).fit_transform(
+                        scipy.stats.zscore(residuals))
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
                         X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
@@ -3416,7 +3521,8 @@ class GBRSA(BRSA):
                     residuals = Y[subj] - np.dot(
                         X_base[subj],
                         beta0_post[subj][:np.size(X_base[subj], 1), :])
-                    X_res_new = self.nureg_method.fit_transform(residuals)
+                    X_res_new = self.nureg_method(self.n_nureg_).fit_transform(
+                        scipy.stats.zscore(residuals))
                     if it >= 1:
                         if np.max(np.abs(X_res_new - X_res)) <= self.tol:
                             logger.info('The change of X_res is '
