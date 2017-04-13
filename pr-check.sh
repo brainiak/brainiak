@@ -113,6 +113,8 @@ pip3 install $ignore_installed -U -e . || \
 pip3 install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip3 failed to install requirements"
 
+git clean -Xf .
+
 # static analysis
 ./run-checks.sh || \
     exit_with_error_and_venv "run-checks failed"
@@ -124,7 +126,7 @@ pip3 install $ignore_installed -U -r requirements-dev.txt || \
 # build documentation
 cd docs
 export THEANO_FLAGS='device=cpu,floatX=float64'
-git clean -Xf .
+
 if [ ! -z $SLURM_NODELIST ]
 then
     make_wrapper="srun -n 1"
