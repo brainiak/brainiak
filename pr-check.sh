@@ -94,6 +94,8 @@ else
     exit 1
 fi
 
+git clean -Xf .
+
 # optional, but highly recommended: create a virtualenv to isolate tests
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
     exit_with_error "mktemp -u error"
@@ -112,8 +114,6 @@ pip3 install $ignore_installed -U -e . || \
 # install developer dependencies
 pip3 install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "pip3 failed to install requirements"
-
-git clean -Xf .
 
 # static analysis
 ./run-checks.sh || \
