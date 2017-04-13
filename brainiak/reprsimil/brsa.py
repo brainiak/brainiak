@@ -174,9 +174,11 @@ def Ncomp_BIC_Minka(X):
     log_Lambda = np.log(Lambda)
     log_p = - n_T / 2 * np.cumsum(log_Lambda[:d_max]) \
         - n_T * (Lambda.size - K) / 2 * np.log(v_hat) \
-        - (m + K) / 2 * np.log(n_T)
+        - (m + K) / 2 * np.log(n_T * n_V)
     # Equation (78) of Minka 2000. Notice that we operate on the
-    # space spanned by the eigen vectors.
+    # space spanned by the eigen vectors. Although Minka counted the
+    # number of data point with n_T in this case, we count observations
+    # of all time points and all voxels (n_T * n_V)
     ncomp = np.argmax(log_p) + 1
     return ncomp, log_p
 
@@ -602,6 +604,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             beta_hat = np.linalg.lstsq(ts_reg, X)[0]
             residuals = X - np.dot(ts_reg, beta_hat)
             self.n_nureg_, _ = Ncomp_BIC_Minka(residuals)
+            logger.info('Use {} nuisance regressors to model the spatial '
+                        'correlation in noise.'.format(self.n_nureg_))
         else:
             self.n_nureg_ = self.n_nureg
 
@@ -2830,7 +2834,7 @@ class GBRSA(BRSA):
             self.n_V_[subj] = x.shape[1]
         if self.auto_nuisance and self.n_nureg == 'BIC':
             log_p_BIC = [None] * self.n_subj_
-            d_max = np.zeros(self.n_subj_)
+            d_max = np.zeros(self.n_subj_, dtype=int)
             for s_id in np.arange(self.n_subj_):
                 ts_dc = self._gen_X_DC([X[s_id].shape[0]])
                 _, ts_base, _ = self._merge_DC_to_base(
@@ -2843,6 +2847,8 @@ class GBRSA(BRSA):
             self.n_nureg_ = 1 + np.argmax(np.sum(np.concatenate(
                 [log_p_BIC[s_id][:np.min(d_max), None]
                  for s_id in np.arange(self.n_subj_)], axis=1), axis=1))
+            logger.info('Use {} nuisance regressors to model the spatial '
+                        'correlation in noise.'.format(self.n_nureg_))
         else:
             self.n_nureg_ = self.n_nureg
 
