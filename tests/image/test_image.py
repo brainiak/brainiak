@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from typing import Iterable
+from typing import Iterable, Sequence
 
 import numpy as np
 import pytest
@@ -96,7 +96,7 @@ def images(spatial_image: SpatialImage) -> Iterable[SpatialImage]:
 
 
 @pytest.fixture
-def masks(mask: np.ndarray) -> Iterable[np.ndarray]:
+def masks(mask: np.ndarray) -> Sequence[np.ndarray]:
     masks = [mask]
     mask2 = mask.copy()
     mask2[0, 0, 0] = 1
@@ -130,7 +130,7 @@ def test_mask_image_with_type(spatial_image: SpatialImage, mask: np.ndarray,
 
 
 def test_multimask_images(images: Iterable[SpatialImage],
-                          masks: Iterable[np.ndarray],
+                          masks: Sequence[np.ndarray],
                           multimasked_data: Iterable[Iterable[np.ndarray]]
                           ) -> None:
     result = multimask_images(images, masks)

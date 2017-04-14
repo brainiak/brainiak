@@ -33,13 +33,13 @@ def expected_image_data_shape() -> Sequence[int]:
 
 
 @pytest.fixture
-def mask_file_name() -> str:
-    return "mask.nii.gz"
+def mask_path(in_dir: Path) -> Path:
+    return in_dir / "mask.nii.gz"
 
 
 @pytest.fixture
-def labels_file_name() -> str:
-    return "epoch_labels.npy"
+def labels_path(in_dir: Path) -> Path:
+    return in_dir / "epoch_labels.npy"
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def expected_n_subjects() -> int:
 
 
 def test_load_images_from_dir_data_shape(
-        in_dir: str,
+        in_dir: Path,
         expected_image_data_shape: Sequence[int],
         expected_n_subjects: int
         ) -> None:
@@ -64,15 +64,15 @@ def test_load_images_from_dir_data_shape(
     assert i == expected_n_subjects
 
 
-def test_load_boolean_mask(in_dir: str, mask_file_name: str) -> None:
-    mask = io.load_boolean_mask(in_dir / mask_file_name)
+def test_load_boolean_mask(mask_path: Path) -> None:
+    mask = io.load_boolean_mask(mask_path)
     assert mask.dtype == np.bool
 
 
-def test_load_labels(in_dir: str, labels_file_name: str,
+def test_load_labels(labels_path: Path,
                      expected_condition_spec_shape: Sequence[int],
                      expected_n_subjects: int) -> None:
-    condition_specs = io.load_labels(in_dir / labels_file_name)
+    condition_specs = io.load_labels(labels_path)
     i = 0
     for condition_spec in condition_specs:
         assert condition_spec.shape == expected_condition_spec_shape

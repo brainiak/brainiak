@@ -20,7 +20,7 @@ Correlation related high performance routines
 # (Intel Labs), 2017
 
 import numpy as np
-from . import cython_blas as blas
+from . import cython_blas as blas  # type: ignore
 from scipy.stats.mstats import zscore
 import math
 
