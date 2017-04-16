@@ -1,0 +1,10 @@
+# correlation-based voxel selection
+# set OPENBLAS_NUM_THREADS=1 if using openblas
+# python fcma_executable_example.py /path/of/FCMA /path/of/NIfTI/files nii.gz 0 output -n #subjects -x /path/to/whole/brain/mask -y /path/to/whole/brain/mask -b /path/to/block/file --mpiprocess 2 --mpihost localhost
+# a concrete example
+OPENBLAS_NUM_THREADS=1 python fcma_executable_example.py ~/fcma-toolbox/build/ ~/data/face_scene/raw/ nii.gz 0 output -n 18 -x ~/data/face_scene/mask.nii.gz -y ~/data/face_scene/mask.nii.gz -b ~/data/face_scene/block.txt --mpiprocess 2 --mpihost localhost
+
+# activity-based voxel selection
+# python fcma_executable_example.py /path/of/FCMA /path/of/NIfTI/files nii.gz 2 output -n #subjects -x /path/to/whole/brain/mask -b /path/to/block/file
+# a concrete example
+python fcma_executable_example.py ~/fcma-toolbox/build/ ~/data/face_scene/raw/ nii.gz 2 output -n 18 -x ~/data/face_scene/mask.nii.gz -b ~/data/face_scene/block.txt
