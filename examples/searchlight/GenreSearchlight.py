@@ -5,7 +5,6 @@ from brainiak.brainiak.searchlight.searchlight import Searchlight
 from scipy import stats
 from scipy.sparse import random
 
-datadir
 np.seterr(divide='ignore',invalid='ignore')
 
 # Generate random data
