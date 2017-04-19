@@ -5,7 +5,7 @@ from brainiak.brainiak.searchlight.searchlight import Searchlight
 from scipy import stats
 from scipy.sparse import random
 
-datadir = '/Users/jamalw/Desktop/PNI/music_event_structures/brainiak/brainiak/examples/searchlight/'
+datadir
 np.seterr(divide='ignore',invalid='ignore')
 
 # Generate random data
@@ -21,7 +21,7 @@ a1_idx = np.nonzero(a1_vec)
 for i in range(8):
  d1_reshape[a1_idx[0],i] += classical
  d1_reshape[a1_idx[0],i+8] += jazz
- d2_reshape[a1_idx[0],i] = classical
+ d2_reshape[a1_idx[0],i] += classical
  d2_reshape[a1_idx[0],i+8] += jazz
 data1 = np.reshape(d1_reshape,(91,109,91,16))
 data2 = np.reshape(d2_reshape,(91,109,91,16))
