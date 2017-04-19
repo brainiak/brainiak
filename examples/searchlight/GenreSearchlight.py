@@ -5,33 +5,26 @@ from brainiak.brainiak.searchlight.searchlight import Searchlight
 from scipy import stats
 from scipy.sparse import random
 
-# Take subject ID as input
-subj = sys.argv[1]
-# Provide 0 if using random data. Provide 1 if using real data.
-data = sys.argv[2]
-
-datadir = '/Users/jamalw/Desktop/PNI/music_event_structures/'
+datadir = '/Users/jamalw/Desktop/PNI/music_event_structures/brainiak/brainiak/examples/searchlight/'
 np.seterr(divide='ignore',invalid='ignore')
 
-if data == '0':
-    # Generate random data
-    data1_rand = np.random.rand(91,109,91,16)
-    data2_rand = np.random.rand(91,109,91,16)
-    d1_reshape = np.reshape(data1_rand,(91*109*91,16))
-    d2_reshape = np.reshape(data2_rand,(91*109*91,16))
-    a1 = load_img(datadir + 'a1plus_2mm.nii')
-    a1_vec = np.reshape(a1.get_data(),(91*109*91))
-    a1_idx = np.nonzero(a1_vec) 
-    d1_reshape[a1_idx[0],:] = np.random.uniform(.9,1)
-    d2_reshape[a1_idx[0],:] = np.random.uniform(.9,1)
-    data1 = np.reshape(d1_reshape,(91,109,91,16))
-    data2 = np.reshape(d2_reshape,(91,109,91,16))
-elif data == '1':
-    # Load functional data 
-    data1 = load_img(datadir + 'subjects/' + subj + '/avg_reorder1.nii')
-    data2 = load_img(datadir + 'subjects/' + subj + '/avg_reorder2.nii')
-    data1 = data1.get_data()
-    data2 = data2.get_data()
+# Generate random data
+data1_rand = np.random.rand(91,109,91,16)
+data2_rand = np.random.rand(91,109,91,16)
+classical = np.random.rand(2600)
+jazz = np.random.rand(2600)
+d1_reshape = np.reshape(data1_rand,(91*109*91,16))
+d2_reshape = np.reshape(data2_rand,(91*109*91,16))
+a1 = load_img(datadir + 'a1plus_2mm.nii')
+a1_vec = np.reshape(a1.get_data(),(91*109*91))
+a1_idx = np.nonzero(a1_vec)
+for i in range(8):
+ d1_reshape[a1_idx[0],i] += classical
+ d1_reshape[a1_idx[0],i+8] += jazz
+ d2_reshape[a1_idx[0],i] = classical
+ d2_reshape[a1_idx[0],i+8] += jazz
+data1 = np.reshape(d1_reshape,(91,109,91,16))
+data2 = np.reshape(d2_reshape,(91,109,91,16))
 
 # Flatten data, then zscore data, then reshape data back into MNI coordinate space
 data1 = stats.zscore(np.reshape(data1,(91*109*91,16)))
