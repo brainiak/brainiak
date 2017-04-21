@@ -14,7 +14,7 @@ classical = np.random.rand(2600)
 jazz = np.random.rand(2600)
 d1_reshape = np.reshape(data1_rand,(91*109*91,16))
 d2_reshape = np.reshape(data2_rand,(91*109*91,16))
-a1 = load_img('a1plus_2mm.nii')
+a1 = load_img('a1plus_2mm.nii.gz')
 a1_vec = np.reshape(a1.get_data(),(91*109*91))
 a1_idx = np.nonzero(a1_vec)
 for i in range(8):
