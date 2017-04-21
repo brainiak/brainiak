@@ -67,9 +67,9 @@ global_outputs = np.array(global_outputs, dtype=np.float)
 print(global_outputs)
 
 # Save searchlight images
-dir = "searchlight_images"
-if not os.path.exists(dir):
-    os.makedirs(dir)
+out_dir = "searchlight_images"
+if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
 import matplotlib.pyplot as plt
 for (cnt, img) in enumerate(global_outputs):
     plt.imshow(img,vmin=minval,vmax=maxval)
