@@ -6,6 +6,7 @@ import sys
 from brainiak.searchlight.searchlight import Searchlight
 from scipy import stats
 from scipy.sparse import random
+import os
 
 # Generate random data
 data1_rand = np.random.rand(91,109,91,16)
@@ -65,6 +66,10 @@ minval = np.min(global_outputs[np.not_equal(global_outputs,None)])
 global_outputs = np.array(global_outputs, dtype=np.float)
 print(global_outputs)
 
+# Save searchlight images
+dir = "searchlight_images"
+if not os.path.exists(dir):
+    os.makedirs(dir)
 import matplotlib.pyplot as plt
 for (cnt, img) in enumerate(global_outputs):
     plt.imshow(img,vmin=minval,vmax=maxval)
