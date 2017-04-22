@@ -94,6 +94,8 @@ else
     exit 1
 fi
 
+git clean -Xf .
+
 # optional, but highly recommended: create a virtualenv to isolate tests
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
     exit_with_error "mktemp -u error"
@@ -124,7 +126,7 @@ pip3 install $ignore_installed -U -r requirements-dev.txt || \
 # build documentation
 cd docs
 export THEANO_FLAGS='device=cpu,floatX=float64'
-git clean -Xf .
+
 if [ ! -z $SLURM_NODELIST ]
 then
     make_wrapper="srun -n 1"
@@ -139,4 +141,4 @@ cd -
 $deactivate_venv
 $remove_venv $venv
 
-echo "Check successful"
+echo "pr-check finished successfully."

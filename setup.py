@@ -111,7 +111,6 @@ class BuildExt(build_ext):
         ])
 
 
-
 setup(
     name='brainiak',
     use_scm_version=True,
@@ -132,7 +131,8 @@ setup(
         'theano',
         'pybind11>=1.7',
         'pathos',
-        'nibabel'
+        'nibabel',
+        'typing',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='bryn.keller@intel.com',

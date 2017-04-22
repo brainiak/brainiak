@@ -13,8 +13,8 @@
 #  limitations under the License.
 
 from brainiak.fcma.voxelselector import VoxelSelector
-from brainiak.fcma.io import prepare_fcma_data
-from brainiak.fcma.io import write_nifti_file
+from brainiak.fcma.preprocessing import prepare_fcma_data
+from brainiak import io
 from sklearn import svm
 import sys
 from mpi4py import MPI
@@ -41,12 +41,16 @@ if __name__ == '__main__':
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    raw_data, _, labels = prepare_fcma_data(data_dir, extension, epoch_file, mask_file)
+    images = io.load_images_from_dir(data_dir, extension)
+    mask = io.load_boolean_mask(mask_file)
+    conditions = io.load_labels(epoch_file)
+    raw_data, _, labels = prepare_fcma_data(images, conditions, mask)
     # if providing two masks, just append the second mask as the last input argument
     # and specify raw_data2
-    #raw_data, raw_data2, labels = prepare_fcma_data(data_dir, extension, epoch_file,
-    #                                                mask_file,
-    #                                                mask_file2='face_scene/mask.nii.gz')
+    # images = io.load_images_from_dir(data_dir, extension)
+    # mask2 = io.load_boolean_mask('face_scene/mask.nii.gz')
+    # raw_data, raw_data2, labels = prepare_fcma_data(images, conditions, mask,
+    #                                                 mask2)
     epochs_per_subj = int(sys.argv[5])
     num_subjs = int(sys.argv[6])
     # the following line is an example to leaving a subject out
@@ -77,7 +81,7 @@ if __name__ == '__main__':
                 seq[tuple[0]] = idx
         score_volume[mask] = score
         seq_volume[mask] = seq
-        write_nifti_file(score_volume, mask_img.affine, 'result_score.nii.gz')
-        write_nifti_file(seq_volume, mask_img.affine, 'result_seq.nii.gz')
-
-
+        io.save_as_nifti_file(score_volume, mask_img.affine,
+                              'result_score.nii.gz')
+        io.save_as_nifti_file(seq_volume, mask_img.affine,
+                                   'result_seq.nii.gz')
