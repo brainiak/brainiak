@@ -165,11 +165,14 @@ whenever you add code to BrainIAK. We use a tool called "pytest" to run tests;
 please read the `Pytest documentation`_.  You should put your tests in a
 ``test_*.py`` file in the test folder, following the structure of the
 ``brainiak`` folder. So for example, if you have your code in
-``brainiak/functional_alignment/srm.py`` you should have tests in
-``tests/functional_alignment/test_srm.py``.
+``brainiak/funcalign/srm.py`` you should have tests in
+``tests/funcalign/test_srm.py``. The unit tests for a subpackage should not
+take more than one minute in total on our testing service, `Travis CI`_.
 
 .. _Pytest documentation:
   http://pytest.org/latest/contents.html
+.. _Travis CI:
+  https://travis-ci.org
 
 You must install the package in editable mode using the ``-e`` flag of ``pip3
 install`` before running the tests.
