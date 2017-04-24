@@ -59,13 +59,13 @@ checks from ``pr-check.sh`` using the steps bellow::
   source ../brainiak_pr_venv/bin/activate
 
   # install developer dependencies
-  pip3 install -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
 
   # install brainiak in editable mode (required for testing)
-  pip3 install -U -e .
+  python3 -m pip install -U -e .
 
   # run tests
   ./run-tests.sh
@@ -95,7 +95,7 @@ goes wrong.
 The development requirements are listed in ``requirements-dev.txt``. You can
 install them with::
 
-  pip3 install -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
 
 Standards
@@ -174,8 +174,9 @@ take more than one minute in total on our testing service, `Travis CI`_.
 .. _Travis CI:
   https://travis-ci.org
 
-You must install the package in editable mode using the ``-e`` flag of ``pip3
-install`` before running the tests.
+You must install the package in editable mode before running the tests::
+
+    python3 -m pip install -e .
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
 ``py.test <your-test-file.py>`` command to run your tests only, at a more
