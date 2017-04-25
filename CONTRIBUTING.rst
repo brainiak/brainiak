@@ -31,10 +31,50 @@ in mind:
 How to contribute
 =================
 
-We use GitHub pull requests (PRs) to make improvements to the repository.
+We use GitHub pull requests (PRs) to make improvements to the repository. Here
+is a concise description of our recommended workflow:
+
+1. Fork the official BrainIAK repository on GitHub.
+
+2. Clone your fork::
+
+     git clone https://github.com/yourgithubusername/brainiak
+
+3. Add the official BrainIAK repository as the ``upstream`` remote::
+
+     git remote add upstream https://github.com/IntelPNI/brainiak
+
+4. Set the ``master`` branch to track the ``upstream`` remote::
+
+     git fetch upstream
+     git branch -u upstream/master
+
+5. Whenever there are commits in the official repository, pull them to keep
+   your ``master`` branch up to date::
+
+     git pull --ff-only
+
+6. Always create a new branch when you start working on a new feature; we only
+   update the ``master`` branch via pull requests from feature branches; never
+   commit directly to the ``master`` branch::
+
+     git checkout -b new-feature
+
+7. Push your feature branch to your fork::
+
+     git push --set-upstream origin new-feature  # only for the first push
+     git push  # for all subsequent pushes
+
+8. When your feature is ready, make a pull request on GitHub. After your
+   feature is accepted, update your ``master`` branch and delete your feature
+   branch::
+
+     git checkout master
+     git pull --ff-only
+     git branch -d new-feature
+
 Please see the `GitHub help for collaborating on projects using issues and pull
-requests`_ for information about how to create your own fork of the project and
-generate pull requests to submit your code for inclusion in the project.
+requests`_ for more information.
 
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
