@@ -38,7 +38,7 @@ Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
 Install updated version of the following Python packages::
 
-    pip3 install --user -U pip virtualenv
+    python3 -m pip install --user -U pip virtualenv
 
 Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
@@ -83,7 +83,7 @@ will seek for compiling and linking::
 
 Install updated versions of the following Python packages::
 
-    pip3 install -U pip virtualenv
+    python3 -m pip install -U pip virtualenv
 
 
 Installing
@@ -91,7 +91,7 @@ Installing
 
 The Brain Imaging Analysis Kit is available on PyPI::
 
-    pip3 install -U brainiak
+    python3 -m pip install -U brainiak
 
 Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 #61`_). Installation will proceed despite this failure. You can safely ignore it
