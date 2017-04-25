@@ -56,15 +56,15 @@ def test_sumexp():
     assert maxs.size == data.shape[1], "Invalid max computation (wrong # samples in maxs)"
 
 
-def test_concatenate_list():
-    from brainiak.utils.utils import concatenate_list
+def test_concatenate_not_none():
+    from brainiak.utils.utils import concatenate_not_none
     import numpy as np
     l = [None] * 5
 
     l[1] = np.array([0, 1, 2])
     l[3] = np.array([3, 4])
 
-    r = concatenate_list(l, axis=0)
+    r = concatenate_not_none(l, axis=0)
 
     assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"
 

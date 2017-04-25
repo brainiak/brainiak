@@ -51,21 +51,21 @@ the virtual environment to be set up every time. You can run the individual
 checks from ``pr-check.sh`` using the steps bellow::
 
   # do not run this if using Anaconda, because Anaconda is not compatible with
-  # virtualenv; instead, look at pr-check.sh to see how to run the individual
+  # venv; instead, look at pr-check.sh to see how to run the individual
   # checks that are part of pr-check.sh using Anaconda
 
-  # optional, but highly recommended: create a virtualenv to isolate tests
-  virtualenv ../brainiak_pr_venv
+  # optional, but highly recommended: create a virtual environment
+  python3 -m venv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
 
   # install developer dependencies
-  pip3 install -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
 
   # install brainiak in editable mode (required for testing)
-  pip3 install -U -e .
+  python3 -m pip install -U -e .
 
   # run tests
   ./run-tests.sh
@@ -75,7 +75,7 @@ checks from ``pr-check.sh`` using the steps bellow::
   make
   cd -
 
-  # optional: remove virtualenv, if you created one
+  # optional: remove the virtual environment, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
@@ -95,7 +95,7 @@ goes wrong.
 The development requirements are listed in ``requirements-dev.txt``. You can
 install them with::
 
-  pip3 install -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
 
 Standards
@@ -165,14 +165,18 @@ whenever you add code to BrainIAK. We use a tool called "pytest" to run tests;
 please read the `Pytest documentation`_.  You should put your tests in a
 ``test_*.py`` file in the test folder, following the structure of the
 ``brainiak`` folder. So for example, if you have your code in
-``brainiak/functional_alignment/srm.py`` you should have tests in
-``tests/functional_alignment/test_srm.py``.
+``brainiak/funcalign/srm.py`` you should have tests in
+``tests/funcalign/test_srm.py``. The unit tests for a subpackage should not
+take more than one minute in total on our testing service, `Travis CI`_.
 
 .. _Pytest documentation:
   http://pytest.org/latest/contents.html
+.. _Travis CI:
+  https://travis-ci.org
 
-You must install the package in editable mode using the ``-e`` flag of ``pip3
-install`` before running the tests.
+You must install the package in editable mode before running the tests::
+
+    python3 -m pip install -e .
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
 ``py.test <your-test-file.py>`` command to run your tests only, at a more

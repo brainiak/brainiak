@@ -215,7 +215,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         ----
             The mapping of the classes is saved in the attribute classes_.
         """
-        self.classes_ = unique_labels(utils.concatenate_list(y))
+        self.classes_ = unique_labels(utils.concatenate_not_none(y))
         new_y = [None] * len(y)
         for s in range(len(y)):
             new_y[s] = np.digitize(y[s], self.classes_) - 1
@@ -795,7 +795,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             The number of samples of the subject that are related to that
             sample. They become a weight per sample in the MLR loss.
         """
-        labels_stacked = utils.concatenate_list(data_labels)
+        labels_stacked = utils.concatenate_not_none(data_labels)
 
         weights = np.empty((labels_stacked.size,))
         data_shared = [None] * len(data)
@@ -808,5 +808,5 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                 data_shared[s] = w[s].T.dot(data[s])
                 curr_samples += data[s].shape[1]
 
-        data_stacked = utils.concatenate_list(data_shared, axis=1).T
+        data_stacked = utils.concatenate_not_none(data_shared, axis=1).T
         return data_stacked, labels_stacked, weights
