@@ -17,6 +17,7 @@ from mpi4py import MPI
 import sys
 
 from brainiak.searchlight.searchlight import Searchlight
+from brainiak.searchlight.searchlight import Diamond5x5x5
 
 """Distributed Searchlight Example
 example usage: mpirun -n 4 python3 example_searchlight.py
@@ -65,6 +66,8 @@ if rank == 0:
     else:
       data[pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim,idx] -= kernel * weight
 
+# Searchlight with cube-shaped searchlight region
+
 # Create searchlight object
 sl = Searchlight(sl_rad=1, max_blk_edge=5)
 
@@ -90,10 +93,36 @@ if rank == 0:
   import matplotlib.pyplot as plt
   for (cnt, img) in enumerate(global_outputs):
     plt.imshow(img,cmap='hot',vmin=0,vmax=1)
-    plt.savefig('img' + str(cnt) + '.png')
+    plt.savefig('cube_img' + str(cnt) + '.png')
     plt.clf()
 
+# Searchlight using diamond-shaped searchlight region
 
+# Create searchlight object
+sl = Searchlight(sl_rad=2, max_blk_edge=5)
 
+# Distribute data to processes
+sl.distribute([data], mask)
+sl.broadcast(labels)
 
+# Define voxel function
+def sfn(l, msk, myrad, bcast_var):
+  import sklearn.svm
+  import sklearn.model_selection
+  classifier = sklearn.svm.SVC()
+  data = l[0][msk*Diamond5x5x5(),:].T
+  return np.mean(sklearn.model_selection.cross_val_score(classifier, data, bcast_var,n_jobs=1))
+
+# Run searchlight
+global_outputs = sl.run_searchlight(sfn)
+
+# Visualize result
+if rank == 0:
+  print(global_outputs)
+  global_outputs = np.array(global_outputs, dtype=np.float)
+  import matplotlib.pyplot as plt
+  for (cnt, img) in enumerate(global_outputs):
+    plt.imshow(img,cmap='hot',vmin=0,vmax=1)
+    plt.savefig('diamond_img' + str(cnt) + '.png')
+    plt.clf()
 

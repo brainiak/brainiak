@@ -24,6 +24,35 @@ __all__ = [
 ]
 
 
+def Diamond5x5x5():
+    """Diamond3x3
+
+    Return a numpy boolean array which is size
+    5x5x5, and is filled with a 3x3x3 cube in the middle
+    of the volume with an extra voxel on each face. For example,
+    a 2D slice through the middle of this volume would look like:
+
+    0 0 1 0 0
+    0 1 1 1 0
+    1 1 1 1 1
+    0 1 1 1 0
+    0 0 1 0 0
+
+    This small array should be applied to a mask using element-wise
+    multiplication in order to enforce this 3D shape to the searchlight
+    region.
+
+    """
+
+    myarr = np.zeros((5, 5, 5), dtype=np.bool)
+    myarr[1:4, 1:4, 1:4] = True
+    myarr[2, 2, :] = True
+    myarr[2, :, 2] = True
+    myarr[:, 2, 2] = True
+
+    return myarr
+
+
 class Searchlight:
     """Distributed Searchlight
 
