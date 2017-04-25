@@ -23,7 +23,7 @@ import logging
 from scipy.stats.mstats import zscore
 from mpi4py import MPI
 
-from ..image import multimask_images
+from ..image import mask_images, multimask_images
 
 
 logger = logging.getLogger(__name__)
@@ -123,12 +123,13 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
     raw_data2 = []
     if rank == 0:
         if mask2 is not None:
-            activity_data1, activity_data2 = multimask_images(images,
-                                                              [mask1, mask2],
-                                                              np.float32)
+            masks = (mask1, mask2)
+            activity_data1, activity_data2 = zip(*multimask_images(images,
+                                                                   masks,
+                                                                   np.float32))
             raw_data2, _ = _separate_epochs(activity_data2, conditions)
         else:
-            (activity_data1,) = multimask_images(images, (mask1,), np.float32)
+            activity_data1 = list(mask_images(images, mask1, np.float32))
         raw_data1, labels = _separate_epochs(activity_data1, conditions)
         time1 = time.time()
     raw_data_length = len(raw_data1)
@@ -216,7 +217,7 @@ def prepare_mvpa_data(images, conditions, mask):
     labels: 1D array
         contains labels of the data
     """
-    (activity_data,) = multimask_images(images, (mask,), np.float32)
+    activity_data = list(mask_images(images, mask, np.float32))
     epoch_info = generate_epochs_info(conditions)
     num_epochs = len(epoch_info)
     (d1, _) = activity_data[0].shape

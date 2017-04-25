@@ -19,12 +19,61 @@ __all__ = [
     "mask_image",
     "multimask_images",
 ]
-from typing import Iterable, Sequence
-from typing import List  # noqa F401 https://gitlab.com/pycqa/flake8/issues/118
+
+import itertools
+
+from typing import Iterable, Sequence, Type, TypeVar
 
 import numpy as np
 
 from nibabel.spatialimages import SpatialImage
+
+
+T = TypeVar("T", bound="MaskedMultiSubjectData")
+
+
+class MaskedMultiSubjectData(np.ndarray):
+    """Array in shape n_voxels, n_trs, n_subjects."""
+    @classmethod
+    def from_masked_images(cls: Type[T], masked_images: Iterable[np.ndarray],
+                           n_sub: int) -> T:
+        """Create a new instance from masked images.
+
+        Parameters
+        ----------
+        masked_images
+            Images to concatenate.
+        n_sub
+            Number of subjects. Must match the number of images.
+
+        Returns
+        -------
+        T
+            A new instance.
+
+        Raises
+        ------
+        ValueError
+            Images have different shapes.
+
+            The number of images differs from n_sub.
+        """
+        images_iterator = iter(masked_images)
+        first_image = next(images_iterator)
+        result = np.empty((first_image.shape[0], first_image.shape[1], n_sub))
+        for n_images, image in enumerate(itertools.chain([first_image],
+                                                         images_iterator)):
+            if image.shape != first_image.shape:
+                raise ValueError("Image {} has different shape from first "
+                                 "image: {} != {}".format(n_images,
+                                                          image.shape,
+                                                          first_image.shape))
+            result[:, :, n_images] = image
+        n_images += 1
+        if n_images != n_sub:
+            raise ValueError("n_sub != number of images: {} != {}"
+                             .format(n_sub, n_images))
+        return result.view(cls)
 
 
 class ConditionSpec(np.ndarray):
@@ -85,7 +134,7 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
 
 def multimask_images(images: Iterable[SpatialImage],
                      masks: Sequence[np.ndarray], image_type: type = None
-                     ) -> Sequence[Sequence[np.ndarray]]:
+                     ) -> Iterable[Sequence[np.ndarray]]:
     """Mask images with multiple masks.
 
     Parameters
@@ -97,14 +146,32 @@ def multimask_images(images: Iterable[SpatialImage],
     image_type:
         Type to cast images to.
 
-    Returns
-    -------
-    List[List[np.ndarray]]
-        For each mask, a list of masked images.
+    Yields
+    ------
+    Sequence[np.ndarray]
+        For each mask, a masked image.
     """
-    masked_images = [[] for _ in range(len(masks))
-                     ]  # type: List[List[np.ndarray]]
     for image in images:
-        for i, mask in enumerate(masks):
-            masked_images[i].append(mask_image(image, mask, image_type))
-    return masked_images
+        yield [mask_image(image, mask, image_type) for mask in masks]
+
+
+def mask_images(images: Iterable[SpatialImage], mask: np.ndarray,
+                image_type: type = None) -> Iterable[np.ndarray]:
+    """Mask images.
+
+    Parameters
+    ----------
+    images:
+        Images to mask.
+    mask:
+        Mask to apply.
+    image_type:
+        Type to cast images to.
+
+    Yields
+    ------
+    np.ndarray
+        Masked image.
+    """
+    for images in multimask_images(images, (mask,), image_type):
+        yield images[0]

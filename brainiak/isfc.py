@@ -31,7 +31,6 @@ comprehension. Nat Commun 7.
 # Princeton University, 2017
 
 from brainiak.fcma.util import compute_correlation
-import nibabel as nib
 import numpy as np
 from scipy import stats
 
@@ -115,53 +114,3 @@ def isfc(D, collapse_subj=True):
     if collapse_subj:
         ISFC = np.mean(ISFC, axis=2)
     return ISFC
-
-
-def load_subjects_nii(data_files, mask_file, mask_func=None):
-    """Loading masked nifti data into matrix
-
-    Given a list of subject data files and a mask, loads voxel timecourses
-    inside mask into a matrix, which is returned along with the voxel
-    coordinates of the mask. If mask_func is given, it specifies which mask
-    values should be included (e.g. for thresholding a continuous-valued mask)
-
-    Parameters
-    ----------
-    data_files : list of filenames of subject nii files
-        each nii file should be 4D (space+time), with all dimensions identical
-        for all subjects
-
-    mask_file : filename of mask nii
-        mask should be 3D (space), with dimensions identical to the first
-        three dimensions of the data files
-
-    mask_func : Callable[[ndarray], bool] : default x>0
-
-    Returns
-    -------
-    D : voxel by time by subject ndarray
-        all data within mask, from all subjects
-    coords : tuple of 3 ndarrays
-        x,y,z (as provided by nibabel) coordinates of mask voxel locations
-    """
-
-    mask_nii = nib.load(mask_file)
-    mask = mask_nii.get_data()
-    if mask_func is not None:
-        mask = mask_func(mask)
-    else:
-        mask = mask > 0
-    mask_shape = mask_nii.shape
-    coords = np.where(mask)
-
-    data_shape = nib.load(data_files[0]).shape
-    D = np.zeros((np.sum(mask), data_shape[3], len(data_files)))
-    for s in range(len(data_files)):
-        nii = nib.load(data_files[s])
-        if nii.shape != data_shape:
-            raise ValueError("Data has different shapes across subjects")
-        if nii.shape[:3] != mask_shape:
-            raise ValueError("Data and mask have different shapes")
-        D[:, :, s] = nii.get_data()[mask]
-
-    return (D, coords)
