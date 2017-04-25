@@ -12,7 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import numpy as np
-import logging
 import re
 import warnings
 import os.path
@@ -70,40 +69,6 @@ def from_sym_2_tri(symm):
     inds = np.triu_indices_from(symm)
     tri = symm[inds]
     return tri
-
-
-def fast_inv(a):
-    """to invert a 2D matrix
-
-    Parameters
-    ----------
-
-    a : 2D array
-
-
-    Returns
-    -------
-
-    inva: 2D array
-         inverse of input matrix a
-
-
-    Raises
-    -------
-
-    LinAlgError
-        If a is singular or not square
-    """
-    if a.ndim != 2:
-        raise TypeError("Input matrix should be 2D array")
-    identity = np.identity(a.shape[1], dtype=a.dtype)
-    inva = None
-    try:
-        inva = np.linalg.solve(a, identity)
-        return inva
-    except np.linalg.linalg.LinAlgError:
-        logging.exception('Error from np.linalg.solve')
-        raise
 
 
 def sumexp_stable(data):

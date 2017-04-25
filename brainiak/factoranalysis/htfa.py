@@ -43,7 +43,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.spatial import distance
 import logging
 from .tfa import TFA
-from ..utils.utils import fast_inv, from_tri_2_sym, from_sym_2_tri
+from ..utils.utils import from_tri_2_sym, from_sym_2_tri
 
 __all__ = [
     "HTFA",
@@ -276,11 +276,7 @@ class HTFA(TFA):
             posterior covariance of multivariate parameter
 
         """
-        try:
-            common = fast_inv(prior_cov + global_cov_scaled)
-        except np.linalg.linalg.LinAlgError:
-            logging.exception('Error from fast_inv')
-            raise
+        common = np.linalg.inv(prior_cov + global_cov_scaled)
         observation_mean = np.mean(new_observation, axis=1)
         posterior_mean = prior_cov.dot(common.dot(observation_mean)) +\
             global_cov_scaled.dot(common.dot(prior_mean))
