@@ -142,15 +142,15 @@ def sumexp_stable(data):
     return result_sum, max_value, result_exp
 
 
-def concatenate_list(l, axis=0):
-    """Construct a numpy array by stacking arrays in a list
+def concatenate_not_none(l, axis=0):
+    """Construct a numpy array by stacking not-None arrays in a list
 
     Parameters
     ----------
 
-    data : list of arrays, arrays have same shape in all but one dimension or
-    elements are None
-        The list of arrays to be concatenated.
+    data : list of arrays
+        The list of arrays to be concatenated. Arrays have same shape in all
+        but one dimension or are None, in which case they are ignored.
 
     axis : int, default = 0
         Axis for the concatenation
