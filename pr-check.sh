@@ -26,19 +26,19 @@ fi
 
 basedir=$(pwd)
 
-function create_venv_venv {
-    python3 -m venv ../$1
+function create_virtualenv_venv {
+    virtualenv ../$1
 }
 
-function activate_venv_venv {
+function activate_virtualenv_venv {
     source ../$1/bin/activate
 }
 
-function deactivate_venv_venv {
+function deactivate_virtualenv_venv {
     deactivate
 }
 
-function remove_venv_venv {
+function remove_virtualenv_venv {
     rm -r ../$1
 }
 
@@ -79,23 +79,29 @@ then
     deactivate_venv=deactivate_conda_venv
     remove_venv=remove_conda_venv
     ignore_installed="--ignore-installed"
+elif [ $(which virtualenv) ]
+then
+    create_venv=create_virtualenv_venv
+    activate_venv=activate_virtualenv_venv
+    deactivate_venv=deactivate_virtualenv_venv
+    remove_venv=remove_virtualenv_venv
 else
-    create_venv=create_venv_venv
-    activate_venv=activate_venv_venv
-    deactivate_venv=deactivate_venv_venv
-    remove_venv=remove_venv_venv
+    echo "Cannot find virtualenv or conda."
+    echo "You must install one of them or test manually."
+    exit 1
 fi
 
 git clean -Xf .
 
+# optional, but highly recommended: create a virtualenv to isolate tests
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
     exit_with_error "mktemp -u error"
 $create_venv $venv || {
-    exit_with_error "Virtual environment creation failed."
+    exit_with_error "virtualenv creation failed"
 }
 $activate_venv $venv || {
     $remove_venv $venv
-    exit_with_error "Virtual environment activation failed."
+    exit_with_error "virtualenv activation failed"
 }
 
 # install brainiak in editable mode (required for testing)
@@ -128,6 +134,7 @@ $make_wrapper make || {
 }
 cd -
 
+# optional: remove virtualenv
 $deactivate_venv
 $remove_venv $venv
 
