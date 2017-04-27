@@ -38,7 +38,7 @@ Install the following packages (Ubuntu 14.04 is used in these instructions)::
 
 Install updated version of the following Python packages::
 
-    python3 -m pip install --user -U pip
+    python3 -m pip install --user -U pip virtualenv
 
 Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
@@ -83,7 +83,7 @@ will seek for compiling and linking::
 
 Install updated versions of the following Python packages::
 
-    python3 -m pip install -U pip
+    python3 -m pip install -U pip virtualenv
 
 
 Installing
