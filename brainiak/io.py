@@ -23,9 +23,9 @@ __all__ = [
 from pathlib import Path
 from typing import Callable, Iterable, List, Union
 
+import logging
 import nibabel as nib
 import numpy as np
-import logging
 
 from nibabel.nifti1 import Nifti1Pair
 from nibabel.spatialimages import SpatialImage
@@ -61,11 +61,10 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
         in_dir = Path(in_dir)
     files = sorted(in_dir.glob("*" + suffix))
     for f in files:
-        yield nib.load(str(f))
-        logger.info(
-            'file %s is read',
-            f
+        logger.debug(
+            'starts to read file %s', f
         )
+        yield nib.load(str(f))
 
 
 def load_images(image_paths: Iterable[Union[str, Path]]
@@ -93,9 +92,8 @@ def load_images(image_paths: Iterable[Union[str, Path]]
             string_path = str(image_path)
         else:
             string_path = image_path
-        logger.info(
-            'starts to read file %s' %
-            string_path
+        logger.debug(
+            'starts to read file %s', string_path
         )
         yield nib.load(string_path)
 

@@ -198,6 +198,7 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
     raw_data1 = []
     raw_data2 = []
     if rank == 0:
+        logger.info('start to apply masks and separate epochs')
         if mask2 is not None:
             masks = (mask1, mask2)
             activity_data1, activity_data2 = zip(*multimask_images(images,
@@ -347,7 +348,6 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
         Type to cast image to.
     random: Optional[RandomType]
         Randomize the data within subject or not.
-        Default NORANDOM
 
     Returns
     -------
@@ -372,6 +372,7 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
     # counting the epochs per subject for z-scoring
     subject_count = np.zeros(len(conditions), dtype=np.int32)
 
+    logger.info('start to apply masks and separate epochs')
     for sid, f in enumerate(images):
         data = f.get_data().astype(data_type)
         [d1, d2, d3, d4] = data.shape
