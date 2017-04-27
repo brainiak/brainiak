@@ -15,6 +15,7 @@
 import numpy as np
 from mpi4py import MPI
 import sys
+from scipy.spatial.distance import cityblock
 
 """Distributed Searchlight
 """
@@ -23,6 +24,21 @@ __all__ = [
         "Searchlight",
 ]
 
+class Cube:
+    def __init__(self, rad):
+        self.rad = rad
+        self.data = np.ones((2*rad+1,2*rad+1,2*rad+1), dtype=np.bool)
+
+class Diamond:
+    def __init__(self, rad):
+        self.rad = rad
+        self.data = np.zeros((2*rad+1,2*rad+1,2*rad+1), dtype=np.bool)
+        for r1 in range(2*self.rad+1):
+            for r2 in range(2*self.rad+1):
+                for r3 in range(2*self.rad+1):
+                   if(cityblock( (r1,r2,r3) , (self.rad, self.rad, self.rad) ) <= self.rad):
+                       self.data[r1,r2,r3] = True
+        print(self.data)
 
 class Searchlight:
     """Distributed Searchlight
@@ -33,7 +49,7 @@ class Searchlight:
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=10):
+    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube):
         """Constructor
 
         Parameters
@@ -48,6 +64,7 @@ class Searchlight:
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
+        self.shape = shape(sl_rad).data
 
     def _get_ownership(self, data):
         """Determine on which rank each subject currently resides
@@ -345,6 +362,10 @@ class Searchlight:
                                                           mysl_rad:-mysl_rad,
                                                           mysl_rad:-mysl_rad]
 
+            def check_mask(mask_cube):
+                res = mask_cube[self.shape]
+                return np.any(res) and np.all(res)
+
             import pathos.multiprocessing
             inlist = [([ll[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
@@ -356,7 +377,9 @@ class Searchlight:
                            k:k+2*mysl_rad+1],
                        mysl_rad,
                        bcast_var)
-                      if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad] else None
+                      if check_mask(msk[i:i+2*mysl_rad+1,
+                                        j:j+2*mysl_rad+1,
+                                        k:k+2*mysl_rad+1]) else None
                       for i in range(0, outmat.shape[0])
                       for j in range(0, outmat.shape[1])
                       for k in range(0, outmat.shape[2])]
