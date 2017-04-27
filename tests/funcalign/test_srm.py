@@ -33,7 +33,6 @@ def test_can_instantiate():
     s = brainiak.funcalign.srm.SRM(n_iter=5, features=features, comm=comm)
     assert s, "Invalid SRM instance!"
 
-
     # Create a Shared response S with K = 3
     theta = np.linspace(-4 * np.pi, 4 * np.pi, samples)
     z = np.linspace(-2, 2, samples)
@@ -95,6 +94,7 @@ def test_can_instantiate():
             datanorm = np.linalg.norm(X[subject], 'fro')
             print('Difference/datanorm: ' + str(difference/datanorm))
             assert difference/datanorm < 1.0, "Model seems incorrectly computed."
+
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
     assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
 
@@ -120,15 +120,23 @@ def test_can_instantiate():
     if rank == 0:
         print("Test: not enough samples")
 
+
     # Check that it does not run with different number of samples (TRs)
     if rank == 0:
       S2 = S[:,:-2]
       X.append(Q.dot(S2))
+    else:
+      X.append(None)
+
 
     with pytest.raises(ValueError) as excinfo:
         s.fit(X)
     if rank == 0:
         print("Test: different number of samples per subject")
+
+    import sys
+    sys.exit(0)
+
 
 
 

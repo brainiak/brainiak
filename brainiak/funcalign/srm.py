@@ -40,6 +40,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
 from mpi4py import MPI
+import sys
 
 __all__ = [
     "SRM", "DetSRM"
@@ -184,25 +185,35 @@ class SRM(BaseEstimator, TransformerMixin):
 
         # Check for input data sizes
         number_subjects = len(X)
+        number_subjects_vec = self.comm.allgather(number_subjects)
+        for rank in range(self.comm.Get_size()):
+            if number_subjects_vec[rank] != number_subjects:
+                raise ValueError(
+                    "Not all ranks have same number of subjects")
+
+        # Collect size information
+        shape0 = np.zeros((number_subjects,), dtype=np.int)
+        shape1 = np.zeros((number_subjects,), dtype=np.int)
+
         for subject in range(number_subjects):
             if X[subject] is not None:
                 assert_all_finite(X[subject])
-                if X[subject].shape[1] < self.features:
-                    raise ValueError(
-                        "There are not enough samples to train the model with "
-                        "{0:d} features.".format(self.features))
-                assert_all_finite(X[subject])
+                shape0[subject] = X[subject].shape[0]
+                shape1[subject] = X[subject].shape[1]
 
+        shape0 = self.comm.allreduce(shape0, op=MPI.SUM)
+        shape1 = self.comm.allreduce(shape1, op=MPI.SUM)
 
         # Check if all subjects have same number of TRs
-        number_subjects = len(X)
-        number_trs = self.comm.allreduce(min([x.shape[1] for x in X if x is not None]), op=MPI.MIN)
+        number_trs = np.min(shape1)
         for subject in range(number_subjects):
-            if X[subject] is not None:
-                if X[subject].shape[1] != number_trs:
-                    raise ValueError("Different number of samples between subjects"
+            if shape1[subject] < self.features:
+                raise ValueError(
+                    "There are not enough samples to train the model with "
+                    "{0:d} features.".format(self.features))
+            if shape1[subject] != number_trs:
+                raise ValueError("Different number of samples between subjects"
                                      ".")
-
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
@@ -365,7 +376,7 @@ class SRM(BaseEstimator, TransformerMixin):
             The shared response.
         """
 
-        samples = self.comm.allreduce(min([d.shape[1] for d in data if d is not None]), op=MPI.MIN)
+        samples = self.comm.allreduce(min([d.shape[1] for d in data if d is not None],default=sys.maxsize), op=MPI.MIN)
         subjects = len(data)
 
         np.random.seed(self.rand_seed)
