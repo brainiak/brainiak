@@ -53,11 +53,24 @@ if __name__ == '__main__':
             'mask size: %d' %
             np.sum(mask)
         )
-        images = io.load_images_from_dir(data_dir, extension)
+        images = io.load_images_from_dir(data_dir, suffix=extension)
         conditions = io.load_labels(epoch_file)
         data, labels = prepare_searchlight_mvpa_data(images, conditions)
+
+        # setting the random argument produces random voxel selection results
+        # for non-parametric statistical analysis.
+        # There are three random options:
+        # RandomType.NORANDOM is the default
+        # RandomType.REPRODUCIBLE permutes the voxels in the same way every run
+        # RandomType.UNREPRODUCIBLE permutes the voxels differently across runs
+        # example
+        #from brainiak.fcma.preprocessing import RandomType
+        #data, labels = prepare_searchlight_mvpa_data(images, conditions,
+        #                                                    random=RandomType.UNREPRODUCIBLE)
+
         # the following line is an example to leaving a subject out
         #epoch_info = [x for x in epoch_info if x[1] != 0]
+
     num_subjs = int(sys.argv[5])
     # create a Searchlight object
     sl = Searchlight(sl_rad=1)
