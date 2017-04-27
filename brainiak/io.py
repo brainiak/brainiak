@@ -62,7 +62,7 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
     files = sorted(in_dir.glob("*" + suffix))
     for f in files:
         logger.debug(
-            'starts to read file %s', f
+            'Starting to read file %s', f
         )
         yield nib.load(str(f))
 
@@ -93,7 +93,7 @@ def load_images(image_paths: Iterable[Union[str, Path]]
         else:
             string_path = image_path
         logger.debug(
-            'starts to read file %s', string_path
+            'Starting to read file %s', string_path
         )
         yield nib.load(string_path)
 
