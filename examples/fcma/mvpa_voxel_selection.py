@@ -39,7 +39,7 @@ if __name__ == '__main__':
             MPI.COMM_WORLD.Get_size()
         )
     data_dir = sys.argv[1]
-    extension = sys.argv[2]
+    suffix = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
 
@@ -53,7 +53,7 @@ if __name__ == '__main__':
             'mask size: %d' %
             np.sum(mask)
         )
-        images = io.load_images_from_dir(data_dir, suffix=extension)
+        images = io.load_images_from_dir(data_dir, suffix=suffix)
         conditions = io.load_labels(epoch_file)
         data, labels = prepare_searchlight_mvpa_data(images, conditions)
 
