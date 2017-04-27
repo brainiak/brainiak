@@ -63,8 +63,8 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
     for f in files:
         yield nib.load(str(f))
         logger.info(
-            'file %s is read' %
-            str(f)
+            'file %s is read',
+            f
         )
 
 
@@ -141,7 +141,7 @@ def load_labels(path: Union[str, Path]) -> List[SingleConditionSpec]:
     List[SingleConditionSpec]
         List of SingleConditionSpec stored in labels file.
     """
-    condition_specs = np.load(path)
+    condition_specs = np.load(str(path))
     return [c.view(SingleConditionSpec) for c in condition_specs]
 
 

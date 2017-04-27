@@ -100,13 +100,13 @@ def _randomize_single_subject(data, seed=None):
 
     Parameters
     ----------
-    data: 2D array in shape [nVxels, nTRs]
+    data: 2D array in shape [nVoxels, nTRs]
         Activity data.
     seed: Optional[int]
         Seed for random state used implicitly for shuffling.
 
     Returns
-    data: 2D array in shape [nVxels, nTRs]
+    data: 2D array in shape [nVoxels, nTRs]
         Activity data with the voxel dimension shuffled.
     """
     if seed is not None:
@@ -134,11 +134,11 @@ def _randomize_subject_list(data_list, random):
         (Randomized) activity data list.
     """
     if random == RandomType.REPRODUCIBLE:
-        data_list = [_randomize_single_subject(data, seed=idx)
-                     for idx, data in enumerate(data_list)]
+        for i in range(len(data_list)):
+            data_list[i] = _randomize_single_subject(data_list[i], seed=i)
     elif random == RandomType.UNREPRODUCIBLE:
-        data_list = [_randomize_single_subject(data)
-                     for data in data_list]
+        for i in range(len(data_list)):
+            data_list[i] = _randomize_single_subject(data_list[i])
     return data_list
 
 
@@ -203,11 +203,11 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
             activity_data1, activity_data2 = zip(*multimask_images(images,
                                                                    masks,
                                                                    np.float32))
-            _randomize_subject_list(activity_data2, random)
+            activity_data2 = _randomize_subject_list(activity_data2, random)
             raw_data2, _ = _separate_epochs(activity_data2, conditions)
         else:
             activity_data1 = list(mask_images(images, mask1, np.float32))
-        _randomize_subject_list(activity_data1, random)
+        activity_data1 = _randomize_subject_list(activity_data1, random)
         raw_data1, labels = _separate_epochs(activity_data1, conditions)
         time1 = time.time()
     raw_data_length = len(raw_data1)
@@ -398,8 +398,8 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
                     np.mean(data[:, :, :, epoch[2]:epoch[3]], axis=3)
 
         logger.debug(
-            'file %s is loaded and processed, with data shape %s' %
-            (f.get_filename(), data.shape)
+            'file %s is loaded and processed, with data shape %s',
+            f.get_filename(), data.shape
         )
     # z-scoring
     cur_epoch = 0

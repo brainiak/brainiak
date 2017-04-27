@@ -163,7 +163,7 @@ class VoxelSelector:
             the length of array equals the number of voxels
         """
         logger.info(
-            'Master at rank %d starts to allocate tasks' %
+            'Master at rank %d starts to allocate tasks',
             MPI.COMM_WORLD.Get_rank()
         )
         results = []
