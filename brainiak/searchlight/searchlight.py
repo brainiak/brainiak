@@ -24,21 +24,50 @@ __all__ = [
         "Searchlight",
 ]
 
+
 class Cube:
+    """Cube
+
+    Searchlight shape which is a (2*rad+1)^3 cube
+    """
     def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
         self.rad = rad
-        self.data = np.ones((2*rad+1,2*rad+1,2*rad+1), dtype=np.bool)
+        self.data = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+
 
 class Diamond:
+    """Diamond
+
+    Searchlight shape which is a (2*rad+1)^3 diamond
+    """
     def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
         self.rad = rad
-        self.data = np.zeros((2*rad+1,2*rad+1,2*rad+1), dtype=np.bool)
+        self.data = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
-                   if(cityblock( (r1,r2,r3) , (self.rad, self.rad, self.rad) ) <= self.rad):
-                       self.data[r1,r2,r3] = True
-        print(self.data)
+                    if(cityblock((r1, r2, r3),
+                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                        self.data[r1, r2, r3] = True
+
 
 class Searchlight:
     """Distributed Searchlight

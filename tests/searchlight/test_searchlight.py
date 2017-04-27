@@ -78,7 +78,8 @@ def test_correctness():
       for d0 in range(rad, global_outputs.shape[0]-rad):
         for d1 in range(rad, global_outputs.shape[1]-rad):
           for d2 in range(rad, global_outputs.shape[2]-rad):
-            if mask[d0, d1, d2]:
+            msk_blk = mask[d0:d0+2*rad+1, d1:d1+2*rad+1, d2:d2+2*rad+1]
+            if np.all(msk_blk) and np.any(msk_blk):
               assert np.array_equal(np.array(global_outputs[d0,d1,d2]), np.array([d0,d1,d2]))
   
   
