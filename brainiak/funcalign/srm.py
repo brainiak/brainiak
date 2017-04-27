@@ -159,7 +159,8 @@ class SRM(BaseEstimator, TransformerMixin):
        K - the number of features (typically, :math:`V \\gg T \\gg K`).
     """
 
-    def __init__(self, n_iter=10, features=50, rand_seed=0, comm=MPI.COMM_SELF):
+    def __init__(self, n_iter=10, features=50, rand_seed=0,
+                 comm=MPI.COMM_SELF):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
@@ -213,7 +214,7 @@ class SRM(BaseEstimator, TransformerMixin):
                     "{0:d} features.".format(self.features))
             if shape1[subject] != number_trs:
                 raise ValueError("Different number of samples between subjects"
-                                     ".")
+                                 ".")
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
@@ -376,9 +377,10 @@ class SRM(BaseEstimator, TransformerMixin):
             The shared response.
         """
 
-        samples = self.comm.allreduce(min([d.shape[1] for d in data if d is not None],default=sys.maxsize), op=MPI.MIN)
+        local_min = min([d.shape[1] for d in data if d is not None],
+                        default=sys.maxsize)
+        samples = self.comm.allreduce(local_min, op=MPI.MIN)
         subjects = len(data)
-
         np.random.seed(self.rand_seed)
 
         # Initialization step: initialize the outputs with initial values,
@@ -407,11 +409,12 @@ class SRM(BaseEstimator, TransformerMixin):
                 inv_sigma_s = scipy.linalg.cho_solve(
                     (chol_sigma_s, lower_sigma_s), np.identity(self.features),
                     check_finite=False)
-    
+
                 # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
                 sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
-                (chol_sigma_s_rhos, lower_sigma_s_rhos) = scipy.linalg.cho_factor(
-                    sigma_s_rhos, check_finite=False)
+                chol_sigma_s_rhos, lower_sigma_s_rhos = \
+                    scipy.linalg.cho_factor(sigma_s_rhos,
+                                            check_finite=False)
                 inv_sigma_s_rhos = scipy.linalg.cho_solve(
                     (chol_sigma_s_rhos, lower_sigma_s_rhos),
                     np.identity(self.features), check_finite=False)
@@ -422,12 +425,13 @@ class SRM(BaseEstimator, TransformerMixin):
             trace_xt_invsigma2_x = 0.0
             for subject in range(subjects):
                 if data[subject] is not None:
-                    wt_invpsi_x += (w[subject].T.dot(x[subject])) / rho2[subject]
+                    wt_invpsi_x += (w[subject].T.dot(x[subject])) \
+                                   / rho2[subject]
                     trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
 
             wt_invpsi_x = self.comm.reduce(wt_invpsi_x, op=MPI.SUM)
-            trace_xt_invsigma2_x = self.comm.reduce(trace_xt_invsigma2_x, op=MPI.SUM)
-
+            trace_xt_invsigma2_x = self.comm.reduce(trace_xt_invsigma2_x,
+                                                    op=MPI.SUM)
             trace_sigma_s = None
             if rank == 0:
                 log_det_psi = np.sum(np.log(rho2) * voxels)
@@ -475,7 +479,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                         samples)
                     logger.info('Objective function %f' % loglike)
-        
+
         sigma_s = self.comm.bcast(sigma_s)
         return sigma_s, w, mu, rho2, shared_response
 

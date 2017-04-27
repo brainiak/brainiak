@@ -134,11 +134,6 @@ def test_can_instantiate():
     if rank == 0:
         print("Test: different number of samples per subject")
 
-    import sys
-    sys.exit(0)
-
-
-
 
 def test_det_srm():
     import brainiak.funcalign.srm
