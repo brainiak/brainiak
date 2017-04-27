@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
 import sys
@@ -337,7 +338,7 @@ class Searchlight:
 
         self.bcast_var = self.comm.bcast(bcast_var)
 
-    def run_block_function(self, block_fn):
+    def run_block_function(self, block_fn, extra_block_fn_params=None):
         """Perform a function for each block in a volume.
 
         Parameters
@@ -357,11 +358,16 @@ class Searchlight:
 
                 bcast_var: shared data which is broadcast to all processes
 
+                extra_params: extra parameters
+
 
                 Returns
 
                 3D array which is the same size as the mask
                 input with padding removed
+
+        extra_block_fn_params: tuple
+            Extra parameters to pass to the block function
 
 
         """
@@ -370,7 +376,8 @@ class Searchlight:
         # Apply searchlight
         local_outputs = [(mypt[0],
                           block_fn([d[idx] for d in self.subproblems],
-                          self.submasks[idx], self.sl_rad, self.bcast_var))
+                          self.submasks[idx], self.sl_rad, self.bcast_var,
+                                   extra_block_fn_params))
                          for (idx, mypt) in enumerate(self.blocks)]
 
         # Collect results
@@ -399,6 +406,9 @@ class Searchlight:
         ----------
 
         voxel_fn: function to apply at each voxel
+
+            Must be `serializeable using pickle
+            <https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled>`_.
 
                 Parameters
 
@@ -430,40 +440,60 @@ class Searchlight:
 
         """
 
-        def _singlenode_searchlight(l, msk, mysl_rad, bcast_var):
+        # Reuse a single `Pool` for all blocks.
+        extra_block_fn_params = (Pool(pool_size), voxel_fn, self.shape)
+        return self.run_block_function(_singlenode_searchlight,
+                                       extra_block_fn_params)
 
-            outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
-                                                          mysl_rad:-mysl_rad,
-                                                          mysl_rad:-mysl_rad]
 
-            import pathos.multiprocessing
-            inlist = [([ll[i:i+2*mysl_rad+1,
-                           j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1,
-                           :]
-                        for ll in l],
-                       msk[i:i+2*mysl_rad+1,
-                           j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1] * self.shape,
-                       mysl_rad,
-                       bcast_var)
-                      if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad] else None
-                      for i in range(0, outmat.shape[0])
-                      for j in range(0, outmat.shape[1])
-                      for k in range(0, outmat.shape[2])]
-            outlist = list(pathos.multiprocessing.ProcessingPool(pool_size)
-                           .map(lambda x:
-                                voxel_fn(x[0], x[1], x[2], x[3])
-                                if x is not None else None, inlist))
+def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
+    """Run searchlight function on block data in parallel.
 
-            cnt = 0
-            for i in range(0, outmat.shape[0]):
-                for j in range(0, outmat.shape[1]):
-                    for k in range(0, outmat.shape[2]):
-                        if outlist[cnt] is not None:
-                            outmat[i, j, k] = outlist[cnt]
-                        cnt = cnt + 1
+    `extra_params` contains:
 
-            return outmat
+    - `Pool`.
+    - Searchlight function.
+    - `Shape` mask.
+    """
 
-        return self.run_block_function(_singlenode_searchlight)
+    pool = extra_params[0]
+    voxel_fn = extra_params[1]
+    shape_mask = extra_params[2]
+    outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
+                                                  mysl_rad:-mysl_rad,
+                                                  mysl_rad:-mysl_rad]
+
+    inlist = []
+    inlist_where = []
+    where_idx = 0
+    for i in range(0, outmat.shape[0]):
+        for j in range(0, outmat.shape[1]):
+            for k in range(0, outmat.shape[2]):
+                if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad]:
+                    inlist.append((
+                        [ll[i:i+2*mysl_rad+1,
+                            j:j+2*mysl_rad+1,
+                            k:k+2*mysl_rad+1,
+                            :]
+                         for ll in l],
+                        msk[i:i+2*mysl_rad+1,
+                            j:j+2*mysl_rad+1,
+                            k:k+2*mysl_rad+1
+                            ] * shape_mask,
+                        mysl_rad,
+                        bcast_var))
+                    inlist_where.append(where_idx)
+                where_idx += 1
+    outlist_all = np.array([None] * where_idx)
+    outlist = list(pool.starmap(voxel_fn, inlist))
+    outlist_all[inlist_where] = outlist
+
+    cnt = 0
+    for i in range(0, outmat.shape[0]):
+        for j in range(0, outmat.shape[1]):
+            for k in range(0, outmat.shape[2]):
+                if outlist_all[cnt] is not None:
+                    outmat[i, j, k] = outlist_all[cnt]
+                cnt = cnt + 1
+
+    return outmat
