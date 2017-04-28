@@ -223,4 +223,3 @@ def test_det_srm():
     print("Test: different number of samples per subject")
 
 
-test_can_instantiate()

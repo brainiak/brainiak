@@ -144,7 +144,7 @@ class SRM(BaseEstimator, TransformerMixin):
     rho2_ : array, shape=[subjects]
         The estimated noise variance :math:`\\rho_i^2` for each subject
 
-    comm_ : mpi4py.MPI.Intracomm
+    comm : mpi4py.MPI.Intracomm
         The MPI communicator containing the data
 
     Note
@@ -170,7 +170,7 @@ class SRM(BaseEstimator, TransformerMixin):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
-        self.comm_ = comm
+        self.comm = comm
         return
 
     def fit(self, X, y=None):
@@ -192,8 +192,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
         # Check for input data sizes
         number_subjects = len(X)
-        number_subjects_vec = self.comm_.allgather(number_subjects)
-        for rank in range(self.comm_.Get_size()):
+        number_subjects_vec = self.comm.allgather(number_subjects)
+        for rank in range(self.comm.Get_size()):
             if number_subjects_vec[rank] != number_subjects:
                 raise ValueError(
                     "Not all ranks have same number of subjects")
@@ -208,8 +208,8 @@ class SRM(BaseEstimator, TransformerMixin):
                 shape0[subject] = X[subject].shape[0]
                 shape1[subject] = X[subject].shape[1]
 
-        shape0 = self.comm_.allreduce(shape0, op=MPI.SUM)
-        shape1 = self.comm_.allreduce(shape1, op=MPI.SUM)
+        shape0 = self.comm.allreduce(shape0, op=MPI.SUM)
+        shape1 = self.comm.allreduce(shape1, op=MPI.SUM)
 
         # Check if all subjects have same number of TRs
         number_trs = np.min(shape1)
@@ -293,7 +293,6 @@ class SRM(BaseEstimator, TransformerMixin):
         trace_xtx = np.zeros(subjects)
 
         for subject in range(subjects):
-            np.random.seed(subject)
             rho2[subject] = 1
             if data[subject] is not None:
                 mu.append(np.mean(data[subject], 1))
@@ -385,19 +384,19 @@ class SRM(BaseEstimator, TransformerMixin):
 
         local_min = min([d.shape[1] for d in data if d is not None],
                         default=sys.maxsize)
-        samples = self.comm_.allreduce(local_min, op=MPI.MIN)
+        samples = self.comm.allreduce(local_min, op=MPI.MIN)
         subjects = len(data)
         np.random.seed(self.rand_seed)
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
         # the ||X_i||_F^2 of each subject.
-        w, voxels = _init_w_transforms(data, self.features, self.comm_)
+        w, voxels = _init_w_transforms(data, self.features, self.comm)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
 
-        rank = self.comm_.Get_rank()
+        rank = self.comm.Get_rank()
 
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
@@ -435,8 +434,8 @@ class SRM(BaseEstimator, TransformerMixin):
                                    / rho2[subject]
                     trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
 
-            wt_invpsi_x = self.comm_.reduce(wt_invpsi_x, op=MPI.SUM)
-            trace_xt_invsigma2_x = self.comm_.reduce(trace_xt_invsigma2_x,
+            wt_invpsi_x = self.comm.reduce(wt_invpsi_x, op=MPI.SUM)
+            trace_xt_invsigma2_x = self.comm.reduce(trace_xt_invsigma2_x,
                                                      op=MPI.SUM)
             trace_sigma_s = None
             if rank == 0:
@@ -454,8 +453,8 @@ class SRM(BaseEstimator, TransformerMixin):
                            + shared_response.dot(shared_response.T) / samples)
                 trace_sigma_s = samples * np.trace(sigma_s)
 
-            shared_response = self.comm_.bcast(shared_response)
-            trace_sigma_s = self.comm_.bcast(trace_sigma_s)
+            shared_response = self.comm.bcast(shared_response)
+            trace_sigma_s = self.comm.bcast(trace_sigma_s)
 
             # Update each subject's mapping transform W_i and error variance
             # rho_i^2
@@ -474,7 +473,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 else:
                     rho2[subject] = 0
 
-            rho2 = self.comm_.allreduce(rho2, op=MPI.SUM)
+            rho2 = self.comm.allreduce(rho2, op=MPI.SUM)
 
             if rank == 0:
                 if logger.isEnabledFor(logging.INFO):
@@ -486,7 +485,7 @@ class SRM(BaseEstimator, TransformerMixin):
                         samples)
                     logger.info('Objective function %f' % loglike)
 
-        sigma_s = self.comm_.bcast(sigma_s)
+        sigma_s = self.comm.bcast(sigma_s)
         return sigma_s, w, mu, rho2, shared_response
 
 
