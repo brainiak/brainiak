@@ -107,12 +107,11 @@ def _randomize_single_subject(data, seed=None):
 
     Returns
     data: 2D array in shape [nVoxels, nTRs]
-        Activity data with the voxel dimension shuffled.
+        Activity data is shuffled in the voxel dimension in place.
     """
     if seed is not None:
         np.random.seed(seed)
     np.random.shuffle(data)
-    return data
 
 
 def _randomize_subject_list(data_list, random):
@@ -130,16 +129,16 @@ def _randomize_subject_list(data_list, random):
         Randomization type.
 
     Returns
+    -------
     data_list: list of 2D array in shape [nVxels, nTRs]
-        (Randomized) activity data list.
+        (Randomized) activity data list will be modified in place.
     """
     if random == RandomType.REPRODUCIBLE:
         for i in range(len(data_list)):
-            data_list[i] = _randomize_single_subject(data_list[i], seed=i)
+            _randomize_single_subject(data_list[i], seed=i)
     elif random == RandomType.UNREPRODUCIBLE:
-        for i in range(len(data_list)):
-            data_list[i] = _randomize_single_subject(data_list[i])
-    return data_list
+        for data in data_list:
+            _randomize_single_subject(data)
 
 
 class RandomType(Enum):
@@ -204,11 +203,11 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
             activity_data1, activity_data2 = zip(*multimask_images(images,
                                                                    masks,
                                                                    np.float32))
-            activity_data2 = _randomize_subject_list(activity_data2, random)
+            _randomize_subject_list(activity_data2, random)
             raw_data2, _ = _separate_epochs(activity_data2, conditions)
         else:
             activity_data1 = list(mask_images(images, mask1, np.float32))
-        activity_data1 = _randomize_subject_list(activity_data1, random)
+        _randomize_subject_list(activity_data1, random)
         raw_data1, labels = _separate_epochs(activity_data1, conditions)
         time1 = time.time()
     raw_data_length = len(raw_data1)
@@ -377,13 +376,13 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
         data = f.get_data().astype(data_type)
         [d1, d2, d3, d4] = data.shape
         if random == RandomType.REPRODUCIBLE:
-            data = _randomize_single_subject(data.reshape((d1 * d2 * d3, d4)),
-                                             seed=sid).reshape((d1,
-                                                                d2,
-                                                                d3,
-                                                                d4))
+            _randomize_single_subject(data.reshape((d1 * d2 * d3, d4)),
+                                      seed=sid).reshape((d1,
+                                                         d2,
+                                                         d3,
+                                                         d4))
         elif random == RandomType.UNREPRODUCIBLE:
-            data = _randomize_single_subject(
+            _randomize_single_subject(
                 data.reshape((d1 * d2 * d3, d4))).reshape((d1,
                                                            d2,
                                                            d3,
