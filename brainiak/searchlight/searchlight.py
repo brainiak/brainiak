@@ -78,7 +78,7 @@ class Searchlight:
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube):
+    def __init__(self, sl_rad=1, max_blk_edge=-1, shape=Cube):
         """Constructor
 
         Parameters
@@ -91,9 +91,13 @@ class Searchlight:
 
         """
         self.sl_rad = sl_rad
-        self.max_blk_edge = max_blk_edge
+        if max_blk_edge == -1:
+            self.max_blk_edge = 3 * sl_rad
+        else:
+            self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
         self.shape = shape(sl_rad).data
+        self.bcast_var = None
 
     def _get_ownership(self, data):
         """Determine on which rank each subject currently resides
