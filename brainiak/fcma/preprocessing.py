@@ -374,17 +374,13 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
         data = f.get_data().astype(data_type)
         [d1, d2, d3, d4] = data.shape
         if random == RandomType.REPRODUCIBLE:
-            _randomize_single_subject(data.reshape((d1 * d2 * d3, d4)),
-                                      seed=sid).reshape((d1,
-                                                         d2,
-                                                         d3,
-                                                         d4))
+            data = data.reshape((d1 * d2 * d3, d4))
+            _randomize_single_subject(data, seed=sid)
+            data = data.reshape((d1, d2, d3, d4))
         elif random == RandomType.UNREPRODUCIBLE:
-            _randomize_single_subject(
-                data.reshape((d1 * d2 * d3, d4))).reshape((d1,
-                                                           d2,
-                                                           d3,
-                                                           d4))
+            data = data.reshape((d1 * d2 * d3, d4))
+            _randomize_single_subject(data)
+            data = data.reshape((d1, d2, d3, d4))
         if processed_data is None:
             processed_data = np.empty([d1, d2, d3, num_epochs],
                                       dtype=data_type)
