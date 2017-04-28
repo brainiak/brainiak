@@ -25,7 +25,25 @@ __all__ = [
 ]
 
 
-class Cube:
+class Shape:
+    """Shape
+
+    Searchlight shape which is contained in a (2*rad+1)^3 cube
+    """
+    def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
+        self.rad = rad
+
+
+class Cube(Shape):
     """Cube
 
     Searchlight shape which is a (2*rad+1)^3 cube
@@ -40,14 +58,19 @@ class Cube:
              searchlight cube, not counting the center voxel
 
         """
+        super(Cube, self).__init__(rad)
         self.rad = rad
         self.data = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
 
 
-class Diamond:
+class Diamond(Shape):
     """Diamond
 
-    Searchlight shape which is a (2*rad+1)^3 diamond
+    Searchlight shape which is a (2*rad+1)^3 diamond. A diamond
+    is inscribed in the (2*rad+1)^3 cube. Any location in the cube
+    which has a Manhattan distance of less than rad from the center
+    point is set to True.
+
     """
     def __init__(self, rad):
         """Constructor
@@ -59,7 +82,7 @@ class Diamond:
              searchlight cube, not counting the center voxel
 
         """
-        self.rad = rad
+        super(Diamond, self).__init__(rad)
         self.data = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
@@ -78,7 +101,7 @@ class Searchlight:
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=-1, shape=Cube):
+    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube):
         """Constructor
 
         Parameters
@@ -89,12 +112,12 @@ class Searchlight:
 
         max_blk_edge: max edge length, in voxels, of the 3D block
 
+        shape: brainiak.searchlight.searchlight.Shape indicating the
+        shape in voxels of the searchlight region
+
         """
         self.sl_rad = sl_rad
-        if max_blk_edge == -1:
-            self.max_blk_edge = 3 * sl_rad
-        else:
-            self.max_blk_edge = max_blk_edge
+        self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
         self.shape = shape(sl_rad).data
         self.bcast_var = None

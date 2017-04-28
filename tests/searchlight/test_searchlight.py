@@ -17,9 +17,71 @@ from mpi4py import MPI
 import sys
 
 from brainiak.searchlight.searchlight import Searchlight
+from brainiak.searchlight.searchlight import Diamond
 
 """Distributed Searchlight Test
 """
+
+
+def test_cube():
+    sl = Searchlight(sl_rad=3)
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    size = comm.size
+    dim0, dim1, dim2 = (50,50,50)
+    ntr = 30
+    nsubj = 3
+    mask = np.zeros((dim0,dim1,dim2), dtype=np.bool)
+    data = [np.empty((dim0,dim1,dim2,ntr), dtype=np.object) if i % size == rank else None for i in range(0, nsubj)]
+
+    # Put a spot in the mask
+    mask[10:17,10:17,10:17] = True
+
+    def sfn(l, msk, myrad, bcast_var):
+        return 1.0
+
+    sl.distribute(data, mask)
+    global_outputs = sl.run_searchlight(sfn)
+
+    if rank == 0:
+        assert global_outputs[13,13,13] == 1.0
+        global_outputs[13,13,13] = None
+
+        for i in range(global_outputs.shape[0]):
+            for j in range(global_outputs.shape[1]):
+                for k in range(global_outputs.shape[2]):
+                    assert global_outputs[i,j,k] == None
+
+def test_diamond():
+    sl = Searchlight(sl_rad=3)
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    size = comm.size
+    dim0, dim1, dim2 = (50,50,50)
+    ntr = 30
+    nsubj = 3
+    mask = np.zeros((dim0,dim1,dim2), dtype=np.bool)
+    data = [np.empty((dim0,dim1,dim2,ntr), dtype=np.object) if i % size == rank else None for i in range(0, nsubj)]
+
+    # Put a spot in the mask
+    mask[10:17,10:17,10:17] = Diamond(3)
+
+    def sfn(l, msk, myrad, bcast_var):
+        return 1.0
+
+    sl.distribute(data, mask)
+    global_outputs = sl.run_searchlight(sfn)
+
+    if rank == 0:
+        assert global_outputs[13,13,13] == 1.0
+        global_outputs[13,13,13] = None
+
+        for i in range(global_outputs.shape[0]):
+            for j in range(global_outputs.shape[1]):
+                for k in range(global_outputs.shape[2]):
+                    assert global_outputs[i,j,k] == None
+
+
 
 def test_instantiate():
   sl = Searchlight(sl_rad=5, max_blk_edge=10)
