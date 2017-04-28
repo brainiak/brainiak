@@ -23,6 +23,7 @@ __all__ = [
 from pathlib import Path
 from typing import Callable, Iterable, List, Union
 
+import logging
 import nibabel as nib
 import numpy as np
 
@@ -30,6 +31,8 @@ from nibabel.nifti1 import Nifti1Pair
 from nibabel.spatialimages import SpatialImage
 
 from .image import SingleConditionSpec
+
+logger = logging.getLogger(__name__)
 
 
 def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
@@ -58,6 +61,9 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
         in_dir = Path(in_dir)
     files = sorted(in_dir.glob("*" + suffix))
     for f in files:
+        logger.debug(
+            'Starting to read file %s', f
+        )
         yield nib.load(str(f))
 
 
@@ -86,6 +92,9 @@ def load_images(image_paths: Iterable[Union[str, Path]]
             string_path = str(image_path)
         else:
             string_path = image_path
+        logger.debug(
+            'Starting to read file %s', string_path
+        )
         yield nib.load(string_path)
 
 
@@ -130,7 +139,7 @@ def load_labels(path: Union[str, Path]) -> List[SingleConditionSpec]:
     List[SingleConditionSpec]
         List of SingleConditionSpec stored in labels file.
     """
-    condition_specs = np.load(path)
+    condition_specs = np.load(str(path))
     return [c.view(SingleConditionSpec) for c in condition_specs]
 
 
