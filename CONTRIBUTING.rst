@@ -31,8 +31,11 @@ in mind:
 How to contribute
 =================
 
-We use GitHub pull requests (PRs) to make improvements to the repository. Here
-is a concise description of our recommended workflow:
+We use GitHub pull requests (PRs) to make improvements to the repository. You
+should make a fork, create a new branch for each new feature you develop, and
+make a PR to merge your branch into the master branch of the official
+repository. There are several workflows you could follow. Here is a concise
+step-by-step description of our recommended workflow:
 
 1. Fork the official BrainIAK repository on GitHub.
 
@@ -60,7 +63,7 @@ is a concise description of our recommended workflow:
 
      git checkout -b new-feature
 
-7. Push your feature branch to your fork::
+7. Make changes and commit them. Push your feature branch to your fork::
 
      git push --set-upstream origin new-feature  # only for the first push
      git push  # for all subsequent pushes
@@ -72,6 +75,7 @@ is a concise description of our recommended workflow:
      git checkout master
      git pull --ff-only
      git branch -d new-feature
+     git push --delete origin new-feature  # or use delete button in GitHub PR
 
 Please see the `GitHub help for collaborating on projects using issues and pull
 requests`_ for more information.
