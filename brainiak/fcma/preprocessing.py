@@ -96,18 +96,18 @@ def _randomize_single_subject(data, seed=None):
     """Randomly permute the voxels of the subject.
 
      The subject is organized as Voxel x TR,
-     this method shuffles the voxel dimension.
+     this method shuffles the voxel dimension in place.
 
     Parameters
     ----------
     data: 2D array in shape [nVoxels, nTRs]
-        Activity data.
+        Activity data to be shuffled.
     seed: Optional[int]
         Seed for random state used implicitly for shuffling.
 
     Returns
-    data: 2D array in shape [nVoxels, nTRs]
-        Activity data is shuffled in the voxel dimension in place.
+    -------
+    None.
     """
     if seed is not None:
         np.random.seed(seed)
@@ -117,21 +117,19 @@ def _randomize_single_subject(data, seed=None):
 def _randomize_subject_list(data_list, random):
     """Randomly permute the voxels of a subject list.
 
-     The method shuffles the subject one by one according to
-     the random type. If RandomType.NORANDOM, return the
-     original list.
+     The method shuffles the subject one by one in place according to
+     the random type. If RandomType.NORANDOM, return the original list.
 
     Parameters
     ----------
     data_list: list of 2D array in shape [nVxels, nTRs]
-        Activity data list.
+        Activity data list to be shuffled.
     random: RandomType
         Randomization type.
 
     Returns
     -------
-    data_list: list of 2D array in shape [nVxels, nTRs]
-        (Randomized) activity data list will be modified in place.
+    None.
     """
     if random == RandomType.REPRODUCIBLE:
         for i in range(len(data_list)):
