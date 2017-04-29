@@ -29,7 +29,14 @@ class Shape:
     """Shape
 
     Searchlight shape which is contained in a (2*rad+1)^3 cube
+
+    Attributes
+    ----------
+
+    data_ : a 3D boolean numpy array of size (2*rad+1)^3 which is set
+            to True within the boundaries of the desired shape
     """
+
     def __init__(self, rad):
         """Constructor
 
@@ -58,9 +65,9 @@ class Cube(Shape):
              searchlight cube, not counting the center voxel
 
         """
-        super(Cube, self).__init__(rad)
+        super().__init__(rad)
         self.rad = rad
-        self.data = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.data_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
 
 
 class Diamond(Shape):
@@ -82,14 +89,14 @@ class Diamond(Shape):
              searchlight cube, not counting the center voxel
 
         """
-        super(Diamond, self).__init__(rad)
-        self.data = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        super().__init__(rad)
+        self.data_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
                     if(cityblock((r1, r2, r3),
                                  (self.rad, self.rad, self.rad)) <= self.rad):
-                        self.data[r1, r2, r3] = True
+                        self.data_[r1, r2, r3] = True
 
 
 class Searchlight:
@@ -119,7 +126,7 @@ class Searchlight:
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
-        self.shape = shape(sl_rad).data
+        self.shape = shape(sl_rad).data_
         self.bcast_var = None
 
     def _get_ownership(self, data):
