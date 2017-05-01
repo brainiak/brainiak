@@ -28,13 +28,14 @@ __all__ = [
 class Shape:
     """Shape
 
-    Searchlight shape which is contained in a (2*rad+1)^3 cube
+    Searchlight shape which is contained in a cube sized
+    (2*rad+1,2*rad+1,2*rad+1)
 
     Attributes
     ----------
 
-    data_ : a 3D boolean numpy array of size (2*rad+1)^3 which is set
-            to True within the boundaries of the desired shape
+    mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
+            which is set to True within the boundaries of the desired shape
     """
 
     def __init__(self, rad):
@@ -53,7 +54,7 @@ class Shape:
 class Cube(Shape):
     """Cube
 
-    Searchlight shape which is a (2*rad+1)^3 cube
+    Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
     """
     def __init__(self, rad):
         """Constructor
@@ -67,17 +68,16 @@ class Cube(Shape):
         """
         super().__init__(rad)
         self.rad = rad
-        self.data_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
 
 
 class Diamond(Shape):
     """Diamond
 
     Searchlight shape which is a diamond
-    inscribed in a (2*rad+1)^3 cube. Any location in the cube
-    which has a Manhattan distance of less than rad from the center
-    point is set to True.
-
+    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+    Any location in the cube which has a Manhattan distance of less than rad
+    from the center point is set to True.
     """
     def __init__(self, rad):
         """Constructor
@@ -90,13 +90,13 @@ class Diamond(Shape):
 
         """
         super().__init__(rad)
-        self.data_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
                     if(cityblock((r1, r2, r3),
                                  (self.rad, self.rad, self.rad)) <= self.rad):
-                        self.data_[r1, r2, r3] = True
+                        self.mask_[r1, r2, r3] = True
 
 
 class Searchlight:
@@ -126,7 +126,7 @@ class Searchlight:
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
-        self.shape = shape(sl_rad).data_
+        self.shape = shape(sl_rad).mask_
         self.bcast_var = None
 
     def _get_ownership(self, data):
@@ -390,6 +390,25 @@ class Searchlight:
 
         return outmat
 
+    def _check_mask(self, mask_cube):
+        """Check if a mask region overlaps with the searchlight shape
+
+        Parameters
+        ----------
+
+        mask_cube:  Boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1),
+                    which is to be matched against the searchlight shape
+
+        Returns
+        -------
+
+        True if every true location in the searchlight shape is also set to
+        True in the corresponding mask_cube location.
+        """
+
+        res = mask_cube[self.shape]
+        return np.any(res) and np.all(res)
+
     def run_searchlight(self, voxel_fn, pool_size=None):
         """Perform a function at each active voxel
 
@@ -425,10 +444,6 @@ class Searchlight:
                                                           mysl_rad:-mysl_rad,
                                                           mysl_rad:-mysl_rad]
 
-            def check_mask(mask_cube):
-                res = mask_cube[self.shape]
-                return np.any(res) and np.all(res)
-
             import pathos.multiprocessing
             inlist = [([ll[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
@@ -438,9 +453,9 @@ class Searchlight:
                        self.shape,
                        mysl_rad,
                        bcast_var)
-                      if check_mask(msk[i:i+2*mysl_rad+1,
-                                        j:j+2*mysl_rad+1,
-                                        k:k+2*mysl_rad+1]) else None
+                      if self._check_mask(msk[i:i+2*mysl_rad+1,
+                                              j:j+2*mysl_rad+1,
+                                              k:k+2*mysl_rad+1]) else None
                       for i in range(0, outmat.shape[0])
                       for j in range(0, outmat.shape[1])
                       for k in range(0, outmat.shape[2])]

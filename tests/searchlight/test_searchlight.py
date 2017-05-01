@@ -65,11 +65,11 @@ def test_searchlight_with_diamond():
     data = [np.empty((dim0,dim1,dim2,ntr), dtype=np.object) if i % size == rank else None for i in range(0, nsubj)]
 
     # Put a spot in the mask
-    mask[10:17,10:17,10:17] = Diamond(3).data_
+    mask[10:17,10:17,10:17] = Diamond(3).mask_
 
     def sfn(l, msk, myrad, bcast_var):
-        assert np.all(msk[Diamond(3).data_])
-        assert not np.any(msk[~Diamond(3).data_])
+        assert np.all(msk[Diamond(3).mask_])
+        assert not np.any(msk[~Diamond(3).mask_])
         return 1.0
 
     sl.distribute(data, mask)
