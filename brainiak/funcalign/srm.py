@@ -89,7 +89,6 @@ def _init_w_transforms(data, features, comm=MPI.COMM_SELF):
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
-        np.random.seed(subject)
         if data[subject] is not None:
             voxels[subject] = data[subject].shape[0]
             rnd_matrix = np.random.random((voxels[subject], features))
