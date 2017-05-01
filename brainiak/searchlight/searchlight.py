@@ -73,8 +73,8 @@ class Cube(Shape):
 class Diamond(Shape):
     """Diamond
 
-    Searchlight shape which is a (2*rad+1)^3 diamond. A diamond
-    is inscribed in the (2*rad+1)^3 cube. Any location in the cube
+    Searchlight shape which is a diamond 
+    inscribed in a (2*rad+1)^3 cube. Any location in the cube
     which has a Manhattan distance of less than rad from the center
     point is set to True.
 
