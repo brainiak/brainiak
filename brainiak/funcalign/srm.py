@@ -435,7 +435,7 @@ class SRM(BaseEstimator, TransformerMixin):
 
             wt_invpsi_x = self.comm.reduce(wt_invpsi_x, op=MPI.SUM)
             trace_xt_invsigma2_x = self.comm.reduce(trace_xt_invsigma2_x,
-                                                     op=MPI.SUM)
+                                                    op=MPI.SUM)
             trace_sigma_s = None
             if rank == 0:
                 log_det_psi = np.sum(np.log(rho2) * voxels)
