@@ -23,7 +23,7 @@ from brainiak.searchlight.searchlight import Diamond
 """
 
 
-def test_cube():
+def test_searchlight_with_cube():
     sl = Searchlight(sl_rad=3)
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -38,6 +38,7 @@ def test_cube():
     mask[10:17,10:17,10:17] = True
 
     def sfn(l, msk, myrad, bcast_var):
+        assert np.all(msk)
         return 1.0
 
     sl.distribute(data, mask)
@@ -52,8 +53,8 @@ def test_cube():
                 for k in range(global_outputs.shape[2]):
                     assert global_outputs[i,j,k] == None
 
-def test_diamond():
-    sl = Searchlight(sl_rad=3)
+def test_searchlight_with_diamond():
+    sl = Searchlight(sl_rad=3, shape=Diamond)
     comm = MPI.COMM_WORLD
     rank = comm.rank
     size = comm.size
@@ -64,9 +65,11 @@ def test_diamond():
     data = [np.empty((dim0,dim1,dim2,ntr), dtype=np.object) if i % size == rank else None for i in range(0, nsubj)]
 
     # Put a spot in the mask
-    mask[10:17,10:17,10:17] = Diamond(3)
+    mask[10:17,10:17,10:17] = Diamond(3).data_
 
     def sfn(l, msk, myrad, bcast_var):
+        assert np.all(msk[Diamond(3).data_])
+        assert not np.any(msk[~Diamond(3).data_])
         return 1.0
 
     sl.distribute(data, mask)

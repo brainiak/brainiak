@@ -428,16 +428,14 @@ class Searchlight:
             def check_mask(mask_cube):
                 res = mask_cube[self.shape]
                 return np.any(res) and np.all(res)
-
+            
             import pathos.multiprocessing
             inlist = [([ll[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
                            k:k+2*mysl_rad+1,
                            :]
                         for ll in l],
-                       msk[i:i+2*mysl_rad+1,
-                           j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1],
+                        self.shape,
                        mysl_rad,
                        bcast_var)
                       if check_mask(msk[i:i+2*mysl_rad+1,
