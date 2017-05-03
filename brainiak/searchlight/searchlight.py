@@ -410,7 +410,10 @@ class Searchlight:
         return np.any(res) and np.all(res)
 
     def run_searchlight(self, voxel_fn, pool_size=None):
-        """Perform a function at each active voxel
+        """Perform a function at each voxel which is valid for the
+        user-provided shape. This means, the user-provided mask, centered at
+        the active voxel, must be True at each location in which the shape is
+        True. 
 
         Parameters
         ----------
