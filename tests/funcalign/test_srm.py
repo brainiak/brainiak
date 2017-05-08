@@ -20,6 +20,7 @@ def test_can_instantiate():
     assert s, "Invalid SRM instance!"
 
     import numpy as np
+    np.random.seed(0)
 
     voxels = 100
     samples = 500
@@ -62,6 +63,9 @@ def test_can_instantiate():
 
     # Check that runs with 2 subject
     s.fit(X)
+    sr_v0_4 = np.load('sr_v0_4.npy')
+    diff_v0_4 = np.linalg.norm(sr_v0_4 - s.s_)
+    assert(diff_v0_4 < 1e-5)
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
@@ -189,5 +193,6 @@ def test_det_srm():
     with pytest.raises(ValueError) as excinfo:
         model.fit(X)
     print("Test: different number of samples per subject")
+
 
 
