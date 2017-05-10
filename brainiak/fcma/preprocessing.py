@@ -22,11 +22,20 @@ import numpy as np
 import logging
 from scipy.stats.mstats import zscore
 from mpi4py import MPI
+from enum import Enum
 
 from ..image import mask_images, multimask_images
 
 
 logger = logging.getLogger(__name__)
+
+__all__ = [
+    "RandomType",
+    "prepare_fcma_data",
+    "generate_epochs_info",
+    "prepare_mvpa_data",
+    "prepare_searchlight_mvpa_data",
+]
 
 
 def _separate_epochs(activity_data, epoch_list):
@@ -37,9 +46,9 @@ def _separate_epochs(activity_data, epoch_list):
 
     Parameters
     ----------
-    activity\_data: list of 2D array in shape [nVoxels, nTRs]
+    activity_data: list of 2D array in shape [nVoxels, nTRs]
         the masked activity data organized in voxel*TR formats of all subjects
-    epoch\_list: list of 3D array in shape [condition, nEpochs, nTRs]
+    epoch_list: list of 3D array in shape [condition, nEpochs, nTRs]
         specification of epochs and conditions
         assuming all subjects have the same number of epochs
         len(epoch_list) equals the number of subjects
@@ -83,8 +92,69 @@ def _separate_epochs(activity_data, epoch_list):
     return raw_data, labels
 
 
+def _randomize_single_subject(data, seed=None):
+    """Randomly permute the voxels of the subject.
+
+     The subject is organized as Voxel x TR,
+     this method shuffles the voxel dimension in place.
+
+    Parameters
+    ----------
+    data: 2D array in shape [nVoxels, nTRs]
+        Activity data to be shuffled.
+    seed: Optional[int]
+        Seed for random state used implicitly for shuffling.
+
+    Returns
+    -------
+    None.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+    np.random.shuffle(data)
+
+
+def _randomize_subject_list(data_list, random):
+    """Randomly permute the voxels of a subject list.
+
+     The method shuffles the subject one by one in place according to
+     the random type. If RandomType.NORANDOM, return the original list.
+
+    Parameters
+    ----------
+    data_list: list of 2D array in shape [nVxels, nTRs]
+        Activity data list to be shuffled.
+    random: RandomType
+        Randomization type.
+
+    Returns
+    -------
+    None.
+    """
+    if random == RandomType.REPRODUCIBLE:
+        for i in range(len(data_list)):
+            _randomize_single_subject(data_list[i], seed=i)
+    elif random == RandomType.UNREPRODUCIBLE:
+        for data in data_list:
+            _randomize_single_subject(data)
+
+
+class RandomType(Enum):
+    """Define the random types as enumeration
+
+    NORANDOM means do not randomize the data;
+    REPRODUCIBLE means randomize the data with a fixed seed so that the
+    permutation holds between different runs;
+    UNREPRODUCIBLE means truly randomize the data which returns different
+    results in different runs.
+    """
+    NORANDOM = 0
+    REPRODUCIBLE = 1
+    UNREPRODUCIBLE = 2
+
+
 def prepare_fcma_data(images, conditions, mask1, mask2=None,
-                      comm=MPI.COMM_WORLD):
+                      random=RandomType.NORANDOM, comm=MPI.COMM_WORLD):
     """Prepare data for correlation-based computation and analysis.
 
     Generate epochs of interests, then broadcast to all workers.
@@ -102,6 +172,9 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
         If it is not specified, the method will assign None to the returning
         variable raw_data2 and the self-correlation on raw_data1 will be
         computed
+    random: Optional[RandomType]
+        Randomize the data within subject or not.
+        Default NORANDOM
     comm: MPI.Comm
         MPI communicator to use for MPI operations.
 
@@ -122,14 +195,17 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
     raw_data1 = []
     raw_data2 = []
     if rank == 0:
+        logger.info('start to apply masks and separate epochs')
         if mask2 is not None:
             masks = (mask1, mask2)
             activity_data1, activity_data2 = zip(*multimask_images(images,
                                                                    masks,
                                                                    np.float32))
+            _randomize_subject_list(activity_data2, random)
             raw_data2, _ = _separate_epochs(activity_data2, conditions)
         else:
             activity_data1 = list(mask_images(images, mask1, np.float32))
+        _randomize_subject_list(activity_data1, random)
         raw_data1, labels = _separate_epochs(activity_data1, conditions)
         time1 = time.time()
     raw_data_length = len(raw_data1)
@@ -170,7 +246,7 @@ def generate_epochs_info(epoch_list):
 
     Returns
     -------
-    epoch\_info: list of tuple (label, sid, start, end).
+    epoch_info: list of tuple (label, sid, start, end).
         label is the condition labels of the epochs;
         sid is the subject id, corresponding to the index of raw_data;
         start is the start TR of an epoch (inclusive);
@@ -250,7 +326,8 @@ def prepare_mvpa_data(images, conditions, mask):
     return processed_data, labels
 
 
-def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32):
+def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
+                                  random=RandomType.NORANDOM):
     """ obtain the data for activity-based voxel selection using Searchlight
 
     Average the activity within epochs and z-scoring within subject,
@@ -266,10 +343,12 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32):
         Condition specification.
     data_type
         Type to cast image to.
+    random: Optional[RandomType]
+        Randomize the data within subject or not.
 
     Returns
     -------
-    processed\_data: 4D array in shape [brain 3D + epoch]
+    processed_data: 4D array in shape [brain 3D + epoch]
         averaged epoch by epoch processed data
 
     labels: 1D array
@@ -290,10 +369,19 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32):
     # counting the epochs per subject for z-scoring
     subject_count = np.zeros(len(conditions), dtype=np.int32)
 
+    logger.info('start to apply masks and separate epochs')
     for sid, f in enumerate(images):
         data = f.get_data().astype(data_type)
+        [d1, d2, d3, d4] = data.shape
+        if random == RandomType.REPRODUCIBLE:
+            data = data.reshape((d1 * d2 * d3, d4))
+            _randomize_single_subject(data, seed=sid)
+            data = data.reshape((d1, d2, d3, d4))
+        elif random == RandomType.UNREPRODUCIBLE:
+            data = data.reshape((d1 * d2 * d3, d4))
+            _randomize_single_subject(data)
+            data = data.reshape((d1, d2, d3, d4))
         if processed_data is None:
-            [d1, d2, d3, _] = data.shape
             processed_data = np.empty([d1, d2, d3, num_epochs],
                                       dtype=data_type)
         # averaging
@@ -303,9 +391,9 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32):
                 processed_data[:, :, :, idx] = \
                     np.mean(data[:, :, :, epoch[2]:epoch[3]], axis=3)
 
-        logger.info(
-            'file %s is loaded and processed, with data shape %s' %
-            (f.get_filename(), data.shape)
+        logger.debug(
+            'file %s is loaded and processed, with data shape %s',
+            f.get_filename(), data.shape
         )
     # z-scoring
     cur_epoch = 0

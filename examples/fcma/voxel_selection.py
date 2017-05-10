@@ -38,19 +38,33 @@ if __name__ == '__main__':
             MPI.COMM_WORLD.Get_size()
         )
     data_dir = sys.argv[1]
-    extension = sys.argv[2]
+    suffix = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
-    images = io.load_images_from_dir(data_dir, extension)
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
     mask = io.load_boolean_mask(mask_file)
     conditions = io.load_labels(epoch_file)
     raw_data, _, labels = prepare_fcma_data(images, conditions, mask)
+
+    # setting the random argument produces random voxel selection results
+    # for non-parametric statistical analysis.
+    # There are three random options:
+    # RandomType.NORANDOM is the default
+    # RandomType.REPRODUCIBLE permutes the voxels in the same way every run
+    # RandomType.UNREPRODUCIBLE permutes the voxels differently across runs
+    # example:
+    # from brainiak.fcma.preprocessing import RandomType
+    # raw_data, _, labels = prepare_fcma_data(images, conditions, mask,
+    #                                         random=RandomType.REPRODUCIBLE)
+
     # if providing two masks, just append the second mask as the last input argument
     # and specify raw_data2
+    # example:
     # images = io.load_images_from_dir(data_dir, extension)
     # mask2 = io.load_boolean_mask('face_scene/mask.nii.gz')
     # raw_data, raw_data2, labels = prepare_fcma_data(images, conditions, mask,
     #                                                 mask2)
+
     epochs_per_subj = int(sys.argv[5])
     num_subjs = int(sys.argv[6])
     # the following line is an example to leaving a subject out
