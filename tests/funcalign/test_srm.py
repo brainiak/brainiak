@@ -63,9 +63,9 @@ def test_can_instantiate():
 
     # Check that runs with 2 subject
     s.fit(X)
-    sr_v0_4 = np.load('sr_v0_4.npy')
-    diff_v0_4 = np.linalg.norm(sr_v0_4 - s.s_)
-    assert(diff_v0_4 < 1e-5)
+    from pathlib import Path
+    sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npy")
+    assert(np.allclose(sr_v0_4, s.s_))
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
@@ -193,6 +193,5 @@ def test_det_srm():
     with pytest.raises(ValueError) as excinfo:
         model.fit(X)
     print("Test: different number of samples per subject")
-
 
 
