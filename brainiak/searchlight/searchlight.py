@@ -393,7 +393,7 @@ class Searchlight:
     def run_searchlight(self, voxel_fn, pool_size=None):
         """Perform a function at each voxel which is set to True in the
         user-provided mask. The mask passed to the searchlight function will be
-        further masked by the user-provided searchlight shape. 
+        further masked by the user-provided searchlight shape.
 
         Parameters
         ----------
