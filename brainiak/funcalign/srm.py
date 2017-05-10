@@ -354,8 +354,9 @@ class SRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
-        random_states = [np.random.RandomState(self.random_state_.randint(0))
-                         for i in range(len(data))]
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2**32))
+            for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
@@ -640,8 +641,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
-        random_states = [np.random.RandomState(self.random_state_.randint(0))
-                         for i in range(len(data))]
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2**32))
+            for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
