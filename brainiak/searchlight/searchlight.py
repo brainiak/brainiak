@@ -15,6 +15,7 @@
 import numpy as np
 from mpi4py import MPI
 import sys
+from scipy.spatial.distance import cityblock
 
 """Distributed Searchlight
 """
@@ -22,6 +23,80 @@ import sys
 __all__ = [
         "Searchlight",
 ]
+
+
+class Shape:
+    """Shape
+
+    Searchlight shape which is contained in a cube sized
+    (2*rad+1,2*rad+1,2*rad+1)
+
+    Attributes
+    ----------
+
+    mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
+            which is set to True within the boundaries of the desired shape
+    """
+
+    def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
+        self.rad = rad
+
+
+class Cube(Shape):
+    """Cube
+
+    Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
+    """
+    def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
+        super().__init__(rad)
+        self.rad = rad
+        self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+
+
+class Diamond(Shape):
+    """Diamond
+
+    Searchlight shape which is a diamond
+    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+    Any location in the cube which has a Manhattan distance of less than rad
+    from the center point is set to True.
+    """
+    def __init__(self, rad):
+        """Constructor
+
+        Parameters
+        ----------
+
+        rad: radius, in voxels, of the sphere inscribed in the
+             searchlight cube, not counting the center voxel
+
+        """
+        super().__init__(rad)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        for r1 in range(2*self.rad+1):
+            for r2 in range(2*self.rad+1):
+                for r3 in range(2*self.rad+1):
+                    if(cityblock((r1, r2, r3),
+                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                        self.mask_[r1, r2, r3] = True
 
 
 class Searchlight:
@@ -33,7 +108,7 @@ class Searchlight:
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=10):
+    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube):
         """Constructor
 
         Parameters
@@ -44,10 +119,15 @@ class Searchlight:
 
         max_blk_edge: max edge length, in voxels, of the 3D block
 
+        shape: brainiak.searchlight.searchlight.Shape indicating the
+        shape in voxels of the searchlight region
+
         """
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.comm = MPI.COMM_WORLD
+        self.shape = shape(sl_rad).mask_
+        self.bcast_var = None
 
     def _get_ownership(self, data):
         """Determine on which rank each subject currently resides
@@ -311,7 +391,9 @@ class Searchlight:
         return outmat
 
     def run_searchlight(self, voxel_fn, pool_size=None):
-        """Perform a function at each active voxel
+        """Perform a function at each voxel which is set to True in the
+        user-provided mask. The mask passed to the searchlight function will be
+        further masked by the user-provided searchlight shape.
 
         Parameters
         ----------
@@ -337,6 +419,15 @@ class Searchlight:
         pool_size:    Number of parallel processes in shared memory
                       process pool
 
+        Returns
+        -------
+
+        A volume which is the same size as the mask, however a number of voxels
+        equal to the searchlight radius has been removed from each border of
+        the volume. This volume contains the values returned from the
+        searchlight function at each voxel which was set to True in the mask,
+        and None elsewhere.
+
         """
 
         def _singlenode_searchlight(l, msk, mysl_rad, bcast_var):
@@ -353,7 +444,7 @@ class Searchlight:
                         for ll in l],
                        msk[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1],
+                           k:k+2*mysl_rad+1] * self.shape,
                        mysl_rad,
                        bcast_var)
                       if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad] else None
