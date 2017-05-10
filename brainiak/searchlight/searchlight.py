@@ -390,30 +390,10 @@ class Searchlight:
 
         return outmat
 
-    def _check_mask(self, mask_cube):
-        """Check if a mask region overlaps with the searchlight shape
-
-        Parameters
-        ----------
-
-        mask_cube:  Boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1),
-                    which is to be matched against the searchlight shape
-
-        Returns
-        -------
-
-        True if every true location in the searchlight shape is also set to
-        True in the corresponding mask_cube location.
-        """
-
-        res = mask_cube[self.shape]
-        return np.any(res) and np.all(res)
-
     def run_searchlight(self, voxel_fn, pool_size=None):
-        """Perform a function at each voxel which is valid for the
-        user-provided shape. This means, the user-provided mask, centered at
-        the active voxel, must be True at each location in which the shape is
-        True. 
+        """Perform a function at each voxel which is set to True in the
+        user-provided mask. The mask passed to the searchlight function will be
+        further masked by the user-provided searchlight shape. 
 
         Parameters
         ----------
@@ -439,6 +419,15 @@ class Searchlight:
         pool_size:    Number of parallel processes in shared memory
                       process pool
 
+        Returns
+        -------
+
+        A volume which is the same size as the mask, however a number of voxels
+        equal to the searchlight radius has been removed from each border of
+        the volume. This volume contains the values returned from the
+        searchlight function at each voxel which was set to True in the mask,
+        and None elsewhere.
+
         """
 
         def _singlenode_searchlight(l, msk, mysl_rad, bcast_var):
@@ -453,12 +442,12 @@ class Searchlight:
                            k:k+2*mysl_rad+1,
                            :]
                         for ll in l],
-                       self.shape,
+                       msk[i:i+2*mysl_rad+1,
+                           j:j+2*mysl_rad+1,
+                           k:k+2*mysl_rad+1] * self.shape,
                        mysl_rad,
                        bcast_var)
-                      if self._check_mask(msk[i:i+2*mysl_rad+1,
-                                              j:j+2*mysl_rad+1,
-                                              k:k+2*mysl_rad+1]) else None
+                      if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad] else None
                       for i in range(0, outmat.shape[0])
                       for j in range(0, outmat.shape[1])
                       for k in range(0, outmat.shape[2])]

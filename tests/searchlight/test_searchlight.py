@@ -38,8 +38,9 @@ def test_searchlight_with_cube():
     mask[10:17,10:17,10:17] = True
 
     def sfn(l, msk, myrad, bcast_var):
-        assert np.all(msk)
+      if np.all(msk) and np.any(msk):
         return 1.0
+      return None
 
     sl.distribute(data, mask)
     global_outputs = sl.run_searchlight(sfn)
@@ -68,9 +69,10 @@ def test_searchlight_with_diamond():
     mask[10:17,10:17,10:17] = Diamond(3).mask_
 
     def sfn(l, msk, myrad, bcast_var):
-        assert np.all(msk[Diamond(3).mask_])
         assert not np.any(msk[~Diamond(3).mask_])
-        return 1.0
+        if np.all(msk[Diamond(3).mask_]):
+            return 1.0
+        return None
 
     sl.distribute(data, mask)
     global_outputs = sl.run_searchlight(sfn)
@@ -143,9 +145,8 @@ def test_correctness():
       for d0 in range(rad, global_outputs.shape[0]-rad):
         for d1 in range(rad, global_outputs.shape[1]-rad):
           for d2 in range(rad, global_outputs.shape[2]-rad):
-            msk_blk = mask[d0:d0+2*rad+1, d1:d1+2*rad+1, d2:d2+2*rad+1]
-            if np.all(msk_blk) and np.any(msk_blk):
-              assert np.array_equal(np.array(global_outputs[d0,d1,d2]), np.array([d0,d1,d2]))
+              if mask[d0, d1, d2]:
+                  assert np.array_equal(np.array(global_outputs[d0,d1,d2]), np.array([d0,d1,d2]))
   
   
   def block_test(data, mask, max_blk_edge, rad):
