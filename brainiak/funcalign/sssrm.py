@@ -103,6 +103,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     classes_ : array of int, shape=[classes]
         Mapping table for each classes to original class label.
 
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
+
     Note
     ----
 
@@ -322,9 +325,11 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         classes = self.classes_.size
 
         # Initialization:
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [np.random.RandomState(self.random_state_.randint())
+                         for i in range(len(data_align))]
         # Set Wi's to a random orthogonal voxels by TRs
-        w, _ = srm._init_w_transforms(data_align, self.features)
+        w, _ = srm._init_w_transforms(data_align, self.features, random_states)
 
         # Initialize the shared response S
         s = SSSRM._compute_shared_response(data_align, w)
