@@ -186,6 +186,12 @@ Standards
 .. _Scikit-learn pipeline documentation:
    http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html
 
+* All code using random numbers should allow reproducible execution using the
+  `Scikit-learn random numbers guidelines`_.
+
+.. _Scikit-learn random numbers guidelines:
+   http://scikit-learn.org/stable/developers/contributing.html#random-numbers
+
 * Use ``logging`` to record debug messages with a logger obtained using::
 
     logging.getLogger(__name__)
