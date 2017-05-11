@@ -49,7 +49,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _init_w_transforms(data, features, comm=MPI.COMM_SELF):
+def _init_w_transforms(data, features, random_states, comm=MPI.COMM_SELF):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Parameters
@@ -60,6 +60,9 @@ def _init_w_transforms(data, features, comm=MPI.COMM_SELF):
 
     features : int
         The number of features in the model.
+
+    random_states : list of `RandomState`s
+        One `RandomState` instance per subject.
 
     comm : mpi4py.MPI.Intracomm
         The MPI communicator containing the data
@@ -91,14 +94,14 @@ def _init_w_transforms(data, features, comm=MPI.COMM_SELF):
     for subject in range(subjects):
         if data[subject] is not None:
             voxels[subject] = data[subject].shape[0]
-            rnd_matrix = np.random.random((voxels[subject], features))
+            rnd_matrix = random_states[subject].random_sample((
+                voxels[subject], features))
             q, r = np.linalg.qr(rnd_matrix)
             w.append(q)
         else:
             voxels[subject] = 0
             w.append(None)
     voxels = comm.allreduce(voxels, op=MPI.SUM)
-
     return w, voxels
 
 
@@ -145,6 +148,9 @@ class SRM(BaseEstimator, TransformerMixin):
 
     comm : mpi4py.MPI.Intracomm
         The MPI communicator containing the data
+
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
 
     Note
     ----
@@ -385,12 +391,16 @@ class SRM(BaseEstimator, TransformerMixin):
                         default=sys.maxsize)
         samples = self.comm.allreduce(local_min, op=MPI.MIN)
         subjects = len(data)
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2**32))
+            for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
         # the ||X_i||_F^2 of each subject.
-        w, voxels = _init_w_transforms(data, self.features, self.comm)
+        w, voxels = _init_w_transforms(data, self.features, random_states,
+                                       self.comm)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
@@ -517,6 +527,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     s_ : array, shape=[features, samples]
         The shared response.
+
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
 
     Note
     ----
@@ -687,11 +700,14 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         subjects = len(data)
 
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2**32))
+            for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
-        w, _ = _init_w_transforms(data, self.features)
+        w, _ = _init_w_transforms(data, self.features, random_states)
         shared_response = self._compute_shared_response(data, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
