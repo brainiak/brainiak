@@ -194,4 +194,3 @@ def test_det_srm():
         model.fit(X)
     print("Test: different number of samples per subject")
 
-test_can_instantiate()
