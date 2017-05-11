@@ -38,7 +38,9 @@ import numpy as np
 import scipy
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
-from sklearn.utils.validation import NotFittedError
+from sklearn.exceptions import NotFittedError
+from mpi4py import MPI
+import sys
 
 __all__ = [
     "SRM", "DetSRM"
@@ -47,7 +49,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def _init_w_transforms(data, features, random_states):
+def _init_w_transforms(data, features, random_states, comm=MPI.COMM_SELF):
     """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
 
     Parameters
@@ -62,6 +64,8 @@ def _init_w_transforms(data, features, random_states):
     random_states : list of `RandomState`s
         One `RandomState` instance per subject.
 
+    comm : mpi4py.MPI.Intracomm
+        The MPI communicator containing the data
 
     Returns
     -------
@@ -88,12 +92,16 @@ def _init_w_transforms(data, features, random_states):
 
     # Set Wi to a random orthogonal voxels by features matrix
     for subject in range(subjects):
-        voxels[subject] = data[subject].shape[0]
-        rnd_matrix = random_states[subject].random_sample((voxels[subject],
-                                                           features))
-        q, r = np.linalg.qr(rnd_matrix)
-        w.append(q)
-
+        if data[subject] is not None:
+            voxels[subject] = data[subject].shape[0]
+            rnd_matrix = random_states[subject].random_sample((
+                voxels[subject], features))
+            q, r = np.linalg.qr(rnd_matrix)
+            w.append(q)
+        else:
+            voxels[subject] = 0
+            w.append(None)
+    voxels = comm.allreduce(voxels, op=MPI.SUM)
     return w, voxels
 
 
@@ -117,6 +125,8 @@ class SRM(BaseEstimator, TransformerMixin):
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
 
+    comm : mpi4py.MPI.Intracomm
+        The MPI communicator containing the data
 
     Attributes
     ----------
@@ -136,9 +146,11 @@ class SRM(BaseEstimator, TransformerMixin):
     rho2_ : array, shape=[subjects]
         The estimated noise variance :math:`\\rho_i^2` for each subject
 
+    comm : mpi4py.MPI.Intracomm
+        The MPI communicator containing the data
+
     random_state_: `RandomState`
         Random number generator initialized using rand_seed
-
 
     Note
     ----
@@ -158,10 +170,12 @@ class SRM(BaseEstimator, TransformerMixin):
        K - the number of features (typically, :math:`V \\gg T \\gg K`).
     """
 
-    def __init__(self, n_iter=10, features=50, rand_seed=0):
+    def __init__(self, n_iter=10, features=50, rand_seed=0,
+                 comm=MPI.COMM_SELF):
         self.n_iter = n_iter
         self.features = features
         self.rand_seed = rand_seed
+        self.comm = comm
         return
 
     def fit(self, X, y=None):
@@ -182,20 +196,36 @@ class SRM(BaseEstimator, TransformerMixin):
                              "({0:d}) to train the model.".format(len(X)))
 
         # Check for input data sizes
-        if X[0].shape[1] < self.features:
-            raise ValueError(
-                "There are not enough samples to train the model with "
-                "{0:d} features.".format(self.features))
+        number_subjects = len(X)
+        number_subjects_vec = self.comm.allgather(number_subjects)
+        for rank in range(self.comm.Get_size()):
+            if number_subjects_vec[rank] != number_subjects:
+                raise ValueError(
+                    "Not all ranks have same number of subjects")
+
+        # Collect size information
+        shape0 = np.zeros((number_subjects,), dtype=np.int)
+        shape1 = np.zeros((number_subjects,), dtype=np.int)
+
+        for subject in range(number_subjects):
+            if X[subject] is not None:
+                assert_all_finite(X[subject])
+                shape0[subject] = X[subject].shape[0]
+                shape1[subject] = X[subject].shape[1]
+
+        shape0 = self.comm.allreduce(shape0, op=MPI.SUM)
+        shape1 = self.comm.allreduce(shape1, op=MPI.SUM)
 
         # Check if all subjects have same number of TRs
-        number_trs = X[0].shape[1]
-        number_subjects = len(X)
+        number_trs = np.min(shape1)
         for subject in range(number_subjects):
-            assert_all_finite(X[subject])
-            if X[subject].shape[1] != number_trs:
+            if shape1[subject] < self.features:
+                raise ValueError(
+                    "There are not enough samples to train the model with "
+                    "{0:d} features.".format(self.features))
+            if shape1[subject] != number_trs:
                 raise ValueError("Different number of samples between subjects"
                                  ".")
-
         # Run SRM
         self.sigma_s_, self.w_, self.mu_, self.rho2_, self.s_ = self._srm(X)
 
@@ -229,7 +259,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
         s = [None] * len(X)
         for subject in range(len(X)):
-            s[subject] = self.w_[subject].T.dot(X[subject])
+            if X[subject] is not None:
+                s[subject] = self.w_[subject].T.dot(X[subject])
 
         return s
 
@@ -265,11 +296,17 @@ class SRM(BaseEstimator, TransformerMixin):
         rho2 = np.zeros(subjects)
 
         trace_xtx = np.zeros(subjects)
+
         for subject in range(subjects):
-            mu.append(np.mean(data[subject], 1))
             rho2[subject] = 1
-            trace_xtx[subject] = np.sum(data[subject] ** 2)
-            x.append(data[subject] - mu[subject][:, np.newaxis])
+            if data[subject] is not None:
+                mu.append(np.mean(data[subject], 1))
+                trace_xtx[subject] = np.sum(data[subject] ** 2)
+                x.append(data[subject] - mu[subject][:, np.newaxis])
+            else:
+                mu.append(None)
+                trace_xtx[subject] = 0
+                x.append(None)
 
         return x, mu, rho2, trace_xtx
 
@@ -350,9 +387,10 @@ class SRM(BaseEstimator, TransformerMixin):
             The shared response.
         """
 
-        samples = data[0].shape[1]
+        local_min = min([d.shape[1] for d in data if d is not None],
+                        default=sys.maxsize)
+        samples = self.comm.allreduce(local_min, op=MPI.MIN)
         subjects = len(data)
-
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
             np.random.RandomState(self.random_state_.randint(2**32))
@@ -361,10 +399,13 @@ class SRM(BaseEstimator, TransformerMixin):
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject, and trace_xtx with
         # the ||X_i||_F^2 of each subject.
-        w, voxels = _init_w_transforms(data, self.features, random_states)
+        w, voxels = _init_w_transforms(data, self.features, random_states,
+                                       self.comm)
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
         shared_response = np.zeros((self.features, samples))
         sigma_s = np.identity(self.features)
+
+        rank = self.comm.Get_rank()
 
         # Main loop of the algorithm (run
         for iteration in range(self.n_iter):
@@ -373,68 +414,87 @@ class SRM(BaseEstimator, TransformerMixin):
             # E-step:
 
             # Sum the inverted the rho2 elements for computing W^T * Psi^-1 * W
-            rho0 = (1 / rho2).sum()
+            if rank == 0:
+                rho0 = (1 / rho2).sum()
 
-            # Invert Sigma_s using Cholesky factorization
-            (chol_sigma_s, lower_sigma_s) = scipy.linalg.cho_factor(
-                sigma_s, check_finite=False)
-            inv_sigma_s = scipy.linalg.cho_solve(
-                (chol_sigma_s, lower_sigma_s), np.identity(self.features),
-                check_finite=False)
+                # Invert Sigma_s using Cholesky factorization
+                (chol_sigma_s, lower_sigma_s) = scipy.linalg.cho_factor(
+                    sigma_s, check_finite=False)
+                inv_sigma_s = scipy.linalg.cho_solve(
+                    (chol_sigma_s, lower_sigma_s), np.identity(self.features),
+                    check_finite=False)
 
-            # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
-            sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
-            (chol_sigma_s_rhos, lower_sigma_s_rhos) = scipy.linalg.cho_factor(
-                sigma_s_rhos, check_finite=False)
-            inv_sigma_s_rhos = scipy.linalg.cho_solve(
-                (chol_sigma_s_rhos, lower_sigma_s_rhos),
-                np.identity(self.features), check_finite=False)
+                # Invert (Sigma_s + rho_0 * I) using Cholesky factorization
+                sigma_s_rhos = inv_sigma_s + np.identity(self.features) * rho0
+                chol_sigma_s_rhos, lower_sigma_s_rhos = \
+                    scipy.linalg.cho_factor(sigma_s_rhos,
+                                            check_finite=False)
+                inv_sigma_s_rhos = scipy.linalg.cho_solve(
+                    (chol_sigma_s_rhos, lower_sigma_s_rhos),
+                    np.identity(self.features), check_finite=False)
 
             # Compute the sum of W_i^T * rho_i^-2 * X_i, and the sum of traces
             # of X_i^T * rho_i^-2 * X_i
             wt_invpsi_x = np.zeros((self.features, samples))
             trace_xt_invsigma2_x = 0.0
             for subject in range(subjects):
-                wt_invpsi_x += (w[subject].T.dot(x[subject])) / rho2[subject]
-                trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
+                if data[subject] is not None:
+                    wt_invpsi_x += (w[subject].T.dot(x[subject])) \
+                                   / rho2[subject]
+                    trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
 
-            log_det_psi = np.sum(np.log(rho2) * voxels)
+            wt_invpsi_x = self.comm.reduce(wt_invpsi_x, op=MPI.SUM)
+            trace_xt_invsigma2_x = self.comm.reduce(trace_xt_invsigma2_x,
+                                                    op=MPI.SUM)
+            trace_sigma_s = None
+            if rank == 0:
+                log_det_psi = np.sum(np.log(rho2) * voxels)
 
-            # Update the shared response
-            shared_response = sigma_s.dot(
-                np.identity(self.features) - rho0 * inv_sigma_s_rhos).dot(
-                    wt_invpsi_x)
+                # Update the shared response
+                shared_response = sigma_s.dot(
+                    np.identity(self.features) - rho0 * inv_sigma_s_rhos).dot(
+                        wt_invpsi_x)
 
-            # M-step
+                # M-step
 
-            # Update Sigma_s and compute its trace
-            sigma_s = (inv_sigma_s_rhos
-                       + shared_response.dot(shared_response.T) / samples)
-            trace_sigma_s = samples * np.trace(sigma_s)
+                # Update Sigma_s and compute its trace
+                sigma_s = (inv_sigma_s_rhos
+                           + shared_response.dot(shared_response.T) / samples)
+                trace_sigma_s = samples * np.trace(sigma_s)
+
+            shared_response = self.comm.bcast(shared_response)
+            trace_sigma_s = self.comm.bcast(trace_sigma_s)
 
             # Update each subject's mapping transform W_i and error variance
             # rho_i^2
             for subject in range(subjects):
-                a_subject = x[subject].dot(shared_response.T)
-                perturbation = np.zeros(a_subject.shape)
-                np.fill_diagonal(perturbation, 0.001)
-                u_subject, s_subject, v_subject = np.linalg.svd(
-                    a_subject + perturbation, full_matrices=False)
-                w[subject] = u_subject.dot(v_subject)
-                rho2[subject] = trace_xtx[subject]
-                rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
-                rho2[subject] += trace_sigma_s
-                rho2[subject] /= samples * voxels[subject]
+                if x[subject] is not None:
+                    a_subject = x[subject].dot(shared_response.T)
+                    perturbation = np.zeros(a_subject.shape)
+                    np.fill_diagonal(perturbation, 0.001)
+                    u_subject, s_subject, v_subject = np.linalg.svd(
+                        a_subject + perturbation, full_matrices=False)
+                    w[subject] = u_subject.dot(v_subject)
+                    rho2[subject] = trace_xtx[subject]
+                    rho2[subject] += -2 * np.sum(w[subject] * a_subject).sum()
+                    rho2[subject] += trace_sigma_s
+                    rho2[subject] /= samples * voxels[subject]
+                else:
+                    rho2[subject] = 0
 
-            if logger.isEnabledFor(logging.INFO):
-                # Calculate and log the current log-likelihood for checking
-                # convergence
-                loglike = self._likelihood(
-                    chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
-                    trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
-                    samples)
-                logger.info('Objective function %f' % loglike)
+            rho2 = self.comm.allreduce(rho2, op=MPI.SUM)
 
+            if rank == 0:
+                if logger.isEnabledFor(logging.INFO):
+                    # Calculate and log the current log-likelihood for checking
+                    # convergence
+                    loglike = self._likelihood(
+                        chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
+                        trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
+                        samples)
+                    logger.info('Objective function %f' % loglike)
+
+        sigma_s = self.comm.bcast(sigma_s)
         return sigma_s, w, mu, rho2, shared_response
 
 
