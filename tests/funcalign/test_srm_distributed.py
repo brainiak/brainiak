@@ -21,6 +21,7 @@ def test_distributed_srm():
     assert s, "Invalid SRM instance!"
 
     import numpy as np
+    np.random.seed(0)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     nrank = comm.Get_size()
@@ -48,11 +49,11 @@ def test_distributed_srm():
     X = []
     W = []
     # DSRM: only append on rank 0
+    Q, R = np.linalg.qr(np.random.random((voxels, features)))
+    tmp_noise = 0.1*np.random.random((voxels, samples))
     if rank == 0:
-        np.random.seed(0)
-        Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
-        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+        X.append(Q.dot(S) + tmp_noise)
     else:
         W.append(None)
         X.append(None)
@@ -71,17 +72,20 @@ def test_distributed_srm():
 
     # DSRM: cyclic distribution of subject data, otherwise None
     for subject in range(1, subjects):
-        np.random.seed(subject)
+        Q, R = np.linalg.qr(np.random.random((voxels, features)))
+        tmp_noise = 0.1*np.random.random((voxels, samples))
         if subject % nrank == rank:
-            Q, R = np.linalg.qr(np.random.random((voxels, features)))
             W.append(Q)
-            X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+            X.append(Q.dot(S) + tmp_noise)
         else:
             W.append(None)
             X.append(None)
 
     # Check that runs with 2 subject
     s.fit(X)
+    from pathlib import Path
+    sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npy")
+    assert(np.allclose(sr_v0_4, s.s_))
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
@@ -92,7 +96,6 @@ def test_distributed_srm():
             assert ortho < 1e-7, "A Wi mapping is not orthonormal in SRM."
             difference = np.linalg.norm(X[subject] - s.w_[subject].dot(s.s_), 'fro')
             datanorm = np.linalg.norm(X[subject], 'fro')
-            print('Difference/datanorm: ' + str(difference/datanorm))
             assert difference/datanorm < 1.0, "Model seems incorrectly computed."
 
     assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
@@ -134,3 +137,4 @@ def test_distributed_srm():
     if rank == 0:
         print("Test: different number of samples per subject")
 
+test_distributed_srm()
