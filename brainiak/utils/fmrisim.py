@@ -785,12 +785,13 @@ def _calc_fwhm(volume,
     return fwhm
 
 
-def _calc_snr(volume,
+def _calc_sfnr(volume,
               mask,
               ):
-    """ Calculate the SNR of a volume
+    """ Calculate the SFNR of a volume
     This takes the middle of the volume and averages the signal within the
-    brain and compares to the std in the voxels outside the brain.
+    brain and compares to the temporal standard deviation in the voxels
+    outside the brain.
 
     Parameters
     ----------
@@ -803,9 +804,15 @@ def _calc_snr(volume,
     Returns
     -------
 
-    float
-    The snr of the volume (how much greater in activity the brain is from
-    the background)
+    float 
+    The sd of the temporal variability of brain voxels.  
+
+    float 
+    The sfnr of the volume (mean brain activity divided by  temporal
+    variability in the average non brain voxels)  
+
+    float 
+    What is the max activity measured here, a point of reference for masking
 
     """
 
@@ -821,14 +828,21 @@ def _calc_snr(volume,
     # then you would have a lower mean signal by default)
     mean_signal = (slice_volume[slice_mask > 0]).mean()
 
-    # What is the noise in the non brain
-    background_noise = float(slice_volume[slice_mask == 0].std())
-
-    # What is the max activation of this volume
-    max_activity = volume.max()
-
-    # What is the brain voxel by time activity.
+    # What are the brain and non-brain voxels
     brain_voxels = volume[mask[:, :, :, 0] > 0]
+    mask_voxels = volume[mask[:, :, :, 0] == 0]
+
+    # What is the noise in the masked voxels
+    mask_noise = np.std(mask_voxels, 1).mean()
+
+    # Assume the mask noise is a combination of random + drift. Thus average
+    # all masked voxels and find the variation over time, this is the
+    # variance due to drift.
+    drift_noise = np.mean(mask_voxels, 0).std()
+
+    # Subtract the drift variance from total mask noise to find the system
+    # noise
+    background_noise = np.sqrt(mask_noise ** 2 - drift_noise ** 2)
 
     # Find the noise to brain voxels
     temporal_noise = np.std(brain_voxels, 1).mean()
@@ -836,20 +850,23 @@ def _calc_snr(volume,
     # Convert temporal noise into percent signal change
     temporal_noise = temporal_noise / mean_signal * 100
 
-    # Calculate snr
-    snr = mean_signal / background_noise
+    # Calculate sfnr
+    sfnr = mean_signal / background_noise
 
     # Convert from memmap
-    snr = float(snr)
+    sfnr = float(sfnr)
 
-    return temporal_noise, snr, max_activity
+    # What is the max activation of this volume
+    max_activity = volume.max()
+
+    return temporal_noise, sfnr, max_activity
 
 
-def _calc_autoregression(volume,
+def _calc_temporal_noise(volume,
                          mask,
                          auto_reg_order=1,
                          ):
-    """ Calculate the autoregressive sigma of the data.
+    """ Calculate the mix of autoregressive and drift noise.
 
     Parameters
     ----------
@@ -928,9 +945,9 @@ def calc_noise(volume,
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
 
-    # Calculate the temporal_noise noise and SNR of the volume
-    noise_dict['temporal_noise'], noise_dict['snr'], noise_dict[
-        'max_activity'] = _calc_snr(volume, mask)
+    # Calculate the temporal_noise noise and SFNR of the volume
+    noise_dict['temporal_noise'], noise_dict['sfnr'], noise_dict[
+        'max_activity'] = _calc_sfnr(volume, mask)
 
     # Calculate the fwhm on a subset of volumes
 
@@ -954,7 +971,7 @@ def calc_noise(volume,
     noise_dict['fwhm'] = np.mean(fwhm)
 
     # Calculate the autoregressive and drift noise
-    auto_reg_sigma, drift_sigma = _calc_autoregression(volume, mask)
+    auto_reg_sigma, drift_sigma = _calc_temporal_noise(volume, mask)
 
     # Calibrate for how sigma is originally calculated
     auto_reg_sigma = auto_reg_sigma / noise_dict['temporal_noise']
@@ -1557,8 +1574,8 @@ def _noise_dict_update(noise_dict):
         noise_dict['auto_reg_sigma'] = 0.45
     if 'physiological_sigma' not in noise_dict:
         noise_dict['physiological_sigma'] = 0.1
-    if 'snr' not in noise_dict:
-        noise_dict['snr'] = 30
+    if 'sfnr' not in noise_dict:
+        noise_dict['sfnr'] = 30
     if 'max_activity' not in noise_dict:
         noise_dict['max_activity'] = 1000
     if 'voxel_size' not in noise_dict:
@@ -1645,7 +1662,7 @@ def generate_noise(dimensions,
     # Create the base (this inverts the process to make the mask)
     base = mask * noise_dict['max_activity']
 
-    # Set the amount of background based on the snr value
+    # Set the amount of background based on the SFNR value
 
     # What are the midpoints to be extracted
     mid_x_idx = int(np.ceil(base.shape[0] / 2))
@@ -1658,18 +1675,25 @@ def generate_noise(dimensions,
     # What is the mean signal of the non masked voxels in this slice?
     mean_signal = (slice_volume[slice_mask > 0]).mean()
 
-    # What is the standard deviation of the background activity
-    system_sigma = mean_signal / noise_dict['snr']
-
     # Set up the machine noise
-    noise_system = (_generate_noise_system(dimensions_tr=dimensions_tr) *
-                    system_sigma)
+    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr)
+
+    # What is the standard deviation of the background activity
+    # (N.B. You need to subtract the mean system noise from this number
+    # since system_sigma * noise_system.mean() will later be added to the base)
+    system_sigma = mean_signal / (noise_dict['sfnr'] - noise_system.mean())
+
+    # Increase the size of the system noise based on the SFNR
+    noise_system  *= system_sigma
 
     # Convert temporal noise (in percent) to real numbers
     abs_change = noise_dict['temporal_noise'] * mean_signal / 100
 
     # Sum up the noise of the brain
     noise = base + (noise_temporal * abs_change) + noise_system
+
+    # Reject negative values (only happens outside of the brain
+    noise[noise < 0] = 0
 
     return noise
 
