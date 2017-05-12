@@ -1,4 +1,5 @@
 import brainiak.isfc
+from brainiak import image, io
 import numpy as np
 import sys, os
 
@@ -18,14 +19,17 @@ def test_ISC():
     assert np.isclose(ISC, [0.9540602, 0.99585304]).all(), \
         "Calculated ISC does not match ground truth"
 
-def test_loading_and_ISFC():
+def test_ISFC():
     curr_dir = os.path.dirname(__file__)
 
     mask_fname = os.path.join(curr_dir,'mask.nii.gz')
+    mask = io.load_boolean_mask(mask_fname)
     fnames = [os.path.join(curr_dir,'subj1.nii.gz'),
               os.path.join(curr_dir,'subj2.nii.gz')]
+    masked_images = image.mask_images(io.load_images(fnames), mask)
 
-    D, coords = brainiak.isfc.load_subjects_nii(fnames, mask_fname)
+    D = image.MaskedMultiSubjectData.from_masked_images(masked_images,
+                                                        len(fnames))
 
     assert D.shape == (4,5,2), "Loaded data has incorrect shape"
 

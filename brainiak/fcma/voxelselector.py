@@ -25,8 +25,8 @@ from mpi4py import MPI
 from scipy.stats.mstats import zscore
 from sklearn import model_selection
 import sklearn
-from . import fcma_extension
-from . import cython_blas as blas
+from . import fcma_extension  # type: ignore
+from . import cython_blas as blas  # type: ignore
 import logging
 import multiprocess
 
@@ -163,7 +163,8 @@ class VoxelSelector:
             the length of array equals the number of voxels
         """
         logger.info(
-            'Master starts to allocate tasks'
+            'Master at rank %d starts to allocate tasks',
+            MPI.COMM_WORLD.Get_rank()
         )
         results = []
         comm = MPI.COMM_WORLD
@@ -181,6 +182,10 @@ class VoxelSelector:
             if current_task[1] == 0:
                 using_size = i
                 break
+            logger.debug(
+                'master starts to send a task to worker %d' %
+                i
+            )
             comm.send(current_task,
                       dest=i,
                       tag=self._WORKTAG)
@@ -235,6 +240,10 @@ class VoxelSelector:
         -------
         None
         """
+        logger.debug(
+            'worker %d is running, waiting for tasks from master at rank %d' %
+            (MPI.COMM_WORLD.Get_rank(), self.master_rank)
+        )
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
@@ -264,6 +273,11 @@ class VoxelSelector:
         time1 = time.time()
         s = task[0]
         nEpochs = len(self.raw_data)
+        logger.debug(
+            'start to compute the correlation: #epochs: %d, '
+            '#processed voxels: %d, #total voxels to compute against: %d' %
+            (nEpochs, task[1], self.num_voxels2)
+        )
         corr = np.zeros((task[1], nEpochs, self.num_voxels2),
                         np.float32, order='C')
         count = 0

@@ -12,7 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 import numpy as np
-import logging
 import re
 import warnings
 import os.path
@@ -72,40 +71,6 @@ def from_sym_2_tri(symm):
     return tri
 
 
-def fast_inv(a):
-    """to invert a 2D matrix
-
-    Parameters
-    ----------
-
-    a : 2D array
-
-
-    Returns
-    -------
-
-    inva: 2D array
-         inverse of input matrix a
-
-
-    Raises
-    -------
-
-    LinAlgError
-        If a is singular or not square
-    """
-    if a.ndim != 2:
-        raise TypeError("Input matrix should be 2D array")
-    identity = np.identity(a.shape[1], dtype=a.dtype)
-    inva = None
-    try:
-        inva = np.linalg.solve(a, identity)
-        return inva
-    except np.linalg.linalg.LinAlgError:
-        logging.exception('Error from np.linalg.solve')
-        raise
-
-
 def sumexp_stable(data):
     """Compute the sum of exponents for a list of samples
 
@@ -142,15 +107,15 @@ def sumexp_stable(data):
     return result_sum, max_value, result_exp
 
 
-def concatenate_list(l, axis=0):
-    """Construct a numpy array by stacking arrays in a list
+def concatenate_not_none(l, axis=0):
+    """Construct a numpy array by stacking not-None arrays in a list
 
     Parameters
     ----------
 
-    data : list of arrays, arrays have same shape in all but one dimension or
-    elements are None
-        The list of arrays to be concatenated.
+    data : list of arrays
+        The list of arrays to be concatenated. Arrays have same shape in all
+        but one dimension or are None, in which case they are ignored.
 
     axis : int, default = 0
         Axis for the concatenation

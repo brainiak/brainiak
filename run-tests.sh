@@ -14,10 +14,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -ev
+set -e
 
-pip freeze | grep -qi /brainiak || {
-    echo "You must install brainiak in editable mode using \"pip install -e\""`
+python3 -m pip freeze | grep -qi /brainiak || {
+    echo "You must install brainiak in editable mode"`
         `" before calling "$(basename "$0")
     exit 1
 }
