@@ -786,8 +786,8 @@ def _calc_fwhm(volume,
 
 
 def _calc_sfnr(volume,
-              mask,
-              ):
+               mask,
+               ):
     """ Calculate the SFNR of a volume
     This takes the middle of the volume and averages the signal within the
     brain and compares to the temporal standard deviation in the voxels
@@ -1684,7 +1684,7 @@ def generate_noise(dimensions,
     system_sigma = mean_signal / (noise_dict['sfnr'] - noise_system.mean())
 
     # Increase the size of the system noise based on the SFNR
-    noise_system  *= system_sigma
+    noise_system *= system_sigma
 
     # Convert temporal noise (in percent) to real numbers
     abs_change = noise_dict['temporal_noise'] * mean_signal / 100
