@@ -440,10 +440,12 @@ class Searchlight:
 
         """
 
-        # Reuse a single `Pool` for all blocks.
-        extra_block_fn_params = (Pool(pool_size), voxel_fn, self.shape)
-        return self.run_block_function(_singlenode_searchlight,
-                                       extra_block_fn_params)
+        # Reuse a single `Pool` for all blocks of the MPI process.
+        with Pool(pool_size) as pool:
+            extra_block_fn_params = (pool, voxel_fn, self.shape)
+            block_fn_result = self.run_block_function(_singlenode_searchlight,
+                                                      extra_block_fn_params)
+        return block_fn_result
 
 
 def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
