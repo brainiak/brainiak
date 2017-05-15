@@ -19,7 +19,7 @@ data
 
 brainiak.egg-info
 build
-.cache
+.*cache
 .coverage*
 coverage.xml
 dist
