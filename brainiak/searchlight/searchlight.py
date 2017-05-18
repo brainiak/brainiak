@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import multiprocess
 import numpy as np
 from mpi4py import MPI
 import sys
@@ -436,7 +437,6 @@ class Searchlight:
                                                           mysl_rad:-mysl_rad,
                                                           mysl_rad:-mysl_rad]
 
-            import pathos.multiprocessing
             inlist = [([ll[i:i+2*mysl_rad+1,
                            j:j+2*mysl_rad+1,
                            k:k+2*mysl_rad+1,
@@ -451,10 +451,11 @@ class Searchlight:
                       for i in range(0, outmat.shape[0])
                       for j in range(0, outmat.shape[1])
                       for k in range(0, outmat.shape[2])]
-            outlist = list(pathos.multiprocessing.ProcessingPool(pool_size)
-                           .map(lambda x:
-                                voxel_fn(x[0], x[1], x[2], x[3])
-                                if x is not None else None, inlist))
+            with multiprocess.Pool(pool_size) as pool:
+                outlist = list(pool
+                               .map(lambda x:
+                                    voxel_fn(x[0], x[1], x[2], x[3])
+                                    if x is not None else None, inlist))
 
             cnt = 0
             for i in range(0, outmat.shape[0]):

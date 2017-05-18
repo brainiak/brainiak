@@ -123,6 +123,7 @@ setup(
     install_requires=[
         'cython',
         'mpi4py',
+        'multiprocess',
         'nitime',
         'numpy',
         'scikit-learn[alldeps]>=0.18',
@@ -130,7 +131,6 @@ setup(
         'pymanopt',
         'theano',
         'pybind11>=1.7',
-        'pathos',
         'nibabel',
         'typing',
     ],
