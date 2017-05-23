@@ -14,7 +14,7 @@
 #  limitations under the License.
 """ Bayesian Representational Similarity Analysis (BRSA)
 
-    This implementation is based on the following publications:
+    This implementation is based the work in [Cai2016]_.
 
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",

@@ -13,7 +13,8 @@
 #  limitations under the License.
 """Topographical Factor Analysis (TFA)
 
-This implementation is based on the work:
+This implementation is based on the work in [Manning2014]_ and
+[AndersonM2016]_.
 
 .. [Manning2014] "Topographic factor analysis: a bayesian model for inferring
    brain networks from neural data", J. R. Manning, R. Ranganath, K. A. Norman,
