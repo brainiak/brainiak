@@ -28,13 +28,28 @@ import sklearn
 from . import fcma_extension  # type: ignore
 from . import cython_blas as blas  # type: ignore
 import logging
-import multiprocess
+import multiprocessing
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "VoxelSelector",
 ]
+
+
+def _cross_validation_for_one_voxel(clf, vid, num_folds, subject_data, labels):
+    """Score classifier on data using cross validation."""
+    # no shuffling in cv
+    skf = model_selection.StratifiedKFold(n_splits=num_folds,
+                                          shuffle=False)
+    scores = model_selection.cross_val_score(clf, subject_data,
+                                             y=labels,
+                                             cv=skf, n_jobs=1)
+    logger.debug(
+        'cross validation for voxel %d is done' %
+        vid
+    )
+    return (vid, scores.mean())
 
 
 class VoxelSelector:
@@ -415,31 +430,17 @@ class VoxelSelector:
         """
         time1 = time.time()
 
-        def _cross_validation_for_one_voxel(vid, num_folds,
-                                            subject_data, labels):
-            # no shuffling in cv
-            skf = model_selection.StratifiedKFold(n_splits=num_folds,
-                                                  shuffle=False)
-            scores = model_selection.cross_val_score(clf, subject_data,
-                                                     y=labels,
-                                                     cv=skf, n_jobs=1)
-            logger.debug(
-                'cross validation for voxel %d is done' %
-                vid
-            )
-            return (vid, scores.mean())
-
         if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
-            inlist = [(i + task[0], self.num_folds, data[i, :, :],
+            inlist = [(clf, i + task[0], self.num_folds, data[i, :, :],
                        self.labels) for i in range(task[1])]
 
-            with multiprocess.Pool(self.process_num) as pool:
+            with multiprocessing.Pool(self.process_num) as pool:
                 results = list(pool.starmap(_cross_validation_for_one_voxel,
                                             inlist))
         else:
             results = []
             for i in range(task[1]):
-                result = _cross_validation_for_one_voxel(i + task[0],
+                result = _cross_validation_for_one_voxel(clf, i + task[0],
                                                          self.num_folds,
                                                          data[i, :, :],
                                                          self.labels)

@@ -31,6 +31,24 @@ __all__ = [
 ]
 
 
+def _sfn(l, mask, myrad, bcast_var):
+    """Score classifier on searchlight data using cross-validation.
+
+    The classifier is in `bcast_var[2]`. The labels are in `bast_var[0]`. The
+    number of cross-validation folds is in `bast_var[1].
+    """
+    clf = bcast_var[2]
+    data = l[0][mask, :].T
+    # print(l[0].shape, mask.shape, data.shape)
+    skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
+                                          shuffle=False)
+    accuracy = np.mean(model_selection.cross_val_score(clf, data,
+                                                       y=bcast_var[0],
+                                                       cv=skf,
+                                                       n_jobs=1))
+    return accuracy
+
+
 class MVPAVoxelSelector:
     """Activity-based voxel selection component of FCMA
 
@@ -94,23 +112,12 @@ class MVPAVoxelSelector:
                 'running activity-based voxel selection via Searchlight'
             )
         self.sl.distribute([self.data], self.mask)
-        self.sl.broadcast((self.labels, self.num_folds))
+        self.sl.broadcast((self.labels, self.num_folds, clf))
         if rank == 0:
             logger.info(
                 'data preparation done'
             )
 
-        # Searchlight kernel function
-        def _sfn(l, mask, myrad, bcast_var):
-            data = l[0][mask, :].T
-            # print(l[0].shape, mask.shape, data.shape)
-            skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
-                                                  shuffle=False)
-            accuracy = np.mean(model_selection.cross_val_score(clf, data,
-                                                               y=bcast_var[0],
-                                                               cv=skf,
-                                                               n_jobs=1))
-            return accuracy
         # obtain a 3D array with accuracy numbers
         result_volume = self.sl.run_searchlight(_sfn)
         # get result tuple list from the volume
