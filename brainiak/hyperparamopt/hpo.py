@@ -13,7 +13,8 @@
 #  limitations under the License.
 """Hyper Parameter Optimization (HPO)
 
-This implementation is based on the work:
+This implementation is based on the work in [Bergstra2011]_ and
+[Bergstra2013]_.
 
 .. [Bergstra2011] "Algorithms for Hyper-Parameter Optimization",
    James S. Bergstra and Bardenet, Rémi and Bengio, Yoshua
