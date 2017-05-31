@@ -25,16 +25,31 @@ from mpi4py import MPI
 from scipy.stats.mstats import zscore
 from sklearn import model_selection
 import sklearn
-from . import fcma_extension
-from . import cython_blas as blas
+from . import fcma_extension  # type: ignore
+from . import cython_blas as blas  # type: ignore
 import logging
-import multiprocess
+import multiprocessing
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "VoxelSelector",
 ]
+
+
+def _cross_validation_for_one_voxel(clf, vid, num_folds, subject_data, labels):
+    """Score classifier on data using cross validation."""
+    # no shuffling in cv
+    skf = model_selection.StratifiedKFold(n_splits=num_folds,
+                                          shuffle=False)
+    scores = model_selection.cross_val_score(clf, subject_data,
+                                             y=labels,
+                                             cv=skf, n_jobs=1)
+    logger.debug(
+        'cross validation for voxel %d is done' %
+        vid
+    )
+    return (vid, scores.mean())
 
 
 class VoxelSelector:
@@ -163,7 +178,8 @@ class VoxelSelector:
             the length of array equals the number of voxels
         """
         logger.info(
-            'Master starts to allocate tasks'
+            'Master at rank %d starts to allocate tasks',
+            MPI.COMM_WORLD.Get_rank()
         )
         results = []
         comm = MPI.COMM_WORLD
@@ -181,6 +197,10 @@ class VoxelSelector:
             if current_task[1] == 0:
                 using_size = i
                 break
+            logger.debug(
+                'master starts to send a task to worker %d' %
+                i
+            )
             comm.send(current_task,
                       dest=i,
                       tag=self._WORKTAG)
@@ -235,6 +255,10 @@ class VoxelSelector:
         -------
         None
         """
+        logger.debug(
+            'worker %d is running, waiting for tasks from master at rank %d' %
+            (MPI.COMM_WORLD.Get_rank(), self.master_rank)
+        )
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
@@ -264,6 +288,11 @@ class VoxelSelector:
         time1 = time.time()
         s = task[0]
         nEpochs = len(self.raw_data)
+        logger.debug(
+            'start to compute the correlation: #epochs: %d, '
+            '#processed voxels: %d, #total voxels to compute against: %d' %
+            (nEpochs, task[1], self.num_voxels2)
+        )
         corr = np.zeros((task[1], nEpochs, self.num_voxels2),
                         np.float32, order='C')
         count = 0
@@ -401,31 +430,17 @@ class VoxelSelector:
         """
         time1 = time.time()
 
-        def _cross_validation_for_one_voxel(vid, num_folds,
-                                            subject_data, labels):
-            # no shuffling in cv
-            skf = model_selection.StratifiedKFold(n_splits=num_folds,
-                                                  shuffle=False)
-            scores = model_selection.cross_val_score(clf, subject_data,
-                                                     y=labels,
-                                                     cv=skf, n_jobs=1)
-            logger.debug(
-                'cross validation for voxel %d is done' %
-                vid
-            )
-            return (vid, scores.mean())
-
         if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
-            inlist = [(i + task[0], self.num_folds, data[i, :, :],
+            inlist = [(clf, i + task[0], self.num_folds, data[i, :, :],
                        self.labels) for i in range(task[1])]
 
-            with multiprocess.Pool(self.process_num) as pool:
+            with multiprocessing.Pool(self.process_num) as pool:
                 results = list(pool.starmap(_cross_validation_for_one_voxel,
                                             inlist))
         else:
             results = []
             for i in range(task[1]):
-                result = _cross_validation_for_one_voxel(i + task[0],
+                result = _cross_validation_for_one_voxel(clf, i + task[0],
                                                          self.num_folds,
                                                          data[i, :, :],
                                                          self.labels)

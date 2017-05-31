@@ -209,7 +209,7 @@ def test_generate_noise():
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                mask=mask,
-                               noise_dict={'temporal_noise': 0, 'snr': 10000},
+                               noise_dict={'temporal_noise': 0, 'sfnr': 10000},
                                )
 
     temporal_noise = np.std(noise[mask[:,:,:,0]>0],1).mean()
@@ -274,7 +274,7 @@ def test_calc_noise():
     nd_orig = {'auto_reg_sigma': 0.6,
                'drift_sigma': 0.4,
                'temporal_noise': 5,
-               'snr': 30,
+               'sfnr': 30,
                'max_activity': 1000,
                'fwhm': 4,
                }
@@ -302,5 +302,5 @@ def test_calc_noise():
     precision = abs(nd_calc['temporal_noise'] - nd_orig['temporal_noise'])
     assert precision < 1, 'temporal_noise calculated incorrectly'
 
-    precision = abs(nd_calc['snr'] - nd_orig['snr'])
-    assert precision < 10, 'snr calculated incorrectly'
+    precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
+    assert precision < 5, 'sfnr calculated incorrectly'

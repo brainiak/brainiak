@@ -13,7 +13,7 @@
 #  limitations under the License.
 
 from pathlib import Path
-from typing import Sequence
+from typing import Iterable, Sequence
 
 import nibabel as nib
 import numpy as np
@@ -33,13 +33,13 @@ def expected_image_data_shape() -> Sequence[int]:
 
 
 @pytest.fixture
-def mask_file_name() -> str:
-    return "mask.nii.gz"
+def mask_path(in_dir: Path) -> Path:
+    return in_dir / "mask.nii.gz"
 
 
 @pytest.fixture
-def labels_file_name() -> str:
-    return "epoch_labels.npy"
+def labels_path(in_dir: Path) -> Path:
+    return in_dir / "epoch_labels.npy"
 
 
 @pytest.fixture
@@ -52,27 +52,46 @@ def expected_n_subjects() -> int:
     return 2
 
 
+@pytest.fixture
+def image_paths(in_dir: Path) -> Iterable[Path]:
+    return (in_dir / "subject1_bet.nii.gz", in_dir / "subject2_bet.nii.gz")
+
+
 def test_load_images_from_dir_data_shape(
-        in_dir: str,
+        in_dir: Path,
         expected_image_data_shape: Sequence[int],
         expected_n_subjects: int
         ) -> None:
-    i = 0
-    for image in io.load_images_from_dir(in_dir, "bet.nii.gz"):
+    for i, image in enumerate(io.load_images_from_dir(in_dir, "bet.nii.gz")):
         assert image.get_data().shape == (64, 64, 26, 10)
-        i += 1
-    assert i == expected_n_subjects
+    assert i + 1 == expected_n_subjects
 
 
-def test_load_boolean_mask(in_dir: str, mask_file_name: str) -> None:
-    mask = io.load_boolean_mask(in_dir / mask_file_name)
+def test_load_images_data_shape(
+        image_paths: Iterable[Path],
+        expected_image_data_shape: Sequence[int],
+        expected_n_subjects: int
+        ) -> None:
+    for i, image in enumerate(io.load_images(image_paths)):
+        assert image.get_data().shape == (64, 64, 26, 10)
+    assert i + 1 == expected_n_subjects
+
+
+def test_load_boolean_mask(mask_path: Path) -> None:
+    mask = io.load_boolean_mask(mask_path)
     assert mask.dtype == np.bool
 
 
-def test_load_labels(in_dir: str, labels_file_name: str,
+def test_load_boolean_mask_predicate(mask_path: Path) -> None:
+    mask = io.load_boolean_mask(mask_path, lambda x: np.logical_not(x))
+    expected_mask = np.logical_not(io.load_boolean_mask(mask_path))
+    assert np.array_equal(mask, expected_mask)
+
+
+def test_load_labels(labels_path: Path,
                      expected_condition_spec_shape: Sequence[int],
                      expected_n_subjects: int) -> None:
-    condition_specs = io.load_labels(in_dir / labels_file_name)
+    condition_specs = io.load_labels(labels_path)
     i = 0
     for condition_spec in condition_specs:
         assert condition_spec.shape == expected_condition_spec_shape

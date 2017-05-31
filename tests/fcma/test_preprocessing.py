@@ -29,7 +29,7 @@ expected_labels = np.array([0, 1, 0, 1])
 
 
 def test_prepare_fcma_data():
-    images = io.load_images_from_dir(data_dir, suffix)
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
     mask = io.load_boolean_mask(mask_file)
     conditions = io.load_labels(epoch_file)
     raw_data, _, labels = prepare_fcma_data(images, conditions, mask)
@@ -41,9 +41,22 @@ def test_prepare_fcma_data():
             'raw data do not match in test_prepare_fcma_data'
     assert np.array_equal(labels, expected_labels), \
         'the labels do not match in test_prepare_fcma_data'
+    from brainiak.fcma.preprocessing import RandomType
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
+    random_raw_data, _, _ = prepare_fcma_data(images, conditions, mask,
+                                                   random=
+                                                   RandomType.REPRODUCIBLE)
+    assert len(random_raw_data) == len(expected_raw_data), \
+        'numbers of epochs do not match in test_prepare_fcma_data'
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
+    random_raw_data, _, _ = prepare_fcma_data(images, conditions, mask,
+                                                   random=
+                                                   RandomType.UNREPRODUCIBLE)
+    assert len(random_raw_data) == len(expected_raw_data), \
+        'numbers of epochs do not match in test_prepare_fcma_data'
 
 def test_prepare_mvpa_data():
-    images = io.load_images_from_dir(data_dir, suffix)
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
     mask = io.load_boolean_mask(mask_file)
     conditions = io.load_labels(epoch_file)
     processed_data, labels = prepare_mvpa_data(images, conditions, mask)
@@ -58,10 +71,10 @@ def test_prepare_mvpa_data():
         'the labels do not match in test_prepare_mvpa_data'
 
 def test_prepare_searchlight_mvpa_data():
-    images = io.load_images_from_dir(data_dir, suffix)
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
     conditions = io.load_labels(epoch_file)
     processed_data, labels = prepare_searchlight_mvpa_data(images,
-                                                              conditions)
+                                                           conditions)
     expected_searchlight_processed_data = np.load(
         expected_dir / 'expected_searchlight_processed_data.npy')
     for idx in range(len(processed_data)):
@@ -69,6 +82,21 @@ def test_prepare_searchlight_mvpa_data():
             'raw data do not match in test_prepare_searchlight_mvpa_data'
     assert np.array_equal(labels, expected_labels), \
         'the labels do not match in test_prepare_searchlight_mvpa_data'
+    from brainiak.fcma.preprocessing import RandomType
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
+    random_processed_data, _ = prepare_searchlight_mvpa_data(images,
+                                                             conditions,
+                                                             random=
+                                                             RandomType.REPRODUCIBLE)
+    assert len(random_processed_data) == len(expected_searchlight_processed_data), \
+        'numbers of epochs do not match in test_prepare_searchlight_mvpa_data'
+    images = io.load_images_from_dir(data_dir, suffix=suffix)
+    random_processed_data, _ = prepare_searchlight_mvpa_data(images,
+                                                             conditions,
+                                                             random=
+                                                             RandomType.UNREPRODUCIBLE)
+    assert len(random_processed_data) == len(expected_searchlight_processed_data), \
+        'numbers of epochs do not match in test_prepare_searchlight_mvpa_data'
 
 if __name__ == '__main__':
     test_prepare_fcma_data()

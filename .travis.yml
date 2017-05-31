@@ -40,7 +40,7 @@ matrix:
       before_install: *macos_before_install
 
 install:
-    - pip3 install -U pip virtualenv
+    - python3 -m pip install -U pip virtualenv
 
 script:
     - ./pr-check.sh
