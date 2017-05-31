@@ -1195,7 +1195,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                            'If you have a good reason to specify a rank '
                            'lower than the number of experiment conditions,'
                            ' do so.')
-        return l_idx
+        return l_idx, rank
 
     def _fit_RSA_UV(self, X, Y, X_base,
                     scan_onsets=None, coords=None, inten=None):
@@ -1215,7 +1215,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         n_V = np.size(Y, axis=1)
         n_T = np.size(Y, axis=0)
         n_C = np.size(X, axis=1)
-        l_idx = self._chol_idx(n_C, rank)
+        l_idx, rank = self._chol_idx(n_C, rank)
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
         np.random.seed(self.rand_seed)
@@ -3167,7 +3167,7 @@ class GBRSA(BRSA):
         n_V = [np.size(y, axis=1) for y in Y]
         n_T = [np.size(y, axis=0) for y in Y]
         n_C = np.size(X[0], axis=1)
-        l_idx = self._chol_idx(n_C, rank)
+        l_idx, rank = self._chol_idx(n_C, rank)
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
         np.random.seed(self.rand_seed)
