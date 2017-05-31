@@ -183,6 +183,34 @@ def Ncomp_BIC_Minka(X):
     return ncomp, log_p
 
 
+def Ncomp_SVHT_MG_DLD_approx(X):
+    """ This function implements the approximate calculation of the
+        optimal hard threshold for singular values, by Matan Gavish
+        and David L. Donoho:
+        "The optimal hard threshold for singular values is 4 / sqrt(3)"
+        https://arxiv.org/pdf/1305.5870.pdf
+    Parameters
+    ----------
+    X: 2-D numpy array of size [n_T, n_V]
+        The data to estimate the optimal rank for selecting principal
+        components..
+    Returns:
+    --------
+    ncomp: integer
+        The optimal number of components determined by the method of MG
+        and DLD
+    """
+    beta = X.shape[0] / X.shape[1]
+    if beta > 1:
+        beta = 1 / beta
+    omega = 0.56 * beta ** 3 - 0.95 * beta ** 2 + 1.82 * beta + 1.43
+    sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
+    sing = sing[np.logical_not(np.isclose(sing, 0))]
+    thresh = omega * np.median(sing)
+    ncomp = int(np.sum(sing > thresh))
+    return ncomp
+
+
 class BRSA(BaseEstimator, TransformerMixin):
     """Bayesian representational Similarity Analysis (BRSA)
 
@@ -238,14 +266,21 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or string. Default: 'BIC'
+    n_nureg: int or string. Default: 'opt'
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-        If set to 'BIC', the number of nuisance regressor will be
+        If set to 'opt', the number of nuisance regressors will be
+        automatically determined based on M Gavish
+        and D Dohono's approximate estimation of optimal hard
+        threshold for singular values.
+        If set to 'BIC', the number of nuisance regressors will be
         automatically determined based on BIC metric
         of probabalistic PCA model. (Minka 2000, NIPS)
+        Practically, we find 'opt' option to be able to select
+        more reasonable number of nuisance regressors and
+        the performance is better on simulated data when using 'opt'.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean, default: True
@@ -346,9 +381,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         of perturbation decays exponentially. This parameter sets
         the ratio of the maximum number of iteration to the
         time constant of the exponential.
-        anneal_speed=5 means by n_iter/20 iterations,
+        anneal_speed=10 means by n_iter/10 iterations,
         the amount of perturbation is reduced by 2.713 times.
-    tol: float. Default: 1e-3
+    tol: float. Default: 1e-4
         tolerance parameter passed to the minimizer.
     verbose : boolean. Default: False
         Verbose mode flag.
@@ -398,21 +433,26 @@ class BRSA(BaseEstimator, TransformerMixin):
     n_nureg_: int
         Number of nuisance regressor in addition to such
         regressors provided by the user (if any), if auto_nuisance
-        is set to True. If n_nureg is set to 'BIC', this will be
-        estimated from data.
+        is set to True. If n_nureg is set to 'opt' or 'BIC',
+        this will be estimated from data. 'opt' will use M Gavish
+        and D Dohono's approximate estimation of optimal hard
+        threshold for singular values. 'BIC' will use BIC score
+        in probabilistic framework, following Minka (2000) with
+        slight modification.
+
     """
 
     def __init__(
             self, n_iter=50, n_iter_inner=6, rank=None,
-            auto_nuisance=True, n_nureg='BIC', nureg_method='ICA',
+            auto_nuisance=True, n_nureg='opt', nureg_method='ICA',
             DC_single=True,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
-            rand_seed=0, anneal_speed=20,
-            tol=1e-3, verbose=False):
+            rand_seed=0, anneal_speed=10,
+            tol=1e-4, verbose=False):
 
         self.n_iter = n_iter
         self.n_iter_inner = n_iter_inner
@@ -423,10 +463,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         if auto_nuisance:
-            assert (type(n_nureg) is str and n_nureg == 'BIC') \
+            assert (type(n_nureg) is str and
+                    n_nureg in ['BIC', 'opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
-                'n_nureg should be a positive number or "BIC"'\
-                'if auto_nuisance is True.'
+                'n_nureg should be a positive number or "opt"'\
+                'or "BIC" if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -597,13 +638,20 @@ class BRSA(BaseEstimator, TransformerMixin):
                            'to True. The coordinates or intensity are'
                            ' ignored.')
         # Estimate the number of necessary nuisance regressors
-        if self.auto_nuisance and self.n_nureg == 'BIC':
-            ts_dc = self._gen_X_DC([X.shape[0]])
-            _, ts_base, _ = self._merge_DC_to_base(ts_dc, nuisance, False)
+        if self.auto_nuisance and self.n_nureg in ['BIC', 'opt']:
+            run_TRs, n_runs = self._run_TR_from_scan_onsets(
+                X.shape[0], scan_onsets)
+            ts_dc = self._gen_legendre(run_TRs, [0])
+            _, ts_base, _ = self._merge_DC_to_base(
+                ts_dc, nuisance, False)
             ts_reg = np.concatenate((ts_base, design), axis=1)
             beta_hat = np.linalg.lstsq(ts_reg, X)[0]
             residuals = X - np.dot(ts_reg, beta_hat)
-            self.n_nureg_, _ = Ncomp_BIC_Minka(residuals)
+            if self.n_nureg == 'BIC':
+                self.n_nureg_, log_p_BIC = Ncomp_BIC_Minka(residuals)
+            else:
+                self.n_nureg_ = np.max(
+                    [1, Ncomp_SVHT_MG_DLD_approx(residuals)])
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
         else:
@@ -819,16 +867,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         else:
             return np.empty([0, 0])
 
-    def _prepare_DF(self, n_T, scan_onsets=None):
-        """ Prepare the essential template matrices D and F for
-            pre-calculating some terms to be re-used.
-            The inverse covariance matrix of AR(1) noise is
-            sigma^-2 * (I - rho1*D + rho1**2 * F).
-            And we denote A = I - rho1*D + rho1**2 * F"""
+    def _run_TR_from_scan_onsets(self, n_T, scan_onsets=None):
         if scan_onsets is None:
             # assume that all data are acquired within the same scan.
-            D = self._D_gen(n_T)
-            F = self._F_gen(n_T)
             n_run = 1
             run_TRs = np.array([n_T], dtype=int)
         else:
@@ -843,13 +884,21 @@ class BRSA(BaseEstimator, TransformerMixin):
             # delete run length of 0 in case of duplication in scan_onsets.
             logger.info('I infer that the number of volumes'
                         ' in each scan are: {}'.format(run_TRs))
+        return run_TRs, n_run
 
-            D_ele = map(self._D_gen, run_TRs)
-            F_ele = map(self._F_gen, run_TRs)
-            D = scipy.linalg.block_diag(*D_ele)
-            F = scipy.linalg.block_diag(*F_ele)
-            # D and F above are templates for constructing
-            # the inverse of temporal covariance matrix of noise
+    def _prepare_DF(self, n_T, scan_onsets=None):
+        """ Prepare the essential template matrices D and F for
+            pre-calculating some terms to be re-used.
+            The inverse covariance matrix of AR(1) noise is
+            sigma^-2 * (I - rho1*D + rho1**2 * F).
+            And we denote A = I - rho1*D + rho1**2 * F"""
+        run_TRs, n_run = self._run_TR_from_scan_onsets(n_T, scan_onsets)
+        D_ele = map(self._D_gen, run_TRs)
+        F_ele = map(self._F_gen, run_TRs)
+        D = scipy.linalg.block_diag(*D_ele)
+        F = scipy.linalg.block_diag(*F_ele)
+        # D and F above are templates for constructing
+        # the inverse of temporal covariance matrix of noise
         return D, F, run_TRs, n_run
 
     def _prepare_data_XY(self, X, Y, D, F):
@@ -879,6 +928,15 @@ class BRSA(BaseEstimator, TransformerMixin):
         else:
             X_DC = scipy.linalg.block_diag(*map(np.ones, run_TRs)).T
         return X_DC
+
+    def _gen_legendre(self, run_TRs, orders):
+        def reg(x):
+            return np.concatenate(
+                [scipy.special.legendre(o)(np.linspace(-1, 1, x))[None, :]
+                 for o in orders], axis=0)
+        reg_poly = scipy.linalg.block_diag(
+            *map(reg, run_TRs)).T
+        return reg_poly
 
     def _prepare_data_XYX0(self, X, Y, X_base, X_res, D, F, run_TRs,
                            no_DC=False):
@@ -1036,8 +1094,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         # dimension: space
         LL = - np.sum(np.log(sigma2)) * (n_T - n_X0) * 0.5 \
             + np.sum(np.log(1 - rho1**2)) * n_run * 0.5 \
-            - np.sum(np.log(np.linalg.det(X0TAX0))) * 0.5 \
-            - np.sum(np.log(np.linalg.det(LAMBDA_i))) * 0.5 \
+            - np.sum(self._half_log_det(X0TAX0)) \
+            - np.sum(self._half_log_det(LAMBDA_i)) \
             - (n_T - n_X0) * n_V * (1 + np.log(2 * np.pi)) * 0.5
         # Log likelihood
         return LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2
@@ -1102,30 +1160,21 @@ class BRSA(BaseEstimator, TransformerMixin):
         # each voxel)
         return idx_param_sing, idx_param_fitU, idx_param_fitV
 
-    def _fit_RSA_UV(self, X, Y, X_base,
-                    scan_onsets=None, coords=None, inten=None):
-        """ The major utility of fitting Bayesian RSA.
-            Note that there is a naming change of variable. X in fit()
-            is changed to Y here, and design in fit() is changed to X here.
-            This is because we follow the tradition that X expresses the
-            variable defined (controlled) by the experimenter, i.e., the
-            time course of experimental conditions convolved by an HRF,
-            and Y expresses data.
-            However, in wrapper function fit(), we follow the naming
-            routine of scikit-learn.
+    def _half_log_det(self, M):
+        """ Return log(|M|)*0.5. For positive definite matrix M
+            of more than 2 dimensions, calculate this for the
+            last two dimension and return a value corresponding
+            to each element in the first few dimensions.
         """
-        GP_inten = self.GP_inten
-        GP_space = self.GP_space
-        rank = self.rank
-        n_V = np.size(Y, axis=1)
-        n_T = np.size(Y, axis=0)
-        n_C = np.size(X, axis=1)
+        chol = np.linalg.cholesky(M)
+        if M.ndim == 2:
+            return np.sum(np.log(np.abs(np.diag(chol))))
+        else:
+            return np.sum(np.log(np.abs(np.diagonal(
+                chol, axis1=-2, axis2=-1))), axis=-1)
+
+    def _chol_idx(self, n_C, rank):
         l_idx = np.tril_indices(n_C)
-
-        np.random.seed(self.rand_seed)
-        # setting random seed
-        t_start = time.time()
-
         if rank is not None:
             # The rank of covariance matrix is specified
             idx_rank = np.where(l_idx[1] < rank)
@@ -1146,8 +1195,33 @@ class BRSA(BaseEstimator, TransformerMixin):
                            'If you have a good reason to specify a rank '
                            'lower than the number of experiment conditions,'
                            ' do so.')
+        return l_idx
 
+    def _fit_RSA_UV(self, X, Y, X_base,
+                    scan_onsets=None, coords=None, inten=None):
+        """ The major utility of fitting Bayesian RSA.
+            Note that there is a naming change of variable. X in fit()
+            is changed to Y here, and design in fit() is changed to X here.
+            This is because we follow the tradition that X expresses the
+            variable defined (controlled) by the experimenter, i.e., the
+            time course of experimental conditions convolved by an HRF,
+            and Y expresses data.
+            However, in wrapper function fit(), we follow the naming
+            routine of scikit-learn.
+        """
+        GP_inten = self.GP_inten
+        GP_space = self.GP_space
+        rank = self.rank
+        n_V = np.size(Y, axis=1)
+        n_T = np.size(Y, axis=0)
+        n_C = np.size(X, axis=1)
+        l_idx = self._chol_idx(n_C, rank)
         n_l = np.size(l_idx[0])  # the number of parameters for L
+
+        np.random.seed(self.rand_seed)
+        # setting random seed
+        t_start = time.time()
+
         D, F, run_TRs, n_run = self._prepare_DF(
             n_T, scan_onsets=scan_onsets)
         XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, \
@@ -1475,20 +1549,20 @@ class BRSA(BaseEstimator, TransformerMixin):
         # are also independent. Note that log_p_data takes this assumption.
         if Var_X.ndim == 1:
             inv_Var_X = np.diag(1 / Var_X)
-            log_det_Var_X = np.sum(np.log(Var_X))
+            half_log_det_Var_X = np.sum(np.log(Var_X)) / 2.0
             Var_X = np.diag(Var_X)
             # the marginal variance of X
         else:
-            log_det_Var_X = np.log(np.linalg.det(Var_X))
+            half_log_det_Var_X = self._half_log_det(Var_X)
             inv_Var_X = np.linalg.inv(Var_X)
         if Var_dX.ndim == 1:
             inv_Var_dX = np.diag(1 / Var_dX)
-            log_det_Var_dX = np.sum(np.log(Var_dX))
+            half_log_det_Var_dX = np.sum(np.log(Var_dX)) / 2.0
             Var_dX = np.diag(Var_dX)
             # the marginal variance of Delta X
         else:
             inv_Var_dX = np.linalg.inv(Var_dX)
-            log_det_Var_dX = np.log(np.linalg.det(Var_dX))
+            half_log_det_Var_dX = self._half_log_det(Var_dX)
         if T_X.ndim == 1:
             T_X = np.diag(T_X)
         [n_T, n_V] = np.shape(Y)
@@ -1501,8 +1575,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         mu_Gamma_inv = [None] * n_T
         # mu * inv(Gamma)
         log_p_data = - np.log(np.pi * 2) * (n_T * n_V) / 2 \
-            - log_det_Var_X / 2.0 - np.sum(np.log(sigma2_e)) * n_T / 2.0\
-            + np.sum(np.log(1 - rho_e**2)) / 2.0 - log_det_Var_dX / 2.0 \
+            - half_log_det_Var_X - np.sum(np.log(sigma2_e)) * n_T / 2.0\
+            + np.sum(np.log(1 - rho_e**2)) / 2.0 - half_log_det_Var_dX \
             * (n_T - 1)
         # This is the term to be incremented by c_n at each time step.
         # We first add all the fixed terms to it.
@@ -1537,9 +1611,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                          - deltaY_sigma2inv_rho_weightT[t - 1, :], tmp)
             mu[t] = np.linalg.solve(Gamma_inv[t], mu_Gamma_inv[t])
             tmp2 = mu_Gamma_inv[t - 1] - deltaY_sigma2inv_rho_weightT[t - 1, :]
-            log_p_data += -np.log(np.linalg.det(Gamma_tilde_inv)) / 2.0 \
+            log_p_data += -self._half_log_det(Gamma_tilde_inv) \
                 + np.dot(tmp2, np.linalg.solve(Gamma_tilde_inv, tmp2)) / 2.0
-        log_p_data += -np.log(np.linalg.det(Gamma_inv[-1])) / 2.0 \
+        log_p_data += -self._half_log_det(Gamma_inv[-1]) \
             + np.dot(mu_Gamma_inv[-1], mu[-1]) / 2.0 \
             - np.sum(deltaY**2 / sigma2_e) / 2.0
         return mu, mu_Gamma_inv, Gamma_inv, log_p_data, Lambda_0, \
@@ -1593,15 +1667,13 @@ class BRSA(BaseEstimator, TransformerMixin):
         # There are several possible ways of initializing the covariance.
         # (1) start from the point estimation of covariance
 
-        cov_point_est = np.cov(beta_hat[n_X0:, :])
+        cov_point_est = np.cov(beta_hat[n_X0:, :]) / np.var(residual)
         current_vec_U_chlsk_l = \
-            np.linalg.cholesky(cov_point_est +
-                               np.eye(n_C) * 1e-2)[l_idx]
+            np.linalg.cholesky((cov_point_est + np.eye(n_C)) / 2)[l_idx]
 
-        # We add a tiny diagonal element to the point
-        # estimation of covariance, just in case
-        # the user provides data in which
-        # n_V is smaller than n_C
+        # We use the average of covariance of point estimation and an identity
+        # matrix as the initial value of the covariance matrix, just in case
+        # the user provides data in which n_V is smaller than n_C.
 
         # (2) start from identity matrix
 
@@ -1946,29 +2018,8 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         # Add DC components capturing run-specific baselines.
         X_DC = self._gen_X_DC(run_TRs)
-        if X_base is not None:
-            res0 = np.linalg.lstsq(X_DC, X_base)
-            if not np.any(np.isclose(res0[1], 0)):
-                # No columns in X_base can be explained by the
-                # baseline regressors. So we insert them.
-                X_base = np.concatenate((X_base, X_DC), axis=1)
-                idx_DC = np.arange(X_base.shape[1] - X_DC.shape[1],
-                                   X_base.shape[1])
-            else:
-                logger.warning('Provided regressors for uninteresting '
-                               'time series already include baseline. '
-                               'No additional baseline is inserted.')
-                idx_DC = np.where(np.isclose(res0[1], 0))[0]
-        else:
-            # If a set of regressors for non-interested signals is not
-            # provided, then we simply include one baseline for each run.
-            X_base = X_DC
-            idx_DC = np.arange(0, X_base.shape[1])
-            logger.info('You did not provide time series of no interest '
-                        'such as DC component. Trivial regressors of'
-                        ' DC component are included for further modeling.'
-                        ' The final covariance matrix won''t '
-                        'reflet these components.')
+        X_DC, X_base, idx_DC = self._merge_DC_to_base(
+            X_DC, X_base, no_DC=False)
         X_res = None
         param0 = np.zeros(n_V)
         for it in range(0, n_iter):
@@ -2406,8 +2457,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             / (n_T - n_X0)
         LL = n_V * (-np.log(sigma2) * (n_T - n_X0) * 0.5
                     + np.log(1 - rho1**2) * n_run * 0.5
-                    - np.log(np.linalg.det(X0TAX0)) * 0.5
-                    - np.log(np.linalg.det(LAMBDA_i)) * 0.5)
+                    - self._half_log_det(X0TAX0)
+                    - self._half_log_det(LAMBDA_i))
 
         deriv_L = np.dot(XTAcorrY, LAMBDA_LTXTAcorrY.T) / sigma2 \
             - np.dot(np.dot(XTAcorrXL, LAMBDA_LTXTAcorrY),
@@ -2492,7 +2543,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         # dimension: space,
         LL = - np.sum(np.log(sigma2)) * (n_T - n_X0) * 0.5 \
             + np.sum(np.log(1 - rho1**2)) * n_run * 0.5 \
-            - np.sum(np.log(np.linalg.det(X0TAX0))) * 0.5 \
+            - np.sum(self._half_log_det(X0TAX0)) \
             - (n_T - n_X0) * n_V * (1 + np.log(2 * np.pi)) * 0.5
         # The following are for calculating the derivative to a1
         deriv_a1 = np.empty(n_V)
@@ -2563,7 +2614,7 @@ class GBRSA(BRSA):
     ----------
     n_iter : int. Default: 50
         Number of maximum iterations to run the algorithm.
-    n_iter_inner : int. Default: 10
+    n_iter_inner : int. Default: 20
         Number of maximum iterations in the inner loop of optimization (within
         each iteration of n_iter). Users typically do not need to adjust this
         parameter.
@@ -2595,14 +2646,22 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or string. Default: 'BIC'
+    n_nureg: int or string. Default: 'opt'
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-        If set to 'BIC', the number of nuisance regressor will be
+        If set to 'opt', the number of nuisance regressors will be
+        automatically determined based on M Gavish
+        and D Dohono's approximate estimation of optimal hard
+        threshold for singular values. (Gavish & Dohono,
+        IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
+        If set to 'BIC', the number of nuisance regressors will be
         automatically determined based on BIC metric
         of probabalistic PCA model. (Minka 2000, NIPS)
+        Practically, we find 'opt' option to be able to select
+        more reasonable number of nuisance regressors and
+        the performance is better on simulated data when using 'opt'.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean. Default: True
@@ -2653,13 +2712,13 @@ class GBRSA(BRSA):
         or a custom optimizer.
     rand_seed : int. Default: 0
         Seed for initializing the random number generator.
-    anneal_speed: float. Default: 20
+    anneal_speed: float. Default: 10
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
         the ratio of the maximum number of iteration to the
         time constant of the exponential.
-        anneal_speed=10 means by n_iter/20 iterations,
+        anneal_speed=10 means by n_iter/10 iterations,
         the amount of perturbation is reduced by 2.713 times.
 
     Attributes
@@ -2704,16 +2763,20 @@ class GBRSA(BRSA):
     n_nureg_: int
         Number of nuisance regressor in addition to such
         regressors provided by the user (if any), if auto_nuisance
-        is set to True. If n_nureg is set to 'BIC', this will be
-        estimated from data.
+        is set to True. If n_nureg is set to 'opt' or 'BIC',
+        this will be estimated from data. 'opt' will use M Gavish
+        and D Dohono's approximate estimation of optimal hard
+        threshold for singular values. 'BIC' will use BIC score
+        in probabilistic framework, following Minka (2000) with
+        slight modification.
     """
 
     def __init__(
-            self, n_iter=50, n_iter_inner=10, rank=None,
-            auto_nuisance=True, n_nureg='BIC', nureg_method='ICA',
+            self, n_iter=50, n_iter_inner=20, rank=None,
+            auto_nuisance=True, n_nureg='opt', nureg_method='ICA',
             DC_single=True, logS_range=1.0, SNR_bins=21,
-            rho_bins=20, tol=2e-3, verbose=False,
-            optimizer='BFGS', rand_seed=0, anneal_speed=20):
+            rho_bins=20, tol=1e-4, verbose=False,
+            optimizer='BFGS', rand_seed=0, anneal_speed=10):
 
         self.n_iter = n_iter
         self.n_iter_inner = n_iter_inner
@@ -2721,10 +2784,11 @@ class GBRSA(BRSA):
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
         if auto_nuisance:
-            assert (type(n_nureg) is str and n_nureg == 'BIC') \
+            assert (type(n_nureg) is str and
+                    n_nureg in ['BIC', 'opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
-                'n_nureg should be a positive number or "BIC"'\
-                'if auto_nuisance is True.'
+                'n_nureg should be a positive number or "opt"'\
+                'or "BIC" if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -2832,21 +2896,46 @@ class GBRSA(BRSA):
         self.n_V_ = [None] * self.n_subj_
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
-        if self.auto_nuisance and self.n_nureg == 'BIC':
+        if self.auto_nuisance and self.n_nureg in ['BIC', 'opt']:
             log_p_BIC = [None] * self.n_subj_
-            d_max = np.zeros(self.n_subj_, dtype=int)
+            n_nureg_max = np.zeros(self.n_subj_, dtype=int)
+            n_runs = np.zeros(self.n_subj_)
+            n_comps = np.zeros(self.n_subj_)
             for s_id in np.arange(self.n_subj_):
-                ts_dc = self._gen_X_DC([X[s_id].shape[0]])
+                # For each subject, determine the number of nuisance
+                # regressors needed to account for the covariance in residuals.
+                # Residual is calculated by regrssing
+                # out the design matrix and DC component and linear trend
+                # from data of each run.
+                run_TRs, n_runs[s_id] = self._run_TR_from_scan_onsets(
+                    X[s_id].shape[0], scan_onsets[s_id])
+                ts_dc = self._gen_legendre(run_TRs, [0])
                 _, ts_base, _ = self._merge_DC_to_base(
                     ts_dc, nuisance[s_id], False)
                 ts_reg = np.concatenate((ts_base, design[s_id]), axis=1)
                 beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
                 residuals = X[s_id] - np.dot(ts_reg, beta_hat)
-                _, log_p_BIC[s_id] = Ncomp_BIC_Minka(residuals)
-                d_max[s_id] = log_p_BIC[s_id].size
-            self.n_nureg_ = 1 + np.argmax(np.sum(np.concatenate(
-                [log_p_BIC[s_id][:np.min(d_max), None]
-                 for s_id in np.arange(self.n_subj_)], axis=1), axis=1))
+
+                if self.n_nureg == 'BIC':
+                    n_comps[s_id], log_p_BIC[s_id] = Ncomp_BIC_Minka(residuals)
+                    n_nureg_max[s_id] = log_p_BIC[s_id].size
+                else:
+                    n_comps[s_id] = Ncomp_SVHT_MG_DLD_approx(residuals)
+                    n_nureg_max[s_id] = np.min([
+                        n_comps[s_id]
+                        + (n_runs[s_id] - 1) * int(self.DC_single),
+                        np.linalg.matrix_rank(residuals) - 1])
+            # n_nureg_ should not exceed the rank of residual minus 1.
+            if self.n_nureg == 'BIC':
+                self.n_nureg_ = np.argmax(np.sum(np.concatenate(
+                    [log_p_BIC[s_id][:np.min(n_nureg_max), None]
+                     for s_id in np.arange(self.n_subj_)], axis=1), axis=1))
+                self.n_nureg_ = np.min([self.n_nureg_, np.min(n_nureg_max)])
+            else:
+                self.n_nureg_ = int(np.max(
+                    [1, np.min([np.median(n_comps),
+                                np.min(n_nureg_max)])]))
+
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
         else:
@@ -2929,10 +3018,6 @@ class GBRSA(BRSA):
         for i, x in enumerate(X):
             if x is not None:
                 s = scan_onsets[i]
-                if s is None:
-                    s = np.array([0], dtype=int)
-                else:
-                    s = np.int32(s)
                 ts[i], ts0[i], log_p[i] = self._transform(
                     Y=x, scan_onsets=s, beta=self.beta_[i],
                     beta0=self.beta0_[i], rho_e=self.rho_[i],
@@ -3082,37 +3167,16 @@ class GBRSA(BRSA):
         n_V = [np.size(y, axis=1) for y in Y]
         n_T = [np.size(y, axis=0) for y in Y]
         n_C = np.size(X[0], axis=1)
-        l_idx = np.tril_indices(n_C)
+        l_idx = self._chol_idx(n_C, rank)
+        n_l = np.size(l_idx[0])  # the number of parameters for L
 
         np.random.seed(self.rand_seed)
         logger.debug('Random seed set to {}.'.format(self.rand_seed))
         # setting random seed
         t_start = time.time()
 
-        if rank is not None:
-            # The rank of covariance matrix is specified
-            idx_rank = np.where(l_idx[1] < rank)
-            l_idx = (l_idx[0][idx_rank], l_idx[1][idx_rank])
-            logger.info('Using the rank specified by the user: '
-                        '{}'.format(rank))
-        else:
-            rank = n_C
-            # if not specified, we assume you want to
-            # estimate a full rank matrix
-            logger.warning('Please be aware that you did not specify the'
-                           ' rank of covariance matrix to estimate.'
-                           'I will assume that the covariance matrix '
-                           'shared among voxels is of full rank.'
-                           'Rank = {}'.format(rank))
-            logger.warning('Please be aware that estimating a matrix of '
-                           'high rank can be very slow.'
-                           'If you have a good reason to specify a rank '
-                           'lower than the number of experiment conditions,'
-                           ' do so.')
         logger.info('Starting to fit the model. Maximum iteration: '
                     '{}.'.format(self.n_iter))
-
-        n_l = np.size(l_idx[0])  # the number of parameters for L
 
         # log_SNR_grids, SNR_weights \
         #     = np.polynomial.hermite.hermgauss(SNR_bins)
@@ -3133,6 +3197,10 @@ class GBRSA(BRSA):
                                               scale=self.logS_range)
         SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
                                                    scale=self.logS_range)
+        SNR_weights = SNR_weights / np.sum(SNR_weights)
+        SNR_grids[0] = 0
+        # We set the first grid to 0 to cover all the small values of SNR,
+        # and to allow for the possibility of no signal.
 
         # SNR_grids = np.linspace(0, 1, self.SNR_bins)
         # SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
@@ -3140,10 +3208,10 @@ class GBRSA(BRSA):
                     'is {}.'.format(SNR_grids))
         assert np.isclose(np.sum(SNR_weights), 1), \
             'The weights for log SNR do not sum to 1!'
-        if np.max(SNR_grids) > 1e10:
-            logger.warning('ATTENTION!! The range of grids of pseudo-SNR'
-                           ' to be marginalized is too large. Please '
-                           'consider reducing logS_range to 1 or 2')
+        assert np.max(SNR_grids) < 1e10, \
+            'ATTENTION!! The range of grids of pseudo-SNR' \
+            ' to be marginalized is too large. Please ' \
+            'consider reducing logS_range to 1 or 2'
         rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
             + 1 / self.rho_bins
         rho_weights = np.ones(self.rho_bins) / self.rho_bins
@@ -3192,7 +3260,6 @@ class GBRSA(BRSA):
         # (1) start from the point estimation of covariance
 
         cov_point_est = np.zeros((n_C, n_C))
-        std_residual = np.empty(n_subj)
 
         for subj in range(n_subj):
             D[subj], F[subj], run_TRs[subj], n_run[subj] = self._prepare_DF(
@@ -3219,17 +3286,14 @@ class GBRSA(BRSA):
             # point estimates of betas and fitting residuals without assuming
             # the Bayesian model underlying RSA.
 
-            cov_point_est += np.cov(beta_hat[n_X0[subj]:, :])
-            std_residual[subj] = np.std(residual)
+            cov_point_est += np.cov(beta_hat[n_X0[subj]:, :]
+                                    / np.std(residual, axis=0))
         cov_point_est = cov_point_est / n_subj
-        current_vec_U_chlsk_l = 1 / np.mean(std_residual)\
-            * np.linalg.cholesky(cov_point_est +
-                                 np.eye(n_C) * 1e-1)[l_idx]
-
-        # We add a tiny diagonal element to the point
-        # estimation of covariance, just in case
-        # the user provides data in which
-        # n_V is smaller than n_C
+        current_vec_U_chlsk_l = np.linalg.cholesky(
+            (cov_point_est + np.eye(n_C)) / 2)[l_idx]
+        # We use the average of covariance of point estimation and an identity
+        # matrix as the initial value of the covariance matrix, just in case
+        # the user provides data in which n_V is smaller than n_C.
 
         # (2) start from identity matrix
 
@@ -3306,7 +3370,7 @@ class GBRSA(BRSA):
                 # Now we expand to another dimension including SNR
                 # and collapse the dimension again.
                 half_log_det_X0TAX0[subj] = np.reshape(
-                    np.repeat(np.log(np.linalg.det(X0TAX0[subj]))[None, :] / 2,
+                    np.repeat(self._half_log_det(X0TAX0[subj])[None, :],
                               self.SNR_bins, axis=0), n_grid)
                 X0TAX0[subj] = np.reshape(
                     np.repeat(X0TAX0[subj][None, :, :, :],
@@ -3334,8 +3398,10 @@ class GBRSA(BRSA):
 
             res = scipy.optimize.minimize(
                 self._sum_loglike_marginalized, current_vec_U_chlsk_l
-                + np.random.randn(n_l) * np.linalg.norm(current_vec_U_chlsk_l)
-                / n_l**0.5 * np.exp(-it / self.n_iter * self.anneal_speed - 1),
+                + np.random.randn(n_l) *
+                np.linalg.norm(current_vec_U_chlsk_l)
+                / n_l**0.5 * np.exp(-it / self.n_iter
+                                    * self.anneal_speed - 1),
                 args=(s2XTAcorrX, YTAcorrY_diag, sXTAcorrY,
                       half_log_det_X0TAX0,
                       log_weights, log_fixed_terms,
@@ -3396,6 +3462,16 @@ class GBRSA(BRSA):
                             'the tolerance value {}. Fitting is finished '
                             'after {} iterations'.format(self.tol, it + 1))
                 break
+        for subj in range(n_subj):
+            if idx_DC[subj].size > 1:
+                collapsed_DC = np.sum(X0[subj][:, idx_DC[subj]], axis=1)
+                X0[subj] = np.insert(np.delete(X0[subj], idx_DC[subj], axis=1),
+                                     0, collapsed_DC, axis=1)
+                collapsed_beta0 = np.mean(beta0_post[subj][idx_DC[subj], :],
+                                          axis=0)
+                beta0_post[subj] = np.insert(
+                    np.delete(beta0_post[subj], idx_DC[subj], axis=0),
+                    0, collapsed_beta0, axis=0)
         t_finish = time.time()
         logger.info(
             'total time of fitting: {} seconds'.format(t_finish - t_start))
@@ -3499,7 +3575,7 @@ class GBRSA(BRSA):
                 # the denominator out. Accordingly, the "denominator"
                 # variable in the _raw_loglike_grids() function is not
                 # divided by 2
-                half_log_det_X0TAX0 = np.log(np.linalg.det(X0TAX0)) / 2
+                half_log_det_X0TAX0 = self._half_log_det(X0TAX0)
 
                 LL_raw = -half_log_det_X0TAX0[:, None] \
                     - (n_T - n_X0 - 2) / 2 * np.log(YTAcorrY_diag) \
@@ -3750,6 +3826,14 @@ class GBRSA(BRSA):
                         'In Group Bayesian RSA, all subjects should have'\
                         ' the same set of experiment conditions, t'\
                         'hus the same number of columns in design matrix'
+                if X[i].shape[1] <= d.shape[1]:
+                    logger.warning('Your data have fewer voxels than the '
+                                   'number of task conditions. This might '
+                                   'cause problem in fitting. Please consider '
+                                   'increasing the size of your ROI, or set '
+                                   'the rank parameter to a lower number to '
+                                   'estimate a low-rank representational '
+                                   'structure.')
         return design
 
     def _check_nuisance_GBRSA(sef, nuisance, X):
@@ -3799,11 +3883,19 @@ class GBRSA(BRSA):
                                'there is only one set of scan_onsets. '
                                'I assume that it is the same for all'
                                ' subjects. Please double check')
-        for i, s in enumerate(scan_onsets):
+        for i in np.arange(len(scan_onsets)):
             if X[i] is not None:
-                assert s is None or\
-                    (np.max(s) <= X[i].shape[0] and np.min(s) >= 0
-                     and 0 in s and s.ndim == 1), \
+                if scan_onsets[i] is None:
+                    scan_onsets[i] = np.array([0], dtype=int)
+                    logger.warning('No scan onsets were provided for subject'
+                                   ' {}. Treating all data of this subject as'
+                                   ' coming from the same run.')
+                else:
+                    scan_onsets[i] = np.int32(scan_onsets[i])
+                assert (np.max(scan_onsets[i]) <= X[i].shape[0]
+                        and np.min(scan_onsets[i]) >= 0
+                        and 0 in scan_onsets[i]
+                        and scan_onsets[i].ndim == 1), \
                     'Scan onsets of subject {} has formatting ' \
-                    'issues: {}'.format(i, s)
+                    'issues: {}'.format(i, scan_onsets[i])
         return scan_onsets
