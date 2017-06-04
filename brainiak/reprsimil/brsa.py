@@ -2714,7 +2714,6 @@ class GBRSA(BRSA):
         This parameter only takes effect if SNR_prior is set to 'lognorm',
         it sets the prior of the reasonable range
         of the spread of pseudo-SNR in log scale.
-        This range should not be too large
         We use 1.0 as default. If it is set too small,
         the estimated SNR will turn to be too close to each other.
         The code will in fact evaluate pseudo-SNR in the range of
