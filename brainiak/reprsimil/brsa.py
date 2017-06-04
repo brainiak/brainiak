@@ -188,12 +188,12 @@ def Ncomp_SVHT_MG_DLD_approx(X):
         optimal hard threshold for singular values, by Matan Gavish
         and David L. Donoho:
         "The optimal hard threshold for singular values is 4 / sqrt(3)"
-        https://arxiv.org/pdf/1305.5870.pdf
+        http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=6846297
     Parameters
     ----------
     X: 2-D numpy array of size [n_T, n_V]
         The data to estimate the optimal rank for selecting principal
-        components..
+        components.
     Returns:
     --------
     ncomp: integer
@@ -209,6 +209,33 @@ def Ncomp_SVHT_MG_DLD_approx(X):
     thresh = omega * np.median(sing)
     ncomp = int(np.sum(sing > thresh))
     return ncomp
+
+
+def CoM_exp(a, b, scale=1.0):
+    """ Calculate the center of mass of exponential distribution
+        in the interval of (a, b). scale is the same scale
+        parameter as scipy.stats.expon.pdf
+    Parameters
+    ----------
+    a: float
+        The starting point of the interval in which the center of mass
+        is calculated for exponential distribution.
+    b: float
+        The ending point of the interval in which the center of mass
+        is calculated for exponential distribution.
+    Returns:
+    --------
+    m: float
+        The center of mass in the interval of (a, b) for exponential
+        distribution.
+    """
+    assert a < b, 'a must be smaller than b'
+    if b < np.inf:
+        return ((a + scale) * np.exp(-a / scale)
+                - (scale + b) * np.exp(-b / scale)) \
+            / (np.exp(-a / scale) - np.exp(-b / scale))
+    else:
+        return a + scale
 
 
 class BRSA(BaseEstimator, TransformerMixin):
@@ -273,7 +300,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         has already provided.
         If set to 'opt', the number of nuisance regressors will be
         automatically determined based on M Gavish
-        and D Dohono's approximate estimation of optimal hard
+        and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
         If set to 'BIC', the number of nuisance regressors will be
         automatically determined based on BIC metric
@@ -435,7 +462,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         regressors provided by the user (if any), if auto_nuisance
         is set to True. If n_nureg is set to 'opt' or 'BIC',
         this will be estimated from data. 'opt' will use M Gavish
-        and D Dohono's approximate estimation of optimal hard
+        and D Donoho's approximate estimation of optimal hard
         threshold for singular values. 'BIC' will use BIC score
         in probabilistic framework, following Minka (2000) with
         slight modification.
@@ -1841,7 +1868,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 # u, s, v = np.linalg.svd(residuals)
                 # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
-                X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                X_res = self.nureg_method(
+                    self.n_nureg_).fit_transform(
                     scipy.stats.zscore(residuals))
 
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
@@ -2653,8 +2681,8 @@ class GBRSA(BRSA):
         has already provided.
         If set to 'opt', the number of nuisance regressors will be
         automatically determined based on M Gavish
-        and D Dohono's approximate estimation of optimal hard
-        threshold for singular values. (Gavish & Dohono,
+        and D Donoho's approximate estimation of optimal hard
+        threshold for singular values. (Gavish & Donoho,
         IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
         If set to 'BIC', the number of nuisance regressors will be
         automatically determined based on BIC metric
@@ -2683,20 +2711,39 @@ class GBRSA(BRSA):
     logS_range: float. Default: 1.0
         The reasonable range of the spread of SNR
         in log scale. This range should not be too large.
+        This parameter only takes effect if SNR_prior is set to 'lognorm',
+        it sets the prior of the reasonable range
+        of the spread of pseudo-SNR in log scale.
+        This range should not be too large
         We use 1.0 as default. If it is set too small,
         the estimated SNR will turn to be too close to each other.
-        The code will in fact evaluate SNR in the range of
+        The code will in fact evaluate pseudo-SNR in the range of
         exp(-3*logS_range) to exp(3*logS_range), on a grid equally spread
         in log scale. The number of grids evaluated is determined by
         SNR_bins. If you increase logS_range, it is recommended to increase
-        SNR_bins accordingly, otherwise the SNR values evaluated might be
-        too sparse, causing the posterior SNR estimations to be clustered
-        around the bins.
+        SNR_bins accordingly, otherwise the pseudo-SNR values evaluated might
+        be too sparse, causing the posterior pseudo-SNR estimations
+        to be clustered around the bins.
+    SNR_prior: string. Default: 'exp'
+        The type of prior for pseudo-SNR. If set to 'exp',
+        exponential distribution with scale parameter of 1 is imposed on
+        pseudo-SNR. If set to 'lognorm', a log normal prior is imposed.
+        In this case, the standard deviation of log(SNR)
+        is set by the parameter logS_range.
+        If set to 'unif', a uniform prior in [0,1] is imposed.
+        In all these cases, SNR is numerically
+        marginalized on a grid of parameters. So the parameter SNR_bins
+        determines how accurate the numerical integration is.
+        In all the cases, the grids used for pseudo-SNR do not really
+        set an upper bound for SNR, because the real SNR is determined
+        by both pseudo-SNR and U, the shared covariance structure.
     SNR_bins: integer. Default: 21
-        The number of bins to divide the region of
-        [-3*logS_range, 3*logS_range] for the log of pseudo-SNR.
-        The default value 21 is based on the default value of logS_range=1.0
-        and the bin width of 0.3 on log scale.
+        When logS_range is set to a float, this is the number of bins
+        to numerically integrate out the pseudo-SNR parameter.
+        For SNR_prior='lognorm', the default value 21 is based on the
+        default value of logS_range=1.0 and the bin width of 0.3 on log scale.
+        But it is also a reasonable choice for the other two possible
+        choices for SNR_prior.
     rho_bins: integer. Default: 20
         The number of bins to divide the region of (-1, 1) for rho.
         This only takes effect for fitting the marginalized version.
@@ -2760,21 +2807,15 @@ class GBRSA(BRSA):
         for each subject.
         The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
-    n_nureg_: int
-        Number of nuisance regressor in addition to such
-        regressors provided by the user (if any), if auto_nuisance
-        is set to True. If n_nureg is set to 'opt' or 'BIC',
-        this will be estimated from data. 'opt' will use M Gavish
-        and D Dohono's approximate estimation of optimal hard
-        threshold for singular values. 'BIC' will use BIC score
-        in probabilistic framework, following Minka (2000) with
-        slight modification.
+    n_nureg_: 1-d numpy array
+        Number of nuisance regressor used to model the spatial noise
+        correlation of each participant.
     """
 
     def __init__(
             self, n_iter=50, n_iter_inner=20, rank=None,
             auto_nuisance=True, n_nureg='opt', nureg_method='ICA',
-            DC_single=True, logS_range=1.0, SNR_bins=21,
+            DC_single=True, logS_range=1.0, SNR_prior='exp', SNR_bins=21,
             rho_bins=20, tol=1e-4, verbose=False,
             optimizer='BFGS', rand_seed=0, anneal_speed=10):
 
@@ -2803,7 +2844,10 @@ class GBRSA(BRSA):
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
         self.DC_single = DC_single
+        if type(logS_range) is int:
+            logS_range = float(logS_range)
         self.logS_range = logS_range
+        self.SNR_prior = SNR_prior
         self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
         self.tol = tol
@@ -2889,7 +2933,8 @@ class GBRSA(BRSA):
         assert self.SNR_bins >= 5 and self.rho_bins >= 5, \
             'At least 5 bins are required to perform the numerical'\
             ' integration over SNR and rho'
-        assert self.logS_range * 6 / self.SNR_bins < 0.5, \
+        assert self.logS_range * 6 / self.SNR_bins < 0.5 \
+            or self.n_nureg != 'BIC', \
             'The minimum grid of log(SNR) should not be larger than 0.5.'\
             ' Please consider increasing SNR_bins or reducing logS_range'
         self.n_subj_ = len(X)
@@ -2897,10 +2942,12 @@ class GBRSA(BRSA):
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
         if self.auto_nuisance and self.n_nureg in ['BIC', 'opt']:
+            logger.info('number of nuisance regressors is determined '
+                        'with the method indicated by the option: {}'.format(
+                            self.n_nureg))
             log_p_BIC = [None] * self.n_subj_
-            n_nureg_max = np.zeros(self.n_subj_, dtype=int)
             n_runs = np.zeros(self.n_subj_)
-            n_comps = np.zeros(self.n_subj_)
+            n_comps = np.ones(self.n_subj_)
             for s_id in np.arange(self.n_subj_):
                 # For each subject, determine the number of nuisance
                 # regressors needed to account for the covariance in residuals.
@@ -2917,29 +2964,21 @@ class GBRSA(BRSA):
                 residuals = X[s_id] - np.dot(ts_reg, beta_hat)
 
                 if self.n_nureg == 'BIC':
-                    n_comps[s_id], log_p_BIC[s_id] = Ncomp_BIC_Minka(residuals)
-                    n_nureg_max[s_id] = log_p_BIC[s_id].size
+                    n_comps[s_id], _ = Ncomp_BIC_Minka(residuals)
+                    n_comps[s_id] = np.min([np.max([n_comps[s_id], 1]),
+                                            log_p_BIC[s_id].size])
                 else:
-                    n_comps[s_id] = Ncomp_SVHT_MG_DLD_approx(residuals)
-                    n_nureg_max[s_id] = np.min([
-                        n_comps[s_id]
-                        + (n_runs[s_id] - 1) * int(self.DC_single),
-                        np.linalg.matrix_rank(residuals) - 1])
-            # n_nureg_ should not exceed the rank of residual minus 1.
-            if self.n_nureg == 'BIC':
-                self.n_nureg_ = np.argmax(np.sum(np.concatenate(
-                    [log_p_BIC[s_id][:np.min(n_nureg_max), None]
-                     for s_id in np.arange(self.n_subj_)], axis=1), axis=1))
-                self.n_nureg_ = np.min([self.n_nureg_, np.min(n_nureg_max)])
-            else:
-                self.n_nureg_ = int(np.max(
-                    [1, np.min([np.median(n_comps),
-                                np.min(n_nureg_max)])]))
-
+                    n_comps[s_id] = np.min(
+                        [np.max([n_comps[s_id], 1]),
+                         np.linalg.matrix_rank(residuals) - 1])
+                    # n_nureg_ should not exceed the rank of
+                    # residual minus 1.
+            self.n_nureg_ = n_comps
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
         else:
-            self.n_nureg_ = self.n_nureg
+            self.n_nureg_ = self.n_nureg * np.ones(self.n_subj_)
+        self.n_nureg_ = np.int32(self.n_nureg_)
 
         self.beta0_null_, self.sigma_null_, self.rho_null_, self.X0_null_,\
             self._LL_null_train_ = self._fit_RSA_marginalized_null(
@@ -3183,27 +3222,37 @@ class GBRSA(BRSA):
         # SNR_weights = SNR_weights / np.pi**0.5
         # SNR_grids = np.exp(log_SNR_grids * self.logS_range * 2**.5)
 
-        log_SNR_grids = ((np.arange(self.SNR_bins)
-                          - (self.SNR_bins - 1) / 2)) \
-            / self.SNR_bins * self.logS_range * 6
-        SNR_grids = np.exp(log_SNR_grids)
-        log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
-            / self.SNR_bins
-        SNR_weights = np.empty(self.SNR_bins)
-        SNR_weights[1:-1] = np.diff(
-            scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
-                                 scale=self.logS_range))
-        SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
-                                              scale=self.logS_range)
-        SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
-                                                   scale=self.logS_range)
-        SNR_weights = SNR_weights / np.sum(SNR_weights)
-        SNR_grids[0] = 0
-        # We set the first grid to 0 to cover all the small values of SNR,
-        # and to allow for the possibility of no signal.
+        if self.SNR_prior == 'unif':
+            SNR_grids = np.linspace(0, 1, self.SNR_bins)
+            SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
+            SNR_weights[0] = SNR_weights[0] / 2.0
+            SNR_weights[-1] = SNR_weights[-1] / 2.0
 
-        # SNR_grids = np.linspace(0, 1, self.SNR_bins)
-        # SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
+            # SNR_grids = np.linspace(0, 1, self.SNR_bins)
+            # SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
+            # SNR_weights[-1] = SNR_weights[-1] / 2.0
+            # SNR_weights[0] = np.sum(SNR_weights[1:])
+        elif self.SNR_prior == 'lognorm':
+            log_SNR_grids = ((np.arange(self.SNR_bins)
+                              - (self.SNR_bins - 1) / 2)) \
+                / self.SNR_bins * self.logS_range * 6
+            SNR_grids = np.exp(log_SNR_grids)
+            log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
+                / self.SNR_bins
+            SNR_weights = np.empty(self.SNR_bins)
+            SNR_weights[1:-1] = np.diff(
+                scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
+                                     scale=self.logS_range))
+            SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
+                                                  scale=self.logS_range)
+            SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
+                                                       scale=self.logS_range)
+            SNR_grids[0] = 0
+        else:
+            SNR_grids = self._bin_exp(self.SNR_bins)
+            SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
+
+        SNR_weights = SNR_weights / np.sum(SNR_weights)
         logger.info('The grids of pseudo-SNR used for numerical integration '
                     'is {}.'.format(SNR_grids))
         assert np.isclose(np.sum(SNR_weights), 1), \
@@ -3337,7 +3386,7 @@ class GBRSA(BRSA):
                             X_base[subj],
                             beta0_post[subj][:np.shape(X_base[subj])[1], :])
                     X_res[subj] = self.nureg_method(
-                        self.n_nureg_).fit_transform(
+                        self.n_nureg_[subj]).fit_transform(
                         scipy.stats.zscore(residuals))
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
@@ -3480,7 +3529,7 @@ class GBRSA(BRSA):
             rho_post, X0, LL
 
     def _fit_RSA_marginalized_null(self, Y, X_base,
-                                   scan_onsets=None):
+                                   scan_onsets):
         """ The marginalized version of the null model for Bayesian RSA.
             The null model assumes no task-related response to the
             design matrix.
@@ -3603,7 +3652,8 @@ class GBRSA(BRSA):
                     residuals = Y[subj] - np.dot(
                         X_base[subj],
                         beta0_post[subj][:np.size(X_base[subj], 1), :])
-                    X_res_new = self.nureg_method(self.n_nureg_).fit_transform(
+                    X_res_new = self.nureg_method(
+                        self.n_nureg_[subj]).fit_transform(
                         scipy.stats.zscore(residuals))
                     if it >= 1:
                         if np.max(np.abs(X_res_new - X_res)) <= self.tol:
@@ -3899,3 +3949,34 @@ class GBRSA(BRSA):
                     'Scan onsets of subject {} has formatting ' \
                     'issues: {}'.format(i, scan_onsets[i])
         return scan_onsets
+
+    def _bin_exp(self, n_bin, scale=1.0):
+        """ Calculate the bin locations to approximate exponential distribution.
+            It breaks the cumulative probability of exponential distribution
+            into n_bin equal bins, each covering 1 / n_bin probability. Then it
+            calculates the center of mass in each bins and returns the
+            centers of mass. So, it approximates the exponential distribution
+            with n_bin of Delta function weighted by 1 / n_bin, at the
+            locations of these centers of mass.
+        Parameters:
+        -----------
+        n_bin: int
+            The number of bins to approximate the exponential distribution
+        scale: float, default: 1.0
+            The scale parameter of the exponential distribution, defined in
+            the same way as scipy.stats. It does not influence the ratios
+            between the bins, but just controls the spacing between the bins.
+            So generally users should not change its default.
+        Returns:
+        --------
+        bins: numpy array of size [n_bin,]
+            The centers of mass for each segment of the
+            exponential distribution.
+        """
+        boundaries = np.flip(scipy.stats.expon.isf(
+            np.linspace(0, 1, n_bin + 1),
+            scale=scale), axis=0)
+        bins = np.empty(n_bin)
+        for i in np.arange(n_bin):
+            bins[i] = CoM_exp(boundaries[i], boundaries[i + 1], scale=scale)
+        return bins
