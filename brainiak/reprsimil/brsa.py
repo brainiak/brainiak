@@ -3221,37 +3221,7 @@ class GBRSA(BRSA):
         # SNR_weights = SNR_weights / np.pi**0.5
         # SNR_grids = np.exp(log_SNR_grids * self.logS_range * 2**.5)
 
-        if self.SNR_prior == 'unif':
-            SNR_grids = np.linspace(0, 1, self.SNR_bins)
-            SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
-            SNR_weights[0] = SNR_weights[0] / 2.0
-            SNR_weights[-1] = SNR_weights[-1] / 2.0
-
-            # SNR_grids = np.linspace(0, 1, self.SNR_bins)
-            # SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
-            # SNR_weights[-1] = SNR_weights[-1] / 2.0
-            # SNR_weights[0] = np.sum(SNR_weights[1:])
-        elif self.SNR_prior == 'lognorm':
-            log_SNR_grids = ((np.arange(self.SNR_bins)
-                              - (self.SNR_bins - 1) / 2)) \
-                / self.SNR_bins * self.logS_range * 6
-            SNR_grids = np.exp(log_SNR_grids)
-            log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
-                / self.SNR_bins
-            SNR_weights = np.empty(self.SNR_bins)
-            SNR_weights[1:-1] = np.diff(
-                scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
-                                     scale=self.logS_range))
-            SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
-                                                  scale=self.logS_range)
-            SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
-                                                       scale=self.logS_range)
-            SNR_grids[0] = 0
-        else:
-            SNR_grids = self._bin_exp(self.SNR_bins)
-            SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
-
-        SNR_weights = SNR_weights / np.sum(SNR_weights)
+        SNR_grids, SNR_weights = self._set_SNR_grids()
         logger.info('The grids of pseudo-SNR used for numerical integration '
                     'is {}.'.format(SNR_grids))
         assert np.isclose(np.sum(SNR_weights), 1), \
@@ -3979,3 +3949,36 @@ class GBRSA(BRSA):
         for i in np.arange(n_bin):
             bins[i] = CoM_exp(boundaries[i], boundaries[i + 1], scale=scale)
         return bins
+
+    def _set_SNR_grids(self):
+        if self.SNR_prior == 'unif':
+            SNR_grids = np.linspace(0, 1, self.SNR_bins)
+            SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
+            SNR_weights[0] = SNR_weights[0] / 2.0
+            SNR_weights[-1] = SNR_weights[-1] / 2.0
+
+            # SNR_grids = np.linspace(0, 1, self.SNR_bins)
+            # SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
+            # SNR_weights[-1] = SNR_weights[-1] / 2.0
+            # SNR_weights[0] = np.sum(SNR_weights[1:])
+        elif self.SNR_prior == 'lognorm':
+            log_SNR_grids = ((np.arange(self.SNR_bins)
+                              - (self.SNR_bins - 1) / 2)) \
+                / self.SNR_bins * self.logS_range * 6
+            SNR_grids = np.exp(log_SNR_grids)
+            log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
+                / self.SNR_bins
+            SNR_weights = np.empty(self.SNR_bins)
+            SNR_weights[1:-1] = np.diff(
+                scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
+                                     scale=self.logS_range))
+            SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
+                                                  scale=self.logS_range)
+            SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
+                                                       scale=self.logS_range)
+            SNR_grids[0] = 0
+        else:
+            SNR_grids = self._bin_exp(self.SNR_bins)
+            SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
+        SNR_weights = SNR_weights / np.sum(SNR_weights)
+        return SNR_grids, SNR_weights
