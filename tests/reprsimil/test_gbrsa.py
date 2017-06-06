@@ -26,7 +26,7 @@ def test_can_instantiate():
                                       auto_nuisance=False, nureg_method='PCA',
                                       DC_single=False, logS_range=1.0, SNR_bins=11,
                                       rho_bins=40, tol=2e-3, verbose=True,
-                                      optimizer='CG', rand_seed=100, anneal_speed=20)
+                                      optimizer='CG', rand_seed=100, anneal_speed=20, SNR_prior='unif')
     assert s, "Invalid GBRSA instance!"
 
 def test_fit():
@@ -119,7 +119,8 @@ def test_fit():
 
     # Test fitting.
     n_nureg = 2
-    gbrsa = GBRSA(n_iter = 15, n_iter_inner=5, auto_nuisance=True,logS_range=0.5, SNR_bins=11, rho_bins=16, n_nureg=n_nureg)
+    gbrsa = GBRSA(n_iter = 15, n_iter_inner=5, auto_nuisance=True,logS_range=0.5, SNR_bins=11, rho_bins=16, n_nureg=n_nureg,
+                  optimizer='L-BFGS-B')
 
     gbrsa.fit(X=Y, design=design_mat, scan_onsets=scan_onsets)
     
@@ -310,4 +311,30 @@ def test_gradient():
                             L_vec, vec)
     assert np.isclose(dd, np.dot(deriv0, vec), rtol=1e-5), 'gradient incorrect'
 
+def test_SNR_grids():
+    import brainiak.reprsimil.brsa
+    import numpy as np
+
+
+    s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='unif', SNR_bins=10)
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    assert np.isclose(np.sum(SNR_weights), 1) and np.isclose(np.std(SNR_weights[1:-1]), 0) and np.all(SNR_weights > 0), \
+        'SNR weights are incorrect for uniform prior'
+    assert np.isclose(np.std(np.diff(SNR_grids[1:-1])), 0), \
+        'SNR grids are not equally spaced for uniform prior'
+    assert np.size(SNR_grids) == np.size(SNR_weights) and np.size(SNR_grids) == 10,\
+        'size of SNR_grids or SNR_weights is not correct for uniform prior'
+        
+    s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='lognorm', SNR_bins=35)
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0), \
+        'SNR_grids or SNR_weights not correct for log normal prior'
+        
+    s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='exp')
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0)\
+        and np.all(np.diff(SNR_grids) > 0), \
+        'SNR_grids or SNR_weights not correct for exponential prior'
+        
     
+

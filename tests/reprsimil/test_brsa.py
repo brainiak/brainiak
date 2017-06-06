@@ -515,3 +515,20 @@ def test_gradient():
     assert np.isclose(dd, np.dot(deriv0,vec), rtol=1e-5), 'gradient of fitV incorrect'
 
 
+def test_nureg_determine():
+    from brainiak.reprsimil.brsa import Ncomp_BIC_Minka, Ncomp_SVHT_MG_DLD_approx
+    import numpy as np
+    x = np.dot(np.random.randn(100,5), np.random.randn(5, 40)) + np.random.randn(100,40) * 0.01
+    ncomp = Ncomp_SVHT_MG_DLD_approx(x)
+    assert ncomp >= 3 and ncomp <= 8, 'recovered number of components should be in a reasonable range'
+    
+    ncomp, _ = Ncomp_BIC_Minka(x)
+    assert ncomp >= 3 and ncomp <= 8, 'recovered number of components should be in a reasonable range'
+    
+def test_half_log_det():
+    import numpy as np
+    from brainiak.reprsimil.brsa import BRSA
+    a = np.asarray([[1,0.2],[0.2,1]])
+    brsa = BRSA()
+    half_log_det = np.log(np.linalg.det(a)) / 2
+    assert np.isclose(half_log_det, brsa._half_log_det(a)), 'half log determinant function is wrong'
