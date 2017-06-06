@@ -1586,12 +1586,15 @@ class BRSA(BaseEstimator, TransformerMixin):
             inv_Var_dX = np.diag(1 / Var_dX)
             half_log_det_Var_dX = np.sum(np.log(Var_dX)) / 2.0
             Var_dX = np.diag(Var_dX)
-            # the marginal variance of Delta X
+            # the marginal variance of Delta X (the change of X from
+            # previous time point)
         else:
             inv_Var_dX = np.linalg.inv(Var_dX)
             half_log_det_Var_dX = self._half_log_det(Var_dX)
         if T_X.ndim == 1:
             T_X = np.diag(T_X)
+            # Transfer function of X: the expected mean of X at t+1
+            # time point is T_x * X
         [n_T, n_V] = np.shape(Y)
         # numbers of time points and voxels
         mu = [None] * n_T
@@ -1622,17 +1625,15 @@ class BRSA(BaseEstimator, TransformerMixin):
             Y[0, :] * (1 - rho_e**2) / sigma2_e, weight.T)
         mu[0] = np.linalg.solve(Gamma_inv[0], mu_Gamma_inv[0])
         log_p_data -= 0.5 * np.sum(Y[0, :]**2 * (1 - rho_e**2) / sigma2_e)
+        # This is the term added for the first time point.
 
         deltaY = Y[1:, :] - rho_e * Y[:-1, :]
         deltaY_sigma2inv_rho_weightT = np.dot(
             deltaY / sigma2_e * rho_e, weight.T)
         for t in np.arange(1, n_T):
-            # deltaY = Y[t, :] - rho_e * Y[t - 1, :]
             Gamma_tilde_inv = Lambda_0 + Gamma_inv[t - 1]
             tmp = np.linalg.solve(Gamma_tilde_inv, H.T)
             Gamma_inv[t] = Lambda_1 - np.dot(H, tmp)
-            # deltaY_sigma2inv_rho_weightT = np.dot(
-            #     deltaY[t - 1] / sigma2_e * rho_e, weight.T)
             mu_Gamma_inv[t] = np.dot(deltaY[t - 1, :] / sigma2_e, weight.T) \
                 + np.dot(mu_Gamma_inv[t - 1]
                          - deltaY_sigma2inv_rho_weightT[t - 1, :], tmp)
@@ -1651,6 +1652,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                        Lambda_0, Lambda_1, H):
         """ backward step for HMM """
         n_T = len(Gamma_inv)
+        # All the terms with hat before are parameters of posterior
+        # distributions of X conditioned on data from all time points,
+        # whereas the ones without hat calculated by _forward_step
+        # are mean and covariance of posterior of X conditioned on
+        # data up to the time point.
         Gamma_inv_hat = [None] * n_T
         mu_Gamma_inv_hat = [None] * n_T
         mu_hat = [None] * n_T
