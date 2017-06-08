@@ -86,10 +86,11 @@ Install updated versions of the following Python packages::
     python3 -m pip install -U pip virtualenv
 
 
-Installing
-==========
+Installing and upgrading
+========================
 
-The Brain Imaging Analysis Kit is available on PyPI::
+The Brain Imaging Analysis Kit is available on PyPI. You can install it (or
+upgrade to the latest version) using the following command::
 
     python3 -m pip install -U brainiak
 
