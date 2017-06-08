@@ -139,14 +139,17 @@ def Ncomp_BIC_Minka(X):
         For cases in which feature number is smaller than sample size,
         there is ambiguity for the author of this code to decide how to
         set some variables. Empirically the number of components estimated
-        turn to be very large by the Laplace approximation method. The BIC
-        method appear to perform well in a limited number of datasets.
+        turn to be very large by the Laplace approximation method.
+        In general, Ncomp_SVHT_MG_DLD_approx appears to perform better
+        in a limited number of cases.
+
     Parameters
     ----------
     X: 2-D numpy array of size [n_T, n_V]
         The data to estimate the dimensionality for PCA.
         Each column is one feature. Each row is one sample.
         X is z-scored before further calculation.
+
     Returns:
     --------
     ncomp: integer
@@ -190,11 +193,14 @@ def Ncomp_SVHT_MG_DLD_approx(X):
         and David L. Donoho:
         "The optimal hard threshold for singular values is 4 / sqrt(3)"
         http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=6846297
+        We generally recommend this over Ncomp_BIC_Minka.
+
     Parameters
     ----------
     X: 2-D numpy array of size [n_T, n_V]
         The data to estimate the optimal rank for selecting principal
         components.
+
     Returns:
     --------
     ncomp: integer
@@ -216,6 +222,7 @@ def CoM_exp(a, b, scale=1.0):
     """ Calculate the center of mass of exponential distribution
         in the interval of (a, b). scale is the same scale
         parameter as scipy.stats.expon.pdf
+
     Parameters
     ----------
     a: float
@@ -224,6 +231,7 @@ def CoM_exp(a, b, scale=1.0):
     b: float
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
+
     Returns:
     --------
     m: float
