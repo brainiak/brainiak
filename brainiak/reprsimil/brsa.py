@@ -2983,7 +2983,7 @@ class GBRSA(BRSA):
                                             log_p_BIC[s_id].size])
                 else:
                     n_comps[s_id] = np.min(
-                        [np.max([n_comps[s_id], 1]),
+                        [np.max([Ncomp_SVHT_MG_DLD_approx(residuals), 1]),
                          np.linalg.matrix_rank(residuals) - 1])
                     # n_nureg_ should not exceed the rank of
                     # residual minus 1.
