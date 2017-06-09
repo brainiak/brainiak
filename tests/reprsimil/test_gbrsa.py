@@ -336,5 +336,13 @@ def test_SNR_grids():
         and np.all(np.diff(SNR_grids) > 0), \
         'SNR_grids or SNR_weights not correct for exponential prior'
         
-    
+def test_n_nureg():
+    import brainiak.reprsimil.brsa
+    import numpy as np
+    # noise = np.random.randn(100,30)
+    noise = np.dot(np.random.randn(100,8),np.random.randn(8,30)) + np.random.randn(100,30)*0.01
+    design = np.random.randn(100,2)
+    s = brainiak.reprsimil.brsa.GBRSA(n_iter=2)
+    s.fit(X=noise, design=design)
+    assert s.n_nureg_[0] > 2 and s.n_nureg_[0] < 16, 'n_nureg_ estimation is wrong in GBRSA'
 

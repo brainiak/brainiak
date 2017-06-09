@@ -532,3 +532,13 @@ def test_half_log_det():
     brsa = BRSA()
     half_log_det = np.log(np.linalg.det(a)) / 2
     assert np.isclose(half_log_det, brsa._half_log_det(a)), 'half log determinant function is wrong'
+
+def test_n_nureg():
+    import brainiak.reprsimil.brsa
+    import numpy as np
+    # noise = np.random.randn(100,30)
+    noise = np.dot(np.random.randn(100,8),np.random.randn(8,30)) + np.random.randn(100,30)*0.01
+    design = np.random.randn(100,2)
+    s = brainiak.reprsimil.brsa.BRSA(n_iter=2)
+    s.fit(X=noise, design=design)
+    assert s.n_nureg_ > 2 and s.n_nureg_ < 16, 'n_nureg_ estimation is wrong in BRSA'
