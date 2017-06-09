@@ -101,6 +101,20 @@ as long as you see ``Successfully installed`` at the end.
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
 
+
+Examples
+========
+
+We include BrainIAK usage examples in the examples directory of the code
+repository, e.g., `funcalign/srm_image_prediction_example.ipynb
+<https://github.com/IntelPNI/brainiak/blob/master/examples/funcalign/srm_image_prediction_example.ipynb>`_.
+
+To run the examples, download an archive of the `latest BrainIAK release from
+GitHub <https://github.com/IntelPNI/brainiak/releases>`_. Note that we only
+support the latest release at this moment, so make sure to upgrade your
+BrainIAK installation.
+
+
 Documentation
 =============
 
