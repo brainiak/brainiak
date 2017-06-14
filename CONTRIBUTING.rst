@@ -202,7 +202,11 @@ Standards
 .. _Python Logging Tutorial:
    https://docs.python.org/3/howto/logging.html
 
-* Remove the output of Jupyter notebooks before committing them, using
+* Create usage examples for new modules in the examples directory. Add a
+  ``requirements.txt`` file to help users install the packages your examples
+  require.
+
+* Remove the output of example Jupyter notebooks before committing them, using
   `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
 
 
