@@ -127,8 +127,12 @@ The documentation is available at `pythonhosted.org/brainiak`_.
 Contributing
 ============
 
-We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
+We welcome contributions. Have a look at the issues labeled "`easy`_" for
+starting contribution ideas. Please read the guide in `CONTRIBUTING.rst`_
+first.
 
+.. _easy:
+   https://github.com/IntelPNI/brainiak/issues?q=is%3Aissue+is%3Aopen+label%3Aeasy
 .. _CONTRIBUTING.rst:
    https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
 
