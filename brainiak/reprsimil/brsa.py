@@ -93,8 +93,8 @@ def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
         of the inverse-Gamma prior.
         The smaller it is, the more penalization is imposed
         on large variation of y.
-    Returns:
-    --------
+    Returns
+    -------
     tau2: The MAP estimation of tau^2 based on the prior on tau
         and y_invK_y.
     log_ptau: log(p(tau)) of the returned tau^2 based on the
@@ -150,7 +150,7 @@ def Ncomp_BIC_Minka(X):
         Each column is one feature. Each row is one sample.
         X is z-scored before further calculation.
 
-    Returns:
+    Returns
     --------
     ncomp: integer
         The optimal number of components determined by BIC approximation
@@ -160,7 +160,8 @@ def Ncomp_BIC_Minka(X):
         by the BIC approximation provided by Minka 2000.
     """
     [n_T, n_V] = X.shape
-    X = scipy.stats.zscore(X)
+    X = _zscore(X)
+    # X = scipy.stats.zscore(X)
     sing = np.linalg.svd(X, full_matrices=False, compute_uv=False)
     # singular values of data X
     sing = sing[np.logical_not(np.isclose(sing, 0))]
@@ -201,8 +202,8 @@ def Ncomp_SVHT_MG_DLD_approx(X):
         The data to estimate the optimal rank for selecting principal
         components.
 
-    Returns:
-    --------
+    Returns
+    -------
     ncomp: integer
         The optimal number of components determined by the method of MG
         and DLD
@@ -211,7 +212,8 @@ def Ncomp_SVHT_MG_DLD_approx(X):
     if beta > 1:
         beta = 1 / beta
     omega = 0.56 * beta ** 3 - 0.95 * beta ** 2 + 1.82 * beta + 1.43
-    sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
+    sing = np.linalg.svd(_zscore(X), False, False)
+    # sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
     sing = sing[np.logical_not(np.isclose(sing, 0))]
     thresh = omega * np.median(sing)
     ncomp = int(np.sum(sing > thresh))
@@ -232,8 +234,8 @@ def CoM_exp(a, b, scale=1.0):
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
 
-    Returns:
-    --------
+    Returns
+    -------
     m: float
         The center of mass in the interval of (a, b) for exponential
         distribution.
@@ -245,6 +247,28 @@ def CoM_exp(a, b, scale=1.0):
             / (np.exp(-a / scale) - np.exp(-b / scale))
     else:
         return a + scale
+
+
+def _zscore(a):
+    """ Calculating z-score of data on the first axis.
+        If the numbers in any column are all equal, scipy.stats.zscore
+        will return NaN for this column. We shall correct them all to
+        be zeros.
+
+    Parameters
+    ----------
+    a: numpy array
+
+    Returns
+    -------
+    zscore: numpy array
+        The z-scores of input "a", with any columns including non-finite
+        numbers replaced by all zeros.
+    """
+    assert a.ndim > 1, 'a must have more than one dimensions'
+    zscore = scipy.stats.zscore(a, axis=0)
+    zscore[:, np.logical_not(np.all(np.isfinite(zscore), axis=0))] = 0
+    return zscore
 
 
 class BRSA(BaseEstimator, TransformerMixin):
@@ -1881,11 +1905,12 @@ class BRSA(BaseEstimator, TransformerMixin):
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
                 residuals = Y - np.dot(X, betas) - np.dot(
                     X_base, beta0s[:np.shape(X_base)[1], :])
-                # u, s, v = np.linalg.svd(residuals)
-                # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
                 X_res = self.nureg_method(
                     self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
+                    _zscore(residuals))
+                # X_res = self.nureg_method(
+                #     self.n_nureg_).fit_transform(
+                #     scipy.stats.zscore(residuals))
 
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
                     and norm_fitUchange / np.sqrt(param0_fitU.size) \
@@ -2019,10 +2044,10 @@ class BRSA(BaseEstimator, TransformerMixin):
                     (X0TAY - np.einsum('ikj,ki->ji', XTAX0, betas)))
                 residuals = Y - np.dot(X, betas) - np.dot(
                     X_base, beta0s[:np.shape(X_base)[1], :])
-                # u, s, v = np.linalg.svd(residuals)
-                # X_res = u[:, :self.n_nureg] * s[:self.n_nureg] / n_V**0.5
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
+                    _zscore(residuals))
+                # X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                #     scipy.stats.zscore(residuals))
 
             if GP_space:
                 logger.debug('current GP[0]: {}'.format(current_GP[0]))
@@ -2098,7 +2123,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                 beta0s = np.linalg.solve(X0TAX0, X0TAY.T).T
                 residuals = Y - np.dot(X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
+                    _zscore(residuals))
+                # X_res = self.nureg_method(self.n_nureg_).fit_transform(
+                #     scipy.stats.zscore(residuals))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -3371,7 +3398,10 @@ class GBRSA(BRSA):
                             beta0_post[subj][:np.shape(X_base[subj])[1], :])
                     X_res[subj] = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        scipy.stats.zscore(residuals))
+                        _zscore(residuals))
+                    # X_res[subj] = self.nureg_method(
+                    #     self.n_nureg_[subj]).fit_transform(
+                    #     scipy.stats.zscore(residuals))
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
                         X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
@@ -3638,7 +3668,10 @@ class GBRSA(BRSA):
                         beta0_post[subj][:np.size(X_base[subj], 1), :])
                     X_res_new = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        scipy.stats.zscore(residuals))
+                        _zscore(residuals))
+                    # X_res_new = self.nureg_method(
+                    #     self.n_nureg_[subj]).fit_transform(
+                    #     scipy.stats.zscore(residuals))
                     if it >= 1:
                         if np.max(np.abs(X_res_new - X_res)) <= self.tol:
                             logger.info('The change of X_res is '
