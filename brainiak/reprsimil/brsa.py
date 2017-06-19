@@ -160,8 +160,7 @@ def Ncomp_BIC_Minka(X):
         by the BIC approximation provided by Minka 2000.
     """
     [n_T, n_V] = X.shape
-    X = _zscore(X)
-    # X = scipy.stats.zscore(X)
+    X = scipy.stats.zscore(X)
     sing = np.linalg.svd(X, full_matrices=False, compute_uv=False)
     # singular values of data X
     sing = sing[np.logical_not(np.isclose(sing, 0))]
@@ -212,8 +211,7 @@ def Ncomp_SVHT_MG_DLD_approx(X):
     if beta > 1:
         beta = 1 / beta
     omega = 0.56 * beta ** 3 - 0.95 * beta ** 2 + 1.82 * beta + 1.43
-    sing = np.linalg.svd(_zscore(X), False, False)
-    # sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
+    sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
     sing = sing[np.logical_not(np.isclose(sing, 0))]
     thresh = omega * np.median(sing)
     ncomp = int(np.sum(sing > thresh))
@@ -1907,10 +1905,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(
                     self.n_nureg_).fit_transform(
-                    _zscore(residuals))
-                # X_res = self.nureg_method(
-                #     self.n_nureg_).fit_transform(
-                #     scipy.stats.zscore(residuals))
+                    scipy.stats.zscore(residuals))
 
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
                     and norm_fitUchange / np.sqrt(param0_fitU.size) \
@@ -2045,9 +2040,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 residuals = Y - np.dot(X, betas) - np.dot(
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    _zscore(residuals))
-                # X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                #     scipy.stats.zscore(residuals))
+                    scipy.stats.zscore(residuals))
 
             if GP_space:
                 logger.debug('current GP[0]: {}'.format(current_GP[0]))
@@ -2123,9 +2116,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 beta0s = np.linalg.solve(X0TAX0, X0TAY.T).T
                 residuals = Y - np.dot(X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    _zscore(residuals))
-                # X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                #     scipy.stats.zscore(residuals))
+                    scipy.stats.zscore(residuals))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -3398,10 +3389,7 @@ class GBRSA(BRSA):
                             beta0_post[subj][:np.shape(X_base[subj])[1], :])
                     X_res[subj] = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        _zscore(residuals))
-                    # X_res[subj] = self.nureg_method(
-                    #     self.n_nureg_[subj]).fit_transform(
-                    #     scipy.stats.zscore(residuals))
+                        scipy.stats.zscore(residuals))
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
                         X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
@@ -3668,10 +3656,7 @@ class GBRSA(BRSA):
                         beta0_post[subj][:np.size(X_base[subj], 1), :])
                     X_res_new = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        _zscore(residuals))
-                    # X_res_new = self.nureg_method(
-                    #     self.n_nureg_[subj]).fit_transform(
-                    #     scipy.stats.zscore(residuals))
+                        scipy.stats.zscore(residuals))
                     if it >= 1:
                         if np.max(np.abs(X_res_new - X_res)) <= self.tol:
                             logger.info('The change of X_res is '
