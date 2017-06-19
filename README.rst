@@ -31,14 +31,14 @@ installed manually.
 Linux
 -----
 
-Install the following packages (Ubuntu 14.04 is used in these instructions)::
+Install the following packages (Ubuntu 16.04 is used in these instructions)::
 
     apt install build-essential libgomp1 libmpich-dev mpich python3-dev \
-        python3-pip
+        python3-pip python3-venv
 
 Install updated version of the following Python packages::
 
-    python3 -m pip install --user -U pip virtualenv
+    python3 -m pip install --user -U pip
 
 Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
@@ -83,7 +83,7 @@ will seek for compiling and linking::
 
 Install updated versions of the following Python packages::
 
-    python3 -m pip install -U pip virtualenv
+    python3 -m pip install -U pip
 
 
 Installing and upgrading
