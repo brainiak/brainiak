@@ -15,7 +15,6 @@
 from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
-import sys
 from scipy.spatial.distance import cityblock
 
 """Distributed Searchlight
@@ -304,12 +303,12 @@ class Searchlight:
         mask: 3D array with "True" entries at active vertices
 
         """
-
-        assert mask.ndim == 3, "mask should be a 3D array"
+        if mask.ndim != 3:
+            raise ValueError('mask should be a 3D array')
 
         for (idx, subj) in enumerate(subjects):
-            assert subj.ndim == 4, \
-            "expected 4D data for index {} in subjects".format(idx)
+            if subj and not subj.ndim == 4:
+                raise ValueError('index {} in subjects must be 4D'.format(idx))
 
         self.mask = mask
         rank = self.comm.rank
