@@ -213,8 +213,6 @@ class Searchlight:
                        pt[1]:pt[1]+sz[1],
                        pt[2]:pt[2]+sz[2],
                        :].copy()
-        else:
-            sys.exit(0)
 
     def _split_volume(self, mat, blocks):
         """Convert a volume into a list of block data
@@ -306,6 +304,13 @@ class Searchlight:
         mask: 3D array with "True" entries at active vertices
 
         """
+
+        assert mask.ndim == 3, "mask should be a 3D array"
+
+        for (idx, subj) in enumerate(subjects):
+            assert subj.ndim == 4, \
+            "expected 4D data for index {} in subjects".format(idx)
+
         self.mask = mask
         rank = self.comm.rank
 
