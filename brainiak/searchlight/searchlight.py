@@ -307,11 +307,9 @@ class Searchlight:
             raise ValueError('mask should be a 3D array')
 
         for (idx, subj) in enumerate(subjects):
-            try:
+            if subj is not None:
                 if subj.ndim != 4:
                     raise ValueError('subjects[{}] must be 4D'.format(idx))
-            except AttributeError:
-                pass
 
         self.mask = mask
         rank = self.comm.rank
