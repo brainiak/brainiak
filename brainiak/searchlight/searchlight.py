@@ -15,7 +15,6 @@
 from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
-import sys
 from scipy.spatial.distance import cityblock
 
 """Distributed Searchlight
@@ -213,8 +212,6 @@ class Searchlight:
                        pt[1]:pt[1]+sz[1],
                        pt[2]:pt[2]+sz[2],
                        :].copy()
-        else:
-            sys.exit(0)
 
     def _split_volume(self, mat, blocks):
         """Convert a volume into a list of block data
@@ -306,6 +303,14 @@ class Searchlight:
         mask: 3D array with "True" entries at active vertices
 
         """
+        if mask.ndim != 3:
+            raise ValueError('mask should be a 3D array')
+
+        for (idx, subj) in enumerate(subjects):
+            if subj is not None:
+                if subj.ndim != 4:
+                    raise ValueError('subjects[{}] must be 4D'.format(idx))
+
         self.mask = mask
         rank = self.comm.rank
 
