@@ -50,23 +50,30 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "BRSA", "GBRSA", "prior_GP_var_inv_gamma", "prior_GP_var_half_cauchy",
-    "Ncomp_BIC_Minka", "Ncomp_SVHT_MG_DLD_approx"
+    "Ncomp_SVHT_MG_DLD_approx"
 ]
 
 
 def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
-    """ Imposing a prior onto the variance (tau^2) of the Gaussian
-        Process which is in turn a prior imposed over
-        a function y = f(x).
-        This function imposes an inverse-Gamma prior on tau^2
-        with a shape parameter alpha=2 and rate parameter
-        beta=tau_range^2.
-        The function returns the MAP estimate of tau^2 and
-        log(p(tau^2|tau_range)) for the estimated value of tau^2,
-        where tau_range describes the reasonable range of tau
-        in the inverse-Gamma prior.
+    """ Imposing an inverse-Gamma prior onto the variance (tau^2)
+        parameter of a Gaussian Process, which is in turn a prior
+        imposed over an unknown function y = f(x).
+        The inverse-Gamma prior of tau^2, tau^2 ~ invgamma(shape, scale)
+        is described by a shape parameter alpha=2 and a scale parameter
+        beta=tau_range^2. tau_range describes the reasonable range of
+        tau in the inverse-Gamma prior.
+        The data y's at locations x's are assumed to follow Gaussian Process:
+        f(x, x') ~ N(0, K(x, x') / 2 tau^2), where K is a kernel
+        function defined on x. For n observations, K(x1, x2, ..., xn) is
+        an n by n positive definite matrix.
+        Given the prior parameter tau_range, number of observations
+        n_y, and y_invK_y = y * inv(K) * y',
+        the function returns the MAP estimate of tau^2 and
+        the log posterior probability of tau^2 at the MAP value:
+        log(p(tau^2|tau_range)).
         This function is written primarily for BRSA but can also
-        be used elsewhere.
+        be used elsewhere. y in this case corresponds to the log of
+        SNR in each voxel. GBRSA does not rely on this function.
         An alternative form of prior is half-Cauchy prior on tau.
         Inverse-Gamma prior penalizes for both very small and very
         large values of tau, while half-Cauchy prior only penalizes
@@ -90,7 +97,9 @@ def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
     tau_range: float,
         The reasonable range of tau, the standard deviation of the
         Gaussian Process imposed on y=f(x). tau_range is parameter
-        of the inverse-Gamma prior.
+        of the inverse-Gamma prior. Say, if you expect the standard
+        deviation of the Gaussian process to be around 3, tau_range
+        can be set to 3.
         The smaller it is, the more penalization is imposed
         on large variation of y.
     Returns
@@ -100,7 +109,8 @@ def prior_GP_var_inv_gamma(y_invK_y, n_y, tau_range):
     log_ptau: log(p(tau)) of the returned tau^2 based on the
         inverse-Gamma prior.
     """
-    tau2 = (y_invK_y + 2 * tau_range**2) / (2 * 2 + 2 + n_y)
+    alpha = 2
+    tau2 = (y_invK_y + 2 * tau_range**2) / (alpha * 2 + 2 + n_y)
     log_ptau = scipy.stats.invgamma.logpdf(
         tau2, scale=tau_range**2, a=2)
     return tau2, log_ptau
@@ -112,7 +122,7 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
         a function y = f(x).
         The scale parameter of the half-Cauchy prior is tau_range.
         The function returns the MAP estimate of tau^2 and
-        log(p(tau|tau_range)) for the estimated value of tau^2,
+        log(p(tau|tau_range)) for the MAP value of tau^2,
         where tau_range describes the reasonable range of tau
         in the half-Cauchy prior.
         An alternative form of prior is inverse-Gamma prior on tau^2.
@@ -131,69 +141,12 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
     return tau2, log_ptau
 
 
-def Ncomp_BIC_Minka(X):
-    """ This implements the BIC metric written in Minka 2000:
-        Automatic choice of dimensionality for PCA
-        The paper mainly proposed a Laplace approximation of the posterior
-        of the number of components but also provided this BIC approximation.
-        For cases in which feature number is smaller than sample size,
-        there is ambiguity for the author of this code to decide how to
-        set some variables. Empirically the number of components estimated
-        turn to be very large by the Laplace approximation method.
-        In general, Ncomp_SVHT_MG_DLD_approx appears to perform better
-        in a limited number of cases.
-
-    Parameters
-    ----------
-    X: 2-D numpy array of size [n_T, n_V]
-        The data to estimate the dimensionality for PCA.
-        Each column is one feature. Each row is one sample.
-        X is z-scored before further calculation.
-
-    Returns
-    --------
-    ncomp: integer
-        The optimal number of components determined by BIC approximation
-        of the likelihood of each candidate number of component
-    log_p: 1-D numpy array
-        log(p(X|k)) for each candidate number of component k, calculated
-        by the BIC approximation provided by Minka 2000.
-    """
-    [n_T, n_V] = X.shape
-    X = scipy.stats.zscore(X)
-    sing = np.linalg.svd(X, full_matrices=False, compute_uv=False)
-    # singular values of data X
-    sing = sing[np.logical_not(np.isclose(sing, 0))]
-    # Remove the singular values that are close to 0.
-    Lambda = sing ** 2
-    # eigen values of the sample covariance matrix.
-    d_max = Lambda.size - 1
-    # Our goal is dimensionality reduction, so at least reducing by 1.
-    K = np.arange(1, d_max + 1)
-    log_p = np.zeros(d_max)
-    # alpha = 2 # A small number corresponding to equation (48) of Minka 2000
-    # n = n_T + 1 + alpha
-    m = Lambda.size * K - K * (K + 1) / 2
-    v_hat = (np.sum(Lambda) - np.cumsum(Lambda[:d_max])) / (Lambda.size - K)
-    log_Lambda = np.log(Lambda)
-    log_p = - n_T / 2 * np.cumsum(log_Lambda[:d_max]) \
-        - n_T * (Lambda.size - K) / 2 * np.log(v_hat) \
-        - (m + K) / 2 * np.log(n_T * n_V)
-    # Equation (78) of Minka 2000. Notice that we operate on the
-    # space spanned by the eigen vectors. Although Minka counted the
-    # number of data point with n_T in this case, we count observations
-    # of all time points and all voxels (n_T * n_V)
-    ncomp = np.argmax(log_p) + 1
-    return ncomp, log_p
-
-
 def Ncomp_SVHT_MG_DLD_approx(X):
     """ This function implements the approximate calculation of the
         optimal hard threshold for singular values, by Matan Gavish
         and David L. Donoho:
         "The optimal hard threshold for singular values is 4 / sqrt(3)"
         http://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=6846297
-        We generally recommend this over Ncomp_BIC_Minka.
 
     Parameters
     ----------
@@ -275,12 +228,12 @@ class BRSA(BaseEstimator, TransformerMixin):
     Given the time series of neural imaging data in a region of interest
     (ROI) and the hypothetical neural response (design matrix) to
     each experimental condition of interest,
-    calculate the shared covariance matrix of
-    the voxels(recording unit)' response to each condition,
+    calculate the shared covariance matrix U of
+    the voxels(recording unit)' response profiles \\beta_i to each condition,
     and the relative SNR of each voxels.
     The relative SNR could be considered as the degree of contribution
     of each voxel to this shared covariance matrix.
-    A correlation matrix converted from the covariance matrix
+    A correlation matrix converted from the covariance matrix U
     will be provided as a quantification of neural representational similarity.
 
     .. math::
@@ -288,6 +241,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
+        \\epsilon_i \\sim AR(1)
     Parameters
     ----------
     n_iter : int. Default: 50
@@ -295,7 +249,12 @@ class BRSA(BaseEstimator, TransformerMixin):
     n_iter_inner : int, default: 6
         Number of maximum iterations in the inner loop of optimization (within
         each iteration of n_iter). Users typically do not need to adjust this
-        parameter.
+        parameter. The fitting procedure alternates between
+        fitting SNR and the covariance matrix U underlying the pattern
+        similarity matrix. n_iter specifies the maximum number of each of
+        this pair of fitting. Within each fitting step of either fitting SNR or
+        the covariance matrix, n_iter_inner is passed as the maximum number
+        of iteration to scipy.optimize for fitting.
     rank : int. Default: None
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
@@ -333,12 +292,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         automatically determined based on M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
-        If set to 'BIC', the number of nuisance regressors will be
-        automatically determined based on BIC metric
-        of probabalistic PCA model. (Minka 2000, NIPS)
-        Practically, we find 'opt' option to be able to select
-        more reasonable number of nuisance regressors and
-        the performance is better on simulated data when using 'opt'.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean, default: True
@@ -491,12 +444,10 @@ class BRSA(BaseEstimator, TransformerMixin):
     n_nureg_: int
         Number of nuisance regressor in addition to such
         regressors provided by the user (if any), if auto_nuisance
-        is set to True. If n_nureg is set to 'opt' or 'BIC',
+        is set to True. If n_nureg is set to 'opt',
         this will be estimated from data. 'opt' will use M Gavish
         and D Donoho's approximate estimation of optimal hard
-        threshold for singular values. 'BIC' will use BIC score
-        in probabilistic framework, following Minka (2000) with
-        slight modification.
+        threshold for singular values.
 
     """
 
@@ -522,10 +473,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         self.n_nureg = n_nureg
         if auto_nuisance:
             assert (type(n_nureg) is str and
-                    n_nureg in ['BIC', 'opt']) \
+                    n_nureg in ['opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
                 'n_nureg should be a positive number or "opt"'\
-                'or "BIC" if auto_nuisance is True.'
+                ' if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -696,7 +647,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                            'to True. The coordinates or intensity are'
                            ' ignored.')
         # Estimate the number of necessary nuisance regressors
-        if self.auto_nuisance and self.n_nureg in ['BIC', 'opt']:
+        if self.auto_nuisance and self.n_nureg in ['opt']:
             run_TRs, n_runs = self._run_TR_from_scan_onsets(
                 X.shape[0], scan_onsets)
             ts_dc = self._gen_legendre(run_TRs, [0])
@@ -705,11 +656,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             ts_reg = np.concatenate((ts_base, design), axis=1)
             beta_hat = np.linalg.lstsq(ts_reg, X)[0]
             residuals = X - np.dot(ts_reg, beta_hat)
-            if self.n_nureg == 'BIC':
-                self.n_nureg_, log_p_BIC = Ncomp_BIC_Minka(residuals)
-            else:
-                self.n_nureg_ = np.max(
-                    [1, Ncomp_SVHT_MG_DLD_approx(residuals)])
+            self.n_nureg_ = np.max(
+                [1, Ncomp_SVHT_MG_DLD_approx(residuals)])
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
         else:
@@ -2717,12 +2665,6 @@ class GBRSA(BRSA):
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values. (Gavish & Donoho,
         IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
-        If set to 'BIC', the number of nuisance regressors will be
-        automatically determined based on BIC metric
-        of probabalistic PCA model. (Minka 2000, NIPS)
-        Practically, we find 'opt' option to be able to select
-        more reasonable number of nuisance regressors and
-        the performance is better on simulated data when using 'opt'.
     nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean. Default: True
@@ -2858,10 +2800,10 @@ class GBRSA(BRSA):
         self.n_nureg = n_nureg
         if auto_nuisance:
             assert (type(n_nureg) is str and
-                    n_nureg in ['BIC', 'opt']) \
+                    n_nureg in ['opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
                 'n_nureg should be a positive number or "opt"'\
-                'or "BIC" if auto_nuisance is True.'
+                ' if auto_nuisance is True.'
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -2966,18 +2908,18 @@ class GBRSA(BRSA):
             'At least 5 bins are required to perform the numerical'\
             ' integration over SNR and rho'
         assert self.logS_range * 6 / self.SNR_bins < 0.5 \
-            or self.n_nureg != 'BIC', \
-            'The minimum grid of log(SNR) should not be larger than 0.5.'\
+            or self.SNR_prior != 'lognorm', \
+            'The minimum grid of log(SNR) should not be larger than 0.5 '\
+            'if log normal prior is chosen for SNR.' \
             ' Please consider increasing SNR_bins or reducing logS_range'
         self.n_subj_ = len(X)
         self.n_V_ = [None] * self.n_subj_
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
-        if self.auto_nuisance and self.n_nureg in ['BIC', 'opt']:
+        if self.auto_nuisance and self.n_nureg in ['opt']:
             logger.info('number of nuisance regressors is determined '
                         'with the method indicated by the option: {}'.format(
                             self.n_nureg))
-            log_p_BIC = [None] * self.n_subj_
             n_runs = np.zeros(self.n_subj_)
             n_comps = np.ones(self.n_subj_)
             for s_id in np.arange(self.n_subj_):
@@ -2995,16 +2937,11 @@ class GBRSA(BRSA):
                 beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
                 residuals = X[s_id] - np.dot(ts_reg, beta_hat)
 
-                if self.n_nureg == 'BIC':
-                    n_comps[s_id], _ = Ncomp_BIC_Minka(residuals)
-                    n_comps[s_id] = np.min([np.max([n_comps[s_id], 1]),
-                                            log_p_BIC[s_id].size])
-                else:
-                    n_comps[s_id] = np.min(
-                        [np.max([Ncomp_SVHT_MG_DLD_approx(residuals), 1]),
-                         np.linalg.matrix_rank(residuals) - 1])
-                    # n_nureg_ should not exceed the rank of
-                    # residual minus 1.
+                n_comps[s_id] = np.min(
+                    [np.max([Ncomp_SVHT_MG_DLD_approx(residuals), 1]),
+                     np.linalg.matrix_rank(residuals) - 1])
+                # n_nureg_ should not exceed the rank of
+                # residual minus 1.
             self.n_nureg_ = n_comps
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
