@@ -245,6 +245,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         \\beta_i \\sim N(0,(s_{i} \\sigma_{i})^2 U)
 
         \\epsilon_i \\sim AR(1)
+
     Parameters
     ----------
     n_iter : int. Default: 50
@@ -408,7 +409,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         anneal_speed=10 means by n_iter/10 iterations,
         the amount of perturbation is reduced by 2.713 times.
     minimize_options: dictionary.
-        Default: {'xtol': 1e-4, 'disp': False,
+        Default: {'gtol': 1e-4, 'disp': False,
         'maxiter': 6}
         This is the dictionary passed as the options argument to
         scipy.optimize.minize which minimizes the cost function during
@@ -499,7 +500,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
             rand_seed=0, anneal_speed=10, tol=1e-4,
-            minimize_options={'xtol': 1e-4, 'disp': False,
+            minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 6}):
 
         self.n_iter = n_iter
@@ -2811,7 +2812,7 @@ class GBRSA(BRSA):
         Hessian of the objective function. So an optimizer which requires
         Hessian cannot be used.
     minimize_options: dictionary.
-        Default: {'xtol': 1e-4, 'disp': False,
+        Default: {'gtol': 1e-4, 'disp': False,
         'maxiter': 20}
         This is the dictionary passed as the options argument to
         scipy.optimize.minize which minimizes the cost function during
@@ -2900,7 +2901,7 @@ class GBRSA(BRSA):
             nureg_method='ICA',
             DC_single=True, logS_range=1.0, SNR_prior='exp', SNR_bins=21,
             rho_bins=20, tol=1e-4, optimizer='L-BFGS-B',
-            minimize_options={'xtol': 1e-4, 'disp': False,
+            minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 20}, rand_seed=0, anneal_speed=10):
 
         self.n_iter = n_iter
