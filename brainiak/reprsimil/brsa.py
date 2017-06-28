@@ -444,7 +444,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
         true neural response, or not enough data.
-        It is also recommended to check nSNR_ after mapping it back to
+        It is also recommended to check nSNR\_ after mapping it back to
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : numpy array, shape=[voxels,].
