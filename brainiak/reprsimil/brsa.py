@@ -141,7 +141,7 @@ def prior_GP_var_half_cauchy(y_invK_y, n_y, tau_range):
     return tau2, log_ptau
 
 
-def Ncomp_SVHT_MG_DLD_approx(X):
+def Ncomp_SVHT_MG_DLD_approx(X, zscore=True):
     """ This function implements the approximate calculation of the
         optimal hard threshold for singular values, by Matan Gavish
         and David L. Donoho:
@@ -164,7 +164,10 @@ def Ncomp_SVHT_MG_DLD_approx(X):
     if beta > 1:
         beta = 1 / beta
     omega = 0.56 * beta ** 3 - 0.95 * beta ** 2 + 1.82 * beta + 1.43
-    sing = np.linalg.svd(scipy.stats.zscore(X), False, False)
+    if zscore:
+        sing = np.linalg.svd(_zscore(X), False, False)
+    else:
+        sing = np.linalg.svd(X, False, False)
     sing = sing[np.logical_not(np.isclose(sing, 0))]
     thresh = omega * np.median(sing)
     ncomp = int(np.sum(sing > thresh))
@@ -246,22 +249,12 @@ class BRSA(BaseEstimator, TransformerMixin):
     ----------
     n_iter : int. Default: 50
         Number of maximum iterations to run the algorithm.
-    n_iter_inner : int, default: 6
-        Number of maximum iterations in the inner loop of optimization (within
-        each iteration of n_iter). Users typically do not need to adjust this
-        parameter. The fitting procedure alternates between
-        fitting SNR and the covariance matrix U underlying the pattern
-        similarity matrix. n_iter specifies the maximum number of each of
-        this pair of fitting. Within each fitting step of either fitting SNR or
-        the covariance matrix, n_iter_inner is passed as the maximum number
-        of iteration to scipy.optimize for fitting.
     rank : int. Default: None
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
         to be full rank. When you have many conditions
         (e.g., calculating the similarity matrix of responses to each event),
-        you might want to start with specifying a lower rank and use metrics
-        such as AIC or BIC to decide the optimal rank.
+        you might try specifying a lower rank.
     auto_nuisance: boolean. Default: True
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
@@ -276,10 +269,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         PCA or factor analysis will be applied to the residuals
         to obtain new nuisance regressors in each round of fitting.
         These two approaches can be combined. If the users provide nuisance
-        regressors and set this flag as True, then the first few principals
-        of the residuals after subtracting both the responses to design
-        matrix and nuisance regressors will be used in addition to the
-        nuisance regressors provided by the users.
+        regressors and set this flag as True, then the first n_nureg
+        principal components of the residuals after subtracting
+        both the responses to design matrix and the user-supplied nuisance
+        regressors will be used in addition to the nuisance regressors
+        provided by the users.
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
@@ -292,7 +286,14 @@ class BRSA(BaseEstimator, TransformerMixin):
         automatically determined based on M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
+    nureg_zscore: boolean, default: True
+        A flag to tell the algorithm whether data is z-scored before
+        estimating the number of nuisance regressor components necessary to
+        account for spatial noise correlation. It also determinie whether
+        the residual noise is z-scored before estimating the nuisance
+        regressors from residual.
+    nureg_method: string, naming a method from sklearn.decomposition.
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean, default: True
         A time course of constant 1 will be included to the nuisance
@@ -312,7 +313,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         capture this.
     GP_space: boolean. Default: False
         Whether to impose a Gaussion Process (GP) prior on the log(pseudo-SNR).
-        If true, the GP has a kernel defined over spatial coordinate.
+        If true, the GP has a kernel defined over spatial coordinate
+        of each voxel. The idea behind this option is that
+        adjacent voxels should have similar SNRs.
         This is relatively slow for big ROI. We find that when SNR
         is generally low, smoothness can be overestimated.
         But such regularization may reduce variance in the estimated
@@ -321,7 +324,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         Whether to include a kernel defined over the intensity of image.
         GP_space should be True as well if you want to use this,
         because the smoothness should be primarily in space.
-        Smoothness in intensity is just complementary.
+        Smoothness in intensity is just complementary. The idea
+        behind this option is that voxels should have similar
+        SNRs when they are both adjacent (imposed by GP_space)
+        and are of the same tissue type (when their image intensities
+        are close).
     space_smooth_range: float. Default: None
         The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
@@ -380,10 +387,16 @@ class BRSA(BaseEstimator, TransformerMixin):
         if GP_space or GP_inten is requested. This initial
         fitting is to give the parameters a good starting point.
     optimizer: str or callable. Default: 'BFGS'
-        The optimizer to use for minimizing cost function.
-        We use 'BFGS' as a default. Users can try other strings
+        The optimizer to use for minimizing cost function which
+        scipy.optimize.minimize can accept.
+        We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer.
+        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
+        Note that BRSA fits a lot of parameters. So a chosen optimizer
+        should accept gradient (Jacobian) of the cost function. Otherwise
+        the fitting is likely to be unbarely slow. We do not calculate
+        Hessian of the objective function. So an optimizer which requires
+        Hessian cannot be used.
     rand_seed : int. Default: 0
         Seed for initializing the random number generator.
     anneal_speed: float. Default: 20
@@ -394,11 +407,23 @@ class BRSA(BaseEstimator, TransformerMixin):
         time constant of the exponential.
         anneal_speed=10 means by n_iter/10 iterations,
         the amount of perturbation is reduced by 2.713 times.
-    tol: float. Default: 1e-4
-        tolerance parameter passed to the minimizer.
-    verbose : boolean. Default: False
-        Verbose mode flag.
-
+    minimize_options: dictionary.
+        Default: {'xtol': 1e-4, 'disp': False,
+        'maxiter': 6}
+        This is the dictionary passed as the options argument to
+        scipy.optimize.minize which minimizes the cost function during
+        fitting. Notice that the minimization is performed for many times,
+        alternating between optimizing the covariance matrix U underlying
+        the pattern similarity matrix, and SNR. At most n_iter times
+        of this alternation is performed. So within each step of fitting,
+        the step of iteration performed by scipy.optimize.minize does not
+        have to be very large. In other words, scipy.optimize.minize does
+        not need to converge within each step of the alternating fitting
+        procedure.
+    tol: float. Default: 1e-4.
+        Tolerance parameter passed to scipy.optimize.minimize. It is also
+        used for determining convergence of the alternating fitting
+        procedure.
     Attributes
     ----------
     U_ : numpy array, shape=[condition,condition].
@@ -407,7 +432,20 @@ class BRSA(BaseEstimator, TransformerMixin):
         The Cholesky factor of the shared covariance matrix
         (lower-triangular matrix).
     C_: numpy array, shape=[condition,condition].
-        The correlation matrix derived from the shared covariance matrix,
+        The correlation matrix derived from the shared covariance matrix.
+        This is the estimated similarity matrix between neural patterns
+        to your task conditions. Notice that it is recommended that
+        you also check U_, which is the covariance matrix underlying
+        this correlation matrix. In cases there is almost no response
+        to your task conditions, the diagonal values of U_ would become
+        very small and C_ might contain many correlation coefficients
+        close to 1 or -1. This might not reflect true strong correlation
+        or strong negative correlation, but a result of lack of
+        task-related neural activity, design matrix that does not match
+        true neural response, or not enough data.
+        It is also recommended to check nSNR_ after mapping it back to
+        the brain. A "reasonable" map should at least have higher values
+        in gray matter in than white matter.
     nSNR_ : numpy array, shape=[voxels,].
         The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
@@ -452,31 +490,36 @@ class BRSA(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-            self, n_iter=50, n_iter_inner=6, rank=None,
-            auto_nuisance=True, n_nureg='opt', nureg_method='ICA',
-            DC_single=True,
+            self, n_iter=50, rank=None,
+            auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
+            nureg_method='ICA', DC_single=True,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
-            rand_seed=0, anneal_speed=10,
-            tol=1e-4, verbose=False):
+            rand_seed=0, anneal_speed=10, tol=1e-4,
+            minimize_options={'xtol': 1e-4, 'disp': False,
+                              'maxiter': 6}):
 
         self.n_iter = n_iter
-        self.n_iter_inner = n_iter_inner
         self.rank = rank
         self.GP_space = GP_space
         self.GP_inten = GP_inten
         self.tol = tol
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
+        self.nureg_zscore = nureg_zscore
         if auto_nuisance:
             assert (type(n_nureg) is str and
                     n_nureg in ['opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
                 'n_nureg should be a positive number or "opt"'\
                 ' if auto_nuisance is True.'
+        if self.nureg_zscore:
+            self.preprocess_residual = lambda x: _zscore(x)
+        else:
+            self.preprocess_residual = lambda x: x
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -491,7 +534,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
         self.DC_single = DC_single
-        self.verbose = verbose
+        self.minimize_options = minimize_options
         self.eta = eta
         # This is a tiny ridge added to the Gaussian Process
         # covariance matrix template to gaurantee that it is invertible.
@@ -526,8 +569,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         design: numpy array, shape=[time_points, conditions]
             This is the design matrix. It should only include the hypothetic
             response for task conditions. You should not include
-            regressors for a DC component or motion parameters, unless with
-            a strong reason. If you want to model head motion,
+            regressors for a DC component or motion parameters, unless you
+            want to estimate their pattern similarity with response patterns
+            to your task conditions. If you want to model head motion,
             you should include them in nuisance regressors.
             If you have multiple run, the design matrix
             of all runs should be concatenated along the time dimension,
@@ -631,7 +675,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 'But the voxel number of coords does not match that of '\
                 'data X, or voxel coordinates are not provided. '\
                 'Please make sure that coords is in the shape of '\
-                '[ n_voxel x 3].'
+                '[n_voxel x 3].'
             assert coords.ndim == 2,\
                 'The coordinate matrix should be a 2-d array'
             if self.GP_inten:
@@ -657,7 +701,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             beta_hat = np.linalg.lstsq(ts_reg, X)[0]
             residuals = X - np.dot(ts_reg, beta_hat)
             self.n_nureg_ = np.max(
-                [1, Ncomp_SVHT_MG_DLD_approx(residuals)])
+                [1, Ncomp_SVHT_MG_DLD_approx(residuals, self.nureg_zscore)])
             logger.info('Use {} nuisance regressors to model the spatial '
                         'correlation in noise.'.format(self.n_nureg_))
         else:
@@ -782,6 +826,16 @@ class BRSA(BaseEstimator, TransformerMixin):
             will be subtracted from data before the marginalization
             when evaluating the log likelihood. For null model,
             nothing will be subtracted before marginalization.
+            There is a difference between the form of likelihood function
+            used in fit() and score(). In fit(), the response amplitude
+            beta to design matrix X and the modulation beta0 by nuisance
+            regressor X0 are both marginalized, with X provided and X0
+            estimated from data. In score(), posterior estimation of
+            beta and beta0 from the fitting step are assumed unchanged
+            to testing data and X0 is marginalized.
+            The logic underlying score() is to transfer
+            as much as what we can learn from training data when
+            calculating a likelihood score for testing data.
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
@@ -1007,13 +1061,23 @@ class BRSA(BaseEstimator, TransformerMixin):
                         'such as DC component. Trivial regressors of'
                         ' DC component are included for further modeling.'
                         ' The final covariance matrix won''t '
-                        'reflet these components.')
+                        'reflect these components.')
         return X_DC, X_base, idx_DC
 
-    def _make_sandwidge(self, XTX, XTDX, XTFX, rho1):
+    def _make_ar1_quad_form(self, XTX, XTDX, XTFX, rho1):
+        # Calculate the matrix X'AX = X'X - rho1 * X'DX + rho1^2 * X'FX
+        # Here, rho1 is the AR(1) coefficient. X is a matrix of time series
+        # with each row corresponding to a vector at one
+        # time point. The forms of matrices D and F are defined in _prepare_DF
+        # function. sigma^-2 * A would be the inverse of covariance matrix
+        # of AR(1) process (precision matrix) with rho1 as the AR coefficient
+        # and sigma^2 as the  variance of independent noise at each time point.
         return XTX - rho1 * XTDX + rho1**2 * XTFX
 
-    def _make_sandwidge_grad(self, XTDX, XTFX, rho1):
+    def _make_ar1_quad_form_grad(self, XTDX, XTFX, rho1):
+        # Calculate the derivative of the quadratic form X'AX with respect to
+        # AR1 coefficient rho1, given precalculated terms X'DX and X'FX,
+        # and rho1.
         return - XTDX + 2 * rho1 * XTFX
 
     def _make_templates(self, D, F, X, Y):
@@ -1022,18 +1086,18 @@ class BRSA(BaseEstimator, TransformerMixin):
         XTFY = np.dot(np.dot(X.T, F), Y)
         return XTY, XTDY, XTFY
 
-    def _calc_sandwidge(self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
-                        XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-                        XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                        L, rho1, n_V, n_X0):
-        # Calculate the sandwidge terms which put A between X, Y and X0
+    def _precompute_ar1_quad_forms(self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag,
+                                   YTFY_diag, XTX, XTDX, XTFX, X0TX0, X0TDX0,
+                                   X0TFX0, XTX0, XTDX0, XTFX0, X0TY, X0TDY,
+                                   X0TFY, L, rho1, n_V, n_X0):
+        # Calculate the sandwich terms which put A between X, Y and X0
         # These terms are used a lot in the likelihood. But in the _fitV
         # step, they only need to be calculated once, since A is fixed.
         # In _fitU step, they need to be calculated at each iteration,
         # because rho1 changes.
-        XTAY = self._make_sandwidge(XTY, XTDY, XTFY, rho1)
+        XTAY = self._make_ar1_quad_form(XTY, XTDY, XTFY, rho1)
         # dimension: feature*space
-        YTAY = self._make_sandwidge(YTY_diag, YTDY_diag, YTFY_diag, rho1)
+        YTAY = self._make_ar1_quad_form(YTY_diag, YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
         # A/sigma2 is the inverse of noise covariance matrix in each voxel.
         # YTAY means Y'AY
@@ -1049,7 +1113,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             * XTDX0[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
         # dimension: space*feature*#baseline
-        X0TAY = self._make_sandwidge(X0TY, X0TDY, X0TFY, rho1)
+        X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY, rho1)
         # dimension: #baseline*space
         X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
         # dimension: space*#baseline*#baseline
@@ -1323,7 +1387,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 # all the square differences. But it should not be
                 # smaller than 0.5. This limit is set in case
                 # many voxels have close to equal intensities,
-                # which might render 2 percential to 0.
+                # which might render 2 percentile to 0.
 
         # Step 3 fitting. GP prior is imposed if requested.
         # In this step, unless auto_nuisance is set to False, X_res
@@ -1359,12 +1423,13 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
             XTAcorrX, XTAcorrY, YTAcorrY, LTXTAcorrY, XTAcorrXL, LTXTAcorrXL\
-            = self._calc_sandwidge(XTY, XTDY, XTFY,
-                                   YTY_diag, YTDY_diag, YTFY_diag,
-                                   XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-                                   XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                   estU_chlsk_l_AR1_UV, est_rho1_AR1_UV,
-                                   n_V, n_X0)
+            = self._precompute_ar1_quad_forms(XTY, XTDY, XTFY,
+                                              YTY_diag, YTDY_diag, YTFY_diag,
+                                              XTX, XTDX, XTFX, X0TX0, X0TDX0,
+                                              X0TFX0, XTX0, XTDX0, XTFX0, X0TY,
+                                              X0TDY, X0TFY,
+                                              estU_chlsk_l_AR1_UV,
+                                              est_rho1_AR1_UV, n_V, n_X0)
         LL, LAMBDA_i, LAMBDA, YTAcorrXL_LAMBDA, sigma2 \
             = self._calc_LL(est_rho1_AR1_UV, LTXTAcorrXL, LTXTAcorrY, YTAcorrY,
                             X0TAX0, est_SNR_AR1_UV**2,
@@ -1483,7 +1548,14 @@ class BRSA(BaseEstimator, TransformerMixin):
         """ Given the data Y, and the spatial pattern beta0
             of nuisance time series, return the cross-validated score
             of the data Y given all parameters of the subject estimated
-            during the fist step.
+            during the first step.
+            It is assumed that the user has design matrix built for the
+            data Y. Both beta and beta0 are posterior expectation estimated
+            from training data with the estimated covariance matrix U and
+            SNR serving as prior. We marginalize X0 instead of fitting
+            it in this function because this function is for the purpose
+            of evaluating model no new data. We should avoid doing any
+            additional fitting when performing cross-validation.
             The hypothetic response to the task will be subtracted, and
             the unknown nuisance activity which contributes to the data
             through beta0 will be marginalized.
@@ -1721,7 +1793,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                   l_idx, n_C, n_T, n_V, n_run, n_X0,
                   idx_param_sing, rank),
             method=self.optimizer, jac=True, tol=self.tol,
-            options={'disp': self.verbose, 'maxiter': 100})
+            options={'disp': self.minimize_options['disp'],
+                     'maxiter': 100})
         current_vec_U_chlsk_l = res.x[idx_param_sing['Cholesky']]
         current_a1 = res.x[idx_param_sing['a1']] * np.ones(n_V)
         # log(sigma^2) assuming the data include no signal is returned,
@@ -1781,8 +1854,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                       current_logSNR2, l_idx, n_C,
                       n_T, n_V, n_run, n_X0, idx_param_fitU, rank),
                 method=self.optimizer, jac=True, tol=tol,
-                options={'xtol': tol, 'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
             current_vec_U_chlsk_l = \
                 res_fitU.x[idx_param_fitU['Cholesky']]
             current_a1 = res_fitU.x[idx_param_fitU['a1']]
@@ -1797,13 +1869,13 @@ class BRSA(BaseEstimator, TransformerMixin):
             X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
                 XTAcorrX, XTAcorrY, YTAcorrY, \
                 LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
-                self._calc_sandwidge(XTY, XTDY, XTFY,
-                                     YTY_diag, YTDY_diag, YTFY_diag,
-                                     XTX, XTDX, XTFX,
-                                     X0TX0, X0TDX0, X0TFX0,
-                                     XTX0, XTDX0, XTFX0,
-                                     X0TY, X0TDY, X0TFY,
-                                     L, rho1, n_V, n_X0)
+                self._precompute_ar1_quad_forms(XTY, XTDY, XTFY,
+                                                YTY_diag, YTDY_diag, YTFY_diag,
+                                                XTX, XTDX, XTFX,
+                                                X0TX0, X0TDX0, X0TFX0,
+                                                XTX0, XTDX0, XTFX0,
+                                                X0TY, X0TDY, X0TFY,
+                                                L, rho1, n_V, n_X0)
             res_fitV = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitV, param0_fitV,
                 args=(X0TAX0, XTAX0, X0TAY,
@@ -1814,8 +1886,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                       n_X0, idx_param_fitV, rank,
                       False, False),
                 method=self.optimizer, jac=True, tol=tol,
-                options={'xtol': tol, 'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
 
             current_logSNR2[0:n_V - 1] = res_fitV.x
             current_logSNR2[-1] = - np.sum(current_logSNR2[0:n_V - 1])
@@ -1853,8 +1924,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(
                     self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
-
+                    self.preprocess_residual(residuals))
             if norm_fitVchange / np.sqrt(param0_fitV.size) < tol \
                     and norm_fitUchange / np.sqrt(param0_fitU.size) \
                     < tol:
@@ -1918,9 +1988,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                       n_run, n_X0, idx_param_fitU, rank),
                 method=self.optimizer, jac=True,
                 tol=tol,
-                options={'xtol': tol,
-                         'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
             current_vec_U_chlsk_l = \
                 res_fitU.x[idx_param_fitU['Cholesky']]
             current_a1 = res_fitU.x[idx_param_fitU['a1']]
@@ -1936,13 +2004,13 @@ class BRSA(BaseEstimator, TransformerMixin):
             X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
                 XTAcorrX, XTAcorrY, YTAcorrY, \
                 LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
-                self._calc_sandwidge(XTY, XTDY, XTFY,
-                                     YTY_diag, YTDY_diag, YTFY_diag,
-                                     XTX, XTDX, XTFX,
-                                     X0TX0, X0TDX0, X0TFX0,
-                                     XTX0, XTDX0, XTFX0,
-                                     X0TY, X0TDY, X0TFY,
-                                     L, rho1, n_V, n_X0)
+                self._precompute_ar1_quad_forms(XTY, XTDY, XTFY,
+                                                YTY_diag, YTDY_diag, YTFY_diag,
+                                                XTX, XTDX, XTFX,
+                                                X0TX0, X0TDX0, X0TFX0,
+                                                XTX0, XTDX0, XTFX0,
+                                                X0TY, X0TDY, X0TFY,
+                                                L, rho1, n_V, n_X0)
             res_fitV = scipy.optimize.minimize(
                 self._loglike_AR1_diagV_fitV, param0_fitV, args=(
                     X0TAX0, XTAX0, X0TAY, X0TAX0_i,
@@ -1955,9 +2023,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     space_smooth_range, inten_smooth_range),
                 method=self.optimizer, jac=True,
                 tol=tol,
-                options={'xtol': tol,
-                         'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
 
             current_logSNR2[0:n_V - 1] = \
                 res_fitV.x[idx_param_fitV['log_SNR2']]
@@ -1988,8 +2054,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 residuals = Y - np.dot(X, betas) - np.dot(
                     X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
-
+                    self.preprocess_residual(residuals))
             if GP_space:
                 logger.debug('current GP[0]: {}'.format(current_GP[0]))
                 logger.debug('gradient for GP[0]: {}'.format(
@@ -2045,9 +2110,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                     X0TX0, X0TDX0, X0TFX0, X0TY, X0TDY, X0TFY,
                     n_T, n_V, n_run, n_X0),
                 method=self.optimizer, jac=True, tol=tol,
-                options={'xtol': tol,
-                         'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
             param_change = res_null.x - param0
             param0 = res_null.x.copy()
             est_rho1_AR1_null = 2.0 / np.pi * np.arctan(param0)
@@ -2058,13 +2121,13 @@ class BRSA(BaseEstimator, TransformerMixin):
                     + est_rho1_AR1_null[:, np.newaxis, np.newaxis]**2 \
                     * X0TFX0[np.newaxis, :, :]
                 # dimension: space*#baseline*#baseline
-                X0TAY = self._make_sandwidge(X0TY, X0TDY, X0TFY,
-                                             est_rho1_AR1_null)
+                X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
+                                                 est_rho1_AR1_null)
                 # dimension: #baseline*space
                 beta0s = np.linalg.solve(X0TAX0, X0TAY.T).T
                 residuals = Y - np.dot(X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
-                    scipy.stats.zscore(residuals))
+                    self.preprocess_residual(residuals))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
                             'the tolerance value {}. Fitting is finished '
@@ -2076,13 +2139,13 @@ class BRSA(BaseEstimator, TransformerMixin):
             + est_rho1_AR1_null[:, np.newaxis, np.newaxis]**2 \
             * X0TFX0[np.newaxis, :, :]
         # dimension: space*#baseline*#baseline
-        X0TAY = self._make_sandwidge(X0TY, X0TDY, X0TFY,
-                                     est_rho1_AR1_null)
+        X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
+                                         est_rho1_AR1_null)
         # dimension: #baseline*space
         est_beta0_AR1_null = np.linalg.solve(X0TAX0, X0TAY.T).T
 
-        YTAY = self._make_sandwidge(YTY_diag, YTDY_diag, YTFY_diag,
-                                    est_rho1_AR1_null)
+        YTAY = self._make_ar1_quad_form(YTY_diag, YTDY_diag, YTFY_diag,
+                                        est_rho1_AR1_null)
         # dimension: space,
         YTAcorrY = YTAY - np.sum(X0TAY * est_beta0_AR1_null, axis=0)
         # dimension: space,
@@ -2153,11 +2216,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         X0TAX0, XTAX0, X0TAY, X0TAX0_i, \
             XTAcorrX, XTAcorrY, YTAcorrY, \
             LTXTAcorrY, XTAcorrXL, LTXTAcorrXL = \
-            self._calc_sandwidge(XTY, XTDY, XTFY,
-                                 YTY_diag, YTDY_diag, YTFY_diag,
-                                 XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
-                                 XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
-                                 L, rho1, n_V, n_X0)
+            self._precompute_ar1_quad_forms(XTY, XTDY, XTFY,
+                                            YTY_diag, YTDY_diag, YTFY_diag,
+                                            XTX, XTDX, XTFX, X0TX0, X0TDX0,
+                                            X0TFX0, XTX0, XTDX0, XTFX0,
+                                            X0TY, X0TDY, X0TFY,
+                                            L, rho1, n_V, n_X0)
 
         # Only starting from this point, SNR2 is involved
 
@@ -2185,9 +2249,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         deriv_a1 = np.empty(n_V)
         dXTAX_drho1 = -XTDX + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX
         # dimension: space*feature*feature
-        dXTAY_drho1 = self._make_sandwidge_grad(XTDY, XTFY, rho1)
+        dXTAY_drho1 = self._make_ar1_quad_form_grad(XTDY, XTFY, rho1)
         # dimension: feature*space
-        dYTAY_drho1 = self._make_sandwidge_grad(YTDY_diag, YTFY_diag, rho1)
+        dYTAY_drho1 = self._make_ar1_quad_form_grad(YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
 
         dX0TAX0_drho1 = - X0TDX0 \
@@ -2196,7 +2260,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         dXTAX0_drho1 = - XTDX0 \
             + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX0
         # dimension: space*feature*rank
-        dX0TAY_drho1 = self._make_sandwidge_grad(X0TDY, X0TFY, rho1)
+        dX0TAY_drho1 = self._make_ar1_quad_form_grad(X0TDY, X0TFY, rho1)
         # dimension: rank*space
 
         # The following are executed for each voxel.
@@ -2532,7 +2596,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         a1 = param
         rho1 = 2.0 / np.pi * np.arctan(a1)  # auto-regressive coefficients
 
-        YTAY = self._make_sandwidge(YTY_diag, YTDY_diag, YTFY_diag, rho1)
+        YTAY = self._make_ar1_quad_form(YTY_diag, YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
         # A/sigma2 is the inverse of noise covariance matrix in each voxel.
         # YTAY means Y'AY
@@ -2540,7 +2604,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             * X0TDX0[np.newaxis, :, :] \
             + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
         # dimension: space*#baseline*#baseline
-        X0TAY = self._make_sandwidge(X0TY, X0TDY, X0TFY, rho1)
+        X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY, rho1)
         # dimension: #baseline*space
         # X0TAX0_i = np.linalg.solve(X0TAX0, np.identity(n_X0)[None, :, :])
         X0TAX0_i = np.linalg.inv(X0TAX0)
@@ -2556,12 +2620,12 @@ class BRSA(BaseEstimator, TransformerMixin):
             - (n_T - n_X0) * n_V * (1 + np.log(2 * np.pi)) * 0.5
         # The following are for calculating the derivative to a1
         deriv_a1 = np.empty(n_V)
-        dYTAY_drho1 = self._make_sandwidge_grad(YTDY_diag, YTFY_diag, rho1)
+        dYTAY_drho1 = self._make_ar1_quad_form_grad(YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
         dX0TAX0_drho1 = - X0TDX0 \
             + 2 * rho1[:, np.newaxis, np.newaxis] * X0TFX0
         # dimension: space*rank*rank
-        dX0TAY_drho1 = self._make_sandwidge_grad(X0TDY, X0TFY, rho1)
+        dX0TAY_drho1 = self._make_ar1_quad_form_grad(X0TDY, X0TFY, rho1)
         # dimension: rank*space
 
         # The following are executed for each voxel.
@@ -2596,6 +2660,10 @@ class GBRSA(BRSA):
     of each voxel to this shared covariance matrix.
     A correlation matrix converted from the covariance matrix
     will be provided as a quantification of neural representational similarity.
+    Both tools provide estimation of SNR and noise parameters at the end,
+    and both tools provide empirical Bayesian estimates of activity patterns
+    beta, together with weight map of nuisance signals beta0.
+
     The differences of this tool from BRSA are:
     (1) It allows fitting a shared covariance matrix (which can be converted
     to similarity matrix) across multiple subjects.
@@ -2605,9 +2673,9 @@ class GBRSA(BRSA):
     for each voxel. Therefore, this tool should be faster than BRSA
     when analyzing an ROI of hundreds to thousands voxels. It does not
     provide a spatial smoothness prior on SNR though.
-    Both tools provide estimation of SNR and noise parameters at the end,
-    and both tools provide empirical Bayesian estimates of activity patterns
-    beta, together with weight map of nuisance signals beta0.
+    (3) The voxel-wise pseudo-SNR and noise parameters estimated are
+    posterior mean estimates, while those estimated by BRSA are
+    maximum-a-posterior estimates.
     If your goal is to perform searchlight RSA with relatively fewer voxels
     on single subject, BRSA should be faster. However, GBRSA can in principle
     be used together with searchlight in a template space such as MNI.
@@ -2623,17 +2691,18 @@ class GBRSA(BRSA):
     ----------
     n_iter : int. Default: 50
         Number of maximum iterations to run the algorithm.
-    n_iter_inner : int. Default: 20
-        Number of maximum iterations in the inner loop of optimization (within
-        each iteration of n_iter). Users typically do not need to adjust this
-        parameter.
     rank : int. Default: None
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
         to be full rank. When you have many conditions
         (e.g., calculating the similarity matrix of responses to each event),
         you might want to start with specifying a lower rank and use metrics
-        such as AIC or BIC to decide the optimal rank.
+        such as AIC or BIC to decide the optimal rank. The log likelihood
+        for the fitted data can be retrieved through private attributes
+        \_LL\_train\_. Note that this log likelihood score is only used
+        here for selecting hyperparameters such as rank. For any formal
+        model comparison, we recommend using score() function on left-out
+        data.
     auto_nuisance: boolean. Default: True
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
@@ -2648,10 +2717,11 @@ class GBRSA(BRSA):
         PCA or factor analysis will be applied to the residuals
         to obtain new nuisance regressors in each round of fitting.
         These two approaches can be combined. If the users provide nuisance
-        regressors and set this flag as True, then the first few principals
-        of the residuals after subtracting both the responses to design
-        matrix and nuisance regressors will be used in addition to the
-        nuisance regressors provided by the users.
+        regressors and set this flag as True, then the first n_nureg
+        principal components of the residuals after subtracting
+        both the responses to design matrix and the user-supplied nuisance
+        regressors will be used in addition to the nuisance regressors
+        provided by the users.
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
@@ -2665,7 +2735,8 @@ class GBRSA(BRSA):
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values. (Gavish & Donoho,
         IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
-    nureg_method: string, 'PCA', 'FA', 'ICA' or 'SPCA'. Default: 'ICA'
+    nureg_method: string, naming a method from sklearn.decomposition.
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
     DC_single: boolean. Default: True
         A time course of constant 1 will be included to the nuisance
@@ -2683,34 +2754,39 @@ class GBRSA(BRSA):
         field inhomogeneity. Setting DC_single to True will force the
         nuisance regressors automatically estimated from residuals to
         capture this.
-    logS_range: float. Default: 1.0
-        The reasonable range of the spread of SNR
-        in log scale. This range should not be too large.
-        This parameter only takes effect if SNR_prior is set to 'lognorm',
-        it sets the prior of the reasonable range
-        of the spread of pseudo-SNR in log scale.
-        We use 1.0 as default. If it is set too small,
-        the estimated SNR will turn to be too close to each other.
-        The code will in fact evaluate pseudo-SNR in the range of
-        exp(-3*logS_range) to exp(3*logS_range), on a grid equally spread
-        in log scale. The number of grids evaluated is determined by
-        SNR_bins. If you increase logS_range, it is recommended to increase
-        SNR_bins accordingly, otherwise the pseudo-SNR values evaluated might
-        be too sparse, causing the posterior pseudo-SNR estimations
-        to be clustered around the bins.
     SNR_prior: string. Default: 'exp'
         The type of prior for pseudo-SNR. If set to 'exp',
-        exponential distribution with scale parameter of 1 is imposed on
-        pseudo-SNR. If set to 'lognorm', a log normal prior is imposed.
-        In this case, the standard deviation of log(SNR)
-        is set by the parameter logS_range.
+        truncated exponential distribution with scale parameter of 1
+        is imposed on pseudo-SNR.
+        If set to 'lognorm', a truncated log normal prior is imposed.
+        In this case, the standard deviation of log(SNR) is set
+        by the parameter logS_range.
         If set to 'unif', a uniform prior in [0,1] is imposed.
         In all these cases, SNR is numerically
         marginalized on a grid of parameters. So the parameter SNR_bins
-        determines how accurate the numerical integration is.
+        determines how accurate the numerical integration is. The more
+        number of bins are used, the more accurate the numerical
+        integration becomes.
         In all the cases, the grids used for pseudo-SNR do not really
         set an upper bound for SNR, because the real SNR is determined
         by both pseudo-SNR and U, the shared covariance structure.
+    logS_range: float. Default: 1.0
+        The reasonable range of the spread of SNR in log scale.
+        This parameter only takes effect if SNR_prior is set to 'lognorm'.
+        The code will in fact evaluate pseudo-SNR in the range of
+        exp(-3*logS_range) to exp(3*logS_range), on a grid equally spread
+        in log scale. The number of grids evaluated is determined by
+        SNR_bins. logS_range specifies how variable you believe the SNRs
+        to vary across voxels in log scale.
+        This range should not be set too large, otherwise the fitting
+        may encounter numerical issue.
+        If it is set too small, the estimated SNR will turn to be too
+        close to each other and the estimated similarity matrix might
+        overfit to voxels of low SNR.
+        If you increase logS_range, it is recommended to increase
+        SNR_bins accordingly, otherwise the pseudo-SNR values evaluated might
+        be too sparse, causing the posterior pseudo-SNR estimations
+        to be clustered around the bins.
     SNR_bins: integer. Default: 21
         When logS_range is set to a float, this is the number of bins
         to numerically integrate out the pseudo-SNR parameter.
@@ -2723,14 +2799,33 @@ class GBRSA(BRSA):
         This only takes effect for fitting the marginalized version.
         If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
-    tol: tolerance parameter passed to the minimizer.
-    verbose : boolean. Default: False
-        Verbose mode flag.
-    optimizer: str or callable. Default: 'BFGS'
-        The optimizer to use for minimizing cost function.
-        We use 'BFGS' as a default. Users can try other strings
+    optimizer: str or callable. Default: 'L-BFGS-B'
+        The optimizer to use for minimizing cost function which
+        scipy.optimize.minimize can accept.
+        We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer.
+        or a custom optimizer, such as 'BFGS' or 'CG'.
+        Note that BRSA fits a lot of parameters. So a chosen optimizer
+        should accept gradient (Jacobian) of the cost function. Otherwise
+        the fitting is likely to be unbarely slow. We do not calculate
+        Hessian of the objective function. So an optimizer which requires
+        Hessian cannot be used.
+    minimize_options: dictionary.
+        Default: {'xtol': 1e-4, 'disp': False,
+        'maxiter': 20}
+        This is the dictionary passed as the options argument to
+        scipy.optimize.minize which minimizes the cost function during
+        fitting. Notice that the minimization is performed for up to
+        n_iter times, with the nuisance regressor re-estimated each time.
+        So within each of the n_iter steps of fitting,
+        scipy.optimize.minize does not need to fully converge. The key
+        'maxiter' in this dictionary determines the maximum number of
+        iteration done by scipy.optimize.minimize within each of the n_iter
+        steps of fitting.
+    tol: float. Default: 1e-4.
+        Tolerance parameter passed to scipy.optimize.minimize. It is also
+        used for determining convergence of the alternating fitting
+        procedure.
     rand_seed : int. Default: 0
         Seed for initializing the random number generator.
     anneal_speed: float. Default: 10
@@ -2750,7 +2845,20 @@ class GBRSA(BRSA):
         The Cholesky factor of the shared covariance matrix
         (lower-triangular matrix).
     C_: numpy array, shape=[condition,condition].
-        The correlation matrix derived from the shared covariance matrix,
+        The correlation matrix derived from the shared covariance matrix.
+        This is the estimated similarity matrix between neural patterns
+        to your task conditions. Notice that it is recommended that
+        you also check U_, which is the covariance matrix underlying
+        this correlation matrix. In cases there is almost no response
+        to your task conditions, the diagonal values of U_ would become
+        very small and C_ might contain many correlation coefficients
+        close to 1 or -1. This might not reflect true strong correlation
+        or strong negative correlation, but a result of lack of
+        task-related neural activity, design matrix that does not match
+        true neural response, or not enough data.
+        It is also recommended to check nSNR_ after mapping it back to
+        the brain. A "reasonable" map should at least have higher values
+        in gray matter in than white matter.
     nSNR_ : list of numpy arrays, shape=[voxels,] for each subject in the list.
         The normalized pseuso-SNR of all voxels.
         They are normalized such that the geometric mean is 1
@@ -2787,23 +2895,29 @@ class GBRSA(BRSA):
     """
 
     def __init__(
-            self, n_iter=50, n_iter_inner=20, rank=None,
-            auto_nuisance=True, n_nureg='opt', nureg_method='ICA',
+            self, n_iter=50, rank=None,
+            auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
+            nureg_method='ICA',
             DC_single=True, logS_range=1.0, SNR_prior='exp', SNR_bins=21,
-            rho_bins=20, tol=1e-4, verbose=False,
-            optimizer='BFGS', rand_seed=0, anneal_speed=10):
+            rho_bins=20, tol=1e-4, optimizer='L-BFGS-B',
+            minimize_options={'xtol': 1e-4, 'disp': False,
+                              'maxiter': 20}, rand_seed=0, anneal_speed=10):
 
         self.n_iter = n_iter
-        self.n_iter_inner = n_iter_inner
         self.rank = rank
         self.auto_nuisance = auto_nuisance
         self.n_nureg = n_nureg
+        self.nureg_zscore = nureg_zscore
         if auto_nuisance:
             assert (type(n_nureg) is str and
                     n_nureg in ['opt']) \
                 or (type(n_nureg) is int and n_nureg > 0), \
                 'n_nureg should be a positive number or "opt"'\
                 ' if auto_nuisance is True.'
+        if self.nureg_zscore:
+            self.preprocess_residual = lambda x: _zscore(x)
+        else:
+            self.preprocess_residual = lambda x: x
         if nureg_method == 'FA':
             self.nureg_method = lambda x: FactorAnalysis(n_components=x)
         elif nureg_method == 'PCA':
@@ -2825,8 +2939,8 @@ class GBRSA(BRSA):
         self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
         self.tol = tol
-        self.verbose = verbose
         self.optimizer = optimizer
+        self.minimize_options = minimize_options
         self.rand_seed = rand_seed
         self.anneal_speed = anneal_speed
         return
@@ -2938,7 +3052,8 @@ class GBRSA(BRSA):
                 residuals = X[s_id] - np.dot(ts_reg, beta_hat)
 
                 n_comps[s_id] = np.min(
-                    [np.max([Ncomp_SVHT_MG_DLD_approx(residuals), 1]),
+                    [np.max([Ncomp_SVHT_MG_DLD_approx(residuals,
+                                                      self.nureg_zscore), 1]),
                      np.linalg.matrix_rank(residuals) - 1])
                 # n_nureg_ should not exceed the rank of
                 # residual minus 1.
@@ -3106,12 +3221,12 @@ class GBRSA(BRSA):
                     sigma2_X0=self._sigma2_X0_[subj])
         return ll, ll_null
 
-    def _calc_sandwidge_marginalized(
+    def _precompute_ar1_quad_forms_marginalized(
             self, XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag,
             XTX, XTDX, XTFX, X0TX0, X0TDX0, X0TFX0,
             XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY,
             rho1, n_V, n_X0):
-        # Calculate the sandwidge terms which put Acorr between X, Y and X0
+        # Calculate the sandwich terms which put Acorr between X, Y and X0
         # These terms are used a lot in the likelihood. This function
         # is used for the marginalized version.
         XTAY = XTY - rho1[:, None, None] * XTDY \
@@ -3326,7 +3441,7 @@ class GBRSA(BRSA):
                             beta0_post[subj][:np.shape(X_base[subj])[1], :])
                     X_res[subj] = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        scipy.stats.zscore(residuals))
+                        self.preprocess_residual(residuals))
                     X0TX0[subj], X0TDX0[subj], X0TFX0[subj], XTX0[subj],\
                         XTDX0[subj], XTFX0[subj], X0TY[subj], X0TDY[subj], \
                         X0TFY[subj], X0[subj], X_base[subj], n_X0[subj], _ = \
@@ -3335,7 +3450,7 @@ class GBRSA(BRSA):
                             D[subj], F[subj], run_TRs[subj], no_DC=True)
                 X0TAX0[subj], X0TAX0_i[subj], XTAcorrX[subj], XTAcorrY[subj],\
                     YTAcorrY_diag[subj], X0TAY[subj], XTAX0[subj] \
-                    = self._calc_sandwidge_marginalized(
+                    = self._precompute_ar1_quad_forms_marginalized(
                         XTY[subj], XTDY[subj], XTFY[subj], YTY_diag[subj],
                         YTDY_diag[subj], YTFY_diag[subj], XTX[subj],
                         XTDX[subj], XTFX[subj], X0TX0[subj], X0TDX0[subj],
@@ -3396,8 +3511,7 @@ class GBRSA(BRSA):
                       l_idx, n_C, n_T, n_V, n_X0,
                       n_grid, rank),
                 method=self.optimizer, jac=True, tol=self.tol,
-                options={'xtol': self.tol, 'disp': self.verbose,
-                         'maxiter': self.n_iter_inner})
+                options=self.minimize_options)
             param_change = res.x - current_vec_U_chlsk_l
             current_vec_U_chlsk_l = res.x.copy()
 
@@ -3500,8 +3614,6 @@ class GBRSA(BRSA):
         beta0_post = [None] * n_subj
         X0 = [None] * n_subj
         LL_null = np.zeros(n_subj)
-        if scan_onsets is None:
-            scan_onsets = [None] * n_subj
         for subj in range(n_subj):
             np.random.seed(self.rand_seed)
             logger.debug('Running on subject {}.'.format(subj))
@@ -3593,7 +3705,7 @@ class GBRSA(BRSA):
                         beta0_post[subj][:np.size(X_base[subj], 1), :])
                     X_res_new = self.nureg_method(
                         self.n_nureg_[subj]).fit_transform(
-                        scipy.stats.zscore(residuals))
+                        self.preprocess_residual(residuals))
                     if it >= 1:
                         if np.max(np.abs(X_res_new - X_res)) <= self.tol:
                             logger.info('The change of X_res is '
