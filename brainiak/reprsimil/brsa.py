@@ -436,10 +436,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         The correlation matrix derived from the shared covariance matrix.
         This is the estimated similarity matrix between neural patterns
         to your task conditions. Notice that it is recommended that
-        you also check U_, which is the covariance matrix underlying
+        you also check U\_, which is the covariance matrix underlying
         this correlation matrix. In cases there is almost no response
-        to your task conditions, the diagonal values of U_ would become
-        very small and C_ might contain many correlation coefficients
+        to your task conditions, the diagonal values of U\_ would become
+        very small and C\_ might contain many correlation coefficients
         close to 1 or -1. This might not reflect true strong correlation
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
