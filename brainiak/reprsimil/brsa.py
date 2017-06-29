@@ -436,15 +436,15 @@ class BRSA(BaseEstimator, TransformerMixin):
         The correlation matrix derived from the shared covariance matrix.
         This is the estimated similarity matrix between neural patterns
         to your task conditions. Notice that it is recommended that
-        you also check U_, which is the covariance matrix underlying
+        you also check U\_, which is the covariance matrix underlying
         this correlation matrix. In cases there is almost no response
-        to your task conditions, the diagonal values of U_ would become
-        very small and C_ might contain many correlation coefficients
+        to your task conditions, the diagonal values of U\_ would become
+        very small and C\_ might contain many correlation coefficients
         close to 1 or -1. This might not reflect true strong correlation
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
         true neural response, or not enough data.
-        It is also recommended to check nSNR_ after mapping it back to
+        It is also recommended to check nSNR\_ after mapping it back to
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : numpy array, shape=[voxels,].
@@ -475,10 +475,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
     beta0_null_: numpy array, shape=[n_nureg + n_base, voxels]
-        The equivalent of beta0_ in a null model which does not
+        The equivalent of beta0\_ in a null model which does not
         include the design matrix and response pattern beta.
     X0_null_: numpy array, shape=[time_points, n_nureg + n_base]
-        The equivalent of X0_ in a null model which does not
+        The equivalent of X0\_ in a null model which does not
         include the design matrix and response pattern beta
     n_nureg_: int
         Number of nuisance regressor in addition to such
@@ -2700,7 +2700,7 @@ class GBRSA(BRSA):
         you might want to start with specifying a lower rank and use metrics
         such as AIC or BIC to decide the optimal rank. The log likelihood
         for the fitted data can be retrieved through private attributes
-        \_LL\_train\_. Note that this log likelihood score is only used
+        _LL_train\_. Note that this log likelihood score is only used
         here for selecting hyperparameters such as rank. For any formal
         model comparison, we recommend using score() function on left-out
         data.
@@ -2849,15 +2849,15 @@ class GBRSA(BRSA):
         The correlation matrix derived from the shared covariance matrix.
         This is the estimated similarity matrix between neural patterns
         to your task conditions. Notice that it is recommended that
-        you also check U_, which is the covariance matrix underlying
+        you also check U\_, which is the covariance matrix underlying
         this correlation matrix. In cases there is almost no response
-        to your task conditions, the diagonal values of U_ would become
-        very small and C_ might contain many correlation coefficients
+        to your task conditions, the diagonal values of U\_ would become
+        very small and C\_ might contain many correlation coefficients
         close to 1 or -1. This might not reflect true strong correlation
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
         true neural response, or not enough data.
-        It is also recommended to check nSNR_ after mapping it back to
+        It is also recommended to check nSNR\_ after mapping it back to
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : list of numpy arrays, shape=[voxels,] for each subject in the list.
