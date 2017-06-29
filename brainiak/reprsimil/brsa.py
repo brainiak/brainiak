@@ -33,7 +33,6 @@ import scipy
 import scipy.optimize
 import scipy.stats
 import scipy.special
-import warnings
 import time
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
