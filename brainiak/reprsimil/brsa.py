@@ -43,7 +43,6 @@ import brainiak.utils.utils as utils
 import scipy.spatial.distance as spdist
 from nitime import algorithms as alg
 import copy
-warnings.filterwarnings('ignore')
 
 
 logger = logging.getLogger(__name__)
