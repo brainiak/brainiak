@@ -95,11 +95,11 @@ the virtual environment to be set up every time. You can run the individual
 checks from ``pr-check.sh`` using the steps bellow::
 
   # do not run this if using Anaconda, because Anaconda is not compatible with
-  # virtualenv; instead, look at pr-check.sh to see how to run the individual
+  # venv; instead, look at pr-check.sh to see how to run the individual
   # checks that are part of pr-check.sh using Anaconda
 
-  # optional, but highly recommended: create a virtualenv to isolate tests
-  virtualenv ../brainiak_pr_venv
+  # optional, but highly recommended: create a virtual environment
+  python3 -m venv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
 
   # install developer dependencies
@@ -119,7 +119,7 @@ checks from ``pr-check.sh`` using the steps bellow::
   make
   cd -
 
-  # optional: remove virtualenv, if you created one
+  # optional: remove the virtual environment, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
@@ -202,7 +202,11 @@ Standards
 .. _Python Logging Tutorial:
    https://docs.python.org/3/howto/logging.html
 
-* Remove the output of Jupyter notebooks before committing them, using
+* Create usage examples for new modules in the examples directory. Add a
+  ``requirements.txt`` file to help users install the packages your examples
+  require.
+
+* Remove the output of example Jupyter notebooks before committing them, using
   `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
 
 

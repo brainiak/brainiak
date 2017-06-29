@@ -31,14 +31,14 @@ installed manually.
 Linux
 -----
 
-Install the following packages (Ubuntu 14.04 is used in these instructions)::
+Install the following packages (Ubuntu 16.04 is used in these instructions)::
 
     apt install build-essential libgomp1 libmpich-dev mpich python3-dev \
-        python3-pip
+        python3-pip python3-venv
 
 Install updated version of the following Python packages::
 
-    python3 -m pip install --user -U pip virtualenv
+    python3 -m pip install --user -U pip
 
 Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
@@ -83,7 +83,7 @@ will seek for compiling and linking::
 
 Install updated versions of the following Python packages::
 
-    python3 -m pip install -U pip virtualenv
+    python3 -m pip install -U pip
 
 
 Installing and upgrading
@@ -101,6 +101,20 @@ as long as you see ``Successfully installed`` at the end.
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
 
+
+Examples
+========
+
+We include BrainIAK usage examples in the examples directory of the code
+repository, e.g., `funcalign/srm_image_prediction_example.ipynb
+<https://github.com/IntelPNI/brainiak/blob/master/examples/funcalign/srm_image_prediction_example.ipynb>`_.
+
+To run the examples, download an archive of the `latest BrainIAK release from
+GitHub <https://github.com/IntelPNI/brainiak/releases>`_. Note that we only
+support the latest release at this moment, so make sure to upgrade your
+BrainIAK installation.
+
+
 Documentation
 =============
 
@@ -113,8 +127,12 @@ The documentation is available at `pythonhosted.org/brainiak`_.
 Contributing
 ============
 
-We welcome contributions. Please read the guide in `CONTRIBUTING.rst`_.
+We welcome contributions. Have a look at the issues labeled "`easy`_" for
+starting contribution ideas. Please read the guide in `CONTRIBUTING.rst`_
+first.
 
+.. _easy:
+   https://github.com/IntelPNI/brainiak/issues?q=is%3Aissue+is%3Aopen+label%3Aeasy
 .. _CONTRIBUTING.rst:
    https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
 
