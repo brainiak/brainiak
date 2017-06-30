@@ -825,6 +825,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             will be subtracted from data before the marginalization
             when evaluating the log likelihood. For null model,
             nothing will be subtracted before marginalization.
+
             There is a difference between the form of likelihood function
             used in fit() and score(). In fit(), the response amplitude
             beta to design matrix X and the modulation beta0 by nuisance
@@ -835,6 +836,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             The logic underlying score() is to transfer
             as much as what we can learn from training data when
             calculating a likelihood score for testing data.
+
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
@@ -1008,8 +1010,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             It will only take effect if X_base is not None.
         """
         X_DC = self._gen_X_DC(run_TRs)
-        res = np.linalg.lstsq(X_DC, X)
-        if np.any(np.isclose(res[1], 0)):
+        reg_sol = np.linalg.lstsq(X_DC, X)
+        if np.any(np.isclose(reg_sol[1], 0)):
             raise ValueError('Your design matrix appears to have '
                              'included baseline time series.'
                              'Either remove them, or move them to'
@@ -1037,9 +1039,9 @@ class BRSA(BaseEstimator, TransformerMixin):
             X_DC is always in the first few columns of X_base.
         """
         if X_base is not None:
-            res0 = np.linalg.lstsq(X_DC, X_base)
+            reg_sol = np.linalg.lstsq(X_DC, X_base)
             if not no_DC:
-                if not np.any(np.isclose(res0[1], 0)):
+                if not np.any(np.isclose(reg_sol[1], 0)):
                     # No columns in X_base can be explained by the
                     # baseline regressors. So we insert them.
                     X_base = np.concatenate((X_DC, X_base), axis=1)
@@ -1048,9 +1050,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                     logger.warning('Provided regressors for uninteresting '
                                    'time series already include baseline. '
                                    'No additional baseline is inserted.')
-                    idx_DC = np.where(np.isclose(res0[1], 0))[0]
+                    idx_DC = np.where(np.isclose(reg_sol[1], 0))[0]
             else:
-                idx_DC = np.where(np.isclose(res0[1], 0))[0]
+                idx_DC = np.where(np.isclose(reg_sol[1], 0))[0]
         else:
             # If a set of regressors for non-interested signals is not
             # provided, then we simply include one baseline for each run.
@@ -1100,17 +1102,17 @@ class BRSA(BaseEstimator, TransformerMixin):
         # dimension: space,
         # A/sigma2 is the inverse of noise covariance matrix in each voxel.
         # YTAY means Y'AY
-        XTAX = XTX[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * XTDX[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX[np.newaxis, :, :]
+        XTAX = XTX[None, :, :] - rho1[:, None, None] \
+            * XTDX[None, :, :] \
+            + rho1[:, None, None]**2 * XTFX[None, :, :]
         # dimension: space*feature*feature
-        X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * X0TDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
+        X0TAX0 = X0TX0[None, :, :] - rho1[:, None, None] \
+            * X0TDX0[None, :, :] \
+            + rho1[:, None, None]**2 * X0TFX0[None, :, :]
         # dimension: space*#baseline*#baseline
-        XTAX0 = XTX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * XTDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
+        XTAX0 = XTX0[None, :, :] - rho1[:, None, None] \
+            * XTDX0[None, :, :] \
+            + rho1[:, None, None]**2 * XTFX0[None, :, :]
         # dimension: space*feature*#baseline
         X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY, rho1)
         # dimension: #baseline*space
@@ -1619,8 +1621,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         return rho, sigma2
 
     def _forward_step(self, Y, T_X, Var_X, Var_dX, rho_e, sigma2_e, weight):
-        """ forward step for HMM """
-        # cov_form='diag'  We currently only implement diagonal form
+        """ forward step for HMM, assuming both the hidden state and noise
+            have 1-step dependence on the previous value.
+        """
+        # We currently only implement diagonal form
         # of covariance matrix for Var_X, Var_dX and T_X, which means
         # each dimension of X is independent and their refreshing noise
         # are also independent. Note that log_p_data takes this assumption.
@@ -1700,7 +1704,9 @@ class BRSA(BaseEstimator, TransformerMixin):
     def _backward_step(self, deltaY, deltaY_sigma2inv_rho_weightT,
                        sigma2_e, weight, mu, mu_Gamma_inv, Gamma_inv,
                        Lambda_0, Lambda_1, H):
-        """ backward step for HMM """
+        """ backward step for HMM, assuming both the hidden state and noise
+            have 1-step dependence on the previous value.
+        """
         n_T = len(Gamma_inv)
         # All the terms with hat before are parameters of posterior
         # distributions of X conditioned on data from all time points,
@@ -2114,11 +2120,11 @@ class BRSA(BaseEstimator, TransformerMixin):
             param0 = res_null.x.copy()
             est_rho1_AR1_null = 2.0 / np.pi * np.arctan(param0)
             if self.auto_nuisance:
-                X0TAX0 = X0TX0[np.newaxis, :, :] \
-                    - est_rho1_AR1_null[:, np.newaxis, np.newaxis] \
-                    * X0TDX0[np.newaxis, :, :] \
-                    + est_rho1_AR1_null[:, np.newaxis, np.newaxis]**2 \
-                    * X0TFX0[np.newaxis, :, :]
+                X0TAX0 = X0TX0[None, :, :] \
+                    - est_rho1_AR1_null[:, None, None] \
+                    * X0TDX0[None, :, :] \
+                    + est_rho1_AR1_null[:, None, None]**2 \
+                    * X0TFX0[None, :, :]
                 # dimension: space*#baseline*#baseline
                 X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
                                                  est_rho1_AR1_null)
@@ -2132,11 +2138,11 @@ class BRSA(BaseEstimator, TransformerMixin):
                             'the tolerance value {}. Fitting is finished '
                             'after {} iterations'.format(self.tol, it + 1))
                 break
-        X0TAX0 = X0TX0[np.newaxis, :, :] \
-            - est_rho1_AR1_null[:, np.newaxis, np.newaxis] \
-            * X0TDX0[np.newaxis, :, :] \
-            + est_rho1_AR1_null[:, np.newaxis, np.newaxis]**2 \
-            * X0TFX0[np.newaxis, :, :]
+        X0TAX0 = X0TX0[None, :, :] \
+            - est_rho1_AR1_null[:, None, None] \
+            * X0TDX0[None, :, :] \
+            + est_rho1_AR1_null[:, None, None]**2 \
+            * X0TFX0[None, :, :]
         # dimension: space*#baseline*#baseline
         X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
                                          est_rho1_AR1_null)
@@ -2246,7 +2252,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         # The following are for calculating the derivative to a1
         deriv_a1 = np.empty(n_V)
-        dXTAX_drho1 = -XTDX + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX
+        dXTAX_drho1 = -XTDX + 2 * rho1[:, None, None] * XTFX
         # dimension: space*feature*feature
         dXTAY_drho1 = self._make_ar1_quad_form_grad(XTDY, XTFY, rho1)
         # dimension: feature*space
@@ -2254,10 +2260,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         # dimension: space,
 
         dX0TAX0_drho1 = - X0TDX0 \
-            + 2 * rho1[:, np.newaxis, np.newaxis] * X0TFX0
+            + 2 * rho1[:, None, None] * X0TFX0
         # dimension: space*rank*rank
         dXTAX0_drho1 = - XTDX0 \
-            + 2 * rho1[:, np.newaxis, np.newaxis] * XTFX0
+            + 2 * rho1[:, None, None] * XTFX0
         # dimension: space*feature*rank
         dX0TAY_drho1 = self._make_ar1_quad_form_grad(X0TDY, X0TFY, rho1)
         # dimension: rank*space
@@ -2599,9 +2605,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         # dimension: space,
         # A/sigma2 is the inverse of noise covariance matrix in each voxel.
         # YTAY means Y'AY
-        X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * X0TDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
+        X0TAX0 = X0TX0[None, :, :] - rho1[:, None, None] \
+            * X0TDX0[None, :, :] \
+            + rho1[:, None, None]**2 * X0TFX0[None, :, :]
         # dimension: space*#baseline*#baseline
         X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY, rho1)
         # dimension: #baseline*space
@@ -2622,7 +2628,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         dYTAY_drho1 = self._make_ar1_quad_form_grad(YTDY_diag, YTFY_diag, rho1)
         # dimension: space,
         dX0TAX0_drho1 = - X0TDX0 \
-            + 2 * rho1[:, np.newaxis, np.newaxis] * X0TFX0
+            + 2 * rho1[:, None, None] * X0TFX0
         # dimension: space*rank*rank
         dX0TAY_drho1 = self._make_ar1_quad_form_grad(X0TDY, X0TFY, rho1)
         # dimension: rank*space
@@ -2787,12 +2793,15 @@ class GBRSA(BRSA):
         be too sparse, causing the posterior pseudo-SNR estimations
         to be clustered around the bins.
     SNR_bins: integer. Default: 21
-        When logS_range is set to a float, this is the number of bins
-        to numerically integrate out the pseudo-SNR parameter.
-        For SNR_prior='lognorm', the default value 21 is based on the
-        default value of logS_range=1.0 and the bin width of 0.3 on log scale.
-        But it is also a reasonable choice for the other two possible
-        choices for SNR_prior.
+        The number of bins used to numerically marginalize the pseudo-SNR
+        parameter. In general, you should try to choose a large number
+        to the degree that decreasing SNR_bins does not change the result
+        of fitting result. However, very large number of bins also causes
+        slower computation and larger memory consumption.
+        For SNR_prior='lognorm', the default value 21 is based on
+        the default value of logS_range=1.0 and bin width of 0.3 on log scale.
+        But it is also a reasonable choice for the other two options
+        for SNR_prior.
     rho_bins: integer. Default: 20
         The number of bins to divide the region of (-1, 1) for rho.
         This only takes effect for fitting the marginalized version.
@@ -2868,7 +2877,7 @@ class GBRSA(BRSA):
     rho_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated autoregressive coefficient of each voxel
     beta_: list of numpy arrays, shape=[conditions, voxels] for each subject.
-        The maximum a posterior estimation of the response amplitudes
+        The posterior mean estimation of the response amplitudes
         of each voxel to each task condition.
     beta0_: list of numpy arrays, shape=[n_nureg + n_base, voxels]
         for each subject.
@@ -2998,7 +3007,9 @@ class GBRSA(BRSA):
             assume all data are from the same run for each participant.
         """
 
-        logger.info('Running Marginalized Bayesian RSA')
+        logger.info('Running Group Bayesian RSA (which can also analyze'
+                    ' data of a single participant). Voxel-specific parameters'
+                    'are all marginalized.')
         # Checking all inputs.
         X = self._check_data_GBRSA(X)
         design = self._check_design_GBRSA(design, X)
@@ -3014,11 +3025,11 @@ class GBRSA(BRSA):
         # and data is named Y, to reflect the
         # generative model that data Y is generated by mixing the response
         # X to experiment conditions and other neural activity.
-        # However, in fit(), we keep the tradition of scikit-learn that
+        # However, in fit(), we keep the scikit-learn API that
         # X is the input data to fit and y, a reserved name not used, is
         # the label to map to from X.
-        assert self.SNR_bins >= 5 and self.rho_bins >= 5, \
-            'At least 5 bins are required to perform the numerical'\
+        assert self.SNR_bins >= 10 and self.rho_bins >= 10, \
+            'At least 10 bins are required to perform the numerical'\
             ' integration over SNR and rho'
         assert self.logS_range * 6 / self.SNR_bins < 0.5 \
             or self.SNR_prior != 'lognorm', \
@@ -3162,6 +3173,18 @@ class GBRSA(BRSA):
             will be subtracted from data before the marginalization
             when evaluating the log likelihood. For null model,
             nothing will be subtracted before marginalization.
+
+            There is a difference between the form of likelihood function
+            used in fit() and score(). In fit(), the response amplitude
+            beta to design matrix X and the modulation beta0 by nuisance
+            regressor X0 are both marginalized, with X provided and X0
+            estimated from data. In score(), posterior estimation of
+            beta and beta0 from the fitting step are assumed unchanged
+            to testing data and X0 is marginalized.
+            The logic underlying score() is to transfer
+            as much as what we can learn from training data when
+            calculating a likelihood score for testing data.
+
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
             z-score in fitting, you should not z-score here either.
@@ -3239,13 +3262,13 @@ class GBRSA(BRSA):
         XTAX = XTX - rho1[:, None, None] * XTDX \
             + rho1[:, None, None]**2 * XTFX
         # dimension: n_rho*feature*feature
-        X0TAX0 = X0TX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * X0TDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * X0TFX0[np.newaxis, :, :]
+        X0TAX0 = X0TX0[None, :, :] - rho1[:, None, None] \
+            * X0TDX0[None, :, :] \
+            + rho1[:, None, None]**2 * X0TFX0[None, :, :]
         # dimension: #rho*#baseline*#baseline
-        XTAX0 = XTX0[np.newaxis, :, :] - rho1[:, np.newaxis, np.newaxis] \
-            * XTDX0[np.newaxis, :, :] \
-            + rho1[:, np.newaxis, np.newaxis]**2 * XTFX0[np.newaxis, :, :]
+        XTAX0 = XTX0[None, :, :] - rho1[:, None, None] \
+            * XTDX0[None, :, :] \
+            + rho1[:, None, None]**2 * XTFX0[None, :, :]
         # dimension: n_rho*feature*#baseline
         X0TAY = X0TY - rho1[:, None, None] * X0TDY \
             + rho1[:, None, None]**2 * X0TFY
@@ -3308,8 +3331,6 @@ class GBRSA(BRSA):
         SNR_grids, SNR_weights = self._set_SNR_grids()
         logger.info('The grids of pseudo-SNR used for numerical integration '
                     'is {}.'.format(SNR_grids))
-        assert np.isclose(np.sum(SNR_weights), 1), \
-            'The weights for log SNR do not sum to 1!'
         assert np.max(SNR_grids) < 1e10, \
             'ATTENTION!! The range of grids of pseudo-SNR' \
             ' to be marginalized is too large. Please ' \
@@ -3645,11 +3666,11 @@ class GBRSA(BRSA):
                 # A/sigma2 is the inverse of noise covariance matrix.
                 # YTAY means Y'AY
 
-                X0TAX0 = X0TX0[np.newaxis, :, :] \
-                    - rho_grids[:, np.newaxis, np.newaxis] \
-                    * X0TDX0[np.newaxis, :, :] \
-                    + rho_grids[:, np.newaxis, np.newaxis]**2 \
-                    * X0TFX0[np.newaxis, :, :]
+                X0TAX0 = X0TX0[None, :, :] \
+                    - rho_grids[:, None, None] \
+                    * X0TDX0[None, :, :] \
+                    + rho_grids[:, None, None]**2 \
+                    * X0TFX0[None, :, :]
                 # dimension: #rho*#baseline*#baseline
                 X0TAY = X0TY - rho_grids[:, None, None] * X0TDY \
                     + rho_grids[:, None, None]**2 * X0TFY

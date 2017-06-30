@@ -328,21 +328,25 @@ def test_SNR_grids():
 
     s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='unif', SNR_bins=10)
     SNR_grids, SNR_weights = s._set_SNR_grids()
-    assert np.isclose(np.sum(SNR_weights), 1) and np.isclose(np.std(SNR_weights[1:-1]), 0) and np.all(SNR_weights > 0), \
-        'SNR weights are incorrect for uniform prior'
+    assert np.isclose(np.sum(SNR_weights), 1) and np.isclose(np.std(SNR_weights[1:-1]), 0) and np.all(SNR_weights > 0)\
+        and np.isclose(np.min(SNR_grids), 0) and np.all(SNR_grids >= 0) and np.isclose(np.max(SNR_grids), 1), \
+        'SNR_weights or SNR_grids are incorrect for uniform prior'
     assert np.isclose(np.std(np.diff(SNR_grids[1:-1])), 0), \
         'SNR grids are not equally spaced for uniform prior'
-    assert np.size(SNR_grids) == np.size(SNR_weights) and np.size(SNR_grids) == 10,\
+    assert np.size(SNR_grids) == np.size(SNR_weights) and np.size(SNR_grids) == 10 ,\
         'size of SNR_grids or SNR_weights is not correct for uniform prior'
+
 
     s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='lognorm', SNR_bins=35)
     SNR_grids, SNR_weights = s._set_SNR_grids()
-    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0), \
+    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0) \
+        and np.isclose(np.min(SNR_grids), 0) and np.all(np.diff(SNR_grids) > 0), \
         'SNR_grids or SNR_weights not correct for log normal prior'
+
 
     s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='exp')
     SNR_grids, SNR_weights = s._set_SNR_grids()
-    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0)\
+    assert np.all(SNR_grids >= 0) and np.isclose(np.sum(SNR_weights), 1) and np.all(SNR_weights > 0) \
         and np.all(np.diff(SNR_grids) > 0), \
         'SNR_grids or SNR_weights not correct for exponential prior'
 
