@@ -2809,12 +2809,12 @@ class GBRSA(BRSA):
         This only takes effect for fitting the marginalized version.
         If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
-    optimizer: str or callable. Default: 'L-BFGS-B'
+    optimizer: str or callable. Default: 'BFGS'
         The optimizer to use for minimizing cost function which
         scipy.optimize.minimize can accept.
         We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer, such as 'BFGS' or 'CG'.
+        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
         Note that BRSA fits a lot of parameters. So a chosen optimizer
         should accept gradient (Jacobian) of the cost function. Otherwise
         the fitting is likely to be unbarely slow. We do not calculate
@@ -2909,7 +2909,7 @@ class GBRSA(BRSA):
             auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
             nureg_method='ICA',
             DC_single=True, logS_range=1.0, SNR_prior='exp', SNR_bins=21,
-            rho_bins=20, tol=1e-4, optimizer='L-BFGS-B',
+            rho_bins=20, tol=1e-4, optimizer='BFGS',
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 20}, rand_seed=0, anneal_speed=10):
 
