@@ -327,7 +327,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         behind this option is that voxels should have similar
         SNRs when they are both adjacent (imposed by GP_space)
         and are of the same tissue type (when their image intensities
-        are close).
+        are close). If you accept the second assumption, then
+        you can set GP_inten as True and provide an array to the `inten`
+        variable, expressing the intensities (brightness) for each voxel.
     space_smooth_range: float. Default: None
         The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
