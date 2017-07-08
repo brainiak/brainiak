@@ -707,7 +707,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                         'correlation in noise.'.format(self.n_nureg_))
         else:
             self.n_nureg_ = self.n_nureg
-
+        self.n_nureg_ = np.int32(self.n_nureg_)
         # Run Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
