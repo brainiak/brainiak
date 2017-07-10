@@ -24,7 +24,7 @@ def test_can_instantiate():
 
     s = brainiak.reprsimil.brsa.BRSA(n_iter=50, rank=5,
                                      auto_nuisance=False, n_nureg=2, nureg_method='ICA',
-                                     DC_single=False, init_iter=5,
+                                     baseline_single=False, init_iter=5,
                                      GP_space=True, GP_inten=True, tol=2e-3,
                                      eta=0.001, space_smooth_range=10.0,
                                      inten_smooth_range=100.0, tau_range=2.0,
@@ -200,7 +200,7 @@ def test_fit():
         n_C, rank), 'Cholesky factor should have shape of (n_C, rank)'
 
     # Test fitting with GP over just spatial coordinates.
-    brsa = BRSA(GP_space=True, DC_single=False,
+    brsa = BRSA(GP_space=True, baseline_single=False,
                 tol=2e-3, n_iter=4, init_iter=4)
     brsa.fit(X=Y, design=design.design_task,
              scan_onsets=scan_onsets, coords=coords)

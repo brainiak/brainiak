@@ -285,31 +285,37 @@ class BRSA(BaseEstimator, TransformerMixin):
         automatically determined based on M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
+        This only takes effect if auto_nuisance is True.
     nureg_zscore: boolean, default: True
         A flag to tell the algorithm whether data is z-scored before
         estimating the number of nuisance regressor components necessary to
         account for spatial noise correlation. It also determinie whether
         the residual noise is z-scored before estimating the nuisance
         regressors from residual.
+        This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
         'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
-    DC_single: boolean, default: True
+        This only takes effect if auto_nuisance is True.
+    baseline_single: boolean, default: False
         A time course of constant 1 will be included to the nuisance
-        regressor regardless of whether the user requests. If DC_single
-        is set to False, one such regressor is included for each fMRI run,
-        but a single component in beta0\_ will be computed as the average
-        of the weight maps corresponding to these regressors. This might
-        cause underestimation of noise variance.
-        If DC_single is True, only one regressor of constant 1 will be
+        regressor regardless of whether the user requests.
+        If baseline_single is set to False, one such regressor is included
+        for each fMRI run, but a single component in beta0\_ will be
+        computed as the average of the weight maps corresponding to
+        these regressors. This might cause underestimation of noise variance.
+        If baseline_single is True, only one regressor of constant 1 will be
         used for the whole dataset. This might be desirable if you
         believe the average image intensity might not scale with the
         same proportion for different voxels across scan. In other words,
         it is possible that some part of the brain is more vulnerable to
         change in baseline intensity due to facts such as
-        field inhomogeneity. Setting DC_single to True will force the
+        field inhomogeneity. Setting baseline_single to True will force the
         nuisance regressors automatically estimated from residuals to
-        capture this.
+        capture this. However, when each task condition only occurs in one
+        run and when the design matrix in each run sums together close to
+        a flat line, this option can cause the estimated similarity to be
+        extremely high between conditions occuring in the same run.
     GP_space: boolean. Default: False
         Whether to impose a Gaussion Process (GP) prior on the log(pseudo-SNR).
         If true, the GP has a kernel defined over spatial coordinate
@@ -493,7 +499,7 @@ class BRSA(BaseEstimator, TransformerMixin):
     def __init__(
             self, n_iter=50, rank=None,
             auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
-            nureg_method='ICA', DC_single=True,
+            nureg_method='ICA', baseline_single=False,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
@@ -534,7 +540,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         else:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
-        self.DC_single = DC_single
+        self.baseline_single = baseline_single
         self.minimize_options = minimize_options
         self.eta = eta
         # This is a tiny ridge added to the Gaussian Process
@@ -692,22 +698,25 @@ class BRSA(BaseEstimator, TransformerMixin):
                            'to True. The coordinates or intensity are'
                            ' ignored.')
         # Estimate the number of necessary nuisance regressors
-        if self.auto_nuisance and self.n_nureg in ['opt']:
-            run_TRs, n_runs = self._run_TR_from_scan_onsets(
-                X.shape[0], scan_onsets)
-            ts_dc = self._gen_legendre(run_TRs, [0])
-            _, ts_base, _ = self._merge_DC_to_base(
-                ts_dc, nuisance, False)
-            ts_reg = np.concatenate((ts_base, design), axis=1)
-            beta_hat = np.linalg.lstsq(ts_reg, X)[0]
-            residuals = X - np.dot(ts_reg, beta_hat)
-            self.n_nureg_ = np.max(
-                [1, Ncomp_SVHT_MG_DLD_approx(residuals, self.nureg_zscore)])
-            logger.info('Use {} nuisance regressors to model the spatial '
-                        'correlation in noise.'.format(self.n_nureg_))
-        else:
-            self.n_nureg_ = self.n_nureg
-        self.n_nureg_ = np.int32(self.n_nureg_)
+        if self.auto_nuisance:
+            if self.n_nureg in ['opt']:
+                run_TRs, n_runs = self._run_TR_from_scan_onsets(
+                    X.shape[0], scan_onsets)
+                ts_dc = self._gen_legendre(run_TRs, [0])
+                _, ts_base, _ = self._merge_DC_to_base(
+                    ts_dc, nuisance, False)
+                ts_reg = np.concatenate((ts_base, design), axis=1)
+                beta_hat = np.linalg.lstsq(ts_reg, X)[0]
+                residuals = X - np.dot(ts_reg, beta_hat)
+                self.n_nureg_ = np.max(
+                    [1, Ncomp_SVHT_MG_DLD_approx(residuals,
+                                                 self.nureg_zscore)])
+                logger.info('Use {} nuisance regressors to model the spatial '
+                            'correlation in noise.'.format(self.n_nureg_))
+                self.n_nureg_ = np.int32(self.n_nureg_)
+            else:
+                self.n_nureg_ = self.n_nureg
+            self.n_nureg_ = np.int32(self.n_nureg_)
         # Run Bayesian RSA
         # Note that we have a change of notation here. Within _fit_RSA_UV,
         # design matrix is named X and data is named Y, to reflect the
@@ -986,7 +995,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             XTDX, XTFX
 
     def _gen_X_DC(self, run_TRs):
-        if self.DC_single:
+        if self.baseline_single:
             X_DC = np.ones((np.sum(run_TRs), 1))
         else:
             X_DC = scipy.linalg.block_diag(*map(np.ones, run_TRs)).T
@@ -2742,25 +2751,37 @@ class GBRSA(BRSA):
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values. (Gavish & Donoho,
         IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
+        This only takes effect if auto_nuisance is True.
+    nureg_zscore: boolean, default: True
+        A flag to tell the algorithm whether data is z-scored before
+        estimating the number of nuisance regressor components necessary to
+        account for spatial noise correlation. It also determinie whether
+        the residual noise is z-scored before estimating the nuisance
+        regressors from residual.
+        This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
         'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
         The method to estimate the shared component in noise across voxels.
-    DC_single: boolean. Default: True
+        This only takes effect if auto_nuisance is True.
+    baseline_single: boolean. Default: False
         A time course of constant 1 will be included to the nuisance
-        regressor for each participant. If DC_single is set to False,
+        regressor for each participant. If baseline_single is set to False,
         one such regressor is included for each fMRI run, but at the end of
         fitting, a single component in beta0\_ will be computed as the average
         of the weight maps corresponding to these regressors. This might
         cause underestimation of noise variance.
-        If DC_single is True, only one regressor of constant 1 will be
+        If baseline_single is True, only one regressor of constant 1 will be
         used for the whole dataset. This might be desirable if you
         believe the average image intensity might not scale with the
         same proportion for different voxels across scan. In other words,
         it is possible that some part of the brain is more vulnerable to
         change in baseline intensity due to facts such as
-        field inhomogeneity. Setting DC_single to True will force the
+        field inhomogeneity. Setting baseline_single to True will force the
         nuisance regressors automatically estimated from residuals to
-        capture this.
+        capture this. However, when each task condition only occurs in one
+        run and when the design matrix in each run sums together close to
+        a flat line, this option can cause the estimated similarity to be
+        extremely high between conditions occuring in the same run.
     SNR_prior: string. Default: 'exp'
         The type of prior for pseudo-SNR. If set to 'exp',
         truncated exponential distribution with scale parameter of 1
@@ -2908,8 +2929,8 @@ class GBRSA(BRSA):
             self, n_iter=50, rank=None,
             auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
             nureg_method='ICA',
-            DC_single=True, logS_range=1.0, SNR_prior='exp', SNR_bins=21,
-            rho_bins=20, tol=1e-4, optimizer='BFGS',
+            baseline_single=False, logS_range=1.0, SNR_prior='exp',
+            SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 20}, rand_seed=0, anneal_speed=10):
 
@@ -2941,7 +2962,7 @@ class GBRSA(BRSA):
         else:
             raise ValueError('nureg_method can only be FA, PCA, '
                              'SPCA(for sparse PCA) or ICA')
-        self.DC_single = DC_single
+        self.baseline_single = baseline_single
         if type(logS_range) is int:
             logS_range = float(logS_range)
         self.logS_range = logS_range
@@ -3042,39 +3063,41 @@ class GBRSA(BRSA):
         self.n_V_ = [None] * self.n_subj_
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
-        if self.auto_nuisance and self.n_nureg in ['opt']:
-            logger.info('number of nuisance regressors is determined '
-                        'with the method indicated by the option: {}'.format(
-                            self.n_nureg))
-            n_runs = np.zeros(self.n_subj_)
-            n_comps = np.ones(self.n_subj_)
-            for s_id in np.arange(self.n_subj_):
-                # For each subject, determine the number of nuisance
-                # regressors needed to account for the covariance in residuals.
-                # Residual is calculated by regrssing
-                # out the design matrix and DC component and linear trend
-                # from data of each run.
-                run_TRs, n_runs[s_id] = self._run_TR_from_scan_onsets(
-                    X[s_id].shape[0], scan_onsets[s_id])
-                ts_dc = self._gen_legendre(run_TRs, [0])
-                _, ts_base, _ = self._merge_DC_to_base(
-                    ts_dc, nuisance[s_id], False)
-                ts_reg = np.concatenate((ts_base, design[s_id]), axis=1)
-                beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
-                residuals = X[s_id] - np.dot(ts_reg, beta_hat)
+        if self.auto_nuisance:
+            if self.n_nureg in ['opt']:
+                logger.info('number of nuisance regressors is determined '
+                            'with the method indicated by the option: {}'
+                            .format(self.n_nureg))
+                n_runs = np.zeros(self.n_subj_)
+                n_comps = np.ones(self.n_subj_)
+                for s_id in np.arange(self.n_subj_):
+                    # For each subject, determine the number of nuisance
+                    # regressors needed to account for the covariance
+                    # in residuals.
+                    # Residual is calculated by regrssing
+                    # out the design matrix and DC component and linear trend
+                    # from data of each run.
+                    run_TRs, n_runs[s_id] = self._run_TR_from_scan_onsets(
+                        X[s_id].shape[0], scan_onsets[s_id])
+                    ts_dc = self._gen_legendre(run_TRs, [0])
+                    _, ts_base, _ = self._merge_DC_to_base(
+                        ts_dc, nuisance[s_id], False)
+                    ts_reg = np.concatenate((ts_base, design[s_id]), axis=1)
+                    beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
+                    residuals = X[s_id] - np.dot(ts_reg, beta_hat)
 
-                n_comps[s_id] = np.min(
-                    [np.max([Ncomp_SVHT_MG_DLD_approx(residuals,
-                                                      self.nureg_zscore), 1]),
-                     np.linalg.matrix_rank(residuals) - 1])
-                # n_nureg_ should not exceed the rank of
-                # residual minus 1.
-            self.n_nureg_ = n_comps
-            logger.info('Use {} nuisance regressors to model the spatial '
-                        'correlation in noise.'.format(self.n_nureg_))
-        else:
-            self.n_nureg_ = self.n_nureg * np.ones(self.n_subj_)
-        self.n_nureg_ = np.int32(self.n_nureg_)
+                    n_comps[s_id] = np.min(
+                        [np.max([Ncomp_SVHT_MG_DLD_approx(
+                            residuals, self.nureg_zscore), 1]),
+                         np.linalg.matrix_rank(residuals) - 1])
+                    # n_nureg_ should not exceed the rank of
+                    # residual minus 1.
+                self.n_nureg_ = n_comps
+                logger.info('Use {} nuisance regressors to model the spatial '
+                            'correlation in noise.'.format(self.n_nureg_))
+            else:
+                self.n_nureg_ = self.n_nureg * np.ones(self.n_subj_)
+            self.n_nureg_ = np.int32(self.n_nureg_)
 
         self.beta0_null_, self.sigma_null_, self.rho_null_, self.X0_null_,\
             self._LL_null_train_ = self._fit_RSA_marginalized_null(
@@ -4060,11 +4083,6 @@ class GBRSA(BRSA):
             SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
             SNR_weights[0] = SNR_weights[0] / 2.0
             SNR_weights[-1] = SNR_weights[-1] / 2.0
-
-            # SNR_grids = np.linspace(0, 1, self.SNR_bins)
-            # SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
-            # SNR_weights[-1] = SNR_weights[-1] / 2.0
-            # SNR_weights[0] = np.sum(SNR_weights[1:])
         elif self.SNR_prior == 'lognorm':
             log_SNR_grids = ((np.arange(self.SNR_bins)
                               - (self.SNR_bins - 1) / 2)) \

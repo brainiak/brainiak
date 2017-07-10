@@ -24,7 +24,7 @@ def test_can_instantiate():
 
     s = brainiak.reprsimil.brsa.GBRSA(n_iter=40, rank=4,
                                       auto_nuisance=False, nureg_method='PCA',
-                                      DC_single=False, logS_range=1.0, SNR_bins=11,
+                                      baseline_single=False, logS_range=1.0, SNR_bins=11,
                                       rho_bins=40, tol=2e-3,
                                       optimizer='CG', rand_seed=100, anneal_speed=20, SNR_prior='unif')
     assert s, "Invalid GBRSA instance!"
