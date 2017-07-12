@@ -4081,6 +4081,9 @@ class GBRSA(BRSA):
         return bins
 
     def _set_SNR_grids(self):
+        """ Set the grids and weights for SNR used in numerical integration
+            of SNR parameters.
+        """
         if self.SNR_prior == 'unif':
             SNR_grids = np.linspace(0, 1, self.SNR_bins)
             SNR_weights = np.ones(self.SNR_bins) / (self.SNR_bins - 1)
