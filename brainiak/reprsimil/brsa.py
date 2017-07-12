@@ -2966,6 +2966,9 @@ class GBRSA(BRSA):
         if type(logS_range) is int:
             logS_range = float(logS_range)
         self.logS_range = logS_range
+        assert SNR_prior in ['unif', 'lognorm', 'exp'], \
+            'SNR_prior can only be chosen from ''unif'', ''lognorm''' \
+            ' and ''exp'''
         self.SNR_prior = SNR_prior
         self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
@@ -4099,7 +4102,7 @@ class GBRSA(BRSA):
             SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
                                                        scale=self.logS_range)
             SNR_grids[0] = 0
-        else:
+        else: # SNR_prior == 'exp'
             SNR_grids = self._bin_exp(self.SNR_bins)
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         SNR_weights = SNR_weights / np.sum(SNR_weights)
