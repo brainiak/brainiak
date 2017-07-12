@@ -4105,7 +4105,7 @@ class GBRSA(BRSA):
             SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
                                                        scale=self.logS_range)
             SNR_grids[0] = 0
-        else: # SNR_prior == 'exp'
+        else:  # SNR_prior == 'exp'
             SNR_grids = self._bin_exp(self.SNR_bins)
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         SNR_weights = SNR_weights / np.sum(SNR_weights)
