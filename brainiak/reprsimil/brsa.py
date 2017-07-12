@@ -294,7 +294,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         regressors from residual.
         This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
-        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'PCA'
         The method to estimate the shared component in noise across voxels.
         This only takes effect if auto_nuisance is True.
     baseline_single: boolean, default: False
@@ -499,7 +499,7 @@ class BRSA(BaseEstimator, TransformerMixin):
     def __init__(
             self, n_iter=50, rank=None,
             auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
-            nureg_method='ICA', baseline_single=False,
+            nureg_method='PCA', baseline_single=False,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
@@ -2760,7 +2760,7 @@ class GBRSA(BRSA):
         regressors from residual.
         This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
-        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'ICA'
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'PCA'
         The method to estimate the shared component in noise across voxels.
         This only takes effect if auto_nuisance is True.
     baseline_single: boolean. Default: False
@@ -2928,7 +2928,7 @@ class GBRSA(BRSA):
     def __init__(
             self, n_iter=50, rank=None,
             auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
-            nureg_method='ICA',
+            nureg_method='PCA',
             baseline_single=False, logS_range=1.0, SNR_prior='exp',
             SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
             minimize_options={'gtol': 1e-4, 'disp': False,
