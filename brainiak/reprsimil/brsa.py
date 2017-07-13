@@ -37,7 +37,6 @@ from sklearn.utils import assert_all_finite
 import logging
 import brainiak.utils.utils as utils
 import scipy.spatial.distance as spdist
-warnings.filterwarnings('ignore')
 
 
 logger = logging.getLogger(__name__)
@@ -141,8 +140,9 @@ class BRSA(BaseEstimator):
         We use 'BFGS' as a default. Users can try other optimizer
         coming with scipy.optimize.minimize, or a custom
         optimizer.
-    rand_seed : int, default: 0
-        Seed for initializing the random number generator.
+    rand_seed : int, default: None
+        Seed for initializing the random number generator. If None
+        is provided, then seed is not reset.
 
     Attributes
     ----------
@@ -179,7 +179,8 @@ class BRSA(BaseEstimator):
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
             tol=2e-3, auto_nuisance=True, n_nureg=6, verbose=False,
             eta=0.0001, space_smooth_range=None, inten_smooth_range=None,
-            tau_range=10.0, init_iter=20, optimizer='BFGS', rand_seed=0):
+            tau_range=10.0, init_iter=20, optimizer='BFGS',
+            rand_seed=None):
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
@@ -371,6 +372,10 @@ class BRSA(BaseEstimator):
 
         self.C_ = utils.cov2corr(self.U_)
         return self
+
+    def _reset_randomseed(self, rand_seed):
+        if not rand_seed is None:
+            np.random.seed(rand_seed)
 
     # The following 2 functions _D_gen and _F_gen generate templates used
     # for constructing inverse of covariance matrix of AR(1) noise
@@ -686,7 +691,7 @@ class BRSA(BaseEstimator):
         n_C = np.size(X, axis=1)
         l_idx = np.tril_indices(n_C)
 
-        np.random.seed(self.rand_seed)
+        self._reset_randomseed(self.rand_seed)
         # setting random seed
         t_start = time.time()
 
