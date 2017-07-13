@@ -30,20 +30,6 @@ def test_tri_sym_convert():
         "from_sym_2_tri returned wrong result!"
 
 
-def test_fast_inv():
-    from brainiak.utils.utils import fast_inv
-    import numpy as np
-
-    a = np.random.rand(6)
-    with pytest.raises(TypeError) as excinfo:
-        fast_inv(a)
-    assert "Input matrix should be 2D array" in str(excinfo.value)
-    a = np.random.rand(3, 2)
-    with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
-        fast_inv(a)
-    assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
-
-
 def test_sumexp():
     from brainiak.utils.utils import sumexp_stable
     import numpy as np
@@ -56,15 +42,15 @@ def test_sumexp():
     assert maxs.size == data.shape[1], "Invalid max computation (wrong # samples in maxs)"
 
 
-def test_concatenate_list():
-    from brainiak.utils.utils import concatenate_list
+def test_concatenate_not_none():
+    from brainiak.utils.utils import concatenate_not_none
     import numpy as np
     l = [None] * 5
 
     l[1] = np.array([0, 1, 2])
     l[3] = np.array([3, 4])
 
-    r = concatenate_list(l, axis=0)
+    r = concatenate_not_none(l, axis=0)
 
     assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"
 

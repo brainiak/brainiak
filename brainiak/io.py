@@ -21,8 +21,9 @@ __all__ = [
 ]
 
 from pathlib import Path
-from typing import Iterable, List, Union
+from typing import Callable, Iterable, List, Union
 
+import logging
 import nibabel as nib
 import numpy as np
 
@@ -30,6 +31,8 @@ from nibabel.nifti1 import Nifti1Pair
 from nibabel.spatialimages import SpatialImage
 
 from .image import SingleConditionSpec
+
+logger = logging.getLogger(__name__)
 
 
 def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
@@ -58,16 +61,55 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
         in_dir = Path(in_dir)
     files = sorted(in_dir.glob("*" + suffix))
     for f in files:
+        logger.debug(
+            'Starting to read file %s', f
+        )
         yield nib.load(str(f))
 
 
-def load_boolean_mask(path: Union[str, Path]) -> np.ndarray:
+def load_images(image_paths: Iterable[Union[str, Path]]
+                ) -> Iterable[SpatialImage]:
+    """Load images from paths.
+
+    For efficiency, returns an iterator, not a sequence, so the results cannot
+    be accessed by indexing.
+
+    For every new iteration through the images, load_images must be called
+    again.
+
+    Parameters
+    ----------
+    image_paths:
+        Paths to images.
+
+    Yields
+    ------
+    SpatialImage
+        Image.
+    """
+    for image_path in image_paths:
+        if isinstance(image_path, Path):
+            string_path = str(image_path)
+        else:
+            string_path = image_path
+        logger.debug(
+            'Starting to read file %s', string_path
+        )
+        yield nib.load(string_path)
+
+
+def load_boolean_mask(path: Union[str, Path],
+                      predicate: Callable[[np.ndarray], np.ndarray] = None
+                      ) -> np.ndarray:
     """Load boolean nibabel.SpatialImage mask.
 
     Parameters
     ----------
     path
         Mask path.
+    predicate
+        Callable used to create boolean values, e.g. a threshold function
+        ``lambda x: x > 50``.
 
     Returns
     -------
@@ -76,7 +118,12 @@ def load_boolean_mask(path: Union[str, Path]) -> np.ndarray:
     """
     if not isinstance(path, str):
         path = str(path)
-    return nib.load(path).get_data().astype(np.bool)
+    data = nib.load(path).get_data()
+    if predicate is not None:
+        mask = predicate(data)
+    else:
+        mask = data.astype(np.bool)
+    return mask
 
 
 def load_labels(path: Union[str, Path]) -> List[SingleConditionSpec]:
@@ -92,7 +139,7 @@ def load_labels(path: Union[str, Path]) -> List[SingleConditionSpec]:
     List[SingleConditionSpec]
         List of SingleConditionSpec stored in labels file.
     """
-    condition_specs = np.load(path)
+    condition_specs = np.load(str(path))
     return [c.view(SingleConditionSpec) for c in condition_specs]
 
 

@@ -103,6 +103,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     classes_ : array of int, shape=[classes]
         Mapping table for each classes to original class label.
 
+    random_state_: `RandomState`
+        Random number generator initialized using rand_seed
+
     Note
     ----
 
@@ -215,7 +218,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         ----
             The mapping of the classes is saved in the attribute classes_.
         """
-        self.classes_ = unique_labels(utils.concatenate_list(y))
+        self.classes_ = unique_labels(utils.concatenate_not_none(y))
         new_y = [None] * len(y)
         for s in range(len(y)):
             new_y[s] = np.digitize(y[s], self.classes_) - 1
@@ -322,9 +325,12 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         classes = self.classes_.size
 
         # Initialization:
-        np.random.seed(self.rand_seed)
+        self.random_state_ = np.random.RandomState(self.rand_seed)
+        random_states = [
+            np.random.RandomState(self.random_state_.randint(2**32))
+            for i in range(len(data_align))]
         # Set Wi's to a random orthogonal voxels by TRs
-        w, _ = srm._init_w_transforms(data_align, self.features)
+        w, _ = srm._init_w_transforms(data_align, self.features, random_states)
 
         # Initialize the shared response S
         s = SSSRM._compute_shared_response(data_align, w)
@@ -795,7 +801,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             The number of samples of the subject that are related to that
             sample. They become a weight per sample in the MLR loss.
         """
-        labels_stacked = utils.concatenate_list(data_labels)
+        labels_stacked = utils.concatenate_not_none(data_labels)
 
         weights = np.empty((labels_stacked.size,))
         data_shared = [None] * len(data)
@@ -808,5 +814,5 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
                 data_shared[s] = w[s].T.dot(data[s])
                 curr_samples += data[s].shape[1]
 
-        data_stacked = utils.concatenate_list(data_shared, axis=1).T
+        data_stacked = utils.concatenate_not_none(data_shared, axis=1).T
         return data_stacked, labels_stacked, weights

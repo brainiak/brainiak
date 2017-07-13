@@ -21,6 +21,7 @@ computes ISFC for voxels with high ISC
 # Princeton University, 2017
 
 import brainiak.isfc
+from brainiak import image, io
 import nibabel as nib
 import numpy as np
 from matplotlib import pyplot as plt
@@ -36,8 +37,11 @@ fnames = [os.path.join(curr_dir,
           subj in np.arange(1, 5)]
 
 print('Loading data from ', len(fnames), ' subjects...')
-D, coords = brainiak.isfc.load_subjects_nii(fnames, brain_fname,
-                                            lambda x: x > 50)
+
+brain_mask = io.load_boolean_mask(brain_fname, lambda x: x > 50)
+masked_images = image.mask_images(io.load_images(fnames), brain_mask)
+coords = np.where(brain_mask)
+D = image.MaskedMultiSubjectData.from_masked_images(masked_images, len(fnames))
 
 print('Calculating ISC on ', D.shape[0], ' voxels')
 ISC = brainiak.isfc.isc(D)

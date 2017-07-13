@@ -23,8 +23,8 @@ import numpy as np
 import time
 from sklearn.base import BaseEstimator
 import sklearn
-from . import fcma_extension
-from . import cython_blas as blas
+from . import fcma_extension  # type: ignore
+from . import cython_blas as blas  # type: ignore
 import logging
 
 logger = logging.getLogger(__name__)
