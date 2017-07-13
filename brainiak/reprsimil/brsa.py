@@ -173,6 +173,8 @@ class BRSA(BaseEstimator):
     beta0_: array, shape=[n_nureg, voxels]
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
+    random_state_: `RandomState`
+        Random number generator initialized using random_state.
 
     """
 
