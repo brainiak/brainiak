@@ -26,7 +26,7 @@ def test_can_instantiate():
                                       auto_nuisance=False, nureg_method='PCA',
                                       baseline_single=False, logS_range=1.0, SNR_bins=11,
                                       rho_bins=40, tol=2e-3,
-                                      optimizer='CG', rand_seed=100, anneal_speed=20, SNR_prior='unif')
+                                      optimizer='CG', random_state=0, anneal_speed=20, SNR_prior='unif')
     assert s, "Invalid GBRSA instance!"
 
 

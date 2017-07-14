@@ -35,7 +35,7 @@ import scipy.stats
 import scipy.special
 import time
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import assert_all_finite
+from sklearn.utils import assert_all_finite, check_random_state
 from sklearn.decomposition import PCA, FactorAnalysis, SparsePCA, FastICA
 import logging
 import brainiak.utils.utils as utils
@@ -404,8 +404,11 @@ class BRSA(BaseEstimator, TransformerMixin):
         the fitting is likely to be unbarely slow. We do not calculate
         Hessian of the objective function. So an optimizer which requires
         Hessian cannot be used.
-    rand_seed : int. Default: 0
-        Seed for initializing the random number generator.
+    random_state : RandomState or an int seed. Default: None
+        A random number generator instance to define the state of
+        the random permutations generator whenever the module
+        needs to generate random number (e.g., initial parameter
+        of the Cholesky factor).
     anneal_speed: float. Default: 20
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
@@ -493,6 +496,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         this will be estimated from data. 'opt' will use M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
+    random_state_: `RandomState`
+        Random number generator initialized using random_state.
 
     """
 
@@ -505,10 +510,9 @@ class BRSA(BaseEstimator, TransformerMixin):
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
             eta=0.0001, init_iter=20, optimizer='BFGS',
-            rand_seed=0, anneal_speed=10, tol=1e-4,
+            random_state=None, anneal_speed=10, tol=1e-4,
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 6}):
-
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
@@ -558,7 +562,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         # When imposing smoothness prior, fit the model without this
         # prior for this number of iterations.
         self.optimizer = optimizer
-        self.rand_seed = rand_seed
+        self.random_state = random_state
         self.anneal_speed = anneal_speed
         return
 
@@ -629,6 +633,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         """
 
         logger.info('Running Bayesian RSA')
+        self.random_state_ = check_random_state(self.random_state)
+        # setting random seed
+        logger.debug('RandState set to {}'.format(self.random_state_))
 
         assert not self.GP_inten or (self.GP_inten and self.GP_space),\
             'You must speficiy GP_space to True'\
@@ -1300,8 +1307,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         l_idx, rank = self._chol_idx(n_C, rank)
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
-        np.random.seed(self.rand_seed)
-        # setting random seed
         t_start = time.time()
 
         D, F, run_TRs, n_run = self._prepare_DF(
@@ -1781,7 +1786,8 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         # (3) random initialization
 
-        # current_vec_U_chlsk_l = np.random.randn(n_l)
+        # current_vec_U_chlsk_l = self.random_state_.randn(n_l)
+
         # vectorized version of L, Cholesky factor of U, the shared
         # covariance matrix of betas across voxels.
 
@@ -1858,7 +1864,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             # fit U, the covariance matrix, together with AR(1) param
             param0_fitU[idx_param_fitU['Cholesky']] = \
                 current_vec_U_chlsk_l \
-                + np.random.randn(n_l) \
+                + self.random_state_.randn(n_l) \
                 * np.linalg.norm(current_vec_U_chlsk_l) \
                 / n_l**0.5 * np.exp(-it / init_iter * self.anneal_speed - 1)
             param0_fitU[idx_param_fitU['a1']] = current_a1
@@ -1990,7 +1996,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
             param0_fitU[idx_param_fitU['Cholesky']] = \
                 current_vec_U_chlsk_l \
-                + np.random.randn(n_l) \
+                + self.random_state_.randn(n_l) \
                 * np.linalg.norm(current_vec_U_chlsk_l) \
                 / n_l**0.5 * np.exp(-it / n_iter * self.anneal_speed - 1)
             param0_fitU[idx_param_fitU['a1']] = current_a1
@@ -2091,8 +2097,6 @@ class BRSA(BaseEstimator, TransformerMixin):
         """
         n_V = np.size(Y, axis=1)
         n_T = np.size(Y, axis=0)
-        np.random.seed(self.rand_seed)
-        # setting random seed
         t_start = time.time()
 
         D, F, run_TRs, n_run = self._prepare_DF(
@@ -2857,8 +2861,11 @@ class GBRSA(BRSA):
         Tolerance parameter passed to scipy.optimize.minimize. It is also
         used for determining convergence of the alternating fitting
         procedure.
-    rand_seed : int. Default: 0
-        Seed for initializing the random number generator.
+    random_state : RandomState or an int seed. Default: None
+        A random number generator instance to define the state of
+        the random permutations generator whenever the module
+        needs to generate random number (e.g., initial parameter
+        of the Cholesky factor).
     anneal_speed: float. Default: 10
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
@@ -2923,6 +2930,8 @@ class GBRSA(BRSA):
     n_nureg_: 1-d numpy array
         Number of nuisance regressor used to model the spatial noise
         correlation of each participant.
+    random_state_: `RandomState`
+        Random number generator initialized using random_state.
     """
 
     def __init__(
@@ -2932,7 +2941,8 @@ class GBRSA(BRSA):
             baseline_single=False, logS_range=1.0, SNR_prior='exp',
             SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
             minimize_options={'gtol': 1e-4, 'disp': False,
-                              'maxiter': 20}, rand_seed=0, anneal_speed=10):
+                              'maxiter': 20}, random_state=None,
+            anneal_speed=10):
 
         self.n_iter = n_iter
         self.rank = rank
@@ -2975,7 +2985,7 @@ class GBRSA(BRSA):
         self.tol = tol
         self.optimizer = optimizer
         self.minimize_options = minimize_options
-        self.rand_seed = rand_seed
+        self.random_state = random_state
         self.anneal_speed = anneal_speed
         return
 
@@ -3036,6 +3046,9 @@ class GBRSA(BRSA):
         logger.info('Running Group Bayesian RSA (which can also analyze'
                     ' data of a single participant). Voxel-specific parameters'
                     'are all marginalized.')
+        self.random_state_ = check_random_state(self.random_state)
+        # setting random seed
+        logger.debug('RandState set to {}'.format(self.random_state_))
         # Checking all inputs.
         X = self._check_data_GBRSA(X)
         design = self._check_design_GBRSA(design, X)
@@ -3343,9 +3356,6 @@ class GBRSA(BRSA):
         l_idx, rank = self._chol_idx(n_C, rank)
         n_l = np.size(l_idx[0])  # the number of parameters for L
 
-        np.random.seed(self.rand_seed)
-        logger.debug('Random seed set to {}.'.format(self.rand_seed))
-        # setting random seed
         t_start = time.time()
 
         logger.info('Starting to fit the model. Maximum iteration: '
@@ -3452,7 +3462,7 @@ class GBRSA(BRSA):
 
         # (3) random initialization
 
-        # current_vec_U_chlsk_l = np.random.randn(n_l)
+        # current_vec_U_chlsk_l = self.random_state_.randn(n_l)
         # vectorized version of L, Cholesky factor of U, the shared
         # covariance matrix of betas across voxels.
         L = np.zeros((n_C, rank))
@@ -3549,7 +3559,7 @@ class GBRSA(BRSA):
 
             res = scipy.optimize.minimize(
                 self._sum_loglike_marginalized, current_vec_U_chlsk_l
-                + np.random.randn(n_l) *
+                + self.random_state_.randn(n_l) *
                 np.linalg.norm(current_vec_U_chlsk_l)
                 / n_l**0.5 * np.exp(-it / self.n_iter
                                     * self.anneal_speed - 1),
@@ -3663,10 +3673,7 @@ class GBRSA(BRSA):
         X0 = [None] * n_subj
         LL_null = np.zeros(n_subj)
         for subj in range(n_subj):
-            np.random.seed(self.rand_seed)
             logger.debug('Running on subject {}.'.format(subj))
-            logger.debug('Random seed set to {}.'.format(self.rand_seed))
-            # setting random seed
             [n_T, n_V] = np.shape(Y[subj])
             D, F, run_TRs, n_run = self._prepare_DF(
                 n_T, scan_onsets=scan_onsets[subj])
