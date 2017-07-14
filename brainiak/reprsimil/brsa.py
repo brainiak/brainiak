@@ -30,14 +30,12 @@ import numpy as np
 import scipy
 import scipy.optimize
 import scipy.stats
-import warnings
 import time
 from sklearn.base import BaseEstimator
-from sklearn.utils import assert_all_finite
+from sklearn.utils import assert_all_finite, check_random_state
 import logging
 import brainiak.utils.utils as utils
 import scipy.spatial.distance as spdist
-warnings.filterwarnings('ignore')
 
 
 logger = logging.getLogger(__name__)
@@ -141,8 +139,11 @@ class BRSA(BaseEstimator):
         We use 'BFGS' as a default. Users can try other optimizer
         coming with scipy.optimize.minimize, or a custom
         optimizer.
-    rand_seed : int, default: 0
-        Seed for initializing the random number generator.
+    random_state : RandomState or an int seed. Default: None
+        A random number generator instance to define the state of
+        the random permutations generator whenever the module
+        needs to generate random number (e.g., initial parameter
+        of the Cholesky factor).
 
     Attributes
     ----------
@@ -172,6 +173,8 @@ class BRSA(BaseEstimator):
     beta0_: array, shape=[n_nureg, voxels]
         The loading weights of each voxel for the shared time courses
         not captured by the design matrix.
+    random_state_: `RandomState`
+        Random number generator initialized using random_state.
 
     """
 
@@ -179,7 +182,8 @@ class BRSA(BaseEstimator):
             self, n_iter=50, rank=None, GP_space=False, GP_inten=False,
             tol=2e-3, auto_nuisance=True, n_nureg=6, verbose=False,
             eta=0.0001, space_smooth_range=None, inten_smooth_range=None,
-            tau_range=10.0, init_iter=20, optimizer='BFGS', rand_seed=0):
+            tau_range=10.0, init_iter=20, optimizer='BFGS',
+            random_state=None):
         self.n_iter = n_iter
         self.rank = rank
         self.GP_space = GP_space
@@ -203,7 +207,7 @@ class BRSA(BaseEstimator):
         # When imposing smoothness prior, fit the model without this
         # prior for this number of iterations.
         self.optimizer = optimizer
-        self.rand_seed = rand_seed
+        self.random_state = random_state
         return
 
     def fit(self, X, design, nuisance=None, scan_onsets=None, coords=None,
@@ -686,7 +690,7 @@ class BRSA(BaseEstimator):
         n_C = np.size(X, axis=1)
         l_idx = np.tril_indices(n_C)
 
-        np.random.seed(self.rand_seed)
+        self.random_state_ = check_random_state(self.random_state)
         # setting random seed
         t_start = time.time()
 
@@ -932,7 +936,7 @@ class BRSA(BaseEstimator):
 
         # (3) random initialization
 
-        current_vec_U_chlsk_l = np.random.randn(n_l)
+        current_vec_U_chlsk_l = self.random_state_.randn(n_l)
         # vectorized version of L, Cholesky factor of U, the shared
         # covariance matrix of betas across voxels.
 
