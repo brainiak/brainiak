@@ -124,6 +124,12 @@ def voxel_test_sfn(l, msk, myrad, bcast):
     return midpt
 
 
+def block_test_sfn(l,msk,myrad,bcast_var, extra_params):
+  outmat = l[0][:,:,:,0] 
+  outmat[~msk] = None
+  return outmat[myrad:-myrad,myrad:-myrad,myrad:-myrad] 
+
+
 def test_correctness():
   def voxel_test(data, mask, max_blk_edge, rad):
     
@@ -174,15 +180,10 @@ def test_correctness():
               for d3 in range(dim2): 
                 subj[d1,d2,d3,tr] = np.array([ d1, d2, d3, tr])
     
-    def sfn(l,msk,myrad,bcast_var, extra_params):
-      outmat = l[0][:,:,:,0] 
-      outmat[~msk] = None
-      return outmat[rad:-rad,rad:-rad,rad:-rad] 
-    
     sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
     sl.distribute(data, mask)
     sl.broadcast(mask)
-    global_outputs = sl.run_block_function(sfn)
+    global_outputs = sl.run_block_function(block_test_sfn)
   
     if rank == 0:
       for d0 in range(rad, global_outputs.shape[0]-rad):
