@@ -151,6 +151,8 @@ def Ncomp_SVHT_MG_DLD_approx(X, zscore=True):
     X: 2-D numpy array of size [n_T, n_V]
         The data to estimate the optimal rank for selecting principal
         components.
+    zscore: Boolean, default: True
+        Whether to z-score the data before calculating number of components.
 
     Returns
     -------
@@ -166,9 +168,15 @@ def Ncomp_SVHT_MG_DLD_approx(X, zscore=True):
         sing = np.linalg.svd(_zscore(X), False, False)
     else:
         sing = np.linalg.svd(X, False, False)
-    sing = sing[np.logical_not(np.isclose(sing, 0))]
     thresh = omega * np.median(sing)
-    ncomp = int(np.sum(sing > thresh))
+    ncomp = int(np.sum(np.logical_and(sing > thresh, np.logical_not(
+        np.isclose(sing, thresh)))))
+    # In the line above, we look for the singular values larger than
+    # the threshold but excluding those that happen to be "just" larger
+    # than the threshold by an amount close to the numerical precision.
+    # This is to prevent close-to-zero singular values to be included if
+    # the median of the eigenvalues is close to 0 (which could happen
+    # when the input X has lower rank than its minimal size.
     return ncomp
 
 
@@ -778,8 +786,14 @@ class BRSA(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None, scan_onsets=None):
         """ Use the model to estimate the time course of response to
-            each condition, and the time course unrelated to task which
-            is spread across the brain.
+            each condition (ts), and the time course unrelated to task
+            (ts0) which is spread across the brain.
+            This is equivalent to "decoding" the design matrix and
+            nuisance regressors from a new dataset different from the
+            training dataset on which fit() was applied. An AR(1) smooth
+            prior is imposed on the decoded ts and ts0 with the AR(1)
+            parameters learnt from the corresponding time courses in the
+            training data.
             Notice: if you set the rank to be lower than the number of
             experimental conditions (number of columns in the design
             matrix), the recovered task-related activity will have
@@ -3147,8 +3161,14 @@ class GBRSA(BRSA):
 
     def transform(self, X, y=None, scan_onsets=None):
         """ Use the model to estimate the time course of response to
-            each condition, and the time course unrelated to task which
-            is spread across the brain.
+            each condition (ts), and the time course unrelated to task
+            (ts0) which is spread across the brain.
+            This is equivalent to "decoding" the design matrix and
+            nuisance regressors from a new dataset different from the
+            training dataset on which fit() was applied. An AR(1) smooth
+            prior is imposed on the decoded ts and ts0 with the AR(1)
+            parameters learnt from the corresponding time courses in the
+            training data.
 
         Parameters
         ----------
@@ -3201,9 +3221,11 @@ class GBRSA(BRSA):
         return ts, ts0
 
     def score(self, X, design, scan_onsets=None):
-        """ Use the model and parameters estimated by fit function
+        """ After fit() is applied to the data of a group of participants,
+            use the parameters estimated by fit() function to evaluate
             from some data of a set of participants to evaluate
-            the log likelihood of some new data of the same participants.
+            the log likelihood of some new data of the same participants
+            given these estimated parameters.
             Design matrices of the same set of experimental
             conditions in the testing data should be provided, with each
             column corresponding to the same condition as that column
@@ -3221,10 +3243,12 @@ class GBRSA(BRSA):
             regressor X0 are both marginalized, with X provided and X0
             estimated from data. In score(), posterior estimation of
             beta and beta0 from the fitting step are assumed unchanged
-            to testing data and X0 is marginalized.
+            in testing data; X is assumed given by the user,
+            and X0 is marginalized.
             The logic underlying score() is to transfer
             as much as what we can learn from training data when
-            calculating a likelihood score for testing data.
+            calculating a likelihood score for testing data. This is done
+            at the cost of using point estimation for beta and beta0.
 
             If you z-scored your data during fit step, you should
             z-score them for score function as well. If you did not
@@ -3373,9 +3397,7 @@ class GBRSA(BRSA):
             'ATTENTION!! The range of grids of pseudo-SNR' \
             ' to be marginalized is too large. Please ' \
             'consider reducing logS_range to 1 or 2'
-        rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
-            + 1 / self.rho_bins
-        rho_weights = np.ones(self.rho_bins) / self.rho_bins
+        rho_grids, rho_weights = self._set_rho_grids()
         logger.info('The grids of rho used to do numerical integration '
                     'is {}.'.format(rho_grids))
         n_grid = self.SNR_bins * self.rho_bins
@@ -3415,6 +3437,7 @@ class GBRSA(BRSA):
         X_res = [None] * n_subj
         n_X0 = [None] * n_subj
         idx_DC = [None] * n_subj
+        log_fixed_terms = [None] * n_subj
 
         # Initialization for L.
         # There are several possible ways of initializing the covariance.
@@ -3449,6 +3472,18 @@ class GBRSA(BRSA):
 
             cov_point_est += np.cov(beta_hat[n_X0[subj]:, :]
                                     / np.std(residual, axis=0))
+            log_fixed_terms[subj] = - (n_T[subj] - n_X0[subj]) \
+                / 2 * np.log(2 * np.pi) + n_run[subj] \
+                / 2 * np.log(1 - all_rho_grids**2) \
+                + scipy.special.gammaln(
+                    (n_T[subj] - n_X0[subj] - 2) / 2) \
+                + (n_T[subj] - n_X0[subj] - 2) / 2 * np.log(2)
+            # These are terms in the log likelihood that do not
+            # depend on L. Notice that the last term comes from
+            # ther term of marginalizing sigma. We take the 2 in
+            # the denominator out. Accordingly, the "denominator"
+            # variable in the _raw_loglike_grids() function is not
+            # divided by 2
         cov_point_est = cov_point_est / n_subj
         current_vec_U_chlsk_l = np.linalg.cholesky(
             (cov_point_est + np.eye(n_C)) / 2)[l_idx]
@@ -3477,7 +3512,6 @@ class GBRSA(BRSA):
         sXTAcorrY = [None] * n_subj
         X0TAY = [None] * n_subj
         XTAX0 = [None] * n_subj
-        log_fixed_terms = [None] * n_subj
         half_log_det_X0TAX0 = [None] * n_subj
         s_post = [None] * n_subj
         rho_post = [None] * n_subj
@@ -3515,47 +3549,16 @@ class GBRSA(BRSA):
                         X0TFX0[subj], XTX0[subj], XTDX0[subj], XTFX0[subj],
                         X0TY[subj], X0TDY[subj], X0TFY[subj], rho_grids,
                         n_V[subj], n_X0[subj])
-                log_fixed_terms[subj] = - (n_T[subj] - n_X0[subj]) \
-                    / 2 * np.log(2 * np.pi) + n_run[subj] \
-                    / 2 * np.log(1 - all_rho_grids**2) \
-                    + scipy.special.gammaln(
-                        (n_T[subj] - n_X0[subj] - 2) / 2) \
-                    + (n_T[subj] - n_X0[subj] - 2) / 2 * np.log(2)
-                # These are terms in the log likelihood that do not
-                # depend on L. Notice that the last term comes from
-                # ther term of marginalizing sigma. We take the 2 in
-                # the denominator out. Accordingly, the "denominator"
-                # variable in the _raw_loglike_grids() function is not
-                # divided by 2
 
                 # Now we expand to another dimension including SNR
                 # and collapse the dimension again.
-                half_log_det_X0TAX0[subj] = np.reshape(
-                    np.repeat(self._half_log_det(X0TAX0[subj])[None, :],
-                              self.SNR_bins, axis=0), n_grid)
-                X0TAX0[subj] = np.reshape(
-                    np.repeat(X0TAX0[subj][None, :, :, :],
-                              self.SNR_bins, axis=0),
-                    (n_grid, n_X0[subj], n_X0[subj]))
-                X0TAX0_i[subj] = np.reshape(np.repeat(
-                    X0TAX0_i[subj][None, :, :, :],
-                    self.SNR_bins, axis=0),
-                    (n_grid, n_X0[subj], n_X0[subj]))
-                s2XTAcorrX[subj] = np.reshape(
-                    SNR_grids[:, None, None, None]**2 * XTAcorrX[subj],
-                    (n_grid, n_C, n_C))
-                YTAcorrY_diag[subj] = np.reshape(np.repeat(
-                    YTAcorrY_diag[subj][None, :, :],
-                    self.SNR_bins, axis=0), (n_grid, n_V[subj]))
-                sXTAcorrY[subj] = np.reshape(SNR_grids[:, None, None, None]
-                                             * XTAcorrY[subj],
-                                             (n_grid, n_C, n_V[subj]))
-                X0TAY[subj] = np.reshape(np.repeat(X0TAY[subj][None, :, :, :],
-                                                   self.SNR_bins, axis=0),
-                                         (n_grid, n_X0[subj], n_V[subj]))
-                XTAX0[subj] = np.reshape(np.repeat(XTAX0[subj][None, :, :, :],
-                                                   self.SNR_bins, axis=0),
-                                         (n_grid, n_C, n_X0[subj]))
+                half_log_det_X0TAX0[subj], X0TAX0[subj], X0TAX0_i[subj], \
+                    s2XTAcorrX[subj], YTAcorrY_diag[subj], sXTAcorrY[subj], \
+                    X0TAY[subj], XTAX0[subj] = self._matrix_flattened_grid(
+                        X0TAX0[subj], X0TAX0_i[subj], SNR_grids,
+                        XTAcorrX[subj], YTAcorrY_diag[subj], XTAcorrY[subj],
+                        X0TAY[subj], XTAX0[subj], n_C, n_V[subj], n_X0[subj],
+                        n_grid)
 
             res = scipy.optimize.minimize(
                 self._sum_loglike_marginalized, current_vec_U_chlsk_l
@@ -3660,9 +3663,7 @@ class GBRSA(BRSA):
         logger.info('Starting to fit the model. Maximum iteration: '
                     '{}.'.format(self.n_iter))
 
-        rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
-            + 1 / self.rho_bins
-        rho_weights = np.ones(self.rho_bins) / self.rho_bins
+        rho_grids, rho_weights = self._set_rho_grids()
         logger.info('The grids of rho used to do numerical integration '
                     'is {}.'.format(rho_grids))
         n_grid = self.rho_bins
@@ -4117,3 +4118,49 @@ class GBRSA(BRSA):
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         SNR_weights = SNR_weights / np.sum(SNR_weights)
         return SNR_grids, SNR_weights
+
+    def _set_rho_grids(self):
+        """ Set the grids and weights for rho used in numerical integration
+            of AR(1) parameters.
+        """
+        rho_grids = np.arange(self.rho_bins) * 2 / self.rho_bins - 1 \
+            + 1 / self.rho_bins
+        rho_weights = np.ones(self.rho_bins) / self.rho_bins
+        return rho_grids, rho_weights
+
+    def _matrix_flattened_grid(self, X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX,
+                               YTAcorrY_diag, XTAcorrY, X0TAY, XTAX0,
+                               n_C, n_V, n_X0, n_grid):
+        """ We need to integrate parameters SNR and rho on 2-d discrete grids.
+            This function generates matrices which have only one dimension for
+            these two parameters, with each slice in that dimension
+            corresponding to each combination of the discrete grids of SNR
+            and discrete grids of rho.
+        """
+        half_log_det_X0TAX0 = np.reshape(
+            np.repeat(self._half_log_det(X0TAX0)[None, :],
+                      self.SNR_bins, axis=0), n_grid)
+        X0TAX0 = np.reshape(
+            np.repeat(X0TAX0[None, :, :, :],
+                      self.SNR_bins, axis=0),
+            (n_grid, n_X0, n_X0))
+        X0TAX0_i = np.reshape(np.repeat(
+            X0TAX0_i[None, :, :, :],
+            self.SNR_bins, axis=0),
+            (n_grid, n_X0, n_X0))
+        s2XTAcorrX = np.reshape(
+            SNR_grids[:, None, None, None]**2 * XTAcorrX,
+            (n_grid, n_C, n_C))
+        YTAcorrY_diag = np.reshape(np.repeat(
+            YTAcorrY_diag[None, :, :],
+            self.SNR_bins, axis=0), (n_grid, n_V))
+        sXTAcorrY = np.reshape(SNR_grids[:, None, None, None]
+                               * XTAcorrY, (n_grid, n_C, n_V))
+        X0TAY = np.reshape(np.repeat(X0TAY[None, :, :, :],
+                                     self.SNR_bins, axis=0),
+                           (n_grid, n_X0, n_V))
+        XTAX0 = np.reshape(np.repeat(XTAX0[None, :, :, :],
+                                     self.SNR_bins, axis=0),
+                           (n_grid, n_C, n_X0))
+        return half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, \
+            YTAcorrY_diag, sXTAcorrY, X0TAY, XTAX0

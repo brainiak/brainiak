@@ -158,7 +158,7 @@ def test_fit():
     Y_new = signal + noise_new + inten
     ts, ts0 = brsa.transform(Y_new, scan_onsets=scan_onsets)
     p = scipy.stats.pearsonr(ts[:, 0], design.design_task[:, 0])[1]
-    assert p < 0.05, "Recovered time series does not correlate with true time series!"
+    assert p < 0.01, "Recovered time series does not correlate with true time series!"
     assert np.shape(ts) == (n_T, n_C) and np.shape(ts0) == (n_T, 1),\
         "Wrong shape in returned time series by transform function!"
 
@@ -195,7 +195,7 @@ def test_fit():
     # GP parameters are not set if not requested
     assert brsa.beta0_.shape[0] == n_nureg + 1, 'Shape of beta0 incorrect'
     p = scipy.stats.pearsonr(brsa.beta0_[0, :], inten)[1]
-    assert p < 0.05, 'recovered beta0 does not correlate with the baseline of voxels.'
+    assert p < 0.01, 'recovered beta0 does not correlate with the baseline of voxels.'
     assert np.shape(brsa.L_) == (
         n_C, rank), 'Cholesky factor should have shape of (n_C, rank)'
 

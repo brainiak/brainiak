@@ -164,7 +164,7 @@ def test_fit():
         assert np.shape(ts[i]) == (n_T[i], n_C) and np.shape(
             ts0[i]) == (n_T[i], n_nureg + 1)
         p = scipy.stats.pearsonr(ts[i][:, 0], design_mat[i][:, 0])[1]
-        assert p < 0.05, "Recovered time series does not correlate with true time series!"
+        assert p < 0.01, "Recovered time series does not correlate with true time series!"
 
         assert score[i] > score_null[
             i], "Full model does not win over null model on data containing signal"
@@ -331,7 +331,7 @@ def test_SNR_grids():
     assert np.isclose(np.sum(SNR_weights), 1) and np.isclose(np.std(SNR_weights[1:-1]), 0) and np.all(SNR_weights > 0)\
         and np.isclose(np.min(SNR_grids), 0) and np.all(SNR_grids >= 0) and np.isclose(np.max(SNR_grids), 1), \
         'SNR_weights or SNR_grids are incorrect for uniform prior'
-    assert np.isclose(np.std(np.diff(SNR_grids[1:-1])), 0), \
+    assert np.isclose(np.ptp(np.diff(SNR_grids[1:-1])), 0), \
         'SNR grids are not equally spaced for uniform prior'
     assert np.size(SNR_grids) == np.size(SNR_weights) and np.size(SNR_grids) == 10 ,\
         'size of SNR_grids or SNR_weights is not correct for uniform prior'
@@ -354,11 +354,281 @@ def test_SNR_grids():
 def test_n_nureg():
     import brainiak.reprsimil.brsa
     import numpy as np
-    # noise = np.random.randn(100,30)
     noise = np.dot(np.random.randn(100, 8), np.random.randn(
-        8, 30)) + np.random.randn(100, 30) * 0.01
+        8, 30)) + np.random.randn(100, 30) * 0.001
     design = np.random.randn(100, 2)
     s = brainiak.reprsimil.brsa.GBRSA(n_iter=2)
     s.fit(X=noise, design=design)
-    assert s.n_nureg_[0] > 2 and s.n_nureg_[
-        0] < 16, 'n_nureg_ estimation is wrong in GBRSA'
+    assert s.n_nureg_[0] == 8, 'n_nureg_ estimation is wrong in GBRSA'
+
+def test_grid_flatten():
+    import brainiak.reprsimil.brsa
+    import brainiak.utils.utils as utils
+    import numpy as np
+    import scipy.special
+    n_V = 30
+    n_T = 50
+    n_C = 3
+    design = np.random.randn(n_T, n_C)
+    U_simu = np.asarray([[1.0, 0.1, 0.0],[0.1, 1.0, 0.2],[0.0, 0.2, 1.0]])
+    L_simu = np.linalg.cholesky(U_simu)
+    SNR = np.random.exponential(size=n_V)
+    beta = np.dot(L_simu, np.random.randn(n_C, n_V)) * SNR
+    noise = np.random.randn(n_T, n_V)
+    Y = np.dot(design, beta) + noise
+    X = design
+    X_base = None
+    scan_onsets = [0]
+
+    s = brainiak.reprsimil.brsa.GBRSA(n_iter=1, auto_nuisance=False, SNR_prior='exp')
+    s.fit(X=[Y], design=[design])
+    rank = n_C
+    l_idx, rank = s._chol_idx(n_C, rank)
+    L = np.zeros((n_C, rank))
+    n_l = np.size(l_idx[0])
+    current_vec_U_chlsk_l = s.random_state_.randn(n_l) * 10
+    L[l_idx] = current_vec_U_chlsk_l
+
+    # Now we change the grids for SNR and rho for testing.
+    s.SNR_bins = 2
+    s.rho_bins = 2
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    # rho_grids, rho_weights = s._set_rho_grids()
+    rho_grids = np.ones(2) * 0.1
+    rho_weights = np.ones(2) / 2
+    # We purposefully set all rhos to be equal to test flattening of
+    # grids.
+    n_grid = s.SNR_bins * s.rho_bins
+
+
+    D, F, run_TRs, n_run = s._prepare_DF(
+        n_T, scan_onsets=scan_onsets)
+    XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX, XTDX, XTFX \
+        =s._prepare_data_XY( X, Y, D, F)
+    X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, X0, \
+        X_base, n_X0, idx_DC = s._prepare_data_XYX0(
+            X, Y, X_base, None, D, F, run_TRs, no_DC=False)
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+    assert half_log_det_X0TAX0[0] == half_log_det_X0TAX0[1] and \
+        half_log_det_X0TAX0[2] == half_log_det_X0TAX0[3] and \
+        half_log_det_X0TAX0[0] == half_log_det_X0TAX0[2], '_matrix_flattened_grid has mistake with half_log_det_X0TAX0'
+    assert np.array_equal(X0TAX0[0, :, :], X0TAX0[1, :, :]) and \
+        np.array_equal(X0TAX0[2, :, :], X0TAX0[3, :, :]) and \
+        np.array_equal(X0TAX0[0, :, :], X0TAX0[2, :, :]), '_matrix_flattened_grid has mistake X0TAX0'
+    assert np.array_equal(X0TAX0_i[0, :, :], X0TAX0_i[1, :, :]) and \
+        np.array_equal(X0TAX0_i[2, :, :], X0TAX0_i[3, :, :]) and \
+        np.array_equal(X0TAX0_i[0, :, :], X0TAX0_i[2, :, :]), '_matrix_flattened_grid has mistake X0TAX0_i'
+    assert np.allclose(np.dot(X0TAX0[0, :, :], X0TAX0_i[0, :, :]), np.eye(n_X0)), 'X0TAX0_i is not inverse of X0TAX0'
+    assert np.array_equal(YTAcorrY_diag[0, :], YTAcorrY_diag[1, :]) and \
+        np.array_equal(YTAcorrY_diag[2, :], YTAcorrY_diag[3, :]) and \
+        np.array_equal(YTAcorrY_diag[0, :], YTAcorrY_diag[2, :]), '_matrix_flattened_grid has mistake YTAcorrY_diag'
+    assert np.array_equal(sXTAcorrY[0, :, :], sXTAcorrY[1, :, :]) and \
+        np.array_equal(sXTAcorrY[2, :, :], sXTAcorrY[3, :, :]) and \
+        not np.array_equal(sXTAcorrY[0, :, :], sXTAcorrY[2, :, :]), '_matrix_flattened_grid has mistake sXTAcorrY'
+    assert np.array_equal(X0TAY[0, :, :], X0TAY[1, :, :]) and \
+        np.array_equal(X0TAY[2, :, :], X0TAY[3, :, :]) and \
+        np.array_equal(X0TAY[0, :, :], X0TAY[2, :, :]), '_matrix_flattened_grid has mistake X0TAY'
+    assert np.array_equal(XTAX0[0, :, :], XTAX0[1, :, :]) and \
+        np.array_equal(XTAX0[2, :, :], XTAX0[3, :, :]) and \
+        np.array_equal(XTAX0[0, :, :], XTAX0[2, :, :]), '_matrix_flattened_grid has mistake XTAX0'
+
+
+    # Now we test the other way
+    rho_grids, rho_weights = s._set_rho_grids()
+    # rho_grids, rho_weights = s._set_rho_grids()
+    SNR_grids = np.ones(2) * 0.1
+    SNR_weights = np.ones(2) / 2
+    # We purposefully set all SNR to be equal to test flattening of
+    # grids.
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+    assert half_log_det_X0TAX0[0] == half_log_det_X0TAX0[2] and \
+        half_log_det_X0TAX0[1] == half_log_det_X0TAX0[3] and \
+        not half_log_det_X0TAX0[0] == half_log_det_X0TAX0[1], '_matrix_flattened_grid has mistake with half_log_det_X0TAX0'
+    assert np.array_equal(X0TAX0[0, :, :], X0TAX0[2, :, :]) and \
+        np.array_equal(X0TAX0[1, :, :], X0TAX0[3, :, :]) and \
+        not np.array_equal(X0TAX0[0, :, :], X0TAX0[1, :, :]), '_matrix_flattened_grid has mistake X0TAX0'
+    assert np.array_equal(X0TAX0_i[0, :, :], X0TAX0_i[2, :, :]) and \
+        np.array_equal(X0TAX0_i[1, :, :], X0TAX0_i[3, :, :]) and \
+        not np.array_equal(X0TAX0_i[0, :, :], X0TAX0_i[1, :, :]), '_matrix_flattened_grid has mistake X0TAX0_i'
+    assert np.allclose(np.dot(X0TAX0[0, :, :], X0TAX0_i[0, :, :]), np.eye(n_X0)), 'X0TAX0_i is not inverse of X0TAX0'
+    assert np.array_equal(YTAcorrY_diag[0, :], YTAcorrY_diag[2, :]) and \
+        np.array_equal(YTAcorrY_diag[1, :], YTAcorrY_diag[3, :]) and \
+        not np.array_equal(YTAcorrY_diag[0, :], YTAcorrY_diag[1, :]), '_matrix_flattened_grid has mistake YTAcorrY_diag'
+    assert np.array_equal(sXTAcorrY[0, :, :], sXTAcorrY[2, :, :]) and \
+        np.array_equal(sXTAcorrY[1, :, :], sXTAcorrY[3, :, :]) and \
+        not np.array_equal(sXTAcorrY[0, :, :], sXTAcorrY[1, :, :]), '_matrix_flattened_grid has mistake sXTAcorrY'
+    assert np.array_equal(X0TAY[0, :, :], X0TAY[2, :, :]) and \
+        np.array_equal(X0TAY[1, :, :], X0TAY[3, :, :]) and \
+        not np.array_equal(X0TAY[0, :, :], X0TAY[1, :, :]), '_matrix_flattened_grid has mistake X0TAY'
+    assert np.array_equal(XTAX0[0, :, :], XTAX0[2, :, :]) and \
+        np.array_equal(XTAX0[1, :, :], XTAX0[3, :, :]) and \
+        not np.array_equal(XTAX0[0, :, :], XTAX0[1, :, :]), '_matrix_flattened_grid has mistake XTAX0'
+
+
+    # Now test the integration over SNR
+    s.SNR_bins = 50
+    s.rho_bins = 1
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    rho_grids, rho_weights = s._set_rho_grids()
+    n_grid = s.SNR_bins * s.rho_bins
+
+
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
+    log_weights = np.reshape(
+        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+    all_rho_grids = np.reshape(np.repeat(
+        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
+    all_SNR_grids = np.reshape(np.repeat(
+        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
+    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
+        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
+            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    LL_total, _ = s._loglike_marginalized(current_vec_U_chlsk_l, s2XTAcorrX,
+                                         YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
+                                          log_weights, log_fixed_terms,
+                                          l_idx, n_C, n_T, n_V, n_X0,
+                                          n_grid, rank=rank)
+    LL_total = - LL_total
+    # Now we re-calculate using scipy.integrate
+    s.SNR_bins = 100
+    SNR_grids = np.linspace(0,12,s.SNR_bins)
+    SNR_weights = np.exp(- SNR_grids)
+    SNR_weights = SNR_weights / np.sum(SNR_weights)
+    n_grid = s.SNR_bins * s.rho_bins
+
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
+    log_weights = np.reshape(
+        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+    all_rho_grids = np.reshape(np.repeat(
+        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
+    all_SNR_grids = np.reshape(np.repeat(
+        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
+    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
+        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
+            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    LL_raw, _, _, _ = s._raw_loglike_grids(L, s2XTAcorrX, YTAcorrY_diag,
+                                           sXTAcorrY, half_log_det_X0TAX0,
+                                           log_weights, log_fixed_terms,
+                                           n_C, n_T, n_V, n_X0,
+                                           n_grid, rank)
+    result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+    scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
+    LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
+
+    tol = 1e-3
+    assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
+        'Error of log likelihood calculation exceeds the tolerance'
+
+
+    # Now test the log normal prior
+    s = brainiak.reprsimil.brsa.GBRSA(n_iter=1, auto_nuisance=False, SNR_prior='lognorm')
+    s.SNR_bins = 50
+    s.rho_bins = 1
+    SNR_grids, SNR_weights = s._set_SNR_grids()
+    rho_grids, rho_weights = s._set_rho_grids()
+    n_grid = s.SNR_bins * s.rho_bins
+
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
+    log_weights = np.reshape(
+        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+    all_rho_grids = np.reshape(np.repeat(
+        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
+    all_SNR_grids = np.reshape(np.repeat(
+        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
+    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
+        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
+            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    LL_total, _ = s._loglike_marginalized(current_vec_U_chlsk_l, s2XTAcorrX,
+                                         YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
+                                          log_weights, log_fixed_terms,
+                                          l_idx, n_C, n_T, n_V, n_X0,
+                                          n_grid, rank=rank)
+    LL_total = - LL_total
+    # Now we re-calculate using scipy.integrate
+    s.SNR_bins = 400
+    SNR_grids = np.linspace(1e-8,20,s.SNR_bins)
+    log_SNR_weights = scipy.stats.lognorm.logpdf(SNR_grids,s=s.logS_range)
+    result_sum, max_value, result_exp = utils.sumexp_stable(log_SNR_weights[:, None])
+    SNR_weights = np.squeeze(result_exp / result_sum)
+    n_grid = s.SNR_bins * s.rho_bins
+
+    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+        = s._precompute_ar1_quad_forms_marginalized(
+            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+
+    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
+    log_weights = np.reshape(
+        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+    all_rho_grids = np.reshape(np.repeat(
+        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
+    all_SNR_grids = np.reshape(np.repeat(
+        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
+    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
+        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
+            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    LL_raw, _, _, _ = s._raw_loglike_grids(L, s2XTAcorrX, YTAcorrY_diag,
+                                           sXTAcorrY, half_log_det_X0TAX0,
+                                           log_weights, log_fixed_terms,
+                                           n_C, n_T, n_V, n_X0,
+                                           n_grid, rank)
+    result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
+    scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
+    LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
+
+    tol = 1e-3
+    assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
+        'Error of log likelihood calculation exceeds the tolerance'
