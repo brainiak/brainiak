@@ -361,7 +361,9 @@ def test_n_nureg():
     s.fit(X=noise, design=design)
     assert s.n_nureg_[0] == 8, 'n_nureg_ estimation is wrong in GBRSA'
 
-def test_grid_flatten():
+def test_grid_flatten_num_int():
+    # Check for numeric integration of SNR, and correctly flattening 2-D grids
+    # to 1-D grid.
     import brainiak.reprsimil.brsa
     import brainiak.utils.utils as utils
     import numpy as np
