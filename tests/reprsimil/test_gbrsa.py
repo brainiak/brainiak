@@ -410,6 +410,7 @@ def test_grid_flatten_num_int():
     X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0, X0TY, X0TDY, X0TFY, X0, \
         X_base, n_X0, idx_DC = s._prepare_data_XYX0(
             X, Y, X_base, None, D, F, run_TRs, no_DC=False)
+
     X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
         = s._precompute_ar1_quad_forms_marginalized(
             XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
@@ -420,6 +421,7 @@ def test_grid_flatten_num_int():
         sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
             X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
             X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
     assert half_log_det_X0TAX0[0] == half_log_det_X0TAX0[1] and \
         half_log_det_X0TAX0[2] == half_log_det_X0TAX0[3] and \
         half_log_det_X0TAX0[0] == half_log_det_X0TAX0[2], '_matrix_flattened_grid has mistake with half_log_det_X0TAX0'
@@ -461,6 +463,7 @@ def test_grid_flatten_num_int():
         sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
             X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
             X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+
     assert half_log_det_X0TAX0[0] == half_log_det_X0TAX0[2] and \
         half_log_det_X0TAX0[1] == half_log_det_X0TAX0[3] and \
         not half_log_det_X0TAX0[0] == half_log_det_X0TAX0[1], '_matrix_flattened_grid has mistake with half_log_det_X0TAX0'
@@ -492,29 +495,36 @@ def test_grid_flatten_num_int():
     rho_grids, rho_weights = s._set_rho_grids()
     n_grid = s.SNR_bins * s.rho_bins
 
+    def setup_for_test():
+        # This function will be re-used to set up the variables necessary for testing.
 
-    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
-        = s._precompute_ar1_quad_forms_marginalized(
-            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
-            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
+        X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
+            = s._precompute_ar1_quad_forms_marginalized(
+                XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
+                XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
+                X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
 
-    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
-        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
-            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
-            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
+        half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
+            sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
+                X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
+                X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
 
-    log_weights = np.reshape(
-        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
-    all_rho_grids = np.reshape(np.repeat(
-        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-    all_SNR_grids = np.reshape(np.repeat(
-        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
-    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
-        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
-            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+        log_weights = np.reshape(
+            np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
+        all_rho_grids = np.reshape(np.repeat(
+            rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
+        all_SNR_grids = np.reshape(np.repeat(
+            SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
+        log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
+            / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
+                (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+        return s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0, \
+            log_weights, log_fixed_terms
+
+    s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0, \
+            log_weights, log_fixed_terms = setup_for_test()
     LL_total, _ = s._loglike_marginalized(current_vec_U_chlsk_l, s2XTAcorrX,
-                                         YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
+                                          YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
                                           log_weights, log_fixed_terms,
                                           l_idx, n_C, n_T, n_V, n_X0,
                                           n_grid, rank=rank)
@@ -526,26 +536,8 @@ def test_grid_flatten_num_int():
     SNR_weights = SNR_weights / np.sum(SNR_weights)
     n_grid = s.SNR_bins * s.rho_bins
 
-    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
-        = s._precompute_ar1_quad_forms_marginalized(
-            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
-            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
-
-    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
-        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
-            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
-            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
-
-    log_weights = np.reshape(
-        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
-    all_rho_grids = np.reshape(np.repeat(
-        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-    all_SNR_grids = np.reshape(np.repeat(
-        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
-    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
-        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
-            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0, \
+            log_weights, log_fixed_terms = setup_for_test()
     LL_raw, _, _, _ = s._raw_loglike_grids(L, s2XTAcorrX, YTAcorrY_diag,
                                            sXTAcorrY, half_log_det_X0TAX0,
                                            log_weights, log_fixed_terms,
@@ -568,26 +560,8 @@ def test_grid_flatten_num_int():
     rho_grids, rho_weights = s._set_rho_grids()
     n_grid = s.SNR_bins * s.rho_bins
 
-    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
-        = s._precompute_ar1_quad_forms_marginalized(
-            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
-            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
-
-    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
-        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
-            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
-            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
-
-    log_weights = np.reshape(
-        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
-    all_rho_grids = np.reshape(np.repeat(
-        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-    all_SNR_grids = np.reshape(np.repeat(
-        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
-    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
-        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
-            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0, \
+            log_weights, log_fixed_terms = setup_for_test()
     LL_total, _ = s._loglike_marginalized(current_vec_U_chlsk_l, s2XTAcorrX,
                                          YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0,
                                           log_weights, log_fixed_terms,
@@ -602,26 +576,8 @@ def test_grid_flatten_num_int():
     SNR_weights = np.squeeze(result_exp / result_sum)
     n_grid = s.SNR_bins * s.rho_bins
 
-    X0TAX0, X0TAX0_i, XTAcorrX, XTAcorrY, YTAcorrY_diag, X0TAY, XTAX0 \
-        = s._precompute_ar1_quad_forms_marginalized(
-            XTY, XTDY, XTFY, YTY_diag, YTDY_diag, YTFY_diag, XTX,
-            XTDX, XTFX, X0TX0, X0TDX0, X0TFX0, XTX0, XTDX0, XTFX0,
-            X0TY, X0TDY, X0TFY, rho_grids, n_V, n_X0)
-
-    half_log_det_X0TAX0, X0TAX0, X0TAX0_i, s2XTAcorrX, YTAcorrY_diag, \
-        sXTAcorrY, X0TAY, XTAX0 = s._matrix_flattened_grid(
-            X0TAX0, X0TAX0_i, SNR_grids, XTAcorrX, YTAcorrY_diag, XTAcorrY,
-            X0TAY, XTAX0, n_C, n_V, n_X0, n_grid)
-
-    log_weights = np.reshape(
-        np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
-    all_rho_grids = np.reshape(np.repeat(
-        rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-    all_SNR_grids = np.reshape(np.repeat(
-        SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
-    log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
-        / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
-            (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
+    s2XTAcorrX, YTAcorrY_diag, sXTAcorrY, half_log_det_X0TAX0, \
+            log_weights, log_fixed_terms = setup_for_test()
     LL_raw, _, _, _ = s._raw_loglike_grids(L, s2XTAcorrX, YTAcorrY_diag,
                                            sXTAcorrY, half_log_det_X0TAX0,
                                            log_weights, log_fixed_terms,
