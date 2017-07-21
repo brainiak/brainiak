@@ -13,7 +13,8 @@
 #  limitations under the License.
 """Topographical Factor Analysis (TFA)
 
-This implementation is based on the work:
+This implementation is based on the work in [Manning2014]_ and
+[AndersonM2016]_.
 
 .. [Manning2014] "Topographic factor analysis: a bayesian model for inferring
    brain networks from neural data", J. R. Manning, R. Ranganath, K. A. Norman,
@@ -35,7 +36,7 @@ from scipy.optimize import least_squares
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial import distance
 from ..utils.utils import from_tri_2_sym, from_sym_2_tri
-from . import tfa_extension
+from . import tfa_extension  # type: ignore
 import numpy as np
 import math
 import gc

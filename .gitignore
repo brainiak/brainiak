@@ -1,5 +1,6 @@
 *.iml
 *.eggs
+*.mat
 *.pyc
 *.so
 *.swp
@@ -10,6 +11,7 @@
 *.nii
 *.nii.gz
 *.png
+*.txt
 *.zip
 *.pkl
 
@@ -17,8 +19,8 @@ data
 
 brainiak.egg-info
 build
-.cache
-.coverage
+.*cache
+.coverage*
 coverage.xml
 dist
 docs/*.rst

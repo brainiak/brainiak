@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Full correlation matrix analysis
 
-The implementation is based on the following publications:
+The implementation is based on the work in [Wang2015-1]_ and [Wang2015-2]_.
 
 .. [Wang2015-1] Full correlation matrix analysis (FCMA): An unbiased method for
    task-related functional connectivity",

@@ -11,7 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-from sklearn.utils.validation import NotFittedError
+from sklearn.exceptions import NotFittedError
 import pytest
 
 def test_can_instantiate():
@@ -20,6 +20,7 @@ def test_can_instantiate():
     assert s, "Invalid SRM instance!"
 
     import numpy as np
+    np.random.seed(0)
 
     voxels = 100
     samples = 500
@@ -62,6 +63,9 @@ def test_can_instantiate():
 
     # Check that runs with 2 subject
     s.fit(X)
+    from pathlib import Path
+    sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npz")['sr']
+    assert(np.allclose(sr_v0_4, s.s_))
 
     assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
     for subject in range(subjects):
@@ -189,5 +193,4 @@ def test_det_srm():
     with pytest.raises(ValueError) as excinfo:
         model.fit(X)
     print("Test: different number of samples per subject")
-
 
