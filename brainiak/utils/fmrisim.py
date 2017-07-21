@@ -858,7 +858,7 @@ def _calc_sfnr(volume,
 
     # What is the max activation of the mean of this voxel (allows you to
     # convert between the mask and the mean of the brain volume)
-    max_activity = np.mean(volume,3).max()
+    max_activity = np.mean(volume, 3).max()
 
     return temporal_noise, sfnr, max_activity
 
