@@ -856,8 +856,9 @@ def _calc_sfnr(volume,
     # Convert from memmap
     sfnr = float(sfnr)
 
-    # What is the max activation of this volume
-    max_activity = volume.max()
+    # What is the max activation of the mean of this voxel (allows you to
+    # convert between the mask and the mean of the brain volume)
+    max_activity = np.mean(volume,3).max()
 
     return temporal_noise, sfnr, max_activity
 
@@ -1092,17 +1093,13 @@ def _generate_noise_temporal_drift(trs,
 
     """
 
-    # What time points are sampled by a TR?
-    timepoints = list(range(0, trs * tr_duration))[::tr_duration]
+    # Calculate the cycles of the drift for a given function.
+    frequency = 150  # Assume the frequency is 150 seconds
+    cycles = round(trs * tr_duration / frequency) + 1
 
-    # Calculate the coefficients of the drift for a given function
-    degree = round(trs * tr_duration / 150) + 1
-    if degree > 50:
-        degree = 50  # Max out in order to avoid precision errors
-    coefficients = np.random.normal(0, 1, size=degree)
-
-    # What are the values of this drift
-    noise_drift = np.polyval(coefficients, timepoints)
+    # Create a sine wave with a given number of cycles
+    timepoints = np.linspace(0, trs - 1, trs)
+    noise_drift = np.sin(timepoints / (trs - 1) * cycles * 2 * np.pi)
 
     # Normalize
     noise_drift = stats.zscore(noise_drift)
@@ -1361,8 +1358,7 @@ def _generate_noise_temporal(stimfunction_tr,
 
     drift_sigma : float
 
-        What is the sigma on the distribution that coefficients are
-        randomly sampled from
+        What is the sigma on the size of the sine wave
 
     auto_reg_sigma : float, list
         How large is the sigma on the autocorrelation. Higher means more
@@ -1500,10 +1496,11 @@ def mask_brain(volume,
 
         if len(volume.shape) == 4:
             mask_raw[:, :, :, 0] = np.mean(volume, 3)
+            mask_max = np.mean(volume, 3).max()
         else:
             mask_raw[:, :, :, 0] = np.array(volume)
+            mask_max = volume.max()
 
-        mask_max = volume.max()
     else:
         mask_max = 1
 
