@@ -1094,12 +1094,14 @@ def _generate_noise_temporal_drift(trs,
     """
 
     # Calculate the cycles of the drift for a given function.
-    frequency = 150  # Assume the frequency is 150 seconds
-    cycles = round(trs * tr_duration / frequency) + 1
+    period = 150  # Assume the period is 150 seconds
+    cycles = trs * tr_duration / period
 
     # Create a sine wave with a given number of cycles
     timepoints = np.linspace(0, trs - 1, trs)
-    noise_drift = np.sin(timepoints / (trs - 1) * cycles * 2 * np.pi)
+    phaseshift = np.pi * 2 * np.random.random()
+    noise_drift = np.sin((timepoints / (trs - 1) * cycles * 2 * np.pi) + \
+                  phaseshift)
 
     # Normalize
     noise_drift = stats.zscore(noise_drift)
