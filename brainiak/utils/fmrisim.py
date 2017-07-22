@@ -1072,9 +1072,8 @@ def _generate_noise_temporal_drift(trs,
 
     """Generate the drift noise
 
-    According to AFNI (https://afni.nimh.nih.gov/pub/dist/doc/
-    program_help/3dDeconvolve.html) the appropriate order of the
-    polynomial to fit for temporal drift is calculated as follows
+    Create a sinewave, of 150s period and random phase, to represent the
+    drift of the signal over time
 
     Parameters
     ----------
@@ -1089,7 +1088,7 @@ def _generate_noise_temporal_drift(trs,
     Returns
     ----------
     one dimensional array, float
-        Generates the autoregression noise timecourse
+        The drift timecourse of activity
 
     """
 
@@ -1100,8 +1099,8 @@ def _generate_noise_temporal_drift(trs,
     # Create a sine wave with a given number of cycles
     timepoints = np.linspace(0, trs - 1, trs)
     phaseshift = np.pi * 2 * np.random.random()
-    noise_drift = np.sin((timepoints / (trs - 1) * cycles * 2 * np.pi) + \
-                  phaseshift)
+    noise_drift = np.sin((timepoints / (trs - 1) * cycles * 2 * np.pi) + 
+                         phaseshift)
 
     # Normalize
     noise_drift = stats.zscore(noise_drift)
