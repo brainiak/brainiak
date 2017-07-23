@@ -577,41 +577,42 @@ def double_gamma_hrf(stimfunction,
 
     Parameters
     ----------
-        stimfunction : list, bool
-            What is the time course of events to be modelled in this
-            experiment
 
-        tr_duration : float
-            How long (in s) between each volume onset
+    stimfunction : list, bool
+        What is the time course of events to be modelled in this
+        experiment
 
-        response_delay : float
-            How many seconds until the peak of the HRF
+    tr_duration : float
+        How long (in s) between each volume onset
 
-        undershoot_delay : float
-            How many seconds until the trough of the HRF
+    response_delay : float
+        How many seconds until the peak of the HRF
 
-        response_dispersion : float
-            How wide is the rising peak dispersion
+    undershoot_delay : float
+        How many seconds until the trough of the HRF
 
-        undershoot_dispersion : float
-            How wide is the undershoot dispersion
+    response_dispersion : float
+        How wide is the rising peak dispersion
 
-        response_scale : float
-             How big is the response relative to the peak
+    undershoot_dispersion : float
+        How wide is the undershoot dispersion
 
-        undershoot_scale :float
-            How big is the undershoot relative to the trough
+    response_scale : float
+         How big is the response relative to the peak
 
-        scale_function : bool
-            Do you want to scale the function to a range of 1
+    undershoot_scale :float
+        How big is the undershoot relative to the trough
 
-        temporal_resolution : float
-            How many elements per second are you modeling for the stimfunction
+    scale_function : bool
+        Do you want to scale the function to a range of 1
+
+    temporal_resolution : float
+        How many elements per second are you modeling for the stimfunction
     Returns
     ----------
 
-        one dimensional array
-            The time course of the HRF convolved with the stimulus function
+    one dimensional array
+        The time course of the HRF convolved with the stimulus function
 
 
     """
@@ -677,12 +678,13 @@ def apply_signal(signal_function,
 
     Parameters
     ----------
-        signal_function : list, float
-            The one dimensional timecourse of the signal over time.
-            Found by convolving the HRF with the stimulus time course.
 
-        volume_signal : multi dimensional array, float
-            The volume containing the signal to be convolved
+    signal_function : list, float
+        The one dimensional timecourse of the signal over time.
+        Found by convolving the HRF with the stimulus time course.
+
+    volume_signal : multi dimensional array, float
+        The volume containing the signal to be convolved
 
 
     Returns
@@ -715,6 +717,7 @@ def _calc_fwhm(volume,
 
     Parameters
     ----------
+
     volume : 3 dimensional array
         Functional data to have the FWHM measured.
 
@@ -945,22 +948,14 @@ def calc_noise(volume,
 
     # What is the max activation of the mean of this voxel (allows you to
     # convert between the mask and the mean of the brain volume)
-    if 'max_activity' not in noise_dict:
-        noise_dict['max_activity'] = np.mean(volume, 3).max()
+    noise_dict['max_activity'] = np.mean(volume, 3).max()
 
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
 
     # Calculate the temporal variability of the volume
-    temporal_noise, sfnr, auto_reg_sigma, drift_sigma = \
-        _calc_temporal_noise(volume, mask)
-
-    # Add parameters if appropriate
-    if 'temporal_noise' not in noise_dict:
-        noise_dict['temporal_noise'] = temporal_noise
-
-    if 'sfnr' not in noise_dict:
-        noise_dict['sfnr'] =sfnr
+    noise_dict['temporal_noise'], noise_dict['sfnr'], auto_reg_sigma, \
+    drift_sigma = _calc_temporal_noise(volume, mask)
 
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
@@ -972,16 +967,15 @@ def calc_noise(volume,
         trs = list(range(0, volume.shape[3]))
 
     # Go through the trs and pull out the fwhm
-    if 'fwhm' not in noise_dict:
-        fwhm = [0] * len(trs)
-        for tr in list(range(0, len(trs))):
-            fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
-                                  mask[:, :, :, trs[tr]],
-                                  noise_dict['voxel_size'],
-                                  )
+    fwhm = [0] * len(trs)
+    for tr in list(range(0, len(trs))):
+        fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
+                              mask[:, :, :, trs[tr]],
+                              noise_dict['voxel_size'],
+                              )
 
-        # Keep only the mean
-        noise_dict['fwhm'] = np.mean(fwhm)
+    # Keep only the mean
+    noise_dict['fwhm'] = np.mean(fwhm)
 
     # Calibrate for how sigma is originally calculated
 
@@ -991,11 +985,8 @@ def calc_noise(volume,
     total_temporal_noise = auto_reg_sigma + drift_sigma
 
     # What proportion of noise is accounted for by these variables?
-    if 'auto_reg_sigma' not in noise_dict:
-        noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
-
-    if 'drift_sigma' not in noise_dict:
-        noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
+    noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
+    noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
 
     # Return the noise dictionary
     return noise_dict
@@ -1072,7 +1063,7 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
 def _generate_noise_temporal_drift(trs,
                                    tr_duration,
-                                   period = 150,
+                                   period=150,
                                    ):
 
     """Generate the drift noise
@@ -1268,6 +1259,7 @@ def _generate_noise_spatial(dimensions,
 
             Parameters
             ----------
+
             x : float
                 x value of log function
 
@@ -1608,6 +1600,7 @@ def generate_noise(dimensions,
 
     Parameters
     ----------
+
     dimensions : nd array
         What is the shape of the volume to be generated
 
