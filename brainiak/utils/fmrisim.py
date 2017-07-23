@@ -17,37 +17,53 @@
 Simulate fMRI data for a single subject.
 
 This code provides a set of functions necessary to produce realistic
-simulations of neural data.
+simulations of fMRI data. There are two main steps: characterizing the
+signal and generating the noise model, which are then combined to simulate
+brain data. Tools are included to support the creation of different types
+of signal, such as region specific differences in univariate
+activity. To create the noise model the parameters can either be set
+manually or can be estimated from real fMRI data with reasonable accuracy (
+works best when fMRI data has not been preprocessed)
 
-Steps:
+Functions:
 
 generate_signal
-Specify the volume (or volumes) which represent the signal in the neural data.
+Create a volume with activity, of a specified shape and either multivariate
+or univariate pattern, in a specific region to represent the signal in the
+neural data.
 
 generate_stimfunction
-Create a function to describe the stimulus onsets/durations
+Create a timecourse of the signal activation. This can be specified using event
+onsets and durations from a timing file.
 
 export_stimfunction:
 Generate a three column timing file that can be used with software like FSL
+to represent event event onsets and duration
 
 double_gamma_hrf
-Convolve the stimulus function with the HRF to model when events are expected.
+Convolve the signal timecourse with the double gamma HRF to model the
+expected evoked activity
 
 apply_signal
-Combine the volume and the HRF
+Combine the signal volume with the HRF, thus giving the signal the temporal
+properties of the HRF (such as smoothing and lag)
 
 calc_noise
-Estimate the noise properties of a given volume
+Estimate the noise properties of a given fMRI volume. Prominently, estimate
+the smoothing and SFNR of the data
 
 generate_noise
-Create the noise for this run. This creates temporal, task and white noise.
-Various parameters can be tuned depending on need
+Create the noise for this run. This creates temporal, spatial task and white
+noise. Various parameters can be tuned depending on need
 
 mask_brain
-Mask the volume to look like a volume. Based on MNI standard space
+Create a mask volume that has similar contrast as an fMRI image. Defaults to
+use an MNI grey matter atlas but any image can be supplied to create an
+estimate.
 
 plot_brain
-Show the brain as it unfolds over time with a given opacity.
+Display the brain, timepoint by timepoint, with above threshold voxels
+highlighted against the outline of the brain.
 
 
  Authors:
@@ -85,18 +101,17 @@ def _generate_feature(feature_type,
                       thickness=1):
     """Generate features corresponding to signal
 
-    Generate signal in specific regions of the brain with for a single
-    volume. This will then be convolved with the HRF across time
+    Generate a single feature, that can be inserted into the signal volume
 
     Parameters
     ----------
 
     feature_type : str
-        What feature_type of signal is being inserted? Options are cube,
-        loop, cavity, sphere.
+        What shape signal is being inserted? Options are 'cube',
+        'loop' (aka ring), 'cavity' (aka hollow sphere), 'sphere'.
 
     feature_size : int
-        How big is the signal?
+        How big is the signal in diameter?
 
     signal_magnitude : float
         Set the signal size, a value of 1 means the signal is one standard
@@ -109,7 +124,7 @@ def _generate_feature(feature_type,
     ----------
 
     3 dimensional array
-        The volume representing the signal to be outputed
+        The volume representing the signal
 
     """
 
@@ -212,7 +227,7 @@ def _generate_feature(feature_type,
 
 
 def _insert_idxs(feature_centre, feature_size, dimensions):
-    """Returns the indexes of where to put the signal into Volume_Static
+    """Returns the indices of where to put the signal into the signal volume
 
     Parameters
     ----------
@@ -221,7 +236,7 @@ def _insert_idxs(feature_centre, feature_size, dimensions):
         List of coordinates for the centre location of the signal
 
     feature_size : list, int
-        How big is the signal.
+        How big is the signal's diameter.
 
     dimensions : 3 length array, int
         What are the dimensions of the volume you wish to create
@@ -281,7 +296,7 @@ def generate_signal(dimensions,
                     ):
     """Generate volume containing signal
 
-    Generate signal in specific regions of the brain with for a single
+    Generate signal, of a specific shape in specific regions, for a single
     volume. This will then be convolved with the HRF across time
 
     Parameters
@@ -294,19 +309,20 @@ def generate_signal(dimensions,
         What are the feature_coordinates of the signal being created.
         Be aware of clipping: features far from the centre of the
         brain will be clipped. If you wish to have multiple features
-        then list these as an features x 3 array. To create a signal of
-        a specific shape then supply all the individual
-        feature_coordinates and set the feature_size to 1.
+        then list these as a features x 3 array. To create a feature of
+        a unique shape then supply all the individual
+        feature_coordinates of the shape and set the feature_size to 1.
 
     feature_size : list, int
-        How big is the signal. If m=1 then only one value is accepted,
-        if m>1 then either one value must be supplied or m values
+        How big is the signal. If feature_coordinates=1 then only one value is
+        accepted, if feature_coordinates>1 then either one value must be
+        supplied or m values
 
     feature_type : list, string
         What feature_type of signal is being inserted? Options are cube,
-        loop, cavity, sphere. If features = 1 then
-        only one value is accepted, if features > 1 then either one value
-        must be supplied or m values
+        loop, cavity, sphere. If feature_coordinates = 1 then
+        only one value is accepted, if feature_coordinates > 1 then either
+        one value must be supplied or m values
 
     signal_magnitude : list, float
         What is the (average) magnitude of the signal being generated? A
@@ -314,18 +330,19 @@ def generate_signal(dimensions,
         noise
 
     signal_constant : list, bool
-        Is the signal constant or is it a random pattern (with the same
-        average magnitude)
+        Is the signal constant across the feature (for univariate activity)
+        or is it a random pattern of a given magnitude across the feature (for
+        multivariate activity)
 
     Returns
     ----------
-    volume_static : 3 dimensional array, float
+    volume_signal : 3 dimensional array, float
         Creates a single volume containing the signal
 
     """
 
     # Preset the volume
-    volume_static = np.zeros(dimensions)
+    volume_signal = np.zeros(dimensions)
 
     feature_quantity = round(feature_coordinates.shape[0])
 
@@ -369,10 +386,10 @@ def generate_signal(dimensions,
                                            dimensions)
 
         # Insert the signal into the Volume
-        volume_static[x_idx[0]:x_idx[1], y_idx[0]:y_idx[1], z_idx[0]:z_idx[
+        volume_signal[x_idx[0]:x_idx[1], y_idx[0]:y_idx[1], z_idx[0]:z_idx[
             1]] = signal
 
-    return volume_static
+    return volume_signal
 
 
 def generate_stimfunction(onsets,
@@ -382,43 +399,46 @@ def generate_stimfunction(onsets,
                           timing_file=None,
                           temporal_resolution=1000.0,
                           ):
-    """Return the function for the onset of events
+    """Return the function for the timecourse events
 
     When do stimuli onset, how long for and to what extent should you
     resolve the fMRI time course. There are two ways to create this, either
     by supplying onset, duration and weight information or by supplying a
-    timing file (in the three column format)
+    timing file (in the three column format used by FSL).
 
     Parameters
     ----------
 
-        onsets : list, int
-            What are the timestamps for when an event you want to generate
-            onsets?
+    onsets : list, int
+        What are the timestamps (in s) for when an event you want to
+        generate onsets?
 
-        event_durations : list, int
-            What are the durations of the events you want to generate? If
-            there is only one value then this will be assigned to all onsets
+    event_durations : list, int
+        What are the durations (in s) of the events you want to
+        generate? If there is only one value then this will be assigned
+        to all onsets
 
-        total_time : int
-            How long is the experiment in total.
+    total_time : int
+        How long (in s) is the experiment in total.
 
-        weights : list, float
-            How large is the box car for each of the onsets. If there is
-            only one value then this will be assigned to all onsets
+    weights : list, float
+        What is the weight for each event (how high is the box car)? If
+        there is only one value then this will be assigned to all onsets
 
-        timing_file : string
-            The filename (with path) to a three column timing file (FSL) to
-            make the events. Still requires tr_duration and total_time
+    timing_file : string
+        The filename (with path) to a three column timing file (FSL) to
+        make the events. Still requires total_time to work
 
-        temporal_resolution : float
-            How many elements per second are you modeling for the stim function
+    temporal_resolution : float
+        How many elements per second are you modeling for the
+        timecourse. This is useful when you want to model the HRF at an
+        arbitrarily high resolution (and then downsample to your TR later).
 
     Returns
     ----------
 
     Iterable[float]
-        The time course of stimulus related activation
+        The time course of stimulus evoked activation
 
     """
 
@@ -477,23 +497,26 @@ def export_stimfunction(stimfunction,
                         filename,
                         temporal_resolution=1000.0
                         ):
-    """ Output a tab separated timing file
+    """ Output a tab separated three column timing file
 
     This produces a three column tab separated text file, with the three
-    columns representing onset time, event duration and weight, respectively
-
-    Useful if you want to run the simulated data through FEAT analyses
+    columns representing onset time (s), event duration (s) and weight,
+    respectively. Useful if you want to run the simulated data through FEAT
+    analyses
 
     Parameters
     ----------
-        stimfunction : list
-            The stimulus function describing the time course of events
 
-        filename : str
-            The name of the three column text file to be output
+    stimfunction : list
+        The stimulus function describing the time course of events. For
+        instance output from generate_stimfunction.
 
-        temporal_resolution : float
-            How many elements per second are you modeling for the stim function
+    filename : str
+        The name of the three column text file to be output
+
+    temporal_resolution : float
+        How many elements per second are you modeling with the
+        stimfunction?
 
     """
 
@@ -550,7 +573,7 @@ def double_gamma_hrf(stimfunction,
                      scale_function=1,
                      temporal_resolution=1000.0,
                      ):
-    """Return a double gamma HRF
+    """Convolve the double gamma HRF with the timecourse evoked activity
 
     Parameters
     ----------
@@ -559,6 +582,7 @@ def double_gamma_hrf(stimfunction,
             experiment
 
         tr_duration : float
+            How long (in s) between each volume onset
 
         response_delay : float
             How many seconds until the peak of the HRF
@@ -582,7 +606,7 @@ def double_gamma_hrf(stimfunction,
             Do you want to scale the function to a range of 1
 
         temporal_resolution : float
-            How many elements per second are you modeling for the stim function
+            How many elements per second are you modeling for the stimfunction
     Returns
     ----------
 
@@ -644,9 +668,9 @@ def double_gamma_hrf(stimfunction,
 
 
 def apply_signal(signal_function,
-                 volume_static,
+                 volume_signal,
                  ):
-    """Apply the convolution and stimfunction
+    """Combine the signal volume with its timecourse
 
     Apply the convolution of the HRF and stimulus time course to the
     volume.
@@ -657,24 +681,27 @@ def apply_signal(signal_function,
             The one dimensional timecourse of the signal over time.
             Found by convolving the HRF with the stimulus time course.
 
-        volume_static : multi dimensional array, float
+        volume_signal : multi dimensional array, float
+            The volume containing the signal to be convolved
 
 
     Returns
     ----------
     multidimensional array, float
-        Generates the spatial noise volume for these parameters """
+        The convolved signal volume
+
+    """
 
     # Preset volume
-    signal = np.ndarray([volume_static.shape[0], volume_static.shape[
-        1], volume_static.shape[2], len(signal_function)])
+    signal = np.ndarray([volume_signal.shape[0], volume_signal.shape[
+        1], volume_signal.shape[2], len(signal_function)])
 
     # Iterate through the brain, multiplying the volume by the HRF
     for tr_counter in list(range(0, len(signal_function))):
-        signal[0:volume_static.shape[0],
-               0:volume_static.shape[1],
-               0:volume_static.shape[2],
-               tr_counter] = signal_function[tr_counter] * volume_static
+        signal[0:volume_signal.shape[0],
+               0:volume_signal.shape[1],
+               0:volume_signal.shape[2],
+               tr_counter] = signal_function[tr_counter] * volume_signal
 
     return signal
 
@@ -684,25 +711,26 @@ def _calc_fwhm(volume,
                voxel_size=[1.0, 1.0, 1.0],
                ):
     """ Calculate the FWHM of a volume
-    Takes in a 3d volume and mask and outputs the FWHM (mm) of this
-    volume for the non-masked voxels
+    Estimates the FWHM (mm) of a volume's non-masked voxels
 
     Parameters
     ----------
     volume : 3 dimensional array
-    Functional data to have the FWHM measured.
+        Functional data to have the FWHM measured.
 
     mask : 3 dimensional array
-    A mask of the voxels to have the FWHM measured from
+        A binary mask of the brain voxels in volume
 
     voxel_size : length 3 list, float
-    Millimeters per voxel for x, y and z.
+        Millimeters per voxel for x, y and z.
 
     Returns
     -------
 
     float, list
-    Returns the FWHM of each TR in mm"""
+        Returns the FWHM of each TR in mm
+
+    """
 
     # What are the dimensions of the volume
     dimensions = volume.shape
@@ -785,34 +813,44 @@ def _calc_fwhm(volume,
     return fwhm
 
 
-def _calc_sfnr(volume,
-               mask,
-               ):
-    """ Calculate the SFNR of a volume
-    This takes the middle of the volume and averages the signal within the
-    brain and compares to the temporal standard deviation in the voxels
-    outside the brain.
+def _calc_temporal_noise(volume,
+                         mask,
+                         auto_reg_order=1,
+                         ):
+    """ Calculate the the temporal noise of a volume
+    This calculates the variability of the volume over time, the SFNR of the
+    volume and the proportion of variance over time that is due to
+    autoregression and how much is due to scanner drift.
 
     Parameters
     ----------
-    volume : 4d array, float
-    Take a volume time series to extract the middle slice from the middle TR
 
-    mask : 4d array, float
-    A mask the same size as the volume, specifying the mask (values=0 -> 1)
+    volume : 4d array, float
+        Take a volume time series to extract the middle slice from the
+        middle TR
+
+    mask : 4d array, binary
+        A binary mask the same size as the volume (values=0 -> 1)
+
+    auto_reg_order : int
+        What order of the autoregression do you want to pull out
+
 
     Returns
     -------
 
     float 
-    The sd of the temporal variability of brain voxels.  
+        The standard deviation of brain voxels   across time.
 
     float 
-    The sfnr of the volume (mean brain activity divided by  temporal
-    variability in the average non brain voxels)  
+        The SFNR of the volume (mean brain activity divided by  temporal
+        variability in the averaged non brain voxels)  
 
-    float 
-    What is the max activity measured here, a point of reference for masking
+    float
+        A sigma of the autoregression in the data
+
+    float
+        Sigma of the drift in the data
 
     """
 
@@ -850,45 +888,8 @@ def _calc_sfnr(volume,
     # Convert temporal noise into percent signal change
     temporal_noise = temporal_noise / mean_signal * 100
 
-    # Calculate sfnr
-    sfnr = mean_signal / background_noise
-
-    # Convert from memmap
-    sfnr = float(sfnr)
-
-    # What is the max activation of the mean of this voxel (allows you to
-    # convert between the mask and the mean of the brain volume)
-    max_activity = np.mean(volume, 3).max()
-
-    return temporal_noise, sfnr, max_activity
-
-
-def _calc_temporal_noise(volume,
-                         mask,
-                         auto_reg_order=1,
-                         ):
-    """ Calculate the mix of autoregressive and drift noise.
-
-    Parameters
-    ----------
-    volume : 4d masarray, float
-    Input data to be calculate the autoregression
-
-    mask : 4d array, float
-    What voxels of the input are within the brain
-
-    auto_reg_order : int
-    What order of the autoregression do you want to pull out
-
-    Returns
-    -------
-    float
-    A sigma of the autoregression in the data
-
-    float
-    Sigma of the drift in the data
-
-    """
+    # Calculate sfnr and convert from memmap
+    sfnr = float(mean_signal / background_noise)
 
     # Calculate the time course
     timecourse = np.mean(volume[mask[:, :, :, 0] > 0], 0)
@@ -900,7 +901,7 @@ def _calc_temporal_noise(volume,
     # What is the size of the change in the time course
     drift_sigma = timecourse.std().tolist()
 
-    return auto_reg_sigma, drift_sigma
+    return temporal_noise, sfnr, auto_reg_sigma, drift_sigma
 
 
 def calc_noise(volume,
@@ -915,43 +916,53 @@ def calc_noise(volume,
 
     Parameters
     ----------
+
     volume : 4d numpy array, float
         Take in a functional volume (either the file name or the numpy
         array) to be used to estimate the noise properties of this
 
-    mask : 4d numpy array, float
-        The mask to be used, the same size as the volume
+    mask : 4d numpy array, binary
+        A binary mask of the brain, the same size as the volume
 
     Returns
     -------
 
     dict
-    Return a dictionary of the calculated noise parameters of the provided
-    dataset
+        Return a dictionary of the calculated noise parameters of the provided
+        dataset
 
     """
 
-    # Preset
-
-    # Create the mask
+    # Create the mask if not supplied
     if mask is None:
         mask = np.ones(volume.shape)
 
-    # Update noise dict
+    # Update noise dict if it is not yet created
     if noise_dict is None:
         noise_dict = {'voxel_size': [1.0, 1.0, 1.0]}
     elif 'voxel_size' not in noise_dict:
         noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
 
+    # What is the max activation of the mean of this voxel (allows you to
+    # convert between the mask and the mean of the brain volume)
+    if 'max_activity' not in noise_dict:
+        noise_dict['max_activity'] = np.mean(volume, 3).max()
+
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
 
-    # Calculate the temporal_noise noise and SFNR of the volume
-    noise_dict['temporal_noise'], noise_dict['sfnr'], noise_dict[
-        'max_activity'] = _calc_sfnr(volume, mask)
+    # Calculate the temporal variability of the volume
+    temporal_noise, sfnr, auto_reg_sigma, drift_sigma = \
+        _calc_temporal_noise(volume, mask)
+
+    # Add parameters if appropriate
+    if 'temporal_noise' not in noise_dict:
+        noise_dict['temporal_noise'] = temporal_noise
+
+    if 'sfnr' not in noise_dict:
+        noise_dict['sfnr'] =sfnr
 
     # Calculate the fwhm on a subset of volumes
-
     if volume.shape[3] > 100:
         # Take only 100 shuffled TRs
         trs = np.arange(volume.shape[3])
@@ -961,28 +972,30 @@ def calc_noise(volume,
         trs = list(range(0, volume.shape[3]))
 
     # Go through the trs and pull out the fwhm
-    fwhm = [0] * len(trs)
-    for tr in list(range(0, len(trs))):
-        fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
-                              mask[:, :, :, trs[tr]],
-                              noise_dict['voxel_size'],
-                              )
+    if 'fwhm' not in noise_dict:
+        fwhm = [0] * len(trs)
+        for tr in list(range(0, len(trs))):
+            fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
+                                  mask[:, :, :, trs[tr]],
+                                  noise_dict['voxel_size'],
+                                  )
 
-    # Keep only the mean
-    noise_dict['fwhm'] = np.mean(fwhm)
-
-    # Calculate the autoregressive and drift noise
-    auto_reg_sigma, drift_sigma = _calc_temporal_noise(volume, mask)
+        # Keep only the mean
+        noise_dict['fwhm'] = np.mean(fwhm)
 
     # Calibrate for how sigma is originally calculated
+
     auto_reg_sigma = auto_reg_sigma / noise_dict['temporal_noise']
 
     # Total temporal noise, since these values only make sense relatively
     total_temporal_noise = auto_reg_sigma + drift_sigma
 
     # What proportion of noise is accounted for by these variables?
-    noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
-    noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
+    if 'auto_reg_sigma' not in noise_dict:
+        noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
+
+    if 'drift_sigma' not in noise_dict:
+        noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
 
     # Return the noise dictionary
     return noise_dict
@@ -992,34 +1005,25 @@ def _generate_noise_system(dimensions_tr,
                            ):
     """Generate the scanner noise
 
-    Generate the noise that is typical of a scanner. This is comprised
-    of two types of noise, Rician and Gaussian
+    Generate rician noise, assumed to be appropriate for the scanner
 
     Parameters
     ----------
+
     dimensions_tr : n length array, int
         What are the dimensions of the volume you wish to insert
         noise into. This can be a volume of any size
 
     Returns
     ----------
+
         system_noise : multidimensional array, float
             Create a volume with system noise
 
-
-        """
+    """
 
     # Generate the Rician noise
     noise_rician = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions_tr)
-    #
-    # # Apply the gaussian noise
-    # noise_gaussian = np.random.normal(0, 1, size=dimensions_tr)
-    #
-    # # Combine these two noise types
-    # noise_system = noise_rician + noise_gaussian
-    #
-    # # Normalize
-    # noise_system = stats.zscore(noise_system)
 
     return noise_rician
 
@@ -1029,8 +1033,8 @@ def _generate_noise_temporal_task(stimfunction_tr,
                                   ):
     """Generate the signal dependent noise
 
-    This noise depends on things like the signal or the timing of the
-    experiment.
+    Create noise specific to the signal, for instance there is variability
+    in how the signal manifests on each event
 
     Parameters
     ----------
@@ -1044,9 +1048,9 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
     Returns
     ----------
+
     one dimensional array, float
         Generates the temporal task noise timecourse
-
 
     """
 
@@ -1068,22 +1072,22 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
 def _generate_noise_temporal_drift(trs,
                                    tr_duration,
+                                   period = 150,
                                    ):
 
     """Generate the drift noise
 
-    Create a sinewave, of 150s period and random phase, to represent the
+    Create a sinewave, of a given period and random phase, to represent the
     drift of the signal over time
 
     Parameters
     ----------
 
     trs : int
-        How many TRs are there
+        How many volumes (aka TRs) are there
 
     tr_duration : float
-        How long is each TR
-
+        How long in seconds is each volume acqusition
 
     Returns
     ----------
@@ -1093,7 +1097,6 @@ def _generate_noise_temporal_drift(trs,
     """
 
     # Calculate the cycles of the drift for a given function.
-    period = 150  # Assume the period is 150 seconds
     cycles = trs * tr_duration / period
 
     # Create a sine wave with a given number of cycles and random phase
@@ -1115,6 +1118,7 @@ def _generate_noise_temporal_autoregression(timepoints,
                                             ):
 
     """Generate the autoregression noise
+    Make a slowly drifting timecourse with the given autoregression parameters
 
     Parameters
     ----------
@@ -1134,7 +1138,8 @@ def _generate_noise_temporal_autoregression(timepoints,
     ----------
     one dimensional array, float
         Generates the autoregression noise timecourse
-        """
+
+    """
 
     if len(auto_reg_rho) == 1:
         auto_reg_rho = auto_reg_rho * auto_reg_order  # Duplicate this so that
@@ -1170,6 +1175,7 @@ def _generate_noise_temporal_phys(timepoints,
                                   heart_freq=1.17,
                                   ):
     """Generate the physiological noise.
+    Create noise representing the heart rate and respiration of the data
 
     Parameters
     ----------
@@ -1187,6 +1193,7 @@ def _generate_noise_temporal_phys(timepoints,
     ----------
     one dimensional array, float
         Generates the physiological temporal noise timecourse
+
     """
 
     noise_phys = []  # Preset
@@ -1221,6 +1228,7 @@ def _generate_noise_spatial(dimensions,
 
     Parameters
     ----------
+
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
 
@@ -1240,7 +1248,7 @@ def _generate_noise_spatial(dimensions,
         this will manifest differently on every draw. Secondly, because of
         the masking and dimensions of the generated volume, this does not
         behave simply- wrapping effects matter (the outputs are
-        closer to this value if you have no mask).
+        closer to the input value if you have no mask).
         Use _calc_fwhm on this volume alone if you have concerns about the
         accuracy of the fwhm.
 
@@ -1249,6 +1257,7 @@ def _generate_noise_spatial(dimensions,
 
     3d array, float
         Generates the spatial noise volume for these parameters
+
     """
 
     if len(dimensions) == 4:
@@ -1337,10 +1346,10 @@ def _generate_noise_temporal(stimfunction_tr,
                              physiological_sigma,
                              ):
     """Generate the temporal noise
-
-    To increase or decrease the amount of total noise change the
-    temporal_noise noise_dict entry. To change the relative mixing of the
-    noise components, change the sigma's specified below.
+    Generate the time course of the average brain voxel. To increase or
+    decrease the amount of total noise change the temporal_noise noise_dict
+    entry. To change the relative mixing of the noise components, change the
+    sigma's specified below.
 
     Parameters
     ----------
@@ -1373,11 +1382,11 @@ def _generate_noise_temporal(stimfunction_tr,
 
     Returns
     ----------
+
     one dimensional array, float
         Generates the temporal noise timecourse for these parameters
 
-
-        """
+    """
 
     # Set up common parameters
     # How many TRs are there
@@ -1399,9 +1408,6 @@ def _generate_noise_temporal(stimfunction_tr,
     # Generate the volumes that will differ depending on the type of noise
     # that it will be used for
     volume_drift = np.ones(dimensions)
-    # volume_drift = _generate_noise_spatial(dimensions=dimensions,
-    #                                        fwhm=fwhm,
-    #                                        )
 
     volume_phys = _generate_noise_spatial(dimensions=dimensions,
                                           mask=mask,
@@ -1450,17 +1456,16 @@ def mask_brain(volume,
                mask_self=0,
                ):
     """ Mask the simulated volume
-    This takes in a volume and will output the masked volume. if a one
-    dimensional array is supplied then the output will be a volume of the
-    dimensions specified in the array. The mask can be created from the
-    volume by averaging it. All masks will be bounded to the range of 0 to 1.
+    This creates a mask specifying the likelihood (kind of) a voxel is
+    part of the brain. All values are bounded to the range of 0 to 1. An
+    appropriate threshold to isolate brain voxels is >0.2
 
     Parameters
     ----------
 
     volume : multidimensional array
-        Either numpy array of the volume that has been simulated or a tuple
-        describing the dimensions of the mask to be created
+        Either numpy array of a volume or a tuple describing the dimensions
+        of the mask to be created
 
     mask_name : str
         What is the path to the mask to be loaded? If empty then it defaults
@@ -1475,8 +1480,10 @@ def mask_brain(volume,
 
     Returns
     ----------
+
     mask : multidimensional array, float
         The masked brain
+
     """
 
     # If the volume supplied is a 1d array then output a volume of the
@@ -1540,21 +1547,24 @@ def mask_brain(volume,
 
 def _noise_dict_update(noise_dict):
     """
-    Update the noise dictionary parameters, in case any were missing
+    Update the noise dictionary parameters with default values, in case any
+    were missing
 
     Parameters
     ----------
-    noise_dict : dict
 
-    A dictionary specifying the types of noise in this experiment. The noise
-    types interact in important ways. First, all noise types ending with
-    sigma (e.g. motion sigma) are mixed together in
-    _generate_temporal_noise. These values describe the proportion of mixing
-    of these elements. However critically, temporal_noise is the parameter
-    that describes how much noise these components contribute to the brain.
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, all noise types
+        ending with sigma (e.g. motion sigma) are mixed together in
+        _generate_temporal_noise. These values describe the proportion of
+        mixing of these elements. However critically, temporal_noise is the
+        parameter that describes how much noise these components contribute
+        to the brain.
 
     Returns
     -------
+
     Updated dictionary
 
     """
@@ -1594,7 +1604,7 @@ def generate_noise(dimensions,
     Default noise parameters will create a noise volume with a standard
     deviation of 0.1 (where the signal defaults to a value of 1). This has
     built into estimates of how different types of noise mix. All noise
-    values can be set by the user
+    values can be set by the user or estimated with calc_noise.
 
     Parameters
     ----------
@@ -1612,7 +1622,7 @@ def generate_noise(dimensions,
 
     noise_dict : dictionary, float
         This is a dictionary which describes the noise parameters of the
-        data. If there are no other variables provided then it will default
+        data. If there are no other variables provided then it will use default
         values
 
     Returns
@@ -1702,6 +1712,8 @@ def plot_brain(fig,
                percentile=99,
                ):
     """ Display the brain that has been generated with a given threshold
+    Will display the voxels above the given percentile and then a shadow of
+    all voxels in the mask
 
     Parameters
     ----------
