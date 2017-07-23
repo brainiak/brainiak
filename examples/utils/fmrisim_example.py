@@ -50,14 +50,14 @@ duration = 100
 savename = 'examples/utils/example.nii'
 
 # Generate a volume representing the location and quality of the signal
-volume_static_A = sim.generate_signal(dimensions=dimensions,
+volume_signal_A = sim.generate_signal(dimensions=dimensions,
                                       feature_coordinates=coordinates_A,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
                                       signal_magnitude=signal_magnitude,
                                       )
 
-volume_static_B = sim.generate_signal(dimensions=dimensions,
+volume_signal_B = sim.generate_signal(dimensions=dimensions,
                                       feature_coordinates=coordinates_B,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
@@ -67,7 +67,7 @@ volume_static_B = sim.generate_signal(dimensions=dimensions,
 # Visualize the signal that was generated for condition A
 fig = plt.figure()
 sim.plot_brain(fig,
-               volume_static_A)
+               volume_signal_A)
 plt.show()
 
 # Create the time course for the signal to be generated
@@ -96,11 +96,11 @@ signal_function_B = sim.double_gamma_hrf(stimfunction=stimfunction_B,
 
 # Multiply the HRF timecourse with the signal
 signal_A = sim.apply_signal(signal_function=signal_function_A,
-                            volume_static=volume_static_A,
+                            volume_signal=volume_signal_A,
                             )
 
 signal_B = sim.apply_signal(signal_function=signal_function_B,
-                            volume_static=volume_static_B,
+                            volume_signal=volume_signal_B,
                             )
 
 # Combine the signals from the two conditions

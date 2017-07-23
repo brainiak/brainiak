@@ -135,7 +135,7 @@ def test_apply_signal():
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     assert signal.shape == (dimensions[0], dimensions[1], dimensions[2],
@@ -143,7 +143,7 @@ def test_apply_signal():
                                                      "wrong size"
 
     signal = sim.apply_signal(signal_function=stimfunction,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     assert np.any(signal == signal_magnitude), "The stimfunction is not binary"
@@ -184,7 +184,7 @@ def test_generate_noise():
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     # Generate the mask of the signal
