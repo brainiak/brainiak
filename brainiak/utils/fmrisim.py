@@ -954,8 +954,9 @@ def calc_noise(volume,
     # be set to that level
 
     # Calculate the temporal variability of the volume
-    noise_dict['temporal_noise'], noise_dict['sfnr'], auto_reg_sigma, \
-    drift_sigma = _calc_temporal_noise(volume, mask)
+    temporal_noise, sfnr, auto_reg, drift = _calc_temporal_noise(volume, mask)
+    noise_dict['temporal_noise'] = temporal_noise
+    noise_dict['sfnr'] = sfnr
 
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
@@ -979,14 +980,14 @@ def calc_noise(volume,
 
     # Calibrate for how sigma is originally calculated
 
-    auto_reg_sigma = auto_reg_sigma / noise_dict['temporal_noise']
+    auto_reg_sigma = auto_reg / noise_dict['temporal_noise']
 
     # Total temporal noise, since these values only make sense relatively
-    total_temporal_noise = auto_reg_sigma + drift_sigma
+    total_temporal_noise = auto_reg + drift
 
     # What proportion of noise is accounted for by these variables?
-    noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
-    noise_dict['drift_sigma'] = drift_sigma / total_temporal_noise
+    noise_dict['auto_reg_sigma'] = auto_reg / total_temporal_noise
+    noise_dict['drift_sigma'] = drift / total_temporal_noise
 
     # Return the noise dictionary
     return noise_dict
