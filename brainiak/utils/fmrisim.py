@@ -982,7 +982,7 @@ def calc_noise(volume,
     auto_reg_sigma = auto_reg / noise_dict['temporal_noise']
 
     # Total temporal noise, since these values only make sense relatively
-    total_temporal_noise = auto_reg_sigma  + drift
+    total_temporal_noise = auto_reg_sigma + drift
 
     # What proportion of noise is accounted for by these variables?
     noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
