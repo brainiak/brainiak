@@ -1514,10 +1514,10 @@ def mask_brain(volume,
         volume = np.ones(volume)
 
     # Load in the mask
-    if template_name is None:
-        mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
-    elif mask_self is True:
+    if mask_self is True:
         mask_raw = volume
+    elif template_name is None:
+        mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
     else:
         mask_raw = np.load(template_name)
 
