@@ -1722,7 +1722,7 @@ def generate_noise(dimensions,
 
     # Reshape the base (to be the same size as the volume to be created)
     base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
-    base =  np.ones(dimensions_tr) * base
+    base = np.ones(dimensions_tr) * base
 
     # Sum up the noise of the brain
     noise = base + (noise_temporal * abs_change) + noise_system
