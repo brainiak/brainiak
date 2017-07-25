@@ -188,15 +188,17 @@ def test_generate_noise():
                               )
 
     # Generate the mask of the signal
-    mask = sim.mask_brain(signal, mask_threshold=0.1)
+    mask, template = sim.mask_brain(signal, mask_threshold=0.1)
 
     assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
+    assert len(np.unique(template) > 2), "Template creation did not work"
 
     stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                )
 
@@ -208,11 +210,12 @@ def test_generate_noise():
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                noise_dict={'temporal_noise': 0, 'sfnr': 10000},
                                )
 
-    temporal_noise = np.std(noise[mask[:,:,:,0]>0],1).mean()
+    temporal_noise = np.std(noise[mask > 0], 1).mean()
 
     assert temporal_noise <= 0.1, "Noise strength could not be manipulated"
 
@@ -236,8 +239,8 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:, :, :, 0]
-    brain = volume * (mask > 0)
+    mask, _ = sim.mask_brain(volume)
+    brain = volume * mask
 
     assert np.sum(brain != 0) == np.sum(volume != 0), "Masking did not work"
     assert brain[0, 0, 0] == 0, "Masking did not work"
@@ -254,8 +257,8 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:,:,:,0]
-    brain = volume * (mask > 0)
+    mask, _ = sim.mask_brain(volume)
+    brain = volume * mask
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
 
@@ -286,11 +289,12 @@ def test_calc_noise():
                                              )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(dimensions_tr)
+    mask, template = sim.mask_brain(dimensions_tr)
     stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                noise_dict=nd_orig,
                                )

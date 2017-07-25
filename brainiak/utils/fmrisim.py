@@ -832,8 +832,8 @@ def _calc_temporal_noise(volume,
         Take a volume time series to extract the middle slice from the
         middle TR
 
-    mask : 4d array, binary
-        A binary mask the same size as the volume (values=0 -> 1)
+    mask : 3d array, binary
+        A binary mask the same size as the volume
 
     auto_reg_order : int
         What order of the autoregression do you want to pull out
@@ -856,6 +856,10 @@ def _calc_temporal_noise(volume,
         Sigma of the drift in the data
 
     """
+
+    # Make the mask 4 dimensional
+    mask = mask.reshape(mask.shape[0], mask.shape[1], mask.shape[2], 1)
+    mask = np.ones(volume.shape) * mask
 
     # What are the midpoints to be extracted
     mid_x_idx = int(np.ceil(volume.shape[0] / 2))
@@ -924,7 +928,7 @@ def calc_noise(volume,
         Take in a functional volume (either the file name or the numpy
         array) to be used to estimate the noise properties of this
 
-    mask : 4d numpy array, binary
+    mask : 3d numpy array, binary
         A binary mask of the brain, the same size as the volume
 
     Returns
@@ -936,9 +940,9 @@ def calc_noise(volume,
 
     """
 
-    # Create the mask if not supplied
+    # Create the mask if not supplied and set the mask size
     if mask is None:
-        mask = np.ones(volume.shape)
+        mask = np.ones(volume.shape)[:, :, :, 0]
 
     # Update noise dict if it is not yet created
     if noise_dict is None:
@@ -971,7 +975,7 @@ def calc_noise(volume,
     fwhm = [0] * len(trs)
     for tr in list(range(0, len(trs))):
         fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
-                              mask[:, :, :, trs[tr]],
+                              mask,
                               noise_dict['voxel_size'],
                               )
 
@@ -1204,6 +1208,7 @@ def _generate_noise_temporal_phys(timepoints,
 
 
 def _generate_noise_spatial(dimensions,
+                            template=None,
                             mask=None,
                             fwhm=4.0,
                             ):
@@ -1223,8 +1228,12 @@ def _generate_noise_spatial(dimensions,
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
 
-    mask : 3d array
-        The mask describing the boundaries of the brain
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
+
+    mask : 3 dimensional array, binary
+        The masked brain, thresholded to distinguish brain and non-brain
 
     fwhm : float
         What is the full width half max of the gaussian fields being created.
@@ -1314,10 +1323,10 @@ def _generate_noise_spatial(dimensions,
     noise_spatial = np.fft.ifftn(noise * amplitude)
 
     # Mask or not, then z score
-    if mask is not None:
+    if mask is not None and template is not None:
 
         # Mask the output
-        noise_spatial = noise_spatial.real * mask
+        noise_spatial = noise_spatial.real * template
 
         # Z score the specific to the brain
         noise_spatial[mask > 0] = stats.zscore(noise_spatial[mask > 0])
@@ -1330,6 +1339,7 @@ def _generate_noise_spatial(dimensions,
 def _generate_noise_temporal(stimfunction_tr,
                              tr_duration,
                              dimensions,
+                             template,
                              mask,
                              fwhm,
                              motion_sigma,
@@ -1353,8 +1363,21 @@ def _generate_noise_temporal(stimfunction_tr,
     tr_duration : int
         How long is a TR, in seconds
 
-    motion_sigma : float
+    dimensions : 3 length array, int
+        What is the shape of the volume to be generated
 
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
+
+    mask : 3 dimensional array, binary
+        The masked brain, thresholded to distinguish brain and non-brain
+
+    fwhm : float
+        What is the full width half max of the gaussian fields being created
+        to model spatial noise.
+
+    motion_sigma : float
         How much noise is left over after pre-processing has been
         done. This is noise specifically on the task events
 
@@ -1402,11 +1425,13 @@ def _generate_noise_temporal(stimfunction_tr,
     volume_drift = np.ones(dimensions)
 
     volume_phys = _generate_noise_spatial(dimensions=dimensions,
+                                          template=template,
                                           mask=mask,
                                           fwhm=fwhm,
                                           )
 
     volume_autoreg = _generate_noise_spatial(dimensions=dimensions,
+                                             template=template,
                                              mask=mask,
                                              fwhm=fwhm,
                                              )
@@ -1430,6 +1455,7 @@ def _generate_noise_temporal(stimfunction_tr,
         noise_task = _generate_noise_temporal_task(stimfunction_tr,
                                                    )
         volume_task = _generate_noise_spatial(dimensions=dimensions,
+                                              template=template,
                                               mask=mask,
                                               fwhm=fwhm,
                                               )
@@ -1443,7 +1469,7 @@ def _generate_noise_temporal(stimfunction_tr,
 
 
 def mask_brain(volume,
-               mask_name=None,
+               template_name=None,
                mask_threshold=0.1,
                mask_self=0,
                ):
@@ -1459,9 +1485,9 @@ def mask_brain(volume,
         Either numpy array of a volume or a tuple describing the dimensions
         of the mask to be created
 
-    mask_name : str
-        What is the path to the mask to be loaded? If empty then it defaults
-        to an MNI152 grey matter mask.
+    template_name : str
+        What is the path to the template to be loaded? If empty then it
+        defaults to an MNI152 grey matter mask.
 
     mask_threshold : float
         What is the threshold (0 -> 1) for including a voxel in the mask?
@@ -1473,8 +1499,12 @@ def mask_brain(volume,
     Returns
     ----------
 
-    mask : multidimensional array, float
-        The masked brain
+    mask : 3 dimensional array, binary
+        The masked brain, thresholded to distinguish brain and non-brain
+
+    template : 3 dimensional array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
 
     """
 
@@ -1484,25 +1514,23 @@ def mask_brain(volume,
         volume = np.ones(volume)
 
     # Load in the mask
-    if mask_name is None:
+    if template_name is None:
         mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
+    elif mask_self is True:
+        mask_raw = volume
     else:
-        mask_raw = np.load(mask_name)
+        mask_raw = np.load(template_name)
 
-    # Is the mask based on the volume
-    if mask_self is True:
-        mask_raw = np.zeros([volume.shape[0], volume.shape[1], volume.shape[
-            2], 1])
-
-        if len(volume.shape) == 4:
-            mask_raw[:, :, :, 0] = np.mean(volume, 3)
-            mask_max = np.mean(volume, 3).max()
-        else:
-            mask_raw[:, :, :, 0] = np.array(volume)
-            mask_max = volume.max()
-
+    # Make the masks 3d
+    if len(mask_raw.shape) == 3:
+        mask_raw = np.array(mask_raw)
+    elif len(mask_raw.shape) == 4 and mask_raw.shape[3] == 1:
+        mask_raw = np.array(mask_raw[:, :, :, 0])
     else:
-        mask_max = 1
+        mask_raw = np.mean(mask_raw, 3)
+
+    # Find the max value (so you can calulate these as proportions)
+    mask_max = mask_raw.max()
 
     # Make sure the mask values range from 0 to 1 (make out of max of volume
     #  so that this is invertible later)
@@ -1521,20 +1549,17 @@ def mask_brain(volume,
     zoom_factor = (brain_dim[0] / mask_dim[0],
                    brain_dim[1] / mask_dim[1],
                    brain_dim[2] / mask_dim[2],
-                   1)
+                   )
 
     # Scale the mask according to the input brain
     # You might get a warning but ignore it
-    mask = ndimage.zoom(mask_raw, zoom_factor, order=2)
+    template = ndimage.zoom(mask_raw, zoom_factor, order=2)
 
-    # Any proportion that is below threshold (presumably the exterior of the
-    # brain), make zero
-    mask[mask < mask_threshold] = 0
+    # Mask the template based on the threshold
+    mask = np.zeros(template.shape)
+    mask[template > mask_threshold] = 1
 
-    # create the mask in 4d
-    mask = np.ones(volume.shape) * mask
-
-    return mask
+    return mask, template
 
 
 def _noise_dict_update(noise_dict):
@@ -1589,6 +1614,7 @@ def _noise_dict_update(noise_dict):
 def generate_noise(dimensions,
                    stimfunction_tr,
                    tr_duration,
+                   template,
                    mask=None,
                    noise_dict=None,
                    ):
@@ -1610,8 +1636,12 @@ def generate_noise(dimensions,
     tr_duration : float
         What is the duration, in seconds, of each TR?
 
-    mask : 4d array, float
-        The mask of the brain volume, using
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
+
+    mask : 3d array, binary
+        The mask of the brain volume, distinguishing brain from non-brain
 
     noise_dict : dictionary, float
         This is a dictionary which describes the noise parameters of the
@@ -1641,13 +1671,14 @@ def generate_noise(dimensions,
 
     # Get the mask of the brain and set it to be 3d
     if mask is None:
-        mask = np.ones(dimensions_tr)
+        mask = np.ones(dimensions)
 
     # Generate the noise
     noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
-                                              mask=mask[:, :, :, 0],
+                                              mask=mask,
+                                              template=template,
                                               fwhm=noise_dict[
                                                  'fwhm'],
                                               motion_sigma=noise_dict[
@@ -1660,18 +1691,17 @@ def generate_noise(dimensions,
                                                  'physiological_sigma'],
                                               )
 
-    # Create the base (this inverts the process to make the mask)
-    base = mask * noise_dict['max_activity']
+    # Create the base (this inverts the process to make the template)
+    base = template * noise_dict['max_activity']
 
     # Set the amount of background based on the SFNR value
 
     # What are the midpoints to be extracted
     mid_x_idx = int(np.ceil(base.shape[0] / 2))
-    mid_tr_idx = int(np.ceil(base.shape[3] / 2))
 
     # Pull out the slices
-    slice_volume = base[mid_x_idx, :, :, mid_tr_idx]
-    slice_mask = mask[mid_x_idx, :, :, mid_tr_idx]
+    slice_volume = base[mid_x_idx, :, :]
+    slice_mask = mask[mid_x_idx, :, :]
 
     # What is the mean signal of the non masked voxels in this slice?
     mean_signal = (slice_volume[slice_mask > 0]).mean()
@@ -1689,6 +1719,10 @@ def generate_noise(dimensions,
 
     # Convert temporal noise (in percent) to real numbers
     abs_change = noise_dict['temporal_noise'] * mean_signal / 100
+
+    # Reshape the base (to be the same size as the volume to be created)
+    base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
+    base =  np.ones(dimensions_tr) * base
 
     # Sum up the noise of the brain
     noise = base + (noise_temporal * abs_change) + noise_system

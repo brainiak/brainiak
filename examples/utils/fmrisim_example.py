@@ -111,11 +111,11 @@ stimfunction = list(np.add(stimfunction_A, stimfunction_B))
 stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Generate the mask of the signal
-mask = sim.mask_brain(signal)
+mask, template = sim.mask_brain(signal)
 
 # Mask the signal to the shape of a brain (attenuates signal according to grey
 # matter likelihood)
-signal *= mask
+signal *= mask.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
 
 # Generate original noise dict for comparison later
 orig_noise_dict = sim._noise_dict_update({})
@@ -125,6 +125,7 @@ noise = sim.generate_noise(dimensions=dimensions,
                            stimfunction_tr=stimfunction_tr,
                            tr_duration=tr_duration,
                            mask=mask,
+                           template=template,
                            noise_dict=orig_noise_dict,
                            )
 
@@ -142,7 +143,7 @@ for tr_counter in list(range(0, brain.shape[3])):
     # Get the axis to be plotted
     ax = sim.plot_brain(fig,
                         brain[:, :, :, tr_counter],
-                        mask=mask[:, :, :, tr_counter],
+                        mask=mask,
                         percentile=99.9)
 
     # Wait for an input
@@ -167,7 +168,7 @@ stimfunction = sim.generate_stimfunction(onsets=[],
 stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Calculate the mask
-mask = sim.mask_brain(volume=volume,
+mask, template = sim.mask_brain(volume=volume,
                       mask_self=True,
                       )
 
@@ -180,6 +181,7 @@ noise_dict = sim.calc_noise(volume=volume,
 noise = sim.generate_noise(dimensions=dimensions,
                            tr_duration=tr_duration,
                            stimfunction_tr=stimfunction_tr,
+                           template=template,
                            mask=mask,
                            noise_dict=noise_dict,
                            )
