@@ -127,6 +127,11 @@ When you are ready to submit your PR, run ``pr-check.sh`` even if you were
 using the steps above to run the individual checks in ``pr-check.sh`` during
 development.
 
+If you want to obtain early feedback for your work, ask people to look at your
+fork. Alternatively, you can open a PR before your work is ready; in this case,
+you should start the PR title with ``WIP:``, to let people know your PR is work
+in progress.
+
 
 Tools
 =====
