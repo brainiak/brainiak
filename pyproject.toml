@@ -1,0 +1,25 @@
+[tool.towncrier]
+directory = "docs/newsfragments"
+package = "brainiak"
+template = "docs/newsfragments/_template.jinja"
+title_format = "BrainIAK {version} ({project_date})"
+
+    [[tool.towncrier.type]]
+    directory = "feature"
+    name = "Features"
+    showcontent = true
+
+    [[tool.towncrier.type]]
+    directory = "bugfix"
+    name = "Bugfixes"
+    showcontent = true
+
+    [[tool.towncrier.type]]
+    directory = "doc"
+    name = "Documentation improvements"
+    showcontent = true
+
+    [[tool.towncrier.type]]
+    directory = "removal"
+    name = "Deprecations and removals"
+    showcontent = true

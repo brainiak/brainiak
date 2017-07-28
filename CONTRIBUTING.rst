@@ -63,12 +63,16 @@ step-by-step description of our recommended workflow:
 
      git checkout -b new-feature
 
-7. Make changes and commit them. Push your feature branch to your fork::
+7. Make changes and commit them. Include a news fragment for the release notes
+   in ``docs/newsfragments`` if your changes are visible to users (see `Pip's
+   documentation`_ and our news types in ``pyproject.toml``).
+
+8. Push your feature branch to your fork::
 
      git push --set-upstream origin new-feature  # only for the first push
      git push  # for all subsequent pushes
 
-8. When your feature is ready, make a pull request on GitHub. After your
+9. When your feature is ready, make a pull request on GitHub. After your
    feature is accepted, update your ``master`` branch and delete your feature
    branch::
 
@@ -80,6 +84,8 @@ step-by-step description of our recommended workflow:
 Please see the `GitHub help for collaborating on projects using issues and pull
 requests`_ for more information.
 
+.. _Pip's documentation:
+   https://pip.pypa.io/en/latest/development/#adding-a-news-entry
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
 
@@ -269,3 +275,43 @@ Name subpackages and modules using short names describing their functionality,
 e.g., ``tda`` for the subpackage containing topological data analysis work and
 ``htfa.py`` for the module implementing hierarchical topographical factor
 analysis.
+
+
+Making a release
+================
+
+This information is only of interest to the core contributors who have the
+right to make releases.
+
+1. Choose a release number, ``v``. We follow `Semantic Versioning
+   <http://semver.org>`_, although we omit the patch number when it is 0.
+
+2. Prepare the release notes::
+
+       git checkout -b release-v<v>
+       towncrier --version <v>
+       ./pr-check.sh
+       git commit -a -m "Add release notes for v<v>"
+       git push --set-upstream origin release-v<v>
+       <Create a PR; merge the PR.>
+       git checkout master
+       git pull --ff-only
+       git branch -d release-v<v>
+
+3. Tag the release::
+
+       git tag v<v>
+
+4. Create and test the distribution package::
+
+       python3 setup.py sdist
+       tar -xf dist/brainiak-<v>.tar.gz
+       cd brainiak-<v>
+       ./pr-check.sh
+       cd -
+       rm -r brainiak-<v>
+
+5. Push release::
+
+       git tag --push
+       twine upload dist/brainiak-<v>.tar.gz
