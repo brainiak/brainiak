@@ -103,4 +103,8 @@ BrainIAK 0.1 (2016-07-12)
 Features
 --------
 
-- Initial release.
+- Initial release, including:
+
+  * Shared response model (SRM).
+  * Topographic factor analysis (TFA) and hierarchical topographical factor
+    analysis (HTFA).
