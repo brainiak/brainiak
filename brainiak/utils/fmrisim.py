@@ -78,6 +78,7 @@ import math
 import numpy as np
 from pkg_resources import resource_stream
 from scipy import stats
+from scipy import signal
 import scipy.ndimage as ndimage
 
 __all__ = [
@@ -857,31 +858,27 @@ def _calc_temporal_noise(volume,
 
     """
 
-    # Make the mask 4 dimensional
-    mask = mask.reshape(mask.shape[0], mask.shape[1], mask.shape[2], 1)
-    mask = np.ones(volume.shape) * mask
-
     # What are the midpoints to be extracted
     mid_x_idx = int(np.ceil(volume.shape[0] / 2))
     mid_tr_idx = int(np.ceil(volume.shape[3] / 2))
 
     # Pull out the slices
     slice_volume = volume[mid_x_idx, :, :, mid_tr_idx]
-    slice_mask = mask[mid_x_idx, :, :, mid_tr_idx]
+    slice_mask = mask[mid_x_idx, :, :]
 
     # Divide by the mask (if the middle slice was low in grey matter mass
     # then you would have a lower mean signal by default)
     mean_signal = (slice_volume[slice_mask > 0]).mean()
 
     # What are the brain and non-brain voxels
-    brain_voxels = volume[mask[:, :, :, 0] > 0]
-    mask_voxels = volume[mask[:, :, :, 0] == 0]
+    brain_voxels = volume[mask > 0]
+    mask_voxels = volume[mask == 0]
 
-    # What is the noise in the masked voxels
-    mask_noise = np.std(mask_voxels, 1).mean()
+    # What is the noise in the masked voxels (average the variance)
+    mask_noise = ((np.std(mask_voxels, 1) ** 2).mean()) ** 0.5
 
-    # Assume the mask noise is a combination of random + drift. Thus average
-    # all masked voxels and find the variation over time, this is the
+    # Assume the background noise is a combination of random + drift. Thus
+    # average all masked voxels and find the variation over time, this is the
     # variance due to drift.
     drift_noise = np.mean(mask_voxels, 0).std()
 
@@ -899,7 +896,7 @@ def _calc_temporal_noise(volume,
     sfnr = float(mean_signal / background_noise)
 
     # Calculate the time course
-    timecourse = np.mean(volume[mask[:, :, :, 0] > 0], 0)
+    timecourse = np.mean(volume[mask > 0], 0)
 
     # Pull out the AR values (depends on order)
     auto_reg_sigma = ar.AR_est_YW(timecourse, auto_reg_order)[1]
@@ -997,10 +994,14 @@ def calc_noise(volume,
 
 
 def _generate_noise_system(dimensions_tr,
+                           noise_type='exponential',
                            ):
     """Generate the scanner noise
 
-    Generate rician noise, assumed to be appropriate for the scanner
+    Generate system noise, either rician or exponential, for the scanner.
+    Low SNR scans tend to have rician noise whereas high SNR scans (>30) are
+    better modelled by exponential noise. Generates a distribution with a SD
+    of 1.
 
     Parameters
     ----------
@@ -1009,18 +1010,27 @@ def _generate_noise_system(dimensions_tr,
         What are the dimensions of the volume you wish to insert
         noise into. This can be a volume of any size
 
+    noise_type : str
+        String specifying the noise type. Rician is appropriate when the SNR is
+        low but is insufficiently skewed to appropriately model high SNR data.
+
     Returns
     ----------
 
-        system_noise : multidimensional array, float
-            Create a volume with system noise
+    system_noise : multidimensional array, float
+        Create a volume with system noise
 
     """
 
-    # Generate the Rician noise
-    noise_rician = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions_tr)
+    if noise_type =='rician':
+        # Generate the Rician noise (has an SD of 1)
+        system_noise = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions_tr)
 
-    return noise_rician
+    elif noise_type =='exponential':
+        # Make an exponential distribution (has an SD of 1)
+        system_noise = stats.expon.rvs(0, scale=1, size=dimensions_tr)
+
+    return system_noise
 
 
 def _generate_noise_temporal_task(stimfunction_tr,
@@ -1470,7 +1480,7 @@ def _generate_noise_temporal(stimfunction_tr,
 
 def mask_brain(volume,
                template_name=None,
-               mask_threshold=0.1,
+               mask_threshold=None,
                mask_self=0,
                ):
     """ Mask the simulated volume
@@ -1490,7 +1500,11 @@ def mask_brain(volume,
         defaults to an MNI152 grey matter mask.
 
     mask_threshold : float
-        What is the threshold (0 -> 1) for including a voxel in the mask?
+        What is the threshold (0 -> 1) for including a voxel in the mask? If
+        None then the program will try and identify the last wide peak in a
+        histogram of the template (assumed to be the brain voxels) and takes
+        the minima before that peak as the threshold. Won't work when the
+        data is not bimodal.
 
     mask_self : bool
         If set to true then it makes a mask from the volume supplied (by
@@ -1554,6 +1568,23 @@ def mask_brain(volume,
     # Scale the mask according to the input brain
     # You might get a warning but ignore it
     template = ndimage.zoom(mask_raw, zoom_factor, order=2)
+
+    # If the mask threshold is not supplied then guess it is a minima
+    # between the two peaks of the bimodal distribution of voxel activity
+    if mask_threshold == None:
+
+        # Make the histogram
+        template_vector = template.reshape(brain_dim[0] * brain_dim[1] *
+                                           brain_dim[2])
+        template_hist = np.histogram(template_vector, 100)
+
+        # Identify the last peak
+        peak = signal.argrelmax(template_hist[0], order=5)[0].max()
+
+        # What is the threshold
+        minima = template_hist[0][0:peak].min()
+        minima_idx = np.where(template_hist[0] == minima)
+        mask_threshold = template_hist[1][minima_idx][0]
 
     # Mask the template based on the threshold
     mask = np.zeros(template.shape)

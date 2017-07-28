@@ -111,7 +111,7 @@ stimfunction = list(np.add(stimfunction_A, stimfunction_B))
 stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Generate the mask of the signal
-mask, template = sim.mask_brain(signal)
+mask, template = sim.mask_brain(signal, mask_threshold=0.2)
 
 # Mask the signal to the shape of a brain (attenuates signal according to grey
 # matter likelihood)
@@ -169,8 +169,8 @@ stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Calculate the mask
 mask, template = sim.mask_brain(volume=volume,
-                      mask_self=True,
-                      )
+                                mask_self=True,
+                                )
 
 # Calculate the noise parameters
 noise_dict = sim.calc_noise(volume=volume,

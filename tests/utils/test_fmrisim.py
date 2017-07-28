@@ -289,7 +289,7 @@ def test_calc_noise():
                                              )
 
     # Mask the volume to be the same shape as a brain
-    mask, template = sim.mask_brain(dimensions_tr)
+    mask, template = sim.mask_brain(dimensions_tr, mask_threshold=0.2)
     stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
