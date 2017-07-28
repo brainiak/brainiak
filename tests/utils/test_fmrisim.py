@@ -307,4 +307,4 @@ def test_calc_noise():
     assert precision < 1, 'temporal_noise calculated incorrectly'
 
     precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
-    assert precision < 5, 'sfnr calculated incorrectly'
+    assert precision < 6, 'sfnr calculated incorrectly'
