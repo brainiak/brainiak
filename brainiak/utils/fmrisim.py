@@ -1022,11 +1022,12 @@ def _generate_noise_system(dimensions_tr,
 
     """
 
-    if noise_type =='rician':
+    if noise_type == 'rician':
         # Generate the Rician noise (has an SD of 1)
-        system_noise = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions_tr)
+        system_noise = stats.rice.rvs(b=0, loc=0, scale=1.527,
+                                      size=dimensions_tr)
 
-    elif noise_type =='exponential':
+    elif noise_type == 'exponential':
         # Make an exponential distribution (has an SD of 1)
         system_noise = stats.expon.rvs(0, scale=1, size=dimensions_tr)
 
@@ -1571,7 +1572,7 @@ def mask_brain(volume,
 
     # If the mask threshold is not supplied then guess it is a minima
     # between the two peaks of the bimodal distribution of voxel activity
-    if mask_threshold == None:
+    if mask_threshold is None:
 
         # Make the histogram
         template_vector = template.reshape(brain_dim[0] * brain_dim[1] *
