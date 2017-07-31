@@ -8,3 +8,4 @@ restructuredtext-lint
 setuptools_scm
 sphinx
 sphinx_rtd_theme
+towncrier

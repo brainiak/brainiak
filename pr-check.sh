@@ -20,7 +20,7 @@ set -e
 
 if [ ! -f brainiak/__init__.py ]
 then
-    echo "Run "$(basename "$0")" from the root of the BrainIAK repository"
+    echo "Run "$(basename "$0")" from the root of the BrainIAK hierarchy."
     exit 1
 fi
 
@@ -86,7 +86,11 @@ else
     remove_venv=remove_venv_venv
 fi
 
-git clean -Xf .
+# Check if running in an sdist
+if git ls-files --error-unmatch pr-check.sh 2> /dev/null
+then
+    git clean -Xf .
+fi
 
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
     exit_with_error "mktemp -u error"
