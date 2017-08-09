@@ -23,6 +23,20 @@
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis.pdf
     Some extensions not described in the paper have been made here.
+    More specifically:
+    (1) spatial noise correlation (or alternatively
+    considered as signals of intrinsic fluctuation not related to tasks);
+    (2) new fitting procedure which marginalize all voxel-specific
+    parameters such as pseudo-SNR, noise variance, auto-regressive
+    coefficients, in `.GBRSA` class;
+    (3) capacity to jointly fit to data of multiple participants,
+    in `.GBRSA` class;
+    (4) cross-validation score between a full model and a null model
+    in `.BRSA.score` and `.GBRSA.score`;
+    (5) capability of decoding task-related signals and intrinsic
+    fluctuation from new data based on model fitted from training data
+    in `.BRSA.transform` and `.GBRSA.transform`.
+    `.GBRSA` may perform better than `.BRSA` due to (2)
 """
 
 # Authors: Mingbo Cai
@@ -180,35 +194,6 @@ def Ncomp_SVHT_MG_DLD_approx(X, zscore=True):
     return ncomp
 
 
-def CoM_exp(a, b, scale=1.0):
-    """ Calculate the center of mass of exponential distribution
-        in the interval of (a, b). scale is the same scale
-        parameter as scipy.stats.expon.pdf
-
-    Parameters
-    ----------
-    a: float
-        The starting point of the interval in which the center of mass
-        is calculated for exponential distribution.
-    b: float
-        The ending point of the interval in which the center of mass
-        is calculated for exponential distribution.
-
-    Returns
-    -------
-    m: float
-        The center of mass in the interval of (a, b) for exponential
-        distribution.
-    """
-    assert a < b, 'a must be smaller than b'
-    if b < np.inf:
-        return ((a + scale) * np.exp(-a / scale)
-                - (scale + b) * np.exp(-b / scale)) \
-            / (np.exp(-a / scale) - np.exp(-b / scale))
-    else:
-        return a + scale
-
-
 def _zscore(a):
     """ Calculating z-score of data on the first axis.
         If the numbers in any column are all equal, scipy.stats.zscore
@@ -284,12 +269,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or string. Default: 'opt'
+    n_nureg: int or None. Default: None
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-        If set to 'opt', the number of nuisance regressors will be
+        If set to None, the number of nuisance regressors will be
         automatically determined based on M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
@@ -368,7 +353,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: callable[[float, int, float], [float, float]],
+    tau2_prior: Callable[[float, int, float]],
         Default: prior_GP_var_inv_gamma.
         Can be prior_GP_var_inv_gamma or prior_GP_var_half_cauchy,
         or a custom function.
@@ -466,7 +451,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         in gray matter in than white matter.
     nSNR_ : numpy array, shape=[voxels,].
         The normalized pseuso-SNR of all voxels.
-        They are normalized such that the geometric mean is 1
+        They are normalized such that the geometric mean is 1.
+        Note that this attribute can not be interpreted as true SNR,
+        but the relative ratios between voxel indicates the contribution
+        of each voxel to the representational similarity structure.
     sigma_ : numpy array, shape=[voxels,].
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
@@ -511,7 +499,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
     def __init__(
             self, n_iter=50, rank=None,
-            auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
+            auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA', baseline_single=False,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
@@ -530,10 +518,9 @@ class BRSA(BaseEstimator, TransformerMixin):
         self.n_nureg = n_nureg
         self.nureg_zscore = nureg_zscore
         if auto_nuisance:
-            assert (type(n_nureg) is str and
-                    n_nureg in ['opt']) \
-                or (type(n_nureg) is int and n_nureg > 0), \
-                'n_nureg should be a positive number or "opt"'\
+            assert (n_nureg is None) \
+                or (isinstance(n_nureg, int) and n_nureg > 0), \
+                'n_nureg should be a positive integer or None'\
                 ' if auto_nuisance is True.'
         if self.nureg_zscore:
             self.preprocess_residual = lambda x: _zscore(x)
@@ -714,7 +701,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                            ' ignored.')
         # Estimate the number of necessary nuisance regressors
         if self.auto_nuisance:
-            if self.n_nureg in ['opt']:
+            if self.n_nureg is None:
+                logger.info('number of nuisance regressors is determined '
+                            'automatically.')
                 run_TRs, n_runs = self._run_TR_from_scan_onsets(
                     X.shape[0], scan_onsets)
                 ts_dc = self._gen_legendre(run_TRs, [0])
@@ -2759,12 +2748,12 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or string. Default: 'opt'
+    n_nureg: int or None. Default: None
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
         has already provided.
-        If set to 'opt', the number of nuisance regressors will be
+        If set to None, the number of nuisance regressors will be
         automatically determined based on M Gavish
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values. (Gavish & Donoho,
@@ -2801,9 +2790,9 @@ class GBRSA(BRSA):
         a flat line, this option can cause the estimated similarity to be
         extremely high between conditions occuring in the same run.
     SNR_prior: string. Default: 'exp'
-        The type of prior for pseudo-SNR. If set to 'exp',
-        truncated exponential distribution with scale parameter of 1
-        is imposed on pseudo-SNR.
+        The type of prior for pseudo-SNR.
+        If set to 'exp', truncated exponential distribution with scale
+        parameter of 1 is imposed on pseudo-SNR.
         If set to 'lognorm', a truncated log normal prior is imposed.
         In this case, the standard deviation of log(SNR) is set
         by the parameter logS_range.
@@ -2912,8 +2901,15 @@ class GBRSA(BRSA):
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : list of numpy arrays, shape=[voxels,] for each subject in the list.
-        The normalized pseuso-SNR of all voxels.
-        They are normalized such that the geometric mean is 1
+        The pseuso-SNR of all voxels. If SNR_prior='lognormal',
+        the geometric mean of nSNR\_ would be approximately 1.
+        If SNR_prior='unif', all nSNR\_ would be in the range of (0,1).
+        If SNR_prior='exp' (default), the range of values would vary
+        depending on the data and SNR_bins, but many should have low
+        values with few voxels with high values.
+        Note that this attribute can not be interpreted as true SNR,
+        but the relative ratios between voxel indicates the contribution
+        of each voxel to the representational similarity structure.
     sigma_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
@@ -2950,7 +2946,7 @@ class GBRSA(BRSA):
 
     def __init__(
             self, n_iter=50, rank=None,
-            auto_nuisance=True, n_nureg='opt', nureg_zscore=True,
+            auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA',
             baseline_single=False, logS_range=1.0, SNR_prior='exp',
             SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
@@ -2964,10 +2960,9 @@ class GBRSA(BRSA):
         self.n_nureg = n_nureg
         self.nureg_zscore = nureg_zscore
         if auto_nuisance:
-            assert (type(n_nureg) is str and
-                    n_nureg in ['opt']) \
-                or (type(n_nureg) is int and n_nureg > 0), \
-                'n_nureg should be a positive number or "opt"'\
+            assert (n_nureg is None) \
+                or (isinstance(n_nureg, int) and n_nureg > 0), \
+                'n_nureg should be a positive integer or None'\
                 ' if auto_nuisance is True.'
         if self.nureg_zscore:
             self.preprocess_residual = lambda x: _zscore(x)
@@ -3094,10 +3089,9 @@ class GBRSA(BRSA):
         for subj, x in enumerate(X):
             self.n_V_[subj] = x.shape[1]
         if self.auto_nuisance:
-            if self.n_nureg in ['opt']:
-                logger.info('number of nuisance regressors is determined '
-                            'with the method indicated by the option: {}'
-                            .format(self.n_nureg))
+            if self.n_nureg is None:
+                logger.info('numbers of nuisance regressors are determined '
+                            'automatically.')
                 n_runs = np.zeros(self.n_subj_)
                 n_comps = np.ones(self.n_subj_)
                 for s_id in np.arange(self.n_subj_):
@@ -4085,7 +4079,8 @@ class GBRSA(BRSA):
             scale=scale), axis=0)
         bins = np.empty(n_bin)
         for i in np.arange(n_bin):
-            bins[i] = CoM_exp(boundaries[i], boundaries[i + 1], scale=scale)
+            bins[i] = utils.center_mass_exp(boundaries[i],
+                                           boundaries[i + 1], scale=scale)
         return bins
 
     def _set_SNR_grids(self):

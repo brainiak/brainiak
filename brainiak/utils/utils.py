@@ -460,10 +460,10 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 
 
 def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
-    """Utility called by gen_design. It reads in one or more
-       stimulus timing file comforming to FSL style,
-       and return a list (size of [#run \* #condition])
-       of dictionary including onsets, durations and weights of each event.
+    """ Utility called by gen_design. It reads in one or more
+        stimulus timing file comforming to FSL style,
+        and return a list (size of [#run \* #condition])
+        of dictionary including onsets, durations and weights of each event.
 
     Parameters
     ----------
@@ -528,10 +528,10 @@ def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
 
 
 def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
-    """Utility called by gen_design. It reads in one or more stimulus timing
-       file comforming to AFNI style, and return a list
-       (size of ``[number of runs \* number of conditions]``)
-       of dictionary including onsets, durations and weights of each event.
+    """ Utility called by gen_design. It reads in one or more stimulus timing
+        file comforming to AFNI style, and return a list
+        (size of ``[number of runs \* number of conditions]``)
+        of dictionary including onsets, durations and weights of each event.
 
     Parameters
     ----------
@@ -601,3 +601,32 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
                         design_info[i_s][i_c]['duration'].append(duration)
                         design_info[i_s][i_c]['weight'].append(weight)
     return design_info
+
+
+def center_mass_exp(a, b, scale=1.0):
+    """ Calculate the center of mass of exponential distribution
+        in the interval of (a, b). scale is the same scale
+        parameter as scipy.stats.expon.pdf
+
+    Parameters
+    ----------
+    a: float
+        The starting point of the interval in which the center of mass
+        is calculated for exponential distribution.
+    b: float
+        The ending point of the interval in which the center of mass
+        is calculated for exponential distribution.
+
+    Returns
+    -------
+    m: float
+        The center of mass in the interval of (a, b) for exponential
+        distribution.
+    """
+    assert a < b, 'a must be smaller than b'
+    if b < np.inf:
+        return ((a + scale) * np.exp(-a / scale)
+                - (scale + b) * np.exp(-b / scale)) \
+            / (np.exp(-a / scale) - np.exp(-b / scale))
+    else:
+        return a + scale
