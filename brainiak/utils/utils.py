@@ -319,6 +319,7 @@ class ReadDesign:
 
 
 def gen_design(stimtime_files, scan_duration, TR, style='FSL',
+               temp_res=0.01,
                hrf_para={'response_delay': 6, 'undershoot_delay': 12,
                          'response_dispersion': 0.9,
                          'undershoot_dispersion': 0.9,
@@ -389,6 +390,14 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
         means an event starting at 3.0s, lasting for 1.0s, with
         amplitude modulation of 1.0.
 
+    temp_res: float, default: 0.01
+        Temporal resolution of fMRI, in second.
+
+    hrf_para: dictionary
+        The parameters of the double-Gamma hemodynamic response function.
+        To set different parameters, supply a dictionary with
+        the same set of keys as the default, and replace the corresponding
+        values with the new values.
 
     Returns
     -------
@@ -433,21 +442,28 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 onsets=design_info[i_s][i_c]['onset'],
                 event_durations=design_info[i_s][i_c]['duration'],
                 total_time=scan_duration[i_s],
-                weights=design_info[i_s][i_c]['weight'])
+                weights=design_info[i_s][i_c]['weight'],
+                temporal_resolution=1.0/temp_res)
             design[i_s][:, i_c] = double_gamma_hrf(
                 stimfunction, TR, response_delay=response_delay,
                 undershoot_delay=undershoot_delay,
                 response_dispersion=response_dispersion,
                 undershoot_dispersion=undershoot_dispersion,
-                undershoot_scale=undershoot_scale, scale_function=0)
+                undershoot_scale=undershoot_scale, scale_function=0,
+                temporal_resolution=1.0/temp_res) * temp_res
+            # We multiply the resulting design matrix with
+            # the temporal resolution to normalize it.
+            # We do not use the internal normalization
+            # in double_gamma_hrf because it does not guarantee
+            # normalizing with the same constant.
     return np.concatenate(design, axis=0)
 
 
 def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
-    """Utility called by gen_design. It reads in one or more
-       stimulus timing file comforming to FSL style,
-       and return a list (size of [#run \* #condition])
-       of dictionary including onsets, durations and weights of each event.
+    """ Utility called by gen_design. It reads in one or more
+        stimulus timing file comforming to FSL style,
+        and return a list (size of [#run \* #condition])
+        of dictionary including onsets, durations and weights of each event.
 
     Parameters
     ----------
@@ -512,10 +528,10 @@ def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
 
 
 def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
-    """Utility called by gen_design. It reads in one or more stimulus timing
-       file comforming to AFNI style, and return a list
-       (size of ``[number of runs \* number of conditions]``)
-       of dictionary including onsets, durations and weights of each event.
+    """ Utility called by gen_design. It reads in one or more stimulus timing
+        file comforming to AFNI style, and return a list
+        (size of ``[number of runs \* number of conditions]``)
+        of dictionary including onsets, durations and weights of each event.
 
     Parameters
     ----------
@@ -585,3 +601,35 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
                         design_info[i_s][i_c]['duration'].append(duration)
                         design_info[i_s][i_c]['weight'].append(weight)
     return design_info
+
+
+def center_mass_exp(a, b, scale=1.0):
+    """ Calculate the center of mass of negative exponential distribution
+        p(x) = exp(-x / scale) / scale
+        in the interval of (a, b). scale is the same scale
+        parameter as scipy.stats.expon.pdf
+
+    Parameters
+    ----------
+    a: float
+        The starting point of the interval in which the center of mass
+        is calculated for exponential distribution.
+    b: float
+        The ending point of the interval in which the center of mass
+        is calculated for exponential distribution.
+    scale: float
+        The scale parameter of the exponential distribution. See above.
+
+    Returns
+    -------
+    m: float
+        The center of mass in the interval of (a, b) for exponential
+        distribution.
+    """
+    assert a < b, 'a must be smaller than b'
+    if b < np.inf:
+        return ((a + scale) * np.exp(-a / scale)
+                - (scale + b) * np.exp(-b / scale)) \
+            / (np.exp(-a / scale) - np.exp(-b / scale))
+    else:
+        return a + scale
