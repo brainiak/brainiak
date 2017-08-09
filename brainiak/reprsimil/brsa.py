@@ -26,7 +26,7 @@
     More specifically:
     (1) spatial noise correlation (or alternatively
     considered as signals of intrinsic fluctuation not related to tasks);
-    (2) new fitting procedure which marginalize all voxel-specific
+    (2) new fitting procedure which marginalizes all voxel-specific
     parameters such as pseudo-SNR, noise variance, auto-regressive
     coefficients, in `.GBRSA` class;
     (3) capacity to jointly fit to data of multiple participants,
@@ -270,7 +270,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or None. Default: None
+    n_nureg: Optional[int]. Default: None
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
@@ -354,7 +354,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         this parameter is used in a half-Cauchy prior
         on the standard deviation, or an inverse-Gamma prior
         on the variance of the GP.
-    tau2_prior: Callable[[float, int, float]],
+    tau2_prior: Callable[[float, int, float]], [float, float]],
         Default: prior_GP_var_inv_gamma.
         Can be prior_GP_var_inv_gamma or prior_GP_var_half_cauchy,
         or a custom function.
@@ -2749,7 +2749,7 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: int or None. Default: None
+    n_nureg: Optional[int]. Default: None
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
@@ -2909,7 +2909,7 @@ class GBRSA(BRSA):
         depending on the data and SNR_bins, but many should have low
         values with few voxels with high values.
         Note that this attribute can not be interpreted as true SNR,
-        but the relative ratios between voxel indicates the contribution
+        but the relative ratios between voxels indicate the contribution
         of each voxel to the representational similarity structure.
     sigma_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated standard deviation of the noise in each voxel

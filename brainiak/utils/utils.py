@@ -604,7 +604,8 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
 
 
 def center_mass_exp(a, b, scale=1.0):
-    """ Calculate the center of mass of exponential distribution
+    """ Calculate the center of mass of negative exponential distribution
+        p(x) = exp(-x / scale) / scale
         in the interval of (a, b). scale is the same scale
         parameter as scipy.stats.expon.pdf
 
@@ -616,6 +617,8 @@ def center_mass_exp(a, b, scale=1.0):
     b: float
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
+    scale: float
+        The scale parameter of the exponential distribution. See above.
 
     Returns
     -------
