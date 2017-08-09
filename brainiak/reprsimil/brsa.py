@@ -4080,8 +4080,8 @@ class GBRSA(BRSA):
             scale=scale), axis=0)
         bins = np.empty(n_bin)
         for i in np.arange(n_bin):
-            bins[i] = utils.center_mass_exp(boundaries[i],
-                                           boundaries[i + 1], scale=scale)
+            bins[i] = utils.center_mass_exp(
+                boundaries[i], boundaries[i + 1], scale=scale)
         return bins
 
     def _set_SNR_grids(self):
