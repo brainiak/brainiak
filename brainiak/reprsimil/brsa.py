@@ -22,7 +22,7 @@
     Advances in Neural Information Processing Systems 29, 2016, 4952--4960
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis.pdf
-    Some extensions not described in the paper have been made here.
+    Some extensions beyond the paper have been made here.
     More specifically:
     (1) spatial noise correlation (or alternatively
     considered as signals of intrinsic fluctuation not related to tasks);
@@ -36,7 +36,8 @@
     (5) capability of decoding task-related signals and intrinsic
     fluctuation from new data based on model fitted from training data
     in `.BRSA.transform` and `.GBRSA.transform`.
-    `.GBRSA` may perform better than `.BRSA` due to (2)
+    `.GBRSA` may perform better than `.BRSA` due to (2). It can be
+    use for single participant as well.
 """
 
 # Authors: Mingbo Cai
