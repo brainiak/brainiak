@@ -459,7 +459,7 @@ class BRSA(BaseEstimator, TransformerMixin):
     sigma_ : numpy array, shape=[voxels,].
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
-        of the refreshing noise.
+        of the innovation noise.
     rho_ : numpy array, shape=[voxels,].
         The estimated autoregressive coefficient of each voxel
     bGP_ : float, only if GP_space or GP_inten is True.
@@ -1522,7 +1522,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         """
         logger.info('Transforming new data.')
         # Constructing the transition matrix and the variance of
-        # refreshing noise as prior for the latent variable X and X0
+        # innovation noise as prior for the latent variable X and X0
         # in new data.
 
         n_C = beta.shape[0]
@@ -1646,7 +1646,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         """
         # We currently only implement diagonal form
         # of covariance matrix for Var_X, Var_dX and T_X, which means
-        # each dimension of X is independent and their refreshing noise
+        # each dimension of X is independent and their innovation noise
         # are also independent. Note that log_p_data takes this assumption.
         if Var_X.ndim == 1:
             inv_Var_X = np.diag(1 / Var_X)
@@ -1801,7 +1801,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         # Estimate of auto correlation assuming data includes pure noise.
         log_sigma2 = np.log(np.var(
             residual[1:, :] - residual[0:-1, :] * rho1, axis=0))
-        # log of estimates of the variance of the "refreshing" noise
+        # log of estimates of the variance of the "innovation" noise
         # of AR(1) process at each time point.
         param0 = np.empty(np.sum(np.size(v)
                                  for v in idx_param_sing.values()))
@@ -2914,7 +2914,7 @@ class GBRSA(BRSA):
     sigma_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated standard deviation of the noise in each voxel
         Assuming AR(1) model, this means the standard deviation
-        of the refreshing noise.
+        of the innovation noise.
     rho_ : list of numpy arrays, shape=[voxels,] for each subject.
         The estimated autoregressive coefficient of each voxel
     beta_: list of numpy arrays, shape=[conditions, voxels] for each subject.
