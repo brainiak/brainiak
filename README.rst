@@ -101,6 +101,9 @@ as long as you see ``Successfully installed`` at the end.
 .. _issue #61:
    https://github.com/IntelPNI/brainiak/issues/61
 
+Until we reach version 1.0, we will only support the latest released version.
+Therefore, if you have a problem with an older version, please upgrade to the
+latest version before creating an issue on GitHub.
 
 Examples
 ========
