@@ -13,6 +13,7 @@
 #  limitations under the License.
 import pytest
 
+
 def test_tfa():
     from brainiak.factoranalysis.tfa import TFA
     import numpy as np
@@ -23,7 +24,6 @@ def test_tfa():
     max_iter = 5
     max_num_voxel = n_voxel
     max_num_tr = n_tr
-    sample_scaling = 0.5
     tfa = TFA(
         K=K,
         max_iter=max_iter,
@@ -108,5 +108,3 @@ def test_tfa():
         tfa.fit(X, R=R)
     assert "'rr' and 'ols' are accepted as weight_method!" in str(
         excinfo.value)
-
-

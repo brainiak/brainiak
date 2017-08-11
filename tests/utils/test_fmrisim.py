@@ -43,8 +43,8 @@ def test_generate_signal():
 
     assert np.all(volume.shape == dimensions), "Check signal shape"
     assert np.max(volume) == signal_magnitude, "Check signal magnitude"
-    assert np.sum(volume>0) == math.pow(feature_size[0], 3), "Check feature " \
-                                                             "size"
+    assert np.sum(volume > 0) == math.pow(feature_size[0], 3), (
+        "Check feature size")
     assert volume[5, 5, 5] == signal_magnitude, "Check signal location"
     assert volume[5, 5, 1] == 0, "Check noise location"
 
@@ -55,8 +55,7 @@ def test_generate_signal():
                                  feature_coordinates=feature_coordinates,
                                  feature_type=['loop', 'cavity', 'sphere'],
                                  feature_size=[3],
-                                 signal_magnitude=signal_magnitude,
-                                )
+                                 signal_magnitude=signal_magnitude)
     assert volume[5, 5, 5] == 0, "Loop is empty"
     assert volume[3, 3, 3] == 0, "Cavity is empty"
     assert volume[7, 7, 7] != 0, "Sphere is not empty"
@@ -212,7 +211,7 @@ def test_generate_noise():
                                noise_dict={'temporal_noise': 0, 'sfnr': 10000},
                                )
 
-    temporal_noise = np.std(noise[mask[:,:,:,0]>0],1).mean()
+    temporal_noise = np.std(noise[mask[:, :, :, 0] > 0], 1).mean()
 
     assert temporal_noise <= 0.1, "Noise strength could not be manipulated"
 
@@ -220,7 +219,7 @@ def test_generate_noise():
 def test_mask_brain():
 
     # Inputs for generate_signal
-    dimensions = np.array([10, 10, 10]) # What is the size of the brain
+    dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [2]
     feature_type = ['cube']
     feature_coordinates = np.array(
@@ -254,7 +253,7 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:,:,:,0]
+    mask = sim.mask_brain(volume)[:, :, :, 0]
     brain = volume * (mask > 0)
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
