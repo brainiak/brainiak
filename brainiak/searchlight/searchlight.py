@@ -178,18 +178,21 @@ class Searchlight:
            - a triple containing the size in voxels of the block
 
         """
+        blocks = []
         outerblk = self.max_blk_edge + 2*self.sl_rad
-        return [((i, j, k),
-                mask[i:i+outerblk,
-                j:j+outerblk,
-                k:k+outerblk].shape)
-                for i in range(0, mask.shape[0], self.max_blk_edge)
-                for j in range(0, mask.shape[1], self.max_blk_edge)
-                for k in range(0, mask.shape[2], self.max_blk_edge)
-                if np.any(
-                mask[i+self.sl_rad:i+self.sl_rad+self.max_blk_edge,
-                     j+self.sl_rad:j+self.sl_rad+self.max_blk_edge,
-                     k+self.sl_rad:k+self.sl_rad+self.max_blk_edge])]
+        for i in range(0, mask.shape[0], self.max_blk_edge):
+            for j in range(0, mask.shape[1], self.max_blk_edge):
+                for k in range(0, mask.shape[2], self.max_blk_edge):
+                    block_shape = mask[i:i+outerblk,
+                                       j:j+outerblk,
+                                       k:k+outerblk
+                                       ].shape
+                    if np.any(
+                        mask[i+self.sl_rad:i+block_shape[0]-self.sl_rad,
+                             j+self.sl_rad:j+block_shape[1]-self.sl_rad,
+                             k+self.sl_rad:k+block_shape[2]-self.sl_rad]):
+                        blocks.append(((i, j, k), block_shape))
+        return blocks
 
     def _get_block_data(self, mat, block):
         """Retrieve a block from a 3D or 4D volume
