@@ -108,7 +108,8 @@ class Searchlight:
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube):
+    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
+                 min_active_voxels_proportion=0):
         """Constructor
 
         Parameters
@@ -122,9 +123,17 @@ class Searchlight:
         shape: brainiak.searchlight.searchlight.Shape indicating the
         shape in voxels of the searchlight region
 
+        min_active_voxels_proportion: float
+            If a searchlight region does not have more than this minimum
+            proportion of active voxels in the mask, it is not processed by the
+            searchlight function. The mask used for the test is the
+            intersection of the global (brain) mask and the `Shape` mask. The
+            seed (central) voxel of the searchlight region is taken into
+            consideration.
         """
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
+        self.min_active_voxels_proportion = min_active_voxels_proportion
         self.comm = MPI.COMM_WORLD
         self.shape = shape(sl_rad).mask_
         self.bcast_var = None
@@ -451,7 +460,8 @@ class Searchlight:
 
         """
 
-        extra_block_fn_params = (voxel_fn, self.shape)
+        extra_block_fn_params = (voxel_fn, self.shape,
+                                 self.min_active_voxels_proportion)
         block_fn_result = self.run_block_function(_singlenode_searchlight,
                                                   extra_block_fn_params,
                                                   pool_size)
@@ -465,10 +475,13 @@ def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
 
     - Searchlight function.
     - `Shape` mask.
+    - Minimum active voxels proportion required to run the searchlight
+      function.
     """
 
     voxel_fn = extra_params[0]
     shape_mask = extra_params[1]
+    min_active_voxels_proportion = extra_params[2]
     outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
                                                   mysl_rad:-mysl_rad,
                                                   mysl_rad:-mysl_rad]
@@ -480,9 +493,13 @@ def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
                         i:i+2*mysl_rad+1,
                         j:j+2*mysl_rad+1,
                         k:k+2*mysl_rad+1]
-                    outmat[i, j, k] = voxel_fn(
-                        [ll[searchlight_slice] for ll in l],
-                        msk[searchlight_slice] * shape_mask,
-                        mysl_rad,
-                        bcast_var)
+                    voxel_fn_mask = msk[searchlight_slice] * shape_mask
+                    if (min_active_voxels_proportion == 0
+                        or np.count_nonzero(voxel_fn_mask) / voxel_fn_mask.size
+                            > min_active_voxels_proportion):
+                        outmat[i, j, k] = voxel_fn(
+                            [ll[searchlight_slice] for ll in l],
+                            msk[searchlight_slice] * shape_mask,
+                            mysl_rad,
+                            bcast_var)
     return outmat
