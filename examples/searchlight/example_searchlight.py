@@ -67,7 +67,8 @@ if rank == 0:
       data[pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim,idx] -= kernel * weight
 
 # Create searchlight object
-sl = Searchlight(sl_rad=1, max_blk_edge=5, shape=Diamond)
+sl = Searchlight(sl_rad=1, max_blk_edge=5, shape=Diamond,
+                 min_active_voxels_proportion=0)
 
 # Distribute data to processes
 sl.distribute([data], mask)
