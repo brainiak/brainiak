@@ -24,6 +24,7 @@ from numpy.random import RandomState
 # specify the random state to fix the random numbers
 prng = RandomState(1234567890)
 
+
 def create_epoch():
     row = 12
     col = 5
@@ -34,6 +35,7 @@ def create_epoch():
     mat = np.nan_to_num(mat)
     mat = mat / math.sqrt(mat.shape[0])
     return mat
+
 
 def test_voxel_selection():
     fake_raw_data = [create_epoch() for i in range(8)]
@@ -73,8 +75,10 @@ def test_voxel_selection():
         for tuple in results:
             output[tuple[0]] = int(8*tuple[1])
         expected_output = [6, 3, 6, 4, 4]
-        assert np.allclose(output, expected_output, atol=1), \
-            'voxel selection via logistic regression does not provide correct results'
+        assert np.allclose(output, expected_output, atol=1), (
+            "voxel selection via logistic regression does not provide correct "
+            "results")
+
 
 def test_voxel_selection_with_two_masks():
     fake_raw_data1 = [create_epoch() for i in range(8)]
@@ -102,8 +106,10 @@ def test_voxel_selection_with_two_masks():
         for tuple in results:
             output[tuple[0]] = int(8*tuple[1])
         expected_output = [3, 4, 4, 6, 6]
-        assert np.allclose(output, expected_output, atol=1), \
-            'voxel selection via logistic regression does not provide correct results'
+        assert np.allclose(output, expected_output, atol=1), (
+            "voxel selection via logistic regression does not provide correct "
+            "results")
+
 
 if __name__ == '__main__':
     test_voxel_selection()

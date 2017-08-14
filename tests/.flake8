@@ -11,11 +11,5 @@ ignore =
     E704,
     W503,
     W504,
-
-[coverage:run]
-source = brainiak
-branch = True
-parallel = True
-
-[coverage:report]
-fail_under = 90
+    # Print restriction only applies to libraries
+    T003
