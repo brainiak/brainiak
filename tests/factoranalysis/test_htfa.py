@@ -40,6 +40,7 @@ def test_X():
 
     htfa = HTFA(
         K,
+        n_subj=n_subj,
         max_global_iter=max_global_iter,
         max_local_iter=max_local_iter,
         max_voxel=max_voxel,
