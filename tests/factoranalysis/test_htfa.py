@@ -18,7 +18,7 @@ def test_R():
     from brainiak.factoranalysis.htfa import HTFA
     with pytest.raises(TypeError) as excinfo:
         HTFA()
-    assert "missing 1 required positional argument" in str(excinfo.value)
+    assert "missing 2 required positional arguments" in str(excinfo.value)
 
 
 def test_X():
@@ -40,6 +40,7 @@ def test_X():
 
     htfa = HTFA(
         K,
+        n_subj=n_subj,
         max_global_iter=max_global_iter,
         max_local_iter=max_local_iter,
         max_voxel=max_voxel,
