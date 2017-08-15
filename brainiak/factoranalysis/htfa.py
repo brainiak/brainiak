@@ -67,7 +67,7 @@ class HTFA(TFA):
     K : int
         Number of factors to compute.
 
-    n_subj : int, default: 2
+    n_subj : int
         Total number of subjects in dataset.
 
     max_global_iter : int, default: 10
