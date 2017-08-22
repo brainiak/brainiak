@@ -77,7 +77,6 @@ def test_fit():
     ideal_cov[5:9, 5:9] = 0.9
     for cond in range(5, 9):
         ideal_cov[cond, cond] = 1
-    idx = np.where(np.sum(np.abs(ideal_cov), axis=0) > 0)[0]  # noqa: F841
     L_full = np.linalg.cholesky(ideal_cov)
 
     # generating signal
@@ -287,7 +286,6 @@ def test_gradient():
     ideal_cov[5:9, 5:9] = 0.6
     for cond in range(5, 9):
         ideal_cov[cond, cond] = 1
-    idx = np.where(np.sum(np.abs(ideal_cov), axis=0) > 0)[0]  # noqa: F841
     L_full = np.linalg.cholesky(ideal_cov)
 
     # generating signal
