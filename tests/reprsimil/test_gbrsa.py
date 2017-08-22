@@ -580,7 +580,7 @@ def test_grid_flatten_num_int():
     scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
-    tol = 1e-3
+    tol = 2e-3
     assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'
 
@@ -602,7 +602,7 @@ def test_grid_flatten_num_int():
                                           n_V, n_X0, n_grid, rank=rank)
     LL_total = - LL_total
     # Now we re-calculate using scipy.integrate
-    s.SNR_bins = 400
+    s.SNR_bins = 800
     SNR_grids = np.linspace(1e-8, 20, s.SNR_bins)
     log_SNR_weights = scipy.stats.lognorm.logpdf(SNR_grids, s=s.logS_range)
     result_sum, max_value, result_exp = utils.sumexp_stable(
@@ -621,6 +621,6 @@ def test_grid_flatten_num_int():
     scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
-    tol = 1e-3
+    tol = 2e-3
     assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'
