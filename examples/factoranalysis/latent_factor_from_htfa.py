@@ -69,6 +69,7 @@ from brainiak.factoranalysis.htfa import HTFA
 
 K = 5
 htfa = HTFA(K=K,
+        n_subj=n_subj,
         max_global_iter=5,
         max_local_iter=2,
         voxel_ratio=0.5,

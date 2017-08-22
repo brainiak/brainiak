@@ -64,12 +64,11 @@ class HTFA(TFA):
     Parameters
     ----------
 
-    R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-        Each element in the list contains the scanner coordinate matrix
-        of fMRI data of one subject.
-
-    K : int, default: 50
+    K : int
         Number of factors to compute.
+
+    n_subj : int
+        Total number of subjects in dataset.
 
     max_global_iter : int, default: 10
         Number of global iterations to run the algorithm.
@@ -77,9 +76,6 @@ class HTFA(TFA):
     max_local_iter : int, default: 10
         Number of local iterations to run on each subject within each
         global interation.
-
-    n_subj : int, default: 2
-        Total number of subjects in dataset.
 
     threshold : float, default: 1.0
         Tolerance for terminate the parameter estimation
@@ -161,7 +157,7 @@ class HTFA(TFA):
 
     """
 
-    def __init__(self, K, n_subj=2, max_global_iter=10, max_local_iter=10,
+    def __init__(self, K, n_subj, max_global_iter=10, max_local_iter=10,
                  threshold=0.01, nlss_method='trf', nlss_loss='soft_l1',
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
