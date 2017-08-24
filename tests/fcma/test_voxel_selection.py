@@ -46,14 +46,14 @@ def test_voxel_selection():
     fake_corr = prng.rand(1, 4, 5).astype(np.float32)
     fake_corr = vs._correlation_normalization(fake_corr)
     if MPI.COMM_WORLD.Get_rank() == 0:
-        expected_fake_corr = [[[1.19203866, 0.18862808, -0.54350245,
-                                -1.18334889, -0.16860008],
-                               [-1.06594729, -1.08742261, -1.19447124,
-                                1.14114654, -0.67860204],
-                               [0.7839641, 1.53981364, 0.24948341,
-                                0.82626557, 1.67902875],
-                               [-0.91005552, -0.64101928, 1.48848987,
-                                -0.78406328, -0.83182675]]]
+        expected_fake_corr = [[[1.06988919, 0.51641309, -0.46790636,
+                                -1.31926763, 0.2270218],
+                               [-1.22142744, -1.39881694, -1.2979387,
+                                1.05702305, -0.6525566],
+                               [0.89795232, 1.27406132, 0.36460185,
+                                0.87538344, 1.5227468],
+                               [-0.74641371, -0.39165771, 1.40124381,
+                                -0.61313909, -1.0972116]]]
         assert np.allclose(fake_corr, expected_fake_corr), \
             'within-subject normalization does not provide correct results'
     # for cross validation, use SVM with precomputed kernel
