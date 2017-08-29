@@ -94,11 +94,16 @@ class VoxelSelector:
         the number of hardware threads,
         i.e. the number returned by cpu_count().
         If 0, cross validation will not use python multiprocessing.
-        NOTE: on some compute cluster, python multiprocessing launched
-        via MPI on a remote machine may result in child processes disfunct.
 
     master_rank: int, default 0
         The process which serves as the master
+
+    Note
+    ----
+
+        On some compute cluster (e.g. lonestar5 at TACC),
+        python multiprocessing launched
+        via MPI on a remote machine may result in child processes defunct.
     """
     def __init__(self,
                  labels,
@@ -118,7 +123,7 @@ class VoxelSelector:
         self.num_voxels2 = raw_data2[0].shape[1] \
             if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
-        self.process_num = process_num
+        self.process_num = np.min((process_num, multiprocessing.cpu_count()))
         if self.process_num == 0:
             self.use_multiprocessing = False
         else:
