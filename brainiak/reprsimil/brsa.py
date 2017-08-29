@@ -4096,16 +4096,19 @@ class GBRSA(BRSA):
             dist = scipy.stats.lognorm
             alphas = np.arange(np.mod(self.SNR_bins, 2),
                                self.SNR_bins + 2, 2) / self.SNR_bins
-
-            intervals = dist.interval(alphas, (self.logS_range,))
-            intervals = np.unique(intervals)
-
+            # The goal here is to divide the area under the pdf curve
+            # to segments representing equal probabilities.
+            bounds = dist.interval(alphas, (self.logS_range,))
+            bounds = np.unique(bounds)
+            # bounds contain the boundaries which equally separate
+            # the probability mass of the distribution
             SNR_grids = np.zeros(self.SNR_bins)
             for i in np.arange(self.SNR_bins):
                 SNR_grids[i] = dist.expect(
                     lambda x: x, args=(self.logS_range,),
-                    lb=intervals[i], ub=intervals[i + 1]) * self.SNR_bins
-
+                    lb=bounds[i], ub=bounds[i + 1]) * self.SNR_bins
+            # Center of mass of each segment between consecutive
+            # bounds are set as the grids for SNR.
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         else:  # SNR_prior == 'exp'
             SNR_grids = self._bin_exp(self.SNR_bins)
