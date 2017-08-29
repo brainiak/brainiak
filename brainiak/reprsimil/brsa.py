@@ -4101,11 +4101,10 @@ class GBRSA(BRSA):
             intervals = np.unique(intervals)
 
             SNR_grids = np.zeros(self.SNR_bins)
-            bin_center = lambda lb, ub: dist.expect(
-                lambda x: x, args=(self.logS_range,),
-                lb=lb, ub=ub) * self.SNR_bins
             for i in np.arange(self.SNR_bins):
-                SNR_grids[i] = bin_center(intervals[i], intervals[i + 1])
+                SNR_grids[i] = dist.expect(
+                    lambda x: x, args=(self.logS_range,),
+                    lb=intervals[i], ub=intervals[i + 1]) * self.SNR_bins
 
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         else:  # SNR_prior == 'exp'
