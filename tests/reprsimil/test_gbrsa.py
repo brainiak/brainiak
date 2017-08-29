@@ -350,7 +350,6 @@ def test_SNR_grids():
     assert (np.all(SNR_grids >= 0)
             and np.isclose(np.sum(SNR_weights), 1)
             and np.all(SNR_weights > 0)
-            and np.isclose(np.min(SNR_grids), 0)
             and np.all(np.diff(SNR_grids) > 0)
             ), 'SNR_grids or SNR_weights not correct for log normal prior'
 
@@ -580,14 +579,14 @@ def test_grid_flatten_num_int():
     scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
-    tol = 2e-3
+    tol = 1e-3
     assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'
 
     # Now test the log normal prior
     s = brainiak.reprsimil.brsa.GBRSA(n_iter=1, auto_nuisance=False,
                                       SNR_prior='lognorm')
-    s.SNR_bins = 50
+    s.SNR_bins = 30
     s.rho_bins = 1
     SNR_grids, SNR_weights = s._set_SNR_grids()
     rho_grids, rho_weights = s._set_rho_grids()
@@ -602,8 +601,8 @@ def test_grid_flatten_num_int():
                                           n_V, n_X0, n_grid, rank=rank)
     LL_total = - LL_total
     # Now we re-calculate using scipy.integrate
-    s.SNR_bins = 800
-    SNR_grids = np.linspace(1e-8, 20, s.SNR_bins)
+    s.SNR_bins = 200
+    SNR_grids = np.linspace(1e-8, 30, s.SNR_bins)
     log_SNR_weights = scipy.stats.lognorm.logpdf(SNR_grids, s=s.logS_range)
     result_sum, max_value, result_exp = utils.sumexp_stable(
         log_SNR_weights[:, None])
@@ -621,6 +620,6 @@ def test_grid_flatten_num_int():
     scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
-    tol = 2e-3
+    tol = 1e-3
     assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'
