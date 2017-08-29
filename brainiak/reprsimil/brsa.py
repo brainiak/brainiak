@@ -2809,9 +2809,8 @@ class GBRSA(BRSA):
     logS_range: float. Default: 1.0
         The reasonable range of the spread of SNR in log scale.
         This parameter only takes effect if SNR_prior is set to 'lognorm'.
-        It is effectively the `scale` parameter of `scipy.stats.lognorm`,
+        It is effectively the `s` parameter of `scipy.stats.lognorm`,
         or the standard deviation of the distribution in log scale.
-        The shape parameter in `scipy.stats.lognorm` is fixed to 1.0.
         logS_range specifies how variable you believe the SNRs
         to vary across voxels in log scale.
         This range should not be set too large, otherwise the fitting
