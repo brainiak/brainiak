@@ -585,7 +585,7 @@ def test_grid_flatten_num_int():
 
     # Now test the log normal prior
     s = brainiak.reprsimil.brsa.GBRSA(n_iter=1, auto_nuisance=False,
-                                      SNR_prior='lognorm')
+                                      SNR_prior='lognorm', logS_range=2.0)
     s.SNR_bins = 30
     s.rho_bins = 1
     SNR_grids, SNR_weights = s._set_SNR_grids()
@@ -601,7 +601,7 @@ def test_grid_flatten_num_int():
                                           n_V, n_X0, n_grid, rank=rank)
     LL_total = - LL_total
     # Now we re-calculate using scipy.integrate
-    s.SNR_bins = 200
+    s.SNR_bins = 1000
     SNR_grids = np.linspace(1e-8, 30, s.SNR_bins)
     log_SNR_weights = scipy.stats.lognorm.logpdf(SNR_grids, s=s.logS_range)
     result_sum, max_value, result_exp = utils.sumexp_stable(
