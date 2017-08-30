@@ -2809,10 +2809,9 @@ class GBRSA(BRSA):
     logS_range: float. Default: 1.0
         The reasonable range of the spread of SNR in log scale.
         This parameter only takes effect if SNR_prior is set to 'lognorm'.
-        The code will in fact evaluate pseudo-SNR in the range of
-        exp(-3*logS_range) to exp(3*logS_range), on a grid equally spread
-        in log scale. The number of grids evaluated is determined by
-        SNR_bins. logS_range specifies how variable you believe the SNRs
+        It is effectively the `s` parameter of `scipy.stats.lognorm`,
+        or the standard deviation of the distribution in log scale.
+        logS_range specifies how variable you believe the SNRs
         to vary across voxels in log scale.
         This range should not be set too large, otherwise the fitting
         may encounter numerical issue.
@@ -4094,21 +4093,23 @@ class GBRSA(BRSA):
             SNR_weights[0] = SNR_weights[0] / 2.0
             SNR_weights[-1] = SNR_weights[-1] / 2.0
         elif self.SNR_prior == 'lognorm':
-            log_SNR_grids = ((np.arange(self.SNR_bins)
-                              - (self.SNR_bins - 1) / 2)) \
-                / self.SNR_bins * self.logS_range * 6
-            SNR_grids = np.exp(log_SNR_grids)
-            log_SNR_grids_upper = log_SNR_grids + self.logS_range * 3 \
-                / self.SNR_bins
-            SNR_weights = np.empty(self.SNR_bins)
-            SNR_weights[1:-1] = np.diff(
-                scipy.stats.norm.cdf(log_SNR_grids_upper[:-1],
-                                     scale=self.logS_range))
-            SNR_weights[0] = scipy.stats.norm.cdf(log_SNR_grids_upper[0],
-                                                  scale=self.logS_range)
-            SNR_weights[-1] = 1 - scipy.stats.norm.cdf(log_SNR_grids_upper[-2],
-                                                       scale=self.logS_range)
-            SNR_grids[0] = 0
+            dist = scipy.stats.lognorm
+            alphas = np.arange(np.mod(self.SNR_bins, 2),
+                               self.SNR_bins + 2, 2) / self.SNR_bins
+            # The goal here is to divide the area under the pdf curve
+            # to segments representing equal probabilities.
+            bounds = dist.interval(alphas, (self.logS_range,))
+            bounds = np.unique(bounds)
+            # bounds contain the boundaries which equally separate
+            # the probability mass of the distribution
+            SNR_grids = np.zeros(self.SNR_bins)
+            for i in np.arange(self.SNR_bins):
+                SNR_grids[i] = dist.expect(
+                    lambda x: x, args=(self.logS_range,),
+                    lb=bounds[i], ub=bounds[i + 1]) * self.SNR_bins
+            # Center of mass of each segment between consecutive
+            # bounds are set as the grids for SNR.
+            SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
         else:  # SNR_prior == 'exp'
             SNR_grids = self._bin_exp(self.SNR_bins)
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins

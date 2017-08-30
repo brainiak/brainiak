@@ -28,7 +28,7 @@ def test_can_instantiate():
     assert s, "Invalid GBRSA instance!"
 
 
-def test_fit():  # noqa: C901
+def test_fit():
     from brainiak.reprsimil.brsa import GBRSA
     import brainiak.utils.utils as utils
     import scipy.stats
@@ -47,7 +47,6 @@ def test_fit():  # noqa: C901
     n_V = [40, 60, 60]
     for i in range(3):
         design_mat[i] = np.tile(design.design_task[:, :-1], [n_run[i], 1])
-        n_T[i] = n_run[i] * design.n_TR
 
     # start simulating some data
     n_C = np.size(design_mat[0], axis=1)
@@ -55,21 +54,25 @@ def test_fit():  # noqa: C901
     noise_bot = 0.5
     noise_top = 1.5
     noise_level = [None] * 3
-    for i in range(3):
-        noise_level[i] = np.random.rand(
-            n_V[i]) * (noise_top - noise_bot) + noise_bot
-    # noise level is random.
 
     # AR(1) coefficient
     rho1_top = 0.8
     rho1_bot = -0.2
     rho1 = [None] * 3
-    for i in range(3):
-        rho1[i] = np.random.rand(n_V[i]) * (rho1_top - rho1_bot) + rho1_bot
 
     # generating noise
     noise = [None] * 3
+
+    # baseline
+    inten = [None] * 3
     for i in range(3):
+        design_mat[i] = np.tile(design.design_task[:, :-1], [n_run[i], 1])
+        n_T[i] = n_run[i] * design.n_TR
+        noise_level[i] = np.random.rand(
+            n_V[i]) * (noise_top - noise_bot) + noise_bot
+        # noise level is random.
+        rho1[i] = np.random.rand(n_V[i]) * (rho1_top - rho1_bot) + rho1_bot
+
         noise[i] = np.zeros([n_T[i], n_V[i]])
         noise[i][0, :] = np.random.randn(
             n_V[i]) * noise_level[i] / np.sqrt(1 - rho1[i]**2)
@@ -78,9 +81,6 @@ def test_fit():  # noqa: C901
                 np.random.randn(n_V[i]) * noise_level[i]
         noise[i] = noise[i] + \
             np.dot(np.random.randn(n_T[i], 2), np.random.randn(2, n_V[i]))
-    # baseline
-    inten = [None] * 3
-    for i in range(3):
         inten[i] = np.random.rand(n_V[i]) * 20.0
 
     # ideal covariance matrix
@@ -92,7 +92,6 @@ def test_fit():  # noqa: C901
     ideal_cov[5:9, 5:9] = 0.9
     for cond in range(5, 9):
         ideal_cov[cond, cond] = 1
-    idx = np.where(np.sum(np.abs(ideal_cov), axis=0) > 0)[0]  # noqa: F841
     L_full = np.linalg.cholesky(ideal_cov)
 
     # generating signal
@@ -185,7 +184,7 @@ def test_fit():  # noqa: C901
         3, "transform did not return list of None when data is None"
 
 
-def test_gradient():  # noqa: C901
+def test_gradient():
     from brainiak.reprsimil.brsa import GBRSA
     import brainiak.utils.utils as utils
     import numpy as np
@@ -222,12 +221,14 @@ def test_gradient():  # noqa: C901
     rho1_top = 0.8
     rho1_bot = -0.2
     rho1 = [None] * 3
-    for i in range(3):
-        rho1[i] = np.random.rand(n_V[i]) * (rho1_top - rho1_bot) + rho1_bot
 
     # generating noise
     noise = [None] * 3
+
+    # baseline
+    inten = [None] * 3
     for i in range(3):
+        rho1[i] = np.random.rand(n_V[i]) * (rho1_top - rho1_bot) + rho1_bot
         noise[i] = np.zeros([n_T[i], n_V[i]])
         noise[i][0, :] = np.random.randn(
             n_V[i]) * noise_level[i] / np.sqrt(1 - rho1[i]**2)
@@ -236,9 +237,6 @@ def test_gradient():  # noqa: C901
                 np.random.randn(n_V[i]) * noise_level[i]
         noise[i] = noise[i] + \
             np.dot(np.random.randn(n_T[i], 2), np.random.randn(2, n_V[i]))
-    # baseline
-    inten = [None] * 3
-    for i in range(3):
         inten[i] = np.random.rand(n_V[i]) * 20.0
 
     # ideal covariance matrix
@@ -250,7 +248,6 @@ def test_gradient():  # noqa: C901
     ideal_cov[5:9, 5:9] = 0.9
     for cond in range(5, 9):
         ideal_cov[cond, cond] = 1
-    idx = np.where(np.sum(np.abs(ideal_cov), axis=0) > 0)[0]  # noqa: F841
     L_full = np.linalg.cholesky(ideal_cov)
 
     # generating signal
@@ -353,7 +350,6 @@ def test_SNR_grids():
     assert (np.all(SNR_grids >= 0)
             and np.isclose(np.sum(SNR_weights), 1)
             and np.all(SNR_weights > 0)
-            and np.isclose(np.min(SNR_grids), 0)
             and np.all(np.diff(SNR_grids) > 0)
             ), 'SNR_grids or SNR_weights not correct for log normal prior'
 
@@ -549,8 +545,6 @@ def test_grid_flatten_num_int():
             np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
         all_rho_grids = np.reshape(np.repeat(
             rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-        all_SNR_grids = np.reshape(np.repeat(  # noqa: F841
-            SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
         log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
             / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
                 (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
