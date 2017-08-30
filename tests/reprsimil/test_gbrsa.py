@@ -545,8 +545,6 @@ def test_grid_flatten_num_int():
             np.log(SNR_weights[:, None]) + np.log(rho_weights), n_grid)
         all_rho_grids = np.reshape(np.repeat(
             rho_grids[None, :], s.SNR_bins, axis=0), n_grid)
-        # all_SNR_grids = np.reshape(np.repeat(
-        #     SNR_grids[:, None], s.rho_bins, axis=1), n_grid)
         log_fixed_terms = - (n_T - n_X0) / 2 * np.log(2 * np.pi) + n_run \
             / 2 * np.log(1 - all_rho_grids**2) + scipy.special.gammaln(
                 (n_T - n_X0 - 2) / 2) + (n_T - n_X0 - 2) / 2 * np.log(2)
