@@ -91,7 +91,9 @@ class VoxelSelector:
     process_num: Optional[int]
         The number of processes used in cross validation.
         If None, the number of processes will equal
-        the number of hardware threads.
+        the number of hardware threads,
+        i.e. the number returned by cpu_count().
+        If 0, cross validation will not use python multiprocessing.
 
     master_rank: int, default 0
         The process which serves as the master
@@ -103,7 +105,7 @@ class VoxelSelector:
                  raw_data,
                  raw_data2=None,
                  voxel_unit=64,
-                 process_num=None,
+                 process_num=4,
                  master_rank=0):
         self.labels = labels
         self.epochs_per_subj = epochs_per_subj
@@ -114,7 +116,11 @@ class VoxelSelector:
         self.num_voxels2 = raw_data2[0].shape[1] \
             if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
-        self.process_num = process_num
+        self.process_num = np.min((process_num, multiprocessing.cpu_count()))
+        if self.process_num == 0:
+            self.use_multiprocessing = False
+        else:
+            self.use_multiprocessing = True
         self.master_rank = master_rank
         if self.raw_data2 is not None \
                 and len(self.raw_data) != len(self.raw_data2):
@@ -342,7 +348,7 @@ class VoxelSelector:
             start = 0
             while start < e:
                 cur_val = corr[i, start: start + self.epochs_per_subj, :]
-                cur_val = .5 * np.log(cur_val + 1) / (1 - cur_val)
+                cur_val = .5 * np.log((cur_val + 1) / (1 - cur_val))
                 corr[i, start: start + self.epochs_per_subj, :] = \
                     zscore(cur_val, axis=0, ddof=0)
                 start += self.epochs_per_subj
@@ -430,7 +436,8 @@ class VoxelSelector:
         """
         time1 = time.time()
 
-        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
+        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed'\
+                and self.use_multiprocessing:
             inlist = [(clf, i + task[0], self.num_folds, data[i, :, :],
                        self.labels) for i in range(task[1])]
 
