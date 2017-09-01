@@ -97,13 +97,6 @@ class VoxelSelector:
 
     master_rank: int, default 0
         The process which serves as the master
-
-    Note
-    ----
-
-        On some compute cluster (e.g. lonestar5 at TACC),
-        python multiprocessing launched
-        via MPI on a remote machine may result in child processes defunct.
     """
     def __init__(self,
                  labels,
