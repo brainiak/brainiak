@@ -107,7 +107,6 @@ class EventSegment(BaseEstimator):
         self.p_end = np.zeros((1, self.n_events + 1))
         self.p_end[0, -2] = 1
 
-
     def fit(self, X, y=None):
         """Learn a segmentation on training data
 
@@ -318,11 +317,11 @@ class EventSegment(BaseEstimator):
 
     def set_event_patterns(self, event_pat):
         """Set HMM event patterns manually
-        
+
         Rather than fitting the event patterns automatically using fit(), this
         function allows them to be set explicitly. They can then be used to
         find corresponding events in a new dataset, using find_events().
-        
+
         Parameters
         ----------
         event_pat: voxel by event ndarray
@@ -331,7 +330,6 @@ class EventSegment(BaseEstimator):
             raise ValueError(("Number of columns of event_pat must match "
                               "number of events"))
         self.event_pat_ = event_pat.copy()
-
 
     def find_events(self, testing_data, var=None, scramble=False):
         """Applies learned event segmentation to new testing dataset
