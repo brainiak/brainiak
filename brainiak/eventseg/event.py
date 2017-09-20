@@ -22,7 +22,8 @@ Full details are available in the bioRxiv preprint:
 Christopher Baldassano, Janice Chen, Asieh Zadbood,
 Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
-http://biorxiv.org/content/early/2016/10/14/081018
+Neuron, Volume 95, Issue 3, 709 - 721.e5
+http://www.cell.com/neuron/abstract/S0896-6273(17)30593-7
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -87,10 +88,8 @@ class EventSegment(BaseEstimator):
                  step_var=_default_var_schedule,
                  n_iter=500):
         self.n_events = n_events
-        self.classes_ = np.arange(self.n_events)
         self.step_var = step_var
         self.n_iter = n_iter
-        self.event_var_ = None
 
         # Set up transition matrix, with final sink state
         # For transition matrix of this form, the transition probability has
@@ -136,6 +135,7 @@ class EventSegment(BaseEstimator):
         for i in range(n_train):
             X[i] = X[i].T
 
+        self.classes_ = np.arange(self.n_events)
         n_dim = X[0].shape[0]
         for i in range(n_train):
             assert (X[i].shape[0] == n_dim)
@@ -364,7 +364,7 @@ class EventSegment(BaseEstimator):
         """
 
         if var is None:
-            if self.event_var_ is None:
+            if not hasattr(self, 'event_var_'):
                 raise NotFittedError(("The event patterns must first be set "
                                       "by fit() or set_event_patterns()"))
             else:
