@@ -22,7 +22,8 @@ Full details are available in the bioRxiv preprint:
 Christopher Baldassano, Janice Chen, Asieh Zadbood,
 Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
-http://biorxiv.org/content/early/2016/10/14/081018
+Neuron, Volume 95, Issue 3, 709 - 721.e5
+http://www.cell.com/neuron/abstract/S0896-6273(17)30593-7
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -33,6 +34,7 @@ import logging
 import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
+from sklearn.exceptions import NotFittedError
 
 from . import _utils as utils  # type: ignore
 
@@ -89,6 +91,21 @@ class EventSegment(BaseEstimator):
         self.step_var = step_var
         self.n_iter = n_iter
 
+        # Set up transition matrix, with final sink state
+        # For transition matrix of this form, the transition probability has
+        # no impact on the final solution, since all valid paths must take
+        # the same number of transitions
+        self.p_start = np.zeros((1, self.n_events + 1))
+        self.p_start[0, 0] = 1
+        self.P = np.vstack((np.hstack((
+            0.5 * np.diag(np.ones(self.n_events))
+            + 0.5 * np.diag(np.ones(self.n_events - 1), 1),
+            np.append(np.zeros((self.n_events - 1, 1)), [[0.5]], axis=0))),
+                            np.append(np.zeros((1, self.n_events)), [[1]],
+                                      axis=1)))
+        self.p_end = np.zeros((1, self.n_events + 1))
+        self.p_end[0, -2] = 1
+
     def fit(self, X, y=None):
         """Learn a segmentation on training data
 
@@ -118,6 +135,7 @@ class EventSegment(BaseEstimator):
         for i in range(n_train):
             X[i] = X[i].T
 
+        self.classes_ = np.arange(self.n_events)
         n_dim = X[0].shape[0]
         for i in range(n_train):
             assert (X[i].shape[0] == n_dim)
@@ -125,22 +143,6 @@ class EventSegment(BaseEstimator):
         # Double-check that data is z-scored in time
         for i in range(n_train):
             X[i] = stats.zscore(X[i], axis=1, ddof=1)
-
-        # Set up transition matrix, with final sink state
-        # For transition matrix of this form, the transition probability has
-        # no impact on the final solution, since all valid paths must take
-        # the same number of transitions
-        self.p_start = np.zeros((1, self.n_events + 1))
-        self.p_start[0, 0] = 1
-        self.P = np.vstack((np.hstack((
-            0.5 * np.diag(np.ones(self.n_events))
-            + 0.5 * np.diag(np.ones(self.n_events - 1), 1),
-            np.append(np.zeros((self.n_events - 1, 1)), [[0.5]], axis=0))),
-            np.append(np.zeros((1, self.n_events)), [[1]], axis=1)))
-        self.p_end = np.zeros((1, self.n_events + 1))
-        self.p_end[0, -2] = 1
-
-        self.classes_ = np.arange(self.n_events)
 
         # Initialize variables for fitting
         log_gamma = []
@@ -313,12 +315,28 @@ class EventSegment(BaseEstimator):
         y = utils.masked_log(_x)
         return y.reshape(xshape)
 
+    def set_event_patterns(self, event_pat):
+        """Set HMM event patterns manually
+
+        Rather than fitting the event patterns automatically using fit(), this
+        function allows them to be set explicitly. They can then be used to
+        find corresponding events in a new dataset, using find_events().
+
+        Parameters
+        ----------
+        event_pat: voxel by event ndarray
+        """
+        if event_pat.shape[1] != self.n_events:
+            raise ValueError(("Number of columns of event_pat must match "
+                              "number of events"))
+        self.event_pat_ = event_pat.copy()
+
     def find_events(self, testing_data, var=None, scramble=False):
         """Applies learned event segmentation to new testing dataset
 
-        After fitting an event segmentation using fit(),
-        this function finds the same sequence of event patterns in a new
-        testing dataset.
+        After fitting an event segmentation using fit() or setting event
+        patterns directly using set_event_patterns(), this function finds the
+        same sequence of event patterns in a new testing dataset.
 
         Parameters
         ----------
@@ -328,7 +346,8 @@ class EventSegment(BaseEstimator):
         var: float or 1D ndarray of length equal to the number of events
             default: uses variance that maximized training log-likelihood
             Variance of the event Gaussians. If scalar, all events are
-            assumed to have the same variance.
+            assumed to have the same variance. If fit() has not previously
+            been run, this must be specifed (cannot be None).
 
         scramble: bool : default False
             If true, the order of the learned events are shuffled before
@@ -345,7 +364,11 @@ class EventSegment(BaseEstimator):
         """
 
         if var is None:
-            var = self.event_var_
+            if not hasattr(self, 'event_var_'):
+                raise NotFittedError(("The event patterns must first be set "
+                                      "by fit() or set_event_patterns()"))
+            else:
+                var = self.event_var_
 
         if scramble:
             mean_pat = self.event_pat_[:, np.random.permutation(self.n_events)]
