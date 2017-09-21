@@ -1,4 +1,4 @@
 #!/bin/sh
-curl --location -o isfc.zip https://api.onedrive.com/v1.0/shares/s!Aobi2ryypFQCgqQOm2Zhs-TSLu9leQ/root/content
+wget https://ndownloader.figshare.com/files/9342556 -O isfc.zip
 unzip -qo isfc.zip
 rm -f isfc.zip

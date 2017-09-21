@@ -18,7 +18,10 @@ set -e
 set -o pipefail
 
 flake8 --config setup.cfg brainiak
+flake8 --config tests/.flake8 tests
 mypy --ignore-missing-imports brainiak tests/[!_]*
-rst-lint *.rst | { grep -v "is clean.$" || true; }
+rst-lint ./*.rst | { grep -v "is clean.$" || true; }
+towncrier --version=100 --draft > /dev/null 2>&1 \
+    || echo "Error assembling news fragments using towncrier."
 
 echo "run-checks finished successfully."

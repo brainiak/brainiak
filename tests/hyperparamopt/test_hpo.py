@@ -40,28 +40,28 @@ def test_simple_gmm_weights():
     y2 = d2(np.array([1.1, 2.0]))
 
     assert d2(1.1) == y2[0],\
-           "GMM distribution array & scalar results don't match"
+        "GMM distribution array & scalar results don't match"
     assert np.abs(d(1.1) - d2(1.1)) < 1e-5,\
-           "GMM distribution weights not handled correctly"
+        "GMM distribution weights not handled correctly"
     assert np.abs(d(2.0) - d2(2.0)) < 1e-5,\
-           "GMM distribution weights not handled correctly"
+        "GMM distribution weights not handled correctly"
 
 
 def test_simple_hpo():
 
     def f(args):
-      x = args['x']
-      return x*x
+        x = args['x']
+        return x*x
 
     s = {'x': {'dist': st.uniform(loc=-10., scale=20), 'lo': -10., 'hi': 10.}}
     trials = []
 
-    #Test fmin and ability to continue adding to trials
+    # Test fmin and ability to continue adding to trials
     best = fmin(loss_fn=f, space=s, max_evals=40, trials=trials)
     best = fmin(loss_fn=f, space=s, max_evals=10, trials=trials)
 
     assert len(trials) == 50, "HPO continuation trials not working"
-    
+
     # Test verbose flag
     best = fmin(loss_fn=f, space=s, max_evals=10, trials=trials)
 
@@ -74,14 +74,13 @@ def test_simple_hpo():
     assert best['loss'] < 100., "HPO out of range"
     assert np.abs(best['x']) < 10., "HPO out of range"
 
-    #Test unknown distributions
+    # Test unknown distributions
     s2 = {'x': {'dist': 'normal', 'mu': 0., 'sigma': 1.}}
     trials2 = []
     with pytest.raises(ValueError) as excinfo:
-        best2 = fmin(loss_fn=f, space=s2, max_evals=40, trials=trials2)
+        fmin(loss_fn=f, space=s2, max_evals=40, trials=trials2)
     assert "Unknown distribution type for variable" in str(excinfo.value)
 
     s3 = {'x': {'dist': st.norm(loc=0., scale=1.)}}
     trials3 = []
-    best3 = fmin(loss_fn=f, space=s3, max_evals=40, trials=trials3)
-
+    fmin(loss_fn=f, space=s3, max_evals=40, trials=trials3)
