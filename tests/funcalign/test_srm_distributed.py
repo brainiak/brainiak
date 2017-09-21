@@ -15,7 +15,8 @@ from sklearn.exceptions import NotFittedError
 import pytest
 from mpi4py import MPI
 
-def test_distributed_srm():
+
+def test_distributed_srm():  # noqa: C901
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
     assert s, "Invalid SRM instance!"
@@ -59,16 +60,16 @@ def test_distributed_srm():
         X.append(None)
 
     # Check that transform does NOT run before fitting the model
-    with pytest.raises(NotFittedError) as excinfo:
+    with pytest.raises(NotFittedError):
         s.transform(X)
     if rank == 0:
-      print("Test: transforming before fitting the model")
+        print("Test: transforming before fitting the model")
 
     # Check that it does NOT run with 1 subject
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError):
         s.fit(X)
     if rank == 0:
-      print("Test: running SRM with 1 subject")
+        print("Test: running SRM with 1 subject")
 
     # DSRM: cyclic distribution of subject data, otherwise None
     for subject in range(1, subjects):
@@ -87,54 +88,68 @@ def test_distributed_srm():
     sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npz")['sr']
     assert(np.allclose(sr_v0_4, s.s_))
 
-    assert len(s.w_) == subjects, "Invalid computation of SRM! (wrong # subjects in W)"
+    assert len(s.w_) == subjects, (
+        "Invalid computation of SRM! (wrong # subjects in W)")
     for subject in range(subjects):
         if s.w_[subject] is not None:
-            assert s.w_[subject].shape[0] == voxels, "Invalid computation of SRM! (wrong # voxels in W)"
-            assert s.w_[subject].shape[1] == features, "Invalid computation of SRM! (wrong # features in W)"
-            ortho = np.linalg.norm(s.w_[subject].T.dot(s.w_[subject]) - np.eye(s.w_[subject].shape[1]), 'fro')
+            assert s.w_[subject].shape[0] == voxels, (
+                "Invalid computation of SRM! (wrong # voxels in W)")
+            assert s.w_[subject].shape[1] == features, (
+                "Invalid computation of SRM! (wrong # features in W)")
+            ortho = np.linalg.norm(s.w_[subject].T.dot(s.w_[subject])
+                                   - np.eye(s.w_[subject].shape[1]),
+                                   'fro')
             assert ortho < 1e-7, "A Wi mapping is not orthonormal in SRM."
-            difference = np.linalg.norm(X[subject] - s.w_[subject].dot(s.s_), 'fro')
+            difference = np.linalg.norm(X[subject] - s.w_[subject].dot(s.s_),
+                                        'fro')
             datanorm = np.linalg.norm(X[subject], 'fro')
-            assert difference/datanorm < 1.0, "Model seems incorrectly computed."
+            assert difference/datanorm < 1.0, (
+                "Model seems incorrectly computed.")
 
-    assert s.s_.shape[0] == features, "Invalid computation of SRM! (wrong # features in S)"
-    assert s.s_.shape[1] == samples, "Invalid computation of SRM! (wrong # samples in S)"
+    assert s.s_.shape[0] == features, (
+        "Invalid computation of SRM! (wrong # features in S)")
+    assert s.s_.shape[1] == samples, (
+        "Invalid computation of SRM! (wrong # samples in S)")
 
-    # Check that it does run to compute the shared response after the model computation
+    # Check that it does run to compute the shared response after the model
+    # computation
     new_s = s.transform(X)
 
-    assert len(new_s) == subjects, "Invalid computation of SRM! (wrong # subjects after transform)"
+    assert len(new_s) == subjects, (
+        "Invalid computation of SRM! (wrong # subjects after transform)")
     for subject in range(subjects):
         if new_s[subject] is not None:
-            assert new_s[subject].shape[0] == features, "Invalid computation of SRM! (wrong # features after transform)"
-            assert new_s[subject].shape[1] == samples, "Invalid computation of SRM! (wrong # samples after transform)"
+            assert new_s[subject].shape[0] == features, (
+                "Invalid computation of SRM! (wrong # features after "
+                "transform)")
+            assert new_s[subject].shape[1] == samples, (
+                "Invalid computation of SRM! (wrong # samples after "
+                "transform)")
 
     # Check that it does NOT run with non-matching number of subjects
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError):
         s.transform([X[1]])
     if rank == 0:
         print("Test: transforming with non-matching number of subjects")
 
     # Check that it does not run without enough samples (TRs).
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError):
         s.set_params(features=(samples+1))
         s.fit(X)
     if rank == 0:
         print("Test: not enough samples")
 
-
     # Check that it does not run with different number of samples (TRs)
     if rank == 0:
-      S2 = S[:,:-2]
-      X.append(Q.dot(S2))
+        S2 = S[:, :-2]
+        X.append(Q.dot(S2))
     else:
-      X.append(None)
+        X.append(None)
 
-
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError):
         s.fit(X)
     if rank == 0:
         print("Test: different number of samples per subject")
+
 
 test_distributed_srm()

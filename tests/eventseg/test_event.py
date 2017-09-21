@@ -1,6 +1,7 @@
 import brainiak.eventseg.event
 import numpy as np
 
+
 def test_create_event_segmentation():
     es = brainiak.eventseg.event.EventSegment(5)
     assert es, "Invalid EventSegment instance"
@@ -14,8 +15,8 @@ def test_fit_shapes():
     sample_data = np.random.rand(V, T)
     es.fit(sample_data.T)
 
-    assert es.segments_[0].shape == (T,K), "Segmentation from fit " \
-                                           "has incorrect shape"
+    assert es.segments_[0].shape == (T, K), "Segmentation from fit " \
+                                            "has incorrect shape"
     assert np.isclose(np.sum(es.segments_[0], axis=1), np.ones(T)).all(), \
         "Segmentation from learn_events not correctly normalized"
 
@@ -28,6 +29,7 @@ def test_fit_shapes():
     assert np.isclose(np.sum(test_segments, axis=1), np.ones(T2)).all(), \
         "Segmentation from find_events not correctly normalized"
 
+
 def test_simple_boundary():
     es = brainiak.eventseg.event.EventSegment(2, n_iter=10)
     sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
@@ -36,3 +38,14 @@ def test_simple_boundary():
     events = np.argmax(es.segments_[0], axis=1)
     assert np.array_equal(events, [0, 0, 0, 1, 1, 1, 1]),\
         "Failed to correctly segment two events"
+
+
+def test_event_transfer():
+    es = brainiak.eventseg.event.EventSegment(2)
+    es.set_event_patterns(np.asarray([[1, 0], [0, 1]]))
+    sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
+    seg = es.find_events(sample_data.T, np.asarray([1, 1]))[0]
+
+    events = np.argmax(seg, axis=1)
+    assert np.array_equal(events, [0, 0, 0, 1, 1, 1, 1]),\
+        "Failed to correctly transfer two events to new data"

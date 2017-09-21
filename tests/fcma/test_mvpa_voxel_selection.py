@@ -22,6 +22,7 @@ from numpy.random import RandomState
 # specify the random state to fix the random numbers
 prng = RandomState(1234567890)
 
+
 def test_mvpa_voxel_selection():
     data = prng.rand(5, 5, 5, 8).astype(np.float32)
     # all MPI processes read the mask; the mask file is small
@@ -44,6 +45,7 @@ def test_mvpa_voxel_selection():
                            4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 1]
         assert np.allclose(output, expected_output, atol=1), \
             'voxel selection via SVM does not provide correct results'
+
 
 if __name__ == '__main__':
     test_mvpa_voxel_selection()
