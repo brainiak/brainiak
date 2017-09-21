@@ -492,9 +492,8 @@ def generate_stimfunction(onsets,
             onset_counter])) * temporal_resolution)
 
         # For the appropriate number of indexes and duration, make this value 1
-        idx_n = round(event_durations[onset_counter] * temporal_resolution)
-        stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]] * \
-                                                idx_n
+        idx = round(event_durations[onset_counter] * temporal_resolution)
+        stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]] * idx
 
     # Shorten the data if it's too long
     if stimfunction.shape[0] > total_time * temporal_resolution:
@@ -654,6 +653,7 @@ def _double_gamma_hrf(response_delay=6,
 
     return hrf
 
+
 def convolve_hrf(stimfunction,
                  tr_duration,
                  hrf_type='double_gamma',
@@ -708,8 +708,8 @@ def convolve_hrf(stimfunction,
         signal_function_temp = signal_function_temp[0::decimate_interval]
 
         # Cut off the HRF
-        last_timepoint = stimfunction_temp.shape[0] / tr_duration / \
-                         temporal_resolution
+        last_timepoint = stimfunction_temp.shape[0] / tr_duration
+        last_timepoint /= temporal_resolution
         signal_function_temp = signal_function_temp[0:int(last_timepoint)]
 
         # Scale the function so that the peak response is 1
@@ -781,9 +781,11 @@ def apply_signal(signal_function,
         y = idxs[1][idx_counter]
         z = idxs[2][idx_counter]
 
+        # Pull out the function for this voxel
+        signal_function_temp = signal_function[:, idx_counter]
+
         # Multiply the voxel value by the function timecourse
-        signal[x, y, z, :] = volume_signal[x, y, z] * signal_function[:,
-                                                      idx_counter]
+        signal[x, y, z, :] = volume_signal[x, y, z] * signal_function_temp
 
     return signal
 
@@ -894,6 +896,7 @@ def _calc_fwhm(volume,
     fwhm = np.prod(np.multiply(fwhm3, voxel_size)) ** (1 / 3)
 
     return fwhm
+
 
 def _calc_sfnr(volume,
                mask,
@@ -1108,11 +1111,6 @@ def calc_noise(volume,
     # Calculate the temporal variability of the volume
     sfnr, auto_reg, drift = _calc_temporal_noise(volume, mask)
     noise_dict['sfnr'] = sfnr
-
-    # How much variability is there over time on average for each voxel.
-    # Turn this into percent signal change by taking the reciprocal of SFNR
-    # and multiplying by 100 (or equivalent below
-    temporal_noise = 100 / sfnr
 
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
@@ -1742,7 +1740,6 @@ def mask_brain(volume,
     # You might get a warning but ignore it
     template = ndimage.zoom(mask_raw, zoom_factor, order=2)
     template[template < 0] = 0
-
 
     # If the mask threshold is not supplied then guess it is a minima
     # between the two peaks of the bimodal distribution of voxel activity
