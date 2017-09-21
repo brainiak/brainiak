@@ -84,15 +84,15 @@ stimfunction_B = sim.generate_stimfunction(onsets=onsets_B,
                                            )
 
 # Convolve the HRF with the stimulus sequence
-signal_function_A = sim.double_gamma_hrf(stimfunction=stimfunction_A,
-                                         tr_duration=tr_duration,
-                                         temporal_resolution=temporal_res,
-                                         )
+signal_function_A = sim.convolve_hrf(stimfunction=stimfunction_A,
+                                     tr_duration=tr_duration,
+                                     temporal_resolution=temporal_res,
+                                     )
 
-signal_function_B = sim.double_gamma_hrf(stimfunction=stimfunction_B,
-                                         tr_duration=tr_duration,
-                                         temporal_resolution=temporal_res,
-                                         )
+signal_function_B = sim.convolve_hrf(stimfunction=stimfunction_B,
+                                     tr_duration=tr_duration,
+                                     temporal_resolution=temporal_res,
+                                     )
 
 # Multiply the HRF timecourse with the signal
 signal_A = sim.apply_signal(signal_function=signal_function_A,

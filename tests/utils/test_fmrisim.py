@@ -76,16 +76,17 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    assert len(stimfunction) == duration * 1000, "stimfunction incorrect " \
-                                                 "length"
+    assert stimfunction.shape[0] == duration * 1000, "stimfunc incorrect " \
+                                                     "length"
     eventNumber = np.sum(event_durations * len(onsets)) * 1000
     assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
-    assert len(signal_function) == len(stimfunction) / (tr_duration * 1000), \
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
+    assert signal_function.shape[0] == stimfunction.shape[0]/ (tr_duration *
+                                                               1000), \
         "The length did not change"
 
     onsets = [10]
@@ -94,9 +95,9 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 
@@ -129,9 +130,9 @@ def test_apply_signal():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
@@ -178,9 +179,9 @@ def test_generate_noise():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
@@ -212,12 +213,12 @@ def test_generate_noise():
                                tr_duration=tr_duration,
                                template=template,
                                mask=mask,
-                               noise_dict={'temporal_noise': 0, 'sfnr': 10000},
+                               noise_dict={'sfnr': 10000, 'snr': 10000},
                                )
 
-    temporal_noise = np.std(noise[mask > 0], 1).mean()
+    system_noise = np.std(noise[mask > 0], 1).mean()
 
-    assert temporal_noise <= 0.1, "Noise strength could not be manipulated"
+    assert system_noise <= 0.1, "Noise strength could not be manipulated"
 
 
 def test_mask_brain():
@@ -276,7 +277,7 @@ def test_calc_noise():
     # Preset the noise dict
     nd_orig = {'auto_reg_sigma': 0.6,
                'drift_sigma': 0.4,
-               'temporal_noise': 5,
+               'snr': 30,
                'sfnr': 30,
                'max_activity': 1000,
                'fwhm': 4,
@@ -300,11 +301,12 @@ def test_calc_noise():
                                )
 
     # Calculate the noise
-    nd_calc = sim.calc_noise(noise, mask)
+    nd_calc = sim.calc_noise(volume=noise,
+                             mask=mask)
 
     # How precise are these estimates
-    precision = abs(nd_calc['temporal_noise'] - nd_orig['temporal_noise'])
-    assert precision < 1, 'temporal_noise calculated incorrectly'
+    precision = abs(nd_calc['snr'] - nd_orig['snr'])
+    assert precision < 6, 'snr calculated incorrectly'
 
     precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
     assert precision < 6, 'sfnr calculated incorrectly'

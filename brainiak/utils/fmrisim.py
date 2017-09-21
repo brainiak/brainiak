@@ -25,6 +25,9 @@ activity. To create the noise model the parameters can either be set
 manually or can be estimated from real fMRI data with reasonable accuracy (
 works best when fMRI data has not been preprocessed)
 
+TODO: Add more documentation about other related packages and where default
+parameters came from
+
 Functions:
 
 generate_signal
@@ -40,9 +43,9 @@ export_stimfunction:
 Generate a three column timing file that can be used with software like FSL
 to represent event event onsets and duration
 
-double_gamma_hrf
-Convolve the signal timecourse with the double gamma HRF to model the
-expected evoked activity
+convolve_hrf
+Convolve the signal timecourse with the  HRF to model the expected evoked
+activity
 
 apply_signal
 Combine the signal volume with the HRF, thus giving the signal the temporal
@@ -85,7 +88,7 @@ __all__ = [
     "generate_signal",
     "generate_stimfunction",
     "export_stimfunction",
-    "double_gamma_hrf",
+    "convolve_hrf",
     "apply_signal",
     "calc_noise",
     "generate_noise",
@@ -438,7 +441,7 @@ def generate_stimfunction(onsets,
     Returns
     ----------
 
-    Iterable[float]
+    1 by timepoint array, float
         The time course of stimulus evoked activation
 
     """
@@ -470,9 +473,14 @@ def generate_stimfunction(onsets,
     if len(weights) == 1:
         weights = weights * len(onsets)
 
+    # Check files
+    if np.max(onsets) > total_time:
+        print('Onsets outside of range of total time. Aborting')
+        exit()
+
     # Generate the time course as empty, each element is a millisecond by
     # default
-    stimfunction = [0] * int(round(total_time * temporal_resolution))
+    stimfunction = np.zeros((int(round(total_time * temporal_resolution)), 1))
 
     # Cycle through the onsets
     for onset_counter in list(range(len(onsets))):
@@ -485,11 +493,12 @@ def generate_stimfunction(onsets,
 
         # For the appropriate number of indexes and duration, make this value 1
         idx_n = round(event_durations[onset_counter] * temporal_resolution)
-        stimfunction[onset_idx:offset_idx] = [weights[onset_counter]] * idx_n
+        stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]] * \
+                                                idx_n
 
     # Shorten the data if it's too long
-    if len(stimfunction) > total_time * temporal_resolution:
-        stimfunction = stimfunction[0:int(total_time * temporal_resolution)]
+    if stimfunction.shape[0] > total_time * temporal_resolution:
+        stimfunction = stimfunction[0:int(total_time * temporal_resolution), 0]
 
     return stimfunction
 
@@ -508,7 +517,7 @@ def export_stimfunction(stimfunction,
     Parameters
     ----------
 
-    stimfunction : list
+    stimfunction : timepoint by 1 array
         The stimulus function describing the time course of events. For
         instance output from generate_stimfunction.
 
@@ -524,7 +533,7 @@ def export_stimfunction(stimfunction,
     # Iterate through the stim function
     stim_counter = 0
     event_counter = 0
-    while stim_counter < len(stimfunction):
+    while stim_counter < stimfunction.shape[0]:
 
         # Is it an event?
         if stimfunction[stim_counter] != 0:
@@ -539,8 +548,8 @@ def export_stimfunction(stimfunction,
             event_duration = 0
 
             # Is the event still ongoing?
-            while stimfunction[stim_counter] != 0 & stim_counter <= len(
-                    stimfunction):
+            while stimfunction[stim_counter] != 0 & stim_counter <= \
+                    stimfunction.shape[0]:
 
                 # Add one millisecond to each duration
                 event_duration = event_duration + 1
@@ -563,28 +572,20 @@ def export_stimfunction(stimfunction,
         stim_counter = stim_counter + 1
 
 
-def double_gamma_hrf(stimfunction,
-                     tr_duration,
-                     response_delay=6,
-                     undershoot_delay=12,
-                     response_dispersion=0.9,
-                     undershoot_dispersion=0.9,
-                     response_scale=1,
-                     undershoot_scale=0.035,
-                     scale_function=1,
-                     temporal_resolution=1000.0,
-                     ):
-    """Convolve the double gamma HRF with the timecourse evoked activity
+def _double_gamma_hrf(response_delay=6,
+                      undershoot_delay=12,
+                      response_dispersion=0.9,
+                      undershoot_dispersion=0.9,
+                      response_scale=1,
+                      undershoot_scale=0.035,
+                      temporal_resolution=1000.0,
+                      ):
+    """Create the double gamma HRF with the timecourse evoked activity.
+    Default values are based on Glover, 1999 and Walvaert, Durnez,
+    Moerkerke, Verdoolaege and Rosseel, 2011
 
     Parameters
     ----------
-
-    stimfunction : list, bool
-        What is the time course of events to be modelled in this
-        experiment
-
-    tr_duration : float
-        How long (in s) between each volume onset
 
     response_delay : float
         How many seconds until the peak of the HRF
@@ -612,9 +613,10 @@ def double_gamma_hrf(stimfunction,
     Returns
     ----------
 
-    one dimensional array
-        The time course of the HRF convolved with the stimulus function
-
+    multi dimensional array
+        The time course of the HRF convolved with the stimulus function.
+        This can have multiple time courses specified as different rows in
+        this array.
 
     """
 
@@ -650,21 +652,76 @@ def double_gamma_hrf(stimfunction,
         # For this time point find the value of the HRF
         hrf[hrf_counter] = response_model - undershoot_model
 
-    # Convolve the hrf that was created with the boxcar input
-    signal_function = np.convolve(stimfunction, hrf)
+    return hrf
 
-    # Decimate the signal function so that it only has one element per TR
-    decimate_interval = int(tr_duration * temporal_resolution)
-    signal_function = signal_function[0::decimate_interval]
+def convolve_hrf(stimfunction,
+                 tr_duration,
+                 hrf_type='double_gamma',
+                 scale_function=1,
+                 temporal_resolution=1000.0,
+                 ):
+    """ Convolve the specified hrf with the timecourse
 
-    # Cut off the HRF
-    signal_function = signal_function[0:int((len(stimfunction) /
-                                             tr_duration) /
-                                            temporal_resolution)]
+        Parameters
+        ----------
 
-    # Scale the function so that the peak response is 1
-    if scale_function == 1:
-        signal_function = signal_function / np.max(signal_function)
+        stimfunction : timepoint by timecourse array
+            What is the time course of events to be modelled in this
+            experiment. This can specify one or more timecourses of events.
+            The events can be weighted or binary
+
+        tr_duration : float
+            How long (in s) between each volume onset
+
+        scale_function : bool
+            Do you want to scale the function to a range of 1
+
+        temporal_resolution : float
+            How many elements per second are you modeling for the stimfunction
+        Returns
+        ----------
+
+        timepoint by timecourse array
+            The time course of the HRF convolved with the stimulus function.
+            This can have multiple time courses specified as different
+            columns in this array.
+
+        """
+
+    # Generate the hrf to use in the convolution
+    if hrf_type == 'double_gamma':
+        hrf = _double_gamma_hrf()
+
+    # How many timecourses are there
+    list_num = stimfunction.shape[1]
+
+    # Create signal functions for each list in the stimfunction
+    for list_counter in list(range(0, list_num)):
+
+        # Take the stim function
+        stimfunction_temp = stimfunction[:, list_counter]
+
+        signal_function_temp = np.convolve(stimfunction_temp, hrf)
+
+        # Decimate the signal function so that it only has one element per TR
+        decimate_interval = int(tr_duration * temporal_resolution)
+        signal_function_temp = signal_function_temp[0::decimate_interval]
+
+        # Cut off the HRF
+        last_timepoint = stimfunction_temp.shape[0] / tr_duration / \
+                         temporal_resolution
+        signal_function_temp = signal_function_temp[0:int(last_timepoint)]
+
+        # Scale the function so that the peak response is 1
+        if scale_function == 1:
+            signal_function_temp = signal_function_temp / np.max(
+                signal_function_temp)
+
+        # Add this function to the stack
+        if list_counter == 0:
+            signal_function = np.zeros((len(signal_function_temp), list_num))
+
+        signal_function[:, list_counter] = signal_function_temp
 
     return signal_function
 
@@ -680,9 +737,11 @@ def apply_signal(signal_function,
     Parameters
     ----------
 
-    signal_function : list, float
-        The one dimensional timecourse of the signal over time.
-        Found by convolving the HRF with the stimulus time course.
+    signal_function : timepoint by timecourse array, float
+        The timecourse of the signal over time. If there is only one column
+        then the same timecourse is applied to all voxels. If there is more
+        than one column then each column is paired with a non-zero voxel in the
+        volume_signal.
 
     volume_signal : multi dimensional array, float
         The volume containing the signal to be convolved
@@ -695,16 +754,36 @@ def apply_signal(signal_function,
 
     """
 
-    # Preset volume
-    signal = np.ndarray([volume_signal.shape[0], volume_signal.shape[
-        1], volume_signal.shape[2], len(signal_function)])
+    # How many timecourses are there within the signal_function
+    timepoints = signal_function.shape[0]
+    timecourses = signal_function.shape[1]
 
-    # Iterate through the brain, multiplying the volume by the HRF
-    for tr_counter in list(range(0, len(signal_function))):
-        signal[0:volume_signal.shape[0],
-               0:volume_signal.shape[1],
-               0:volume_signal.shape[2],
-               tr_counter] = signal_function[tr_counter] * volume_signal
+    # Preset volume
+    signal = np.zeros([volume_signal.shape[0], volume_signal.shape[
+        1], volume_signal.shape[2], timepoints])
+
+    # Find all the non-zero voxels in the brain
+    idxs = np.where(volume_signal != 0)
+    if timecourses == 1:
+        # If there is only one time course supplied then duplicate it for
+        # every voxel
+        signal_function = np.matlib.repmat(signal_function, 1, len(idxs[0]))
+
+    elif len(idxs[0]) != timecourses:
+        print('The number of non-zero voxels in the volume and the number of'
+              ' timecourses does not match. Aborting')
+        exit()
+
+    # For each coordinate with a non zero voxel, fill in the timecourse for
+    # that voxel
+    for idx_counter in list(range(0, len(idxs[0]))):
+        x = idxs[0][idx_counter]
+        y = idxs[1][idx_counter]
+        z = idxs[2][idx_counter]
+
+        # Multiply the voxel value by the function timecourse
+        signal[x, y, z, :] = volume_signal[x, y, z] * signal_function[:,
+                                                      idx_counter]
 
     return signal
 
@@ -816,15 +895,120 @@ def _calc_fwhm(volume,
 
     return fwhm
 
+def _calc_sfnr(volume,
+               mask,
+               ):
+    """ Calculate the the SFNR of a volume
+        Calculates the Signal to Fluctuation Noise Ratio, the mean divided
+        by the detrended standard deviation of each brain voxel. Based on
+        Friedman and Glover, 2006
+
+        Parameters
+        ----------
+
+        volume : 4d array, float
+            Take a volume time series
+
+        mask : 3d array, binary
+            A binary mask the same size as the volume
+
+        Returns
+        -------
+
+        float 
+            The SFNR of the volume
+
+    """
+
+    # Make a matrix of brain voxels by time
+    brain_voxels = volume[mask > 0]
+
+    # Take the means of each voxel over time
+    mean_voxels = np.nanmean(brain_voxels, 1)
+
+    # Detrend (second order polynomial) the voxels over time and then
+    # calculate the standard deviation.
+    order = 2
+    seq = np.linspace(1, brain_voxels.shape[1], brain_voxels.shape[1])
+    detrend_poly = np.polyfit(seq, brain_voxels.transpose(), order)
+
+    # Detrend for each voxel
+    detrend_voxels = np.zeros(brain_voxels.shape)
+    for voxel in list(range(0, brain_voxels.shape[0])):
+        trend = detrend_poly[0, voxel] * seq ** 2 + detrend_poly[1, voxel] * \
+                                                   seq + detrend_poly[2, voxel]
+        detrend_voxels[voxel, :] = brain_voxels[voxel, :] - trend
+
+    std_voxels = np.nanstd(detrend_voxels, 1)
+
+    # Calculate the sfnr of all voxels across the brain
+    sfnr_voxels = mean_voxels / std_voxels
+
+    # Return the average sfnr
+    return np.mean(sfnr_voxels)
+
+
+def _calc_snr(volume,
+              mask,
+              tr=None,
+              ):
+    """ Calculate the the SNR of a volume
+    Calculates the Signal to  Noise Ratio, the mean of brain voxels
+    divided by the standard deviation across non-brain voxels. Specify a TR
+    value to calculate the mean and standard deviation for that TR. To
+    calculate the standard deviation this subtracts any baseline structure
+    in the non-brain voxels, hence getting at deviations due to the system
+    noise and not something like high baseline values in non-brain parts of
+    the body.
+
+    Parameters
+    ----------
+
+    volume : 4d array, float
+        Take a volume time series
+
+    mask : 3d array, binary
+        A binary mask the same size as the volume
+
+    tr : int
+        Integer specifying TR to calculate the SNR for
+
+    Returns
+    -------
+
+    float 
+        The SNR of the volume
+
+    """
+
+    # If no TR is specified then take the middle one
+    if tr is None:
+        tr = int(np.ceil(volume.shape[3] / 2))
+
+    # Make a matrix of brain and non_brain voxels by time
+    brain_voxels = volume[:, :, :, tr][mask > 0]
+    nonbrain_voxels = volume[:, :, :, tr][mask == 0]
+
+    # Find the mean of the non_brain voxels (deals with structure that may
+    # exist outside of the mask)
+    nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
+
+    # Take the means of each voxel over time
+    mean_voxels = np.nanmean(brain_voxels)
+    std_voxels = np.nanstd(nonbrain_voxels - nonbrain_voxels_mean)
+
+    # Return the snr
+    return mean_voxels / std_voxels
+
 
 def _calc_temporal_noise(volume,
                          mask,
                          auto_reg_order=1,
                          ):
     """ Calculate the the temporal noise of a volume
-    This calculates the variability of the volume over time, the SFNR of the
-    volume and the proportion of variance over time that is due to
-    autoregression and how much is due to scanner drift.
+    This calculates the variability of the volume over time and the
+    proportion of variance over time that is due to autoregression and how
+    much is due to scanner drift.
 
     Parameters
     ----------
@@ -843,8 +1027,6 @@ def _calc_temporal_noise(volume,
     Returns
     -------
 
-    float 
-        The standard deviation of brain voxels   across time.
 
     float 
         The SFNR of the volume (mean brain activity divided by  temporal
@@ -858,54 +1040,23 @@ def _calc_temporal_noise(volume,
 
     """
 
-    # What are the midpoints to be extracted
-    mid_x_idx = int(np.ceil(volume.shape[0] / 2))
-    mid_tr_idx = int(np.ceil(volume.shape[3] / 2))
-
-    # Pull out the slices
-    slice_volume = volume[mid_x_idx, :, :, mid_tr_idx]
-    slice_mask = mask[mid_x_idx, :, :]
-
-    # Divide by the mask (if the middle slice was low in grey matter mass
-    # then you would have a lower mean signal by default)
-    mean_signal = (slice_volume[slice_mask > 0]).mean()
-
-    # What are the brain and non-brain voxels
-    brain_voxels = volume[mask > 0]
-    mask_voxels = volume[mask == 0]
-
-    # What is the noise in the masked voxels (average the variance)
-    mask_noise = ((np.std(mask_voxels, 1) ** 2).mean()) ** 0.5
-
-    # Assume the background noise is a combination of random + drift. Thus
-    # average all masked voxels and find the variation over time, this is the
-    # variance due to drift.
-    drift_noise = np.mean(mask_voxels, 0).std()
-
-    # Subtract the drift variance from total mask noise to find the system
-    # noise
-    background_noise = np.sqrt(mask_noise ** 2 - drift_noise ** 2)
-
-    # Find the noise to brain voxels
-    temporal_noise = np.std(brain_voxels, 1).mean()
-
-    # Convert temporal noise into percent signal change
-    temporal_noise = temporal_noise / mean_signal * 100
-
     # Calculate sfnr and convert from memmap
-    sfnr = float(mean_signal / background_noise)
+    sfnr = _calc_sfnr(volume,
+                      mask,
+                      )
 
-    # Calculate the time course
+    # Calculate the time course of voxels within the brain
     timecourse = np.mean(volume[mask > 0], 0)
+    demeaned_timecourse = timecourse-timecourse.mean()
 
     # Pull out the AR values (depends on order)
-    auto_reg_sigma = ar.AR_est_YW(timecourse, auto_reg_order)[1]
-    auto_reg_sigma = np.sqrt(auto_reg_sigma)
+    auto_reg_sigma = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
+    auto_reg_sigma = np.sqrt(auto_reg_sigma[1])
 
     # What is the size of the change in the time course
     drift_sigma = timecourse.std().tolist()
 
-    return temporal_noise, sfnr, auto_reg_sigma, drift_sigma
+    return sfnr, auto_reg_sigma, drift_sigma
 
 
 def calc_noise(volume,
@@ -949,15 +1100,19 @@ def calc_noise(volume,
 
     # What is the max activation of the mean of this voxel (allows you to
     # convert between the mask and the mean of the brain volume)
-    noise_dict['max_activity'] = np.mean(volume, 3).max()
+    noise_dict['max_activity'] = np.nanmax(np.mean(volume, 3))
 
     # Since you are deriving the 'true' values then you want your noise to
     # be set to that level
 
     # Calculate the temporal variability of the volume
-    temporal_noise, sfnr, auto_reg, drift = _calc_temporal_noise(volume, mask)
-    noise_dict['temporal_noise'] = temporal_noise
+    sfnr, auto_reg, drift = _calc_temporal_noise(volume, mask)
     noise_dict['sfnr'] = sfnr
+
+    # How much variability is there over time on average for each voxel.
+    # Turn this into percent signal change by taking the reciprocal of SFNR
+    # and multiplying by 100 (or equivalent below
+    temporal_noise = 100 / sfnr
 
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
@@ -968,7 +1123,7 @@ def calc_noise(volume,
     else:
         trs = list(range(0, volume.shape[3]))
 
-    # Go through the trs and pull out the fwhm
+    # Go through the trs and pull out the fwhm and snr
     fwhm = [0] * len(trs)
     for tr in list(range(0, len(trs))):
         fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
@@ -978,15 +1133,15 @@ def calc_noise(volume,
 
     # Keep only the mean
     noise_dict['fwhm'] = np.mean(fwhm)
-
-    # Calibrate for how sigma is originally calculated
-    auto_reg_sigma = auto_reg / noise_dict['temporal_noise']
+    noise_dict['snr'] = _calc_snr(volume,
+                                  mask,
+                                  )
 
     # Total temporal noise, since these values only make sense relatively
-    total_temporal_noise = auto_reg_sigma + drift
+    total_temporal_noise = auto_reg + drift
 
     # What proportion of noise is accounted for by these variables?
-    noise_dict['auto_reg_sigma'] = auto_reg_sigma / total_temporal_noise
+    noise_dict['auto_reg_sigma'] = auto_reg / total_temporal_noise
     noise_dict['drift_sigma'] = drift / total_temporal_noise
 
     # Return the noise dictionary
@@ -1111,7 +1266,7 @@ def _generate_noise_temporal_drift(trs,
     phase = (timepoints / (trs - 1) * cycles * 2 * np.pi) + phaseshift
     noise_drift = np.sin(phase)
 
-    # Normalize
+    # Normalize so the sigma is 1
     noise_drift = stats.zscore(noise_drift)
 
     # Return noise
@@ -1124,7 +1279,8 @@ def _generate_noise_temporal_autoregression(timepoints,
                                             ):
 
     """Generate the autoregression noise
-    Make a slowly drifting timecourse with the given autoregression parameters
+    Make a slowly drifting timecourse with the given autoregression
+    parameters. The output should have an autoregression coefficient of 1
 
     Parameters
     ----------
@@ -1152,6 +1308,8 @@ def _generate_noise_temporal_autoregression(timepoints,
         # there is one
         #  for each value
 
+    # Generate a random variable at each time point that is a decayed value
+    # of the previous time points
     noise_autoregression = []
     for tr_counter in list(range(0, len(timepoints))):
 
@@ -1170,8 +1328,9 @@ def _generate_noise_temporal_autoregression(timepoints,
 
                     noise_autoregression.append(np.mean(temp))
 
-    # Normalize
-    noise_autoregression = stats.zscore(noise_autoregression)
+    # N.B. You don't want to normalize. Although that may make the sigma of
+    # this timecourse 1, it will change the autoregression coefficient to be
+    #  much lower.
 
     return noise_autoregression
 
@@ -1181,7 +1340,9 @@ def _generate_noise_temporal_phys(timepoints,
                                   heart_freq=1.17,
                                   ):
     """Generate the physiological noise.
-    Create noise representing the heart rate and respiration of the data
+    Create noise representing the heart rate and respiration of the data.
+    Default values based on Walvaert, Durnez, Moerkerke, Verdoolaege and
+    Rosseel, 2011
 
     Parameters
     ----------
@@ -1360,7 +1521,7 @@ def _generate_noise_temporal(stimfunction_tr,
                              ):
     """Generate the temporal noise
     Generate the time course of the average brain voxel. To increase or
-    decrease the amount of total noise change the temporal_noise noise_dict
+    decrease the amount of total noise then change the SFNR noise_dict
     entry. To change the relative mixing of the noise components, change the
     sigma's specified below.
 
@@ -1432,8 +1593,14 @@ def _generate_noise_temporal(stimfunction_tr,
                                                                    )
 
     # Generate the volumes that will differ depending on the type of noise
-    # that it will be used for
-    volume_drift = np.ones(dimensions)
+    # that it will be used for. For drift you want the volume to not have
+    # the shape of the brain, for the other types of noise you want them to
+    # have brain shapes
+    volume_drift = _generate_noise_spatial(dimensions=dimensions,
+                                           template=template,
+                                           mask=None,
+                                           fwhm=fwhm,
+                                           )
 
     volume_phys = _generate_noise_spatial(dimensions=dimensions,
                                           template=template,
@@ -1476,6 +1643,10 @@ def _generate_noise_temporal(stimfunction_tr,
     # Finally, z score each voxel so things mix nicely
     noise_temporal = stats.zscore(noise_temporal, 3)
 
+    # If it is a nan it is because you just divided by zero (since some
+    # voxels are zeros in the template)
+    noise_temporal[np.isnan(noise_temporal)] = 0
+
     return noise_temporal
 
 
@@ -1498,7 +1669,8 @@ def mask_brain(volume,
 
     template_name : str
         What is the path to the template to be loaded? If empty then it
-        defaults to an MNI152 grey matter mask.
+        defaults to an MNI152 grey matter mask. This is ignored if mask_self is
+        True.
 
     mask_threshold : float
         What is the threshold (0 -> 1) for including a voxel in the mask? If
@@ -1569,6 +1741,8 @@ def mask_brain(volume,
     # Scale the mask according to the input brain
     # You might get a warning but ignore it
     template = ndimage.zoom(mask_raw, zoom_factor, order=2)
+    template[template < 0] = 0
+
 
     # If the mask threshold is not supplied then guess it is a minima
     # between the two peaks of the bimodal distribution of voxel activity
@@ -1607,7 +1781,7 @@ def _noise_dict_update(noise_dict):
         noise types interact in important ways. First, all noise types
         ending with sigma (e.g. motion sigma) are mixed together in
         _generate_temporal_noise. These values describe the proportion of
-        mixing of these elements. However critically, temporal_noise is the
+        mixing of these elements. However critically, SFNR is the
         parameter that describes how much noise these components contribute
         to the brain.
 
@@ -1621,8 +1795,6 @@ def _noise_dict_update(noise_dict):
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
 
-    if 'temporal_noise' not in noise_dict:
-        noise_dict['temporal_noise'] = 5
     if 'motion_sigma' not in noise_dict:
         noise_dict['motion_sigma'] = 0
     if 'drift_sigma' not in noise_dict:
@@ -1633,6 +1805,8 @@ def _noise_dict_update(noise_dict):
         noise_dict['physiological_sigma'] = 0.1
     if 'sfnr' not in noise_dict:
         noise_dict['sfnr'] = 30
+    if 'snr' not in noise_dict:
+        noise_dict['snr'] = 30
     if 'max_activity' not in noise_dict:
         noise_dict['max_activity'] = 1000
     if 'voxel_size' not in noise_dict:
@@ -1709,8 +1883,8 @@ def generate_noise(dimensions,
     noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
-                                              mask=mask,
                                               template=template,
+                                              mask=mask,
                                               fwhm=noise_dict[
                                                  'fwhm'],
                                               motion_sigma=noise_dict[
@@ -1726,17 +1900,8 @@ def generate_noise(dimensions,
     # Create the base (this inverts the process to make the template)
     base = template * noise_dict['max_activity']
 
-    # Set the amount of background based on the SFNR value
-
-    # What are the midpoints to be extracted
-    mid_x_idx = int(np.ceil(base.shape[0] / 2))
-
-    # Pull out the slices
-    slice_volume = base[mid_x_idx, :, :]
-    slice_mask = mask[mid_x_idx, :, :]
-
-    # What is the mean signal of the non masked voxels in this slice?
-    mean_signal = (slice_volume[slice_mask > 0]).mean()
+    # What is the mean signal of the non masked voxels in this template?
+    mean_signal = (base[mask > 0]).mean()
 
     # Set up the machine noise
     noise_system = _generate_noise_system(dimensions_tr=dimensions_tr)
@@ -1744,20 +1909,21 @@ def generate_noise(dimensions,
     # What is the standard deviation of the background activity
     # (N.B. You need to subtract the mean system noise from this number
     # since system_sigma * noise_system.mean() will later be added to the base)
-    system_sigma = mean_signal / (noise_dict['sfnr'] - noise_system.mean())
+    system_sigma = mean_signal / (noise_dict['snr'] - noise_system.mean())
 
-    # Increase the size of the system noise based on the SFNR
+    # Increase the size of the system noise based on the SNR
     noise_system *= system_sigma
 
-    # Convert temporal noise (in percent) to real numbers
-    abs_change = noise_dict['temporal_noise'] * mean_signal / 100
+    # Convert SFNR into the size of the standard deviation of temporal
+    # variability
+    temporal_sd = mean_signal / noise_dict['sfnr']
 
     # Reshape the base (to be the same size as the volume to be created)
     base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
     base = np.ones(dimensions_tr) * base
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * abs_change) + noise_system
+    noise = base + (noise_temporal * temporal_sd) + noise_system
 
     # Reject negative values (only happens outside of the brain
     noise[noise < 0] = 0
