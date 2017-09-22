@@ -489,7 +489,7 @@ def generate_stimfunction(onsets,
 
         # Adjust for the resolution
         offset_idx = int(np.floor((onsets[onset_counter] + event_durations[
-            onset_counter])) * temporal_resolution)
+            onset_counter]) * temporal_resolution))
 
         # For the appropriate number of indexes and duration, make this value 1
         idx = round(event_durations[onset_counter] * temporal_resolution)
