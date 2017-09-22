@@ -444,7 +444,8 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'],
                 temporal_resolution=1.0/temp_res)
-            hrf = _double_gamma_hrf(response_delay=response_delay,
+            hrf = _double_gamma_hrf(
+                response_delay=response_delay,
                 undershoot_delay=undershoot_delay,
                 response_dispersion=response_dispersion,
                 undershoot_dispersion=undershoot_dispersion,
