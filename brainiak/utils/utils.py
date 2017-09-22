@@ -452,7 +452,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                                     temporal_resolution=1.0/temp_res)
             design[i_s][:, i_c] = convolve_hrf(
                 stimfunction, TR, hrf_type=hrf, scale_function=0,
-                temporal_resolution=1.0 / temp_res) * temp_res
+                temporal_resolution=1.0 / temp_res).transpose() * temp_res
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
