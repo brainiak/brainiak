@@ -492,8 +492,7 @@ def generate_stimfunction(onsets,
             onset_counter]) * temporal_resolution))
 
         # For the appropriate number of indexes and duration, make this value 1
-        idx = int(np.floor((event_durations[onset_counter] *
-                            temporal_resolution)))
+        idx = offset_idx - onset_idx + 1
         stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]] * idx
 
     # Shorten the data if it's too long
