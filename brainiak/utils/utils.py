@@ -432,8 +432,8 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 
     response_delay = hrf_para['response_delay']
     undershoot_delay = hrf_para['undershoot_delay']
-    response_dispersion = hrf_para['response_dispersion']
-    undershoot_dispersion = hrf_para['undershoot_dispersion']
+    response_disp = hrf_para['response_dispersion']
+    undershoot_disp = hrf_para['undershoot_dispersion']
     undershoot_scale = hrf_para['undershoot_scale']
     # generate design matrix
     for i_s in range(n_S):
@@ -444,13 +444,12 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'],
                 temporal_resolution=1.0/temp_res)
-            hrf = _double_gamma_hrf(
-                response_delay=response_delay,
-                undershoot_delay=undershoot_delay,
-                response_dispersion=response_dispersion,
-                undershoot_dispersion=undershoot_dispersion,
-                undershoot_scale=undershoot_scale,
-                temporal_resolution=1.0/temp_res)
+            hrf = _double_gamma_hrf(response_delay=response_delay,
+                                    undershoot_delay=undershoot_delay,
+                                    response_dispersion=response_disp,
+                                    undershoot_dispersion=undershoot_disp,
+                                    undershoot_scale=undershoot_scale, 
+                                    temporal_resolution=1.0/temp_res)
             design[i_s][:, i_c] = convolve_hrf(
                 stimfunction, TR, hrf_type=hrf, scale_function=0,
                 temporal_resolution=1.0 / temp_res) * temp_res
