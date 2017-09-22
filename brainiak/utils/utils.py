@@ -448,7 +448,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                                     undershoot_delay=undershoot_delay,
                                     response_dispersion=response_disp,
                                     undershoot_dispersion=undershoot_disp,
-                                    undershoot_scale=undershoot_scale, 
+                                    undershoot_scale=undershoot_scale,
                                     temporal_resolution=1.0/temp_res)
             design[i_s][:, i_c] = convolve_hrf(
                 stimfunction, TR, hrf_type=hrf, scale_function=0,
