@@ -84,9 +84,9 @@ def test_generate_stimfunction():
     signal_function = sim.convolve_hrf(stimfunction=stimfunction,
                                        tr_duration=tr_duration,
                                        )
-    assert signal_function.shape[0] == stimfunction.shape[0]/ (tr_duration *
-                                                               1000), \
-        "The length did not change"
+
+    stim_dur = stimfunction.shape[0] / (tr_duration * 1000)
+    assert signal_function.shape[0] == stim_dur, "The length did not change"
 
     onsets = [10]
     stimfunction = sim.generate_stimfunction(onsets=onsets,
@@ -259,7 +259,6 @@ def test_mask_brain():
     # Mask the volume to be the same shape as a brain
     mask, _ = sim.mask_brain(volume)
     brain = volume * mask
-
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
 
