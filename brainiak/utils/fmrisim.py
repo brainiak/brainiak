@@ -673,6 +673,11 @@ def convolve_hrf(stimfunction,
         tr_duration : float
             How long (in s) between each volume onset
 
+        hrf_type : str or list
+            Takes in a string describing the hrf that ought to be created.
+            Can instead take in a vector describing the HRF as it was
+            specified by any function
+
         scale_function : bool
             Do you want to scale the function to a range of 1
 
@@ -691,6 +696,8 @@ def convolve_hrf(stimfunction,
     # Generate the hrf to use in the convolution
     if hrf_type == 'double_gamma':
         hrf = _double_gamma_hrf()
+    elif isinstance(hrf_type, list):
+        hrf = hrf_type
 
     # How many timecourses are there
     list_num = stimfunction.shape[1]

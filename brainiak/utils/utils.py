@@ -15,7 +15,7 @@ import numpy as np
 import re
 import warnings
 import os.path
-from .fmrisim import generate_stimfunction, double_gamma_hrf
+from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
 
 """
 Some utility functions that can be used by different algorithms
@@ -444,13 +444,15 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'],
                 temporal_resolution=1.0/temp_res)
-            design[i_s][:, i_c] = double_gamma_hrf(
-                stimfunction, TR, response_delay=response_delay,
+            hrf = _double_gamma_hrf(response_delay=response_delay,
                 undershoot_delay=undershoot_delay,
                 response_dispersion=response_dispersion,
                 undershoot_dispersion=undershoot_dispersion,
-                undershoot_scale=undershoot_scale, scale_function=0,
-                temporal_resolution=1.0/temp_res) * temp_res
+                undershoot_scale=undershoot_scale,
+                temporal_resolution=1.0/temp_res)
+            design[i_s][:, i_c] = convolve_hrf(
+                stimfunction, TR, hrf_type=hrf, scale_function=0,
+                temporal_resolution=1.0 / temp_res) * temp_res
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
