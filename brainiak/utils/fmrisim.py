@@ -89,7 +89,7 @@ __all__ = [
     "generate_signal",
     "generate_stimfunction",
     "export_3_column",
-    "export_epoch_file"
+    "export_epoch_file",
     "convolve_hrf",
     "apply_signal",
     "calc_noise",
@@ -615,9 +615,9 @@ def export_epoch_file(stimfunction,
         for condition_counter in list(range(0, conditions)):
 
             # Down sample the stim function
+            stride = tr_duration * temporal_resolution
             stimfunction_temp = stimfunction_ppt[:, condition_counter]
-            stimfunction_temp = stimfunction_temp[::int(tr_duration * 
-                                                        temporal_resolution)]
+            stimfunction_temp = stimfunction_temp[::int(stride)]
 
             if condition_counter == 0:
                 # Calculates the number of event onsets (max of all conditions)
