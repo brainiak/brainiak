@@ -616,8 +616,8 @@ def export_epoch_file(stimfunction,
 
             # Down sample the stim function
             stimfunction_temp = stimfunction_ppt[:, condition_counter]
-            stimfunction_temp = stimfunction_temp[::int(tr_duration *
-                                                      temporal_resolution)]
+            stimfunction_temp = stimfunction_temp[::int(tr_duration * 
+                                                        temporal_resolution)]
 
             if condition_counter == 0:
                 # Calculates the number of event onsets (max of all conditions)
