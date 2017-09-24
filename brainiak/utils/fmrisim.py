@@ -25,9 +25,6 @@ activity. To create the noise model the parameters can either be set
 manually or can be estimated from real fMRI data with reasonable accuracy (
 works best when fMRI data has not been preprocessed)
 
-TODO: Add more documentation about other related packages and where default
-parameters came from
-
 Functions:
 
 generate_signal
@@ -39,9 +36,13 @@ generate_stimfunction
 Create a timecourse of the signal activation. This can be specified using event
 onsets and durations from a timing file.
 
-export_stimfunction:
+export_3_column:
 Generate a three column timing file that can be used with software like FSL
 to represent event event onsets and duration
+
+export_epoch_file:
+Generate an epoch file from the time course which can be used as an input to
+brainiak functions
 
 convolve_hrf
 Convolve the signal timecourse with the  HRF to model the expected evoked
@@ -87,7 +88,8 @@ import scipy.ndimage as ndimage
 __all__ = [
     "generate_signal",
     "generate_stimfunction",
-    "export_stimfunction",
+    "export_3_column",
+    "export_epoch_file"
     "convolve_hrf",
     "apply_signal",
     "calc_noise",
@@ -502,10 +504,10 @@ def generate_stimfunction(onsets,
     return stimfunction
 
 
-def export_stimfunction(stimfunction,
-                        filename,
-                        temporal_resolution=1000.0
-                        ):
+def export_3_column(stimfunction,
+                    filename,
+                    temporal_resolution=1000.0
+                    ):
     """ Output a tab separated three column timing file
 
     This produces a three column tab separated text file, with the three
@@ -535,19 +537,19 @@ def export_stimfunction(stimfunction,
     while stim_counter < stimfunction.shape[0]:
 
         # Is it an event?
-        if stimfunction[stim_counter] != 0:
+        if stimfunction[stim_counter, 0] != 0:
 
             # When did the event start?
             event_onset = str(stim_counter / temporal_resolution)
 
             # The weight of the stimulus
-            weight = str(stimfunction[stim_counter])
+            weight = str(stimfunction[stim_counter, 0])
 
             # Reset
             event_duration = 0
 
             # Is the event still ongoing?
-            while stimfunction[stim_counter] != 0 & stim_counter <= \
+            while stimfunction[stim_counter, 0] != 0 & stim_counter <= \
                     stimfunction.shape[0]:
 
                 # Add one millisecond to each duration
@@ -569,6 +571,99 @@ def export_stimfunction(stimfunction,
 
         # Increment
         stim_counter = stim_counter + 1
+
+
+def export_epoch_file(stimfunction,
+                      filename,
+                      tr_duration,
+                      temporal_resolution=1000.0
+                      ):
+    """ Output an epoch file, necessary for some inputs into brainiak
+
+    This takes in the time course of stimulus events and outputs the epoch
+    file used in Brainiak.
+
+    Parameters
+    ----------
+
+    stimfunction : list of timepoint by condition arrays
+        The stimulus function describing the time course of events. Each
+        list entry is from a different participant, each row is a different
+        timepoint, each column is a different condition
+
+    filename : str
+        The name of the three column text file to be output
+
+    tr_duration : float
+        How long is each TR in seconds
+
+    temporal_resolution : float
+        How many elements per second are you modeling with the
+        stimfunction?
+
+    """
+
+    # Cycle through the participants, different entries in the list
+    epoch_file = [0] * len(stimfunction)
+    for participant_counter in list(range(0, len(stimfunction))):
+
+        # What is the time course for the participant (binarized)
+        stimfunction_ppt = np.abs(stimfunction[participant_counter]) > 0
+
+        # Cycle through conditions
+        conditions = stimfunction_ppt.shape[1]
+        for condition_counter in list(range(0, conditions)):
+
+            # Down sample the stim function
+            stimfunction_temp = stimfunction_ppt[:, condition_counter]
+            stimfunction_temp = stimfunction_temp[::int(tr_duration *
+                                                      temporal_resolution)]
+
+            if condition_counter == 0:
+                # Calculates the number of event onsets (max of all conditions)
+                epochs = int(np.max(np.sum((np.diff(stimfunction_ppt, 1,
+                                                    0) == 1), 0)) / 2)
+
+                # Get other information
+                trs = stimfunction_temp.shape[0]
+
+                # Make a timing file for this participant
+                epoch_file[participant_counter] = np.zeros((conditions,
+                                                            epochs, trs))
+
+            epoch_counter = 0
+            tr_counter = 0
+            while tr_counter < stimfunction_temp.shape[0]:
+
+                # Is it an event?
+                if stimfunction_temp[tr_counter] == 1:
+
+                    # Add a one for this TR
+                    epoch_file[participant_counter][condition_counter,
+                                                    epoch_counter,
+                                                    tr_counter] = 1
+
+                    # Find the next non event value
+                    end_idx = np.where(stimfunction_temp[tr_counter:] == 0)[
+                        0][0]
+                    tr_idxs = list(range(tr_counter, tr_counter + end_idx))
+
+                    # Add ones to all the trs within this event time frame
+                    epoch_file[participant_counter][condition_counter,
+                                                    epoch_counter,
+                                                    tr_idxs] = 1
+
+                    # Start from this index
+                    tr_counter += end_idx
+
+                    # Increment
+                    epoch_counter += 1
+
+                # Increment the counter
+                tr_counter += 1
+
+    # Save the file
+    np.save(filename, epoch_file)
 
 
 def _double_gamma_hrf(response_delay=6,
