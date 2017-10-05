@@ -790,7 +790,7 @@ def convolve_hrf(stimfunction,
 
     # Generate the hrf to use in the convolution
     if hrf_type == 'double_gamma':
-        hrf = _double_gamma_hrf()
+        hrf = _double_gamma_hrf(temporal_resolution=temporal_resolution)
     elif isinstance(hrf_type, list):
         hrf = hrf_type
 
