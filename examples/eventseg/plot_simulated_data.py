@@ -1,4 +1,6 @@
-"""Example of finding event segmentations on simulated data
+"""
+Example of finding event segmentations on simulated data
+========================================================
 
 This code generates simulated datasets that have temporally-clustered
 structure (with the same series of latent event patterns). An event

@@ -40,6 +40,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
+    'sphinx_gallery.gen_gallery',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -290,3 +291,9 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 napoleon_include_special_with_doc = True
+
+sphinx_gallery_conf = {
+    'backreferences_dir': 'backreferences',
+    'examples_dirs': '../examples',
+    'gallery_dirs': 'examples',
+}

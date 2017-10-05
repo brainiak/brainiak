@@ -1,11 +1,14 @@
 coverage
 flake8
 flake8-print
+matplotlib
 mypy
 numdifftools
+pillow
 pytest
 restructuredtext-lint
 setuptools_scm
 sphinx
+sphinx-gallery
 sphinx_rtd_theme
 towncrier
