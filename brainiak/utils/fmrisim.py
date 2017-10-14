@@ -1847,18 +1847,31 @@ def mask_brain(volume,
     # between the two peaks of the bimodal distribution of voxel activity
     if mask_threshold is None:
 
+        # How many bins on either side of a peak will be compared
+        order = 5
+
         # Make the histogram
         template_vector = template.reshape(brain_dim[0] * brain_dim[1] *
                                            brain_dim[2])
         template_hist = np.histogram(template_vector, 100)
 
-        # Identify the last peak
-        peak = signal.argrelmax(template_hist[0], order=5)[0].max()
+        # Zero pad the values
+        binval =  np.concatenate([np.zeros((order,)), template_hist[0]])
+        bins = np.concatenate([np.zeros((order,)), template_hist[1]])
 
-        # What is the threshold
-        minima = template_hist[0][0:peak].min()
-        minima_idx = np.where(template_hist[0] == minima)
-        mask_threshold = template_hist[1][minima_idx][0]
+        # Identify the first two peaks
+        peaks = signal.argrelmax(binval, order=order)[0][0:2]
+
+        # What is the minima between peaks
+        minima = binval[peaks[0]:peaks[1]].min()
+
+        # What is the index of the last idx with this min value (since if
+        # zero, there may be many)
+        minima_idx = (np.where(binval[peaks[0]:peaks[1]] == minima) + peaks[
+            0])[-1]
+
+        # Convert the minima into a threshold
+        mask_threshold = bins[minima_idx][0]
 
     # Mask the template based on the threshold
     mask = np.zeros(template.shape)
