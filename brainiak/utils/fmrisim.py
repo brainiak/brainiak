@@ -1856,7 +1856,7 @@ def mask_brain(volume,
         template_hist = np.histogram(template_vector, 100)
 
         # Zero pad the values
-        binval =  np.concatenate([np.zeros((order,)), template_hist[0]])
+        binval = np.concatenate([np.zeros((order,)), template_hist[0]])
         bins = np.concatenate([np.zeros((order,)), template_hist[1]])
 
         # Identify the first two peaks
