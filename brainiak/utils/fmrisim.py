@@ -2019,9 +2019,7 @@ def generate_noise(dimensions,
     noise_system = _generate_noise_system(dimensions_tr=dimensions_tr)
 
     # What is the standard deviation of the background activity
-    # (N.B. You need to subtract the mean system noise from this number
-    # since system_sigma * noise_system.mean() will later be added to the base)
-    system_sigma = mean_signal / (noise_dict['snr'] - noise_system.mean())
+    system_sigma = mean_signal / (noise_dict['snr'])
 
     # Increase the size of the system noise based on the SNR
     noise_system *= system_sigma
