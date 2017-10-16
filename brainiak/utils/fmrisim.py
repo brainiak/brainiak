@@ -1091,12 +1091,14 @@ def _calc_snr(volume,
         tr = int(np.ceil(volume.shape[3] / 2))
 
     # Make a matrix of brain and non_brain voxels by time
-    brain_voxels = volume[:, :, :, tr][mask > 0]
-    nonbrain_voxels = volume[:, :, :, tr][mask == 0]
+    brain_voxels = volume[mask > 0]
+    nonbrain_voxels = volume[mask == 0]
 
     # Find the mean of the non_brain voxels (deals with structure that may
     # exist outside of the mask)
     nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
+    nonbrain_voxels_mean = nonbrain_voxels_mean.reshape((
+        nonbrain_voxels_mean.shape[0], 1))
 
     # Take the means of each voxel over time
     mean_voxels = np.nanmean(brain_voxels)
@@ -2019,10 +2021,13 @@ def generate_noise(dimensions,
     noise_system = _generate_noise_system(dimensions_tr=dimensions_tr)
 
     # What is the standard deviation of the background activity
-    system_sigma = mean_signal / (noise_dict['snr'])
+    system_sigma = mean_signal / noise_dict['snr']
 
     # Increase the size of the system noise based on the SNR
     noise_system *= system_sigma
+
+    # Mean centre, while preserving the std
+    noise_system = noise_system - noise_system.mean()
 
     # Convert SFNR into the size of the standard deviation of temporal
     # variability
@@ -2035,7 +2040,7 @@ def generate_noise(dimensions,
     # Sum up the noise of the brain
     noise = base + (noise_temporal * temporal_sd) + noise_system
 
-    # Reject negative values (only happens outside of the brain
+    # Reject negative values (only happens outside of the brain)
     noise[noise < 0] = 0
 
     return noise
