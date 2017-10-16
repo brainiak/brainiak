@@ -38,3 +38,14 @@ def test_simple_boundary():
     events = np.argmax(es.segments_[0], axis=1)
     assert np.array_equal(events, [0, 0, 0, 1, 1, 1, 1]),\
         "Failed to correctly segment two events"
+
+
+def test_event_transfer():
+    es = brainiak.eventseg.event.EventSegment(2)
+    es.set_event_patterns(np.asarray([[1, 0], [0, 1]]))
+    sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
+    seg = es.find_events(sample_data.T, np.asarray([1, 1]))[0]
+
+    events = np.argmax(seg, axis=1)
+    assert np.array_equal(events, [0, 0, 0, 1, 1, 1, 1]),\
+        "Failed to correctly transfer two events to new data"
