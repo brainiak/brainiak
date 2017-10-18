@@ -299,13 +299,27 @@ def test_calc_noise():
                                noise_dict=nd_orig,
                                )
 
+
+    # Check that noise_system is being calculated correctly
+    spatial_sd = 5
+    temporal_sd = 5
+    noise_system = sim._generate_noise_system(dimensions_tr,
+                                              spatial_sd,
+                                              temporal_sd)
+
+    precision = abs(noise_system[0, 0, 0, :].std() - spatial_sd)
+    assert precision < spatial_sd, 'noise_system calculated incorrectly'
+
+    precision = abs(noise_system[:, :, :, 0].std() - temporal_sd)
+    assert precision < spatial_sd, 'noise_system calculated incorrectly'
+
     # Calculate the noise
     nd_calc = sim.calc_noise(volume=noise,
                              mask=mask)
 
     # How precise are these estimates
     precision = abs(nd_calc['snr'] - nd_orig['snr'])
-    assert precision < 6, 'snr calculated incorrectly'
+    assert precision < nd_orig['snr'], 'snr calculated incorrectly'
 
     precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
-    assert precision < 6, 'sfnr calculated incorrectly'
+    assert precision < nd_orig['sfnr'], 'sfnr calculated incorrectly'

@@ -1092,13 +1092,11 @@ def _calc_snr(volume,
 
     # Make a matrix of brain and non_brain voxels by time
     brain_voxels = volume[mask > 0]
-    nonbrain_voxels = volume[mask == 0]
+    nonbrain_voxels = volume[:, :, :, tr][mask == 0]
 
     # Find the mean of the non_brain voxels (deals with structure that may
     # exist outside of the mask)
     nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
-    nonbrain_voxels_mean = nonbrain_voxels_mean.reshape((
-        nonbrain_voxels_mean.shape[0], 1))
 
     # Take the means of each voxel over time
     mean_voxels = np.nanmean(brain_voxels)
@@ -1251,7 +1249,10 @@ def calc_noise(volume,
 
 
 def _generate_noise_system(dimensions_tr,
-                           noise_type='exponential',
+                           spatial_sd,
+                           temporal_sd,
+                           spatial_noise_type='exponential',
+                           temporal_noise_type='exponential',
                            ):
     """Generate the scanner noise
 
@@ -1278,15 +1279,62 @@ def _generate_noise_system(dimensions_tr,
         Create a volume with system noise
 
     """
+    def generate_noise_volume(dimensions,
+                              noise_type,
+                              ):
 
-    if noise_type == 'rician':
-        # Generate the Rician noise (has an SD of 1)
-        system_noise = stats.rice.rvs(b=0, loc=0, scale=1.527,
-                                      size=dimensions_tr)
+        if noise_type == 'rician':
+            # Generate the Rician noise (has an SD of 1)
+            noise = stats.rice.rvs(b=0, loc=0, scale=1.527, size=dimensions)
+        elif noise_type == 'exponential':
+            # Make an exponential distribution (has an SD of 1)
+            noise = stats.expon.rvs(0, scale=1, size=dimensions)
+        elif noise_type == 'gaussian':
+            noise = np.random.randn(np.prod(dimensions)).reshape(dimensions)
 
-    elif noise_type == 'exponential':
-        # Make an exponential distribution (has an SD of 1)
-        system_noise = stats.expon.rvs(0, scale=1, size=dimensions_tr)
+        # Return the noise
+        return noise
+
+    # Get just the xyz coordinates
+    dimensions = np.asarray([dimensions_tr[0],
+                             dimensions_tr[1],
+                             dimensions_tr[2],
+                             1])
+
+    # Generate noise
+    spatial_noise = generate_noise_volume(dimensions, spatial_noise_type)
+    temporal_noise = generate_noise_volume(dimensions_tr, temporal_noise_type)
+
+    # Since you are combining spatial and temporal noise, you need to
+    # subtract the variance of the two to get the spatial sd
+    if spatial_sd > temporal_sd:
+        spatial_sd = np.sqrt(spatial_sd ** 2 - temporal_sd ** 2)
+    else:
+        # If this is below zero then all the noise will be temporal
+        spatial_sd = 0
+
+    # # Mean centre, while preserving the SD
+    # spatial_noise = spatial_noise - spatial_noise.mean()
+
+    # Make the system noise have a specific spatial variability
+    spatial_noise *= spatial_sd
+
+    # # Mean centre, while preserving the SD
+    # temporal_noise = temporal_noise - temporal_noise.mean()
+
+    # Set the size of the noise
+    temporal_noise *= temporal_sd
+
+    # The mean in time of system noise needs to be zero, so subtract the
+    # means of the temporal noise in time and spatial noise
+    temporal_noise_mean = np.mean(temporal_noise,3).reshape(dimensions[0],
+                                                            dimensions[1],
+                                                            dimensions[2],
+                                                            1)
+    temporal_noise = temporal_noise - (temporal_noise_mean - spatial_noise)
+
+    # Save the size of the noise
+    system_noise = spatial_noise + temporal_noise
 
     return system_noise
 
@@ -1335,7 +1383,7 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
 def _generate_noise_temporal_drift(trs,
                                    tr_duration,
-                                   period=150,
+                                   period=300,
                                    ):
 
     """Generate the drift noise
@@ -1698,11 +1746,7 @@ def _generate_noise_temporal(stimfunction_tr,
     # that it will be used for. For drift you want the volume to not have
     # the shape of the brain, for the other types of noise you want them to
     # have brain shapes
-    volume_drift = _generate_noise_spatial(dimensions=dimensions,
-                                           template=template,
-                                           mask=None,
-                                           fwhm=fwhm,
-                                           )
+    volume_drift = np.ones(dimensions)
 
     volume_phys = _generate_noise_spatial(dimensions=dimensions,
                                           template=template,
@@ -2017,28 +2061,29 @@ def generate_noise(dimensions,
     # What is the mean signal of the non masked voxels in this template?
     mean_signal = (base[mask > 0]).mean()
 
-    # Set up the machine noise
-    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr)
-
-    # What is the standard deviation of the background activity
-    system_sigma = mean_signal / noise_dict['snr']
-
-    # Increase the size of the system noise based on the SNR
-    noise_system *= system_sigma
-
-    # Mean centre, while preserving the std
-    noise_system = noise_system - noise_system.mean()
-
     # Convert SFNR into the size of the standard deviation of temporal
     # variability
-    temporal_sd = mean_signal / noise_dict['sfnr']
+    temporal_sd = (mean_signal / noise_dict['sfnr'])
+
+    # Calculate the sd that is necessary to be combined with itself in order
+    #  to generate the temporal_sd
+    temporal_sd_element = np.sqrt(((temporal_sd ** 2) / 2))
+
+    # What is the standard deviation of the background activity
+    spatial_sd = mean_signal / noise_dict['snr']
+
+    # Set up the machine noise
+    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
+                                          spatial_sd = spatial_sd,
+                                          temporal_sd = temporal_sd_element,
+                                          )
 
     # Reshape the base (to be the same size as the volume to be created)
     base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
     base = np.ones(dimensions_tr) * base
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * temporal_sd) + noise_system
+    noise = base + (noise_temporal * temporal_sd_element) + noise_system
 
     # Reject negative values (only happens outside of the brain)
     noise[noise < 0] = 0
