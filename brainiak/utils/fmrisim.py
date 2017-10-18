@@ -2066,7 +2066,7 @@ def generate_noise(dimensions,
     temporal_sd = (mean_signal / noise_dict['sfnr'])
 
     # Calculate the sd that is necessary to be combined with itself in order
-    #  to generate the temporal_sd
+    # to generate the temporal_sd
     temporal_sd_element = np.sqrt(temporal_sd ** 2 / 2)
 
     # What is the standard deviation of the background activity
