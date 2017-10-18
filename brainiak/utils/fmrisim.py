@@ -1327,10 +1327,10 @@ def _generate_noise_system(dimensions_tr,
 
     # The mean in time of system noise needs to be zero, so subtract the
     # means of the temporal noise in time and spatial noise
-    temporal_noise_mean = np.mean(temporal_noise,3).reshape(dimensions[0],
-                                                            dimensions[1],
-                                                            dimensions[2],
-                                                            1)
+    temporal_noise_mean = np.mean(temporal_noise, 3).reshape(dimensions[0],
+                                                             dimensions[1],
+                                                             dimensions[2],
+                                                             1)
     temporal_noise = temporal_noise - (temporal_noise_mean - spatial_noise)
 
     # Save the size of the noise
@@ -2067,7 +2067,7 @@ def generate_noise(dimensions,
 
     # Calculate the sd that is necessary to be combined with itself in order
     #  to generate the temporal_sd
-    temporal_sd_element = np.sqrt(((temporal_sd ** 2) / 2))
+    temporal_sd_element = np.sqrt(temporal_sd ** 2 / 2)
 
     # What is the standard deviation of the background activity
     spatial_sd = mean_signal / noise_dict['snr']
