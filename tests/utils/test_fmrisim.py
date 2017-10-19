@@ -299,7 +299,6 @@ def test_calc_noise():
                                noise_dict=nd_orig,
                                )
 
-
     # Check that noise_system is being calculated correctly
     spatial_sd = 5
     temporal_sd = 5
