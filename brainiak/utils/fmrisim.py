@@ -2074,8 +2074,8 @@ def generate_noise(dimensions,
 
     # Set up the machine noise
     noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
-                                          spatial_sd = spatial_sd,
-                                          temporal_sd = temporal_sd_element,
+                                          spatial_sd=spatial_sd,
+                                          temporal_sd=temporal_sd_element,
                                           )
 
     # Reshape the base (to be the same size as the volume to be created)
