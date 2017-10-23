@@ -106,6 +106,24 @@ Therefore, if you have a problem with an older version, please upgrade to the
 latest version before creating an issue on GitHub.
 
 
+Docker
+======
+
+You can also test BrainIAK without installing it using Docker::
+
+    docker pull brainiak/brainiak
+    docker run -it -p 8888:8888 -v brainiak:/mnt --name demo brainiak/brainiak
+
+To run Jupyter notebooks in the running container, try::
+
+    python3 -m notebook --allow-root --no-browser --ip=0.0.0.0
+
+Then visit http://localhost:8888 in your browser and enter the token. Protip:
+run ``screen`` before running the notebook command.
+
+Note that we do not support MPI execution using Docker containers and that performance will not be optimal.
+
+
 Support
 =======
 

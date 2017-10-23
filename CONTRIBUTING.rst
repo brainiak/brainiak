@@ -212,7 +212,8 @@ Standards
 
 * Create usage examples for new modules in the examples directory. Add a
   ``requirements.txt`` file to help users install the packages your examples
-  require.
+  require. If your example requires software that is not available in PyPI,
+  document it in a ``README.rst`` and also update the BrainIAK Dockerfile.
 
 * Remove the output of example Jupyter notebooks before committing them, using
   `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
