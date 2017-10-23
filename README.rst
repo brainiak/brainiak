@@ -105,6 +105,16 @@ Until we reach version 1.0, we will only support the latest released version.
 Therefore, if you have a problem with an older version, please upgrade to the
 latest version before creating an issue on GitHub.
 
+
+Support
+=======
+
+If you have a question or feedback, chat with us on `Gitter
+<https://gitter.im/brainiak/brainiak>`_. If you find a problem with BrainIAK,
+you can also `open an issue on GitHub
+<https://github.com/brainiak/brainiak/issues>`_.
+
+
 Examples
 ========
 
