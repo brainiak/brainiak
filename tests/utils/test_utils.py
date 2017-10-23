@@ -48,12 +48,12 @@ def test_sumexp():
 def test_concatenate_not_none():
     from brainiak.utils.utils import concatenate_not_none
     import numpy as np
-    l = [None] * 5
+    arrays = [None] * 5
 
-    l[1] = np.array([0, 1, 2])
-    l[3] = np.array([3, 4])
+    arrays[1] = np.array([0, 1, 2])
+    arrays[3] = np.array([3, 4])
 
-    r = concatenate_not_none(l, axis=0)
+    r = concatenate_not_none(arrays, axis=0)
 
     assert np.all(np.arange(5) == r), (
         "Invalid concatenation of a list of arrays")
