@@ -108,14 +108,11 @@ checks from ``pr-check.sh`` using the steps bellow::
   python3 -m venv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
 
-  # install developer dependencies
+  # install brainiak in editable mode and developer dependencies
   python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
-
-  # install brainiak in editable mode (required for testing)
-  python3 -m pip install -U -e .
 
   # run tests
   ./run-tests.sh
