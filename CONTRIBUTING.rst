@@ -45,7 +45,7 @@ step-by-step description of our recommended workflow:
 
 3. Add the official BrainIAK repository as the ``upstream`` remote::
 
-     git remote add upstream https://github.com/IntelPNI/brainiak
+     git remote add upstream https://github.com/brainiak/brainiak
 
 4. Set the ``master`` branch to track the ``upstream`` remote::
 
