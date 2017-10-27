@@ -1,3 +1,4 @@
+-e .  # Installing BrainIAK here ensures no requirement conflict.
 coverage
 flake8
 flake8-print
