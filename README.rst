@@ -128,9 +128,9 @@ Support
 =======
 
 If you have a question or feedback, chat with us on `Gitter
-<https://gitter.im/brainiak/brainiak>`_. If you find a problem with BrainIAK,
-you can also `open an issue on GitHub
-<https://github.com/brainiak/brainiak/issues>`_.
+<https://gitter.im/brainiak/brainiak>`_ or email our list at
+brainiak@googlegroups.com. If you find a problem with BrainIAK, you can also
+`open an issue on GitHub <https://github.com/brainiak/brainiak/issues>`_.
 
 
 Examples
