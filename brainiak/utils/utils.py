@@ -16,11 +16,14 @@ import re
 import warnings
 import os.path
 from .fmrisim import generate_stimfunction, double_gamma_hrf
+import logging
+
 
 """
 Some utility functions that can be used by different algorithms
 """
 
+logger = logging.getLogger(__name__)
 
 def from_tri_2_sym(tri, dim):
     """convert a upper triangular matrix in 1D format
@@ -627,6 +630,12 @@ def center_mass_exp(a, b, scale=1.0):
         distribution.
     """
     assert a < b, 'a must be smaller than b'
+    assert b > 0, 'b must be larger than 0'
+    if a < 0:
+        a = 0
+        logger.warning('Parameter `a` of `center_mass_exp` is smaller than '
+                       '0. It is treated as 0. Exponential distribution has '
+                       'no mass in (-inf, 0)')
     if b < np.inf:
         return ((a + scale) * np.exp(-a / scale)
                 - (scale + b) * np.exp(-b / scale)) \
