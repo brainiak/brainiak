@@ -1,12 +1,12 @@
 Brain Imaging Analysis Kit
 ==========================
 
-.. image:: https://travis-ci.org/IntelPNI/brainiak.svg?branch=master
-    :target: https://travis-ci.org/IntelPNI/brainiak
+.. image:: https://travis-ci.org/brainiak/brainiak.svg?branch=master
+    :target: https://travis-ci.org/brainiak/brainiak
 
-.. image:: https://badges.gitter.im/IntelPNI/brainiak.svg
-   :alt: Join the chat at https://gitter.im/IntelPNI/brainiak
-   :target: https://gitter.im/IntelPNI/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+.. image:: https://badges.gitter.im/brainiak/brainiak.svg
+   :alt: Join the chat at https://gitter.im/brainiak/brainiak
+   :target: https://gitter.im/brainiak/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
 The Brain Imaging Analysis Kit is a package of Python modules useful for
 neuroscience, primarily focused on functional Magnetic Resonance Imaging (fMRI)
@@ -99,21 +99,49 @@ Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 as long as you see ``Successfully installed`` at the end.
 
 .. _issue #61:
-   https://github.com/IntelPNI/brainiak/issues/61
+   https://github.com/brainiak/brainiak/issues/61
 
 Until we reach version 1.0, we will only support the latest released version.
 Therefore, if you have a problem with an older version, please upgrade to the
 latest version before creating an issue on GitHub.
+
+
+Docker
+======
+
+You can also test BrainIAK without installing it using Docker::
+
+    docker pull brainiak/brainiak
+    docker run -it -p 8888:8888 -v brainiak:/mnt --name demo brainiak/brainiak
+
+To run Jupyter notebooks in the running container, try::
+
+    python3 -m notebook --allow-root --no-browser --ip=0.0.0.0
+
+Then visit http://localhost:8888 in your browser and enter the token. Protip:
+run ``screen`` before running the notebook command.
+
+Note that we do not support MPI execution using Docker containers and that performance will not be optimal.
+
+
+Support
+=======
+
+If you have a question or feedback, chat with us on `Gitter
+<https://gitter.im/brainiak/brainiak>`_ or email our list at
+brainiak@googlegroups.com. If you find a problem with BrainIAK, you can also
+`open an issue on GitHub <https://github.com/brainiak/brainiak/issues>`_.
+
 
 Examples
 ========
 
 We include BrainIAK usage examples in the examples directory of the code
 repository, e.g., `funcalign/srm_image_prediction_example.ipynb
-<https://github.com/IntelPNI/brainiak/blob/master/examples/funcalign/srm_image_prediction_example.ipynb>`_.
+<https://github.com/brainiak/brainiak/blob/master/examples/funcalign/srm_image_prediction_example.ipynb>`_.
 
 To run the examples, download an archive of the `latest BrainIAK release from
-GitHub <https://github.com/IntelPNI/brainiak/releases>`_. Note that we only
+GitHub <https://github.com/brainiak/brainiak/releases>`_. Note that we only
 support the latest release at this moment, so make sure to upgrade your
 BrainIAK installation.
 
@@ -135,9 +163,9 @@ starting contribution ideas. Please read the guide in `CONTRIBUTING.rst`_
 first.
 
 .. _easy:
-   https://github.com/IntelPNI/brainiak/issues?q=is%3Aissue+is%3Aopen+label%3Aeasy
+   https://github.com/brainiak/brainiak/issues?q=is%3Aissue+is%3Aopen+label%3Aeasy
 .. _CONTRIBUTING.rst:
-   https://github.com/IntelPNI/brainiak/blob/master/CONTRIBUTING.rst
+   https://github.com/brainiak/brainiak/blob/master/CONTRIBUTING.rst
 
 
 Citing

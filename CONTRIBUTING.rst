@@ -45,7 +45,7 @@ step-by-step description of our recommended workflow:
 
 3. Add the official BrainIAK repository as the ``upstream`` remote::
 
-     git remote add upstream https://github.com/IntelPNI/brainiak
+     git remote add upstream https://github.com/brainiak/brainiak
 
 4. Set the ``master`` branch to track the ``upstream`` remote::
 
@@ -108,14 +108,11 @@ checks from ``pr-check.sh`` using the steps bellow::
   python3 -m venv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
 
-  # install developer dependencies
+  # install brainiak in editable mode and developer dependencies
   python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
-
-  # install brainiak in editable mode (required for testing)
-  python3 -m pip install -U -e .
 
   # run tests
   ./run-tests.sh
@@ -215,7 +212,8 @@ Standards
 
 * Create usage examples for new modules in the examples directory. Add a
   ``requirements.txt`` file to help users install the packages your examples
-  require.
+  require. If your example requires software that is not available in PyPI,
+  document it in a ``README.rst`` and also update the BrainIAK Dockerfile.
 
 * Remove the output of example Jupyter notebooks before committing them, using
   `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
