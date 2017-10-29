@@ -150,9 +150,10 @@ def test_center_mass_exp():
     assert ('scale must be positive'
             in str(excinfo.value))
 
-    result1 = center_mass_exp(-1, 2)
-    result2 = center_mass_exp(0, 2)
-    assert result1 == result2
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp(-2, 3)
+    assert ('a cannot be smaller than 0'
+            in str(excinfo.value))
 
     result = center_mass_exp(0, np.inf, 2.0)
     assert np.isclose(result, 2.0), 'center of mass '\
