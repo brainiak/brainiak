@@ -25,6 +25,7 @@ Some utility functions that can be used by different algorithms
 
 logger = logging.getLogger(__name__)
 
+
 def from_tri_2_sym(tri, dim):
     """convert a upper triangular matrix in 1D format
        to 2D symmetric matrix
