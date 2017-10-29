@@ -632,6 +632,7 @@ def center_mass_exp(a, b, scale=1.0):
     """
     assert a < b, 'a must be smaller than b'
     assert b > 0, 'b must be larger than 0'
+    assert scale > 0, 'scale must be positive'
     if a < 0:
         a = 0
         logger.warning('Parameter `a` of `center_mass_exp` is smaller than '

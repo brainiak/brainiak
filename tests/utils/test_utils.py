@@ -144,6 +144,12 @@ def test_center_mass_exp():
         result = center_mass_exp(-2, -1)
     assert ('b must be larger than 0'
             in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp(1, 2, -1)
+    assert ('scale must be positive'
+            in str(excinfo.value))
+
     result1 = center_mass_exp(-1, 2)
     result2 = center_mass_exp(0, 2)
     assert result1 == result2
