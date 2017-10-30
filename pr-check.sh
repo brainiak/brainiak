@@ -90,6 +90,8 @@ fi
 if git ls-files --error-unmatch pr-check.sh 2> /dev/null
 then
     git clean -Xf .
+else
+    sdist_mode="--sdist-mode"
 fi
 
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
@@ -118,7 +120,7 @@ python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "run-checks failed"
 
 # run tests
-./run-tests.sh || \
+./run-tests.sh $sdist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
 # build documentation
