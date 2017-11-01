@@ -615,13 +615,13 @@ def center_mass_exp(a, b, scale=1.0):
 
     Parameters
     ----------
-    a: float
+    a: float, must be non-negative
         The starting point of the interval in which the center of mass
         is calculated for exponential distribution.
-    b: float
+    b: float, must be positive and larger than a.
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
-    scale: float
+    scale: float, must be positive.
         The scale parameter of the exponential distribution. See above.
 
     Returns
