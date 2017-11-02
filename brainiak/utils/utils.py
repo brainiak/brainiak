@@ -603,33 +603,37 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     return design_info
 
 
-def center_mass_exp(a, b, scale=1.0):
+def center_mass_exp(interval_left, interval_right, scale=1.0):
     """ Calculate the center of mass of negative exponential distribution
         p(x) = exp(-x / scale) / scale
-        in the interval of (a, b). scale is the same scale
+        in the interval of (interval_left, interval_right). scale is the same scale
         parameter as scipy.stats.expon.pdf
 
     Parameters
     ----------
-    a: float
+    interval_left: float, non-negative
         The starting point of the interval in which the center of mass
         is calculated for exponential distribution.
-    b: float
+    interval_right: float, positive
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
-    scale: float
+    scale: float, positive
         The scale parameter of the exponential distribution. See above.
 
     Returns
     -------
     m: float
-        The center of mass in the interval of (a, b) for exponential
-        distribution.
+        The center of mass in the interval of (interval_left, interval_right)
+        for exponential distribution.
     """
-    assert a < b, 'a must be smaller than b'
-    if b < np.inf:
-        return ((a + scale) * np.exp(-a / scale)
-                - (scale + b) * np.exp(-b / scale)) \
-            / (np.exp(-a / scale) - np.exp(-b / scale))
+    assert interval_left >= 0, 'interval_left cannot be non-negative'
+    assert interval_right > 0, 'interval_right must be positive'
+    assert interval_left < interval_right, 'interval_left must be smaller than interval_right'
+    assert scale > 0, 'scale must be positive'
+
+    if interval_right < np.inf:
+        return ((interval_left + scale) * np.exp(-interval_left / scale)
+                - (scale + interval_right) * np.exp(-interval_right / scale)) \
+            / (np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
     else:
-        return a + scale
+        return interval_left + scale
