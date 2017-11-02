@@ -16,10 +16,14 @@ import re
 import warnings
 import os.path
 from .fmrisim import generate_stimfunction, double_gamma_hrf
+import logging
+
 
 """
 Some utility functions that can be used by different algorithms
 """
+
+logger = logging.getLogger(__name__)
 
 
 def from_tri_2_sym(tri, dim):
@@ -611,13 +615,13 @@ def center_mass_exp(a, b, scale=1.0):
 
     Parameters
     ----------
-    a: float
+    a: float, must be non-negative
         The starting point of the interval in which the center of mass
         is calculated for exponential distribution.
-    b: float
+    b: float, must be positive and larger than a.
         The ending point of the interval in which the center of mass
         is calculated for exponential distribution.
-    scale: float
+    scale: float, must be positive.
         The scale parameter of the exponential distribution. See above.
 
     Returns
@@ -627,6 +631,9 @@ def center_mass_exp(a, b, scale=1.0):
         distribution.
     """
     assert a < b, 'a must be smaller than b'
+    assert b > 0, 'b must be larger than 0'
+    assert scale > 0, 'scale must be positive'
+    assert a >= 0, 'a cannot be smaller than 0'
     if b < np.inf:
         return ((a + scale) * np.exp(-a / scale)
                 - (scale + b) * np.exp(-b / scale)) \
