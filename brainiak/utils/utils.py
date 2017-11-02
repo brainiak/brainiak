@@ -606,8 +606,8 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
 def center_mass_exp(interval, scale=1.0):
     """ Calculate the center of mass of negative exponential distribution
         p(x) = exp(-x / scale) / scale
-        in the interval of (interval_left, interval_right). scale is the same scale
-        parameter as scipy.stats.expon.pdf
+        in the interval of (interval_left, interval_right).
+        scale is the same scale parameter as scipy.stats.expon.pdf
 
     Parameters
     ----------
@@ -633,12 +633,13 @@ def center_mass_exp(interval, scale=1.0):
     assert len(interval) == 2, 'interval must be length two'
     (interval_left, interval_right) = interval
     assert interval_left >= 0, 'interval_left must be non-negative'
-    assert interval_right > interval_left, 'interval_right must be bigger than interval_left'
+    assert interval_right > interval_left, \
+        'interval_right must be bigger than interval_left'
     assert scale > 0, 'scale must be positive'
 
     if interval_right < np.inf:
-        return ((interval_left + scale) * np.exp(-interval_left / scale)
-                - (scale + interval_right) * np.exp(-interval_right / scale)) \
-            / (np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
+        return ((interval_left+scale) * np.exp(-interval_left/scale)
+                -(scale+interval_right) * np.exp(-interval_right/scale)) \
+            / (np.exp(-interval_left/scale) - np.exp(-interval_right/scale))
     else:
         return interval_left + scale
