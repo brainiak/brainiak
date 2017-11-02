@@ -1,9 +1,7 @@
 # The following code is designed to perform a searchlight at every voxel in the brain looking at the difference in pattern similarity between musical genres (i.e. classical and jazz). In the study where the data was obtained, subjects were required to listen to a set of 16 songs twice (two runs) in an fMRI scanner. The 16 songs consisted of 8 jazz songs and 8 classical songs. The goal of this searchlight is to find voxels that seem to represent distinct information about these different musical genres. Presumably, these voxels would be found in the auditory cortex which happens to be the most organized system in the brain for processing sound information. 
 
-# Definte function that takes the difference between within vs. between genre comparisons
-
-
 import numpy as np
+import time
 from mpi4py import MPI
 from nilearn.image import load_img
 import sys
@@ -20,7 +18,7 @@ size = comm.size
 # Generate random data
 if rank == 0:
     np.random.seed(0)
-    data1_rand = np.random.rand(91,109,91,16) 
+    data1_rand = np.random.rand(91,109,91,16)
     data2_rand = np.random.rand(91,109,91,16)
     classical = np.random.rand(2600)
     jazz = np.random.rand(2600)
@@ -50,6 +48,7 @@ else:
 mask_img = load_img('MNI152_T1_2mm_brain_mask.nii')
 mask_img = mask_img.get_data()
 
+# Definte function that takes the difference between within vs. between genre comparisons
 def corr2_coeff(AB,msk,myrad,bcast_var):
     if not np.all(msk):
         return None
@@ -66,7 +65,6 @@ def corr2_coeff(AB,msk,myrad,bcast_var):
     diff = within_genre - between_genre
     return diff
 
-import time
 comm.Barrier()
 begin_time = time.time()
 comm.Barrier()
@@ -81,11 +79,9 @@ comm.Barrier()
 end_time = time.time()
 comm.Barrier()
 
-if rank == 0:
-    print('Searchlight Done: ', end_time - begin_time)
-
 # Plot searchlight results
 if rank == 0:
+    print('Searchlight Done: ', end_time - begin_time)
     maxval = np.max(global_outputs[np.not_equal(global_outputs,None)])
     minval = np.min(global_outputs[np.not_equal(global_outputs,None)])
     global_outputs = np.array(global_outputs, dtype=np.float)
