@@ -135,30 +135,41 @@ def test_gen_design():
 def test_center_mass_exp():
     from brainiak.utils.utils import center_mass_exp
     import numpy as np
+
     with pytest.raises(AssertionError) as excinfo:
-        result = center_mass_exp(3, 3)
-    assert ('a must be smaller than b'
+        result = center_mass_exp([1, 2])
+    assert ('interval must be a tuple'
             in str(excinfo.value))
 
     with pytest.raises(AssertionError) as excinfo:
-        result = center_mass_exp(-2, -1)
-    assert ('b must be larger than 0'
+        result = center_mass_exp((1, 2, 3))
+    assert ('interval must be length two'
             in str(excinfo.value))
 
     with pytest.raises(AssertionError) as excinfo:
-        result = center_mass_exp(1, 2, -1)
+        result = center_mass_exp((-2, -1))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, 3))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((3, 3))
+    assert ('interval_right must be bigger than interval_left'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2), -1)
     assert ('scale must be positive'
             in str(excinfo.value))
 
-    with pytest.raises(AssertionError) as excinfo:
-        result = center_mass_exp(-2, 3)
-    assert ('a cannot be smaller than 0'
-            in str(excinfo.value))
-
-    result = center_mass_exp(0, np.inf, 2.0)
+    result = center_mass_exp((0, np.inf), 2.0)
     assert np.isclose(result, 2.0), 'center of mass '\
         'incorrect for the whole distribution'
-    result = center_mass_exp(1.0, 1.0+2e-10)
+    result = center_mass_exp((1.0, 1.0+2e-10))
     assert np.isclose(result, 1.0+1e-10), 'for a small '\
         'enough interval, the center of mass should be '\
         'close to its mid-point'

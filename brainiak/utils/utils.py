@@ -611,23 +611,25 @@ def center_mass_exp(interval, scale=1.0):
 
     Parameters
     ----------
+
     interval: size 2 tuple, float
         interval must be in the form of (interval_left, interval_right),
-        where interval_left/interval_right is the starting/end point of
-        the interval in which the center of mass is calculated
-        for exponential distribution.
-        Note that interval_left must be non-negative, since exponential
-         is not supported in the negative domain, and interval_right
-         must be bigger than interval_left (thus positive) to form
-         a well-defined interval.
+        where interval_left/interval_right is the starting/end point of the
+        interval in which the center of mass is calculated for exponential
+        distribution.
+        Note that interval_left must be non-negative, since exponential is
+        not supported in the negative domain, and interval_right must be
+        bigger than interval_left (thus positive) to form a well-defined
+        interval.
     scale: float, positive
         The scale parameter of the exponential distribution. See above.
 
     Returns
     -------
+
     m: float
-        The center of mass in the interval of (interval_left, interval_right)
-        for exponential distribution.
+        The center of mass in the interval of (interval_left,
+        interval_right) for exponential distribution.
     """
     assert isinstance(interval, tuple), 'interval must be a tuple'
     assert len(interval) == 2, 'interval must be length two'
@@ -638,8 +640,8 @@ def center_mass_exp(interval, scale=1.0):
     assert scale > 0, 'scale must be positive'
 
     if interval_right < np.inf:
-        return ((interval_left+scale) * np.exp(-interval_left/scale)
-                -(scale+interval_right) * np.exp(-interval_right/scale)) \
-            / (np.exp(-interval_left/scale) - np.exp(-interval_right/scale))
+        return ((interval_left + scale) * np.exp(-interval_left / scale) - (
+            scale + interval_right) * np.exp(-interval_right / scale)) / (
+            np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
     else:
         return interval_left + scale
