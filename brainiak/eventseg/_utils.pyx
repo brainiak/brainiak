@@ -18,9 +18,19 @@ import numpy as np
 cimport numpy as np
 
 def masked_log(x):
-    """x is a 1D numpy array"""
-    """returns -Inf for x <=0 and log(x) otherwise"""
-    y = np.empty(x.shape, dtype=x.dtype)
+    """Compute natural logarithm while accepting nonpositive input
+
+    For nonpositive elements, return -inf.
+
+    Parameters
+    ----------
+    x: ndarray[float]
+
+    Returns
+    -------
+    ndarray[float]
+    """
+    y = np.empty(x.shape, dtype=float)
     lim = x.shape[0]
     for i in range(lim):
       if x[i] <= 0:
@@ -28,4 +38,3 @@ def masked_log(x):
       else:
         y[i] = log(x[i])
     return y
-
