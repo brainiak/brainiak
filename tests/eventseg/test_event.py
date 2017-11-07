@@ -31,7 +31,7 @@ def test_fit_shapes():
 
 
 def test_simple_boundary():
-    es = brainiak.eventseg.event.EventSegment(2, n_iter=10)
+    es = brainiak.eventseg.event.EventSegment(2)
     sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
     es.fit(sample_data.T)
 
