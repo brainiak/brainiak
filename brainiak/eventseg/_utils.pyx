@@ -38,7 +38,7 @@ def masked_log(x):
     -------
     ndarray[Union[T, np.float64]]
     """
-    if issubclass(x.dtype, Integral):
+    if issubclass(x.dtype.type, Integral):
         out_type = np.float64
     else:
         out_type = x.dtype
