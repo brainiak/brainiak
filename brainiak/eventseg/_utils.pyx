@@ -15,7 +15,7 @@
 
 from libc.math cimport log
 from numbers import Integral, Real
-from typing import import TypeVar, Union
+from typing import TypeVar, Union
 
 import numpy as np
 cimport numpy as np
