@@ -12,6 +12,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import os
 from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
@@ -387,14 +388,25 @@ class Searchlight:
         extra_block_fn_params: tuple
             Extra parameters to pass to the block function
 
-        pool_size:    Number of parallel processes in shared memory
-                      process pool
+        pool_size: int
+            Maximum number of processes running the block function in parallel.
+            The actual number of processes created is
+            min(pool_size, len(os.sched_getaffinity(0))) (falling back to
+            min(pool_size, os.cpu_count()).
 
         """
         rank = self.comm.rank
 
         results = []
-        with Pool(pool_size) as pool:
+        try:
+            usable_cpus = len(os.sched_getaffinity(0))
+        except AttributeError:
+            usable_cpus = os.cpu_count()
+        if pool_size is None:
+            processes = usable_cpus
+        else:
+            processes = min(pool_size, usable_cpus)
+        with Pool(processes) as pool:
             for idx, block in enumerate(self.blocks):
                 result = pool.apply_async(
                     block_fn,

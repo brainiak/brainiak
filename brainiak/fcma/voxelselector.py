@@ -20,6 +20,7 @@ Correlation-based voxel selection
 # (Intel Labs), 2016
 
 import numpy as np
+import os
 import time
 from mpi4py import MPI
 from scipy.stats.mstats import zscore
@@ -89,10 +90,10 @@ class VoxelSelector:
         The number of voxels assigned to a worker each time
 
     process_num: Optional[int]
-        The number of processes used in cross validation.
+        The maximum number of processes used in cross validation.
         If None, the number of processes will equal
-        the number of hardware threads,
-        i.e. the number returned by cpu_count().
+        the number of available hardware threads,
+        i.e. len(os.sched_getaffinity(0)), falling back to os.cpu_count().
         If 0, cross validation will not use python multiprocessing.
 
     master_rank: int, default 0
@@ -116,7 +117,11 @@ class VoxelSelector:
         self.num_voxels2 = raw_data2[0].shape[1] \
             if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
-        self.process_num = np.min((process_num, multiprocessing.cpu_count()))
+        try:
+            usable_cpus = len(os.sched_getaffinity(0))
+        except AttributeError:
+            usable_cpus = os.cpu_count()
+        self.process_num = np.min((process_num, usable_cpus))
         if self.process_num == 0:
             self.use_multiprocessing = False
         else:
