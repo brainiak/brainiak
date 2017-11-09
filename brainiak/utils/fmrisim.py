@@ -177,7 +177,8 @@ def _generate_feature(feature_type,
 
         # Check if the loop is a disk
         if np.all(inner is False):
-            logger.warn('Loop feature is actually a disk')
+            logger.warning('Loop feature reduces to a disk because the loop '
+                           'is too thick')
 
         # If there is complete overlap then make the signal just the
         #  outer one
@@ -221,7 +222,8 @@ def _generate_feature(feature_type,
 
             # Check if the cavity is a sphere
             if np.all(inner is False):
-                logger.warn('Cavity feature is actually a sphere')
+                logger.warning('Cavity feature reduces to a sphere because '
+                               'the cavity is too thick')
 
             # If there is complete overlap then make the signal just the
             #  outer one
@@ -587,7 +589,7 @@ def export_epoch_file(stimfunction,
     file used in Brainiak. The epoch file is a way to structure the timing
     information in fMRI that allows you to flexibly input different stimulus
     sequences. This is a list with each entry a 3d matrix corresponding to a
-    participant. The dimensions condition by epoch by time
+    participant. The dimensions of the 3d matrix are condition by epoch by time
 
     Parameters
     ----------
@@ -596,11 +598,11 @@ def export_epoch_file(stimfunction,
         The stimulus function describing the time course of events. Each
         list entry is from a different participant, each row is a different
         timepoint (with the given temporal precision), each column is a
-        different condition. For this to be able to partition the start and
-        end of an epoch it is necessary that there is a change in value in
-        the function between the two epochs: if they are coded with the same
-        and weight and there is no time between blocks then this won't be
-        identified
+        different condition. export_epoch_file is looking for differences in
+        the value of stimfunction to identify the start and end of an
+        epoch. If epochs in stimfunction are coded with the same weight and
+        there is no time between blocks then export_epoch_file won't be able to
+        label them as different epochs
 
     filename : str
         The name of the three column text file to be output
@@ -785,7 +787,8 @@ def convolve_hrf(stimfunction,
     hrf_type : str or list
         Takes in a string describing the hrf that ought to be created.
         Can instead take in a vector describing the HRF as it was
-        specified by any function
+        specified by any function. The default is 'double_gamma' in which
+        an initial rise and an undershoot are modelled.
 
     scale_function : bool
         Do you want to scale the function to a range of 1
@@ -1464,7 +1467,9 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     auto_reg_rho : float
         What is the scaling factor on the predictiveness of the previous
-        time point
+        time point. If you have an order greater than 1, do not have any
+        value of rho equal to or above 1 or else behavior will likely be
+        unpredictable.
 
     Returns
     ----------
@@ -1493,10 +1498,10 @@ def _generate_noise_temporal_autoregression(timepoints,
                 if tr_counter - pCounter >= 0:
                     past_trs = noise_autoregression[int(tr_counter - pCounter)]
                     past_reg = auto_reg_rho[pCounter - 1]
-                    random = np.random.normal(0, 1)
-                    temp.append(past_trs * past_reg + random)
+                    temp.append(past_trs * past_reg)
 
-            noise_autoregression.append(np.mean(temp))
+            random = np.random.normal(0, 1)
+            noise_autoregression.append(np.sum(temp) + random)
 
     # N.B. You don't want to normalize. Although that may make the sigma of
     # this timecourse 1, it will change the autoregression coefficient to be
@@ -1518,7 +1523,7 @@ def _generate_noise_temporal_phys(timepoints,
     ----------
 
     timepoints : 1 Dimensional array
-        What time points are sampled by a TR
+        What time points, in seconds, are sampled by a TR
 
     resp_freq : float
         What is the frequency of respiration
@@ -1752,7 +1757,7 @@ def _generate_noise_temporal(stimfunction_tr,
     trs = len(stimfunction_tr)
 
     # What time points are sampled by a TR?
-    timepoints = list(range(0, trs * tr_duration))[::tr_duration]
+    timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
 
     noise_drift = _generate_noise_temporal_drift(trs,
                                                  tr_duration,
