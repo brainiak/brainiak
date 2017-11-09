@@ -447,7 +447,8 @@ def generate_stimfunction(onsets,
     ----------
 
     stim_function : 1 by timepoint array, float
-        The time course of stimulus evoked activation
+        The time course of stimulus evoked activation. This has a temporal
+        resolution of temporal resolution / 1.0 elements per second
 
     """
 
@@ -636,8 +637,8 @@ def export_epoch_file(stimfunction,
                 # weight is supposed to unfold over an epoch or there is no
                 # break between identically weighted epochs). In such cases
                 # this will not work
-                epochs = int(np.max(np.sum((np.diff(stimfunction_temp, 1,
-                                                   0) != 0), 0)) / 2)
+                weight_change = (np.diff(stimfunction_temp, 1, 0) != 0)
+                epochs = int(np.max(np.sum(weight_change, 0)) / 2)
 
                 # Get other information
                 trs = stimfunction_temp.shape[0]
@@ -1234,7 +1235,7 @@ def calc_noise(volume,
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
         # Take only 100 shuffled TRs
-        trs = np.random.choice(volume.shape[3], size = 100, replace = False)
+        trs = np.random.choice(volume.shape[3], size=100, replace=False)
     else:
         trs = list(range(0, volume.shape[3]))
 
