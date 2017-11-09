@@ -34,7 +34,8 @@ neural data.
 
 generate_stimfunction
 Create a timecourse of the signal activation. This can be specified using event
-onsets and durations from a timing file.
+onsets and durations from a timing file. This is the time course before
+convolution and therefore can be at any temporal precision.
 
 export_3_column:
 Generate a three column timing file that can be used with software like FSL
@@ -107,7 +108,9 @@ def _generate_feature(feature_type,
                       thickness=1):
     """Generate features corresponding to signal
 
-    Generate a single feature, that can be inserted into the signal volume
+    Generate a single feature, that can be inserted into the signal volume.
+    A feature is a region of activation with a specific shape such as cube
+    or ring
 
     Parameters
     ----------
@@ -129,7 +132,7 @@ def _generate_feature(feature_type,
     Returns
     ----------
 
-    3 dimensional array
+    signal : 3 dimensional array
         The volume representing the signal
 
     """
@@ -142,20 +145,12 @@ def _generate_feature(feature_type,
     if feature_type == 'cube':
 
         # Preset the size of the signal
-        signal = np.ones(np.power(feature_size, 3))
-
-        # Reorganize the signal into a 3d matrix
-        signal = signal.reshape([feature_size,
-                                 feature_size,
-                                 feature_size])
+        signal = np.ones((feature_size, feature_size, feature_size))
 
     elif feature_type == 'loop':
 
         # First make a cube of zeros
-        signal = np.zeros(np.power(feature_size,
-                                   3)).reshape([feature_size,
-                                                feature_size,
-                                                feature_size])
+        signal = np.zeros((feature_size, feature_size, feature_size))
 
         # Make a mesh grid of the space
         seq = np.linspace(0, feature_size - 1,
@@ -179,6 +174,10 @@ def _generate_feature(feature_type,
 
         # Subtract the two disks to get a loop
         loop = outer != inner
+
+        # Check if the loop is a disk
+        if np.all(inner is False):
+            logger.warn('Loop feature is actually a disk')
 
         # If there is complete overlap then make the signal just the
         #  outer one
@@ -219,6 +218,10 @@ def _generate_feature(feature_type,
 
             # Subtract the two disks to get a loop
             signal = outer != inner
+
+            # Check if the cavity is a sphere
+            if np.all(inner is False):
+                logger.warn('Cavity feature is actually a sphere')
 
             # If there is complete overlap then make the signal just the
             #  outer one
@@ -365,7 +368,7 @@ def generate_signal(dimensions,
         signal_magnitude = signal_magnitude * feature_quantity
 
     # Iterate through the signals and insert in the data
-    for signal_counter in list(range(0, feature_quantity)):
+    for signal_counter in range(feature_quantity):
 
         # What is the centre of this signal
         if len(feature_size) > 1:
@@ -443,7 +446,7 @@ def generate_stimfunction(onsets,
     Returns
     ----------
 
-    1 by timepoint array, float
+    stim_function : 1 by timepoint array, float
         The time course of stimulus evoked activation
 
     """
@@ -493,9 +496,8 @@ def generate_stimfunction(onsets,
         offset_idx = int(np.floor((onsets[onset_counter] + event_durations[
             onset_counter]) * temporal_resolution))
 
-        # For the appropriate number of indexes and duration, make this value 1
-        idx = offset_idx - onset_idx
-        stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]] * idx
+        # Store the weights
+        stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]]
 
     # Shorten the data if it's too long
     if stimfunction.shape[0] > total_time * temporal_resolution:
@@ -513,7 +515,7 @@ def export_3_column(stimfunction,
     This produces a three column tab separated text file, with the three
     columns representing onset time (s), event duration (s) and weight,
     respectively. Useful if you want to run the simulated data through FEAT
-    analyses
+    analyses. In a way, this is the reverse of generate_stimfunction
 
     Parameters
     ----------
@@ -581,7 +583,10 @@ def export_epoch_file(stimfunction,
     """ Output an epoch file, necessary for some inputs into brainiak
 
     This takes in the time course of stimulus events and outputs the epoch
-    file used in Brainiak.
+    file used in Brainiak. The epoch file is a way to structure the timing
+    information in fMRI that allows you to flexibly input different stimulus
+    sequences. This is a list with each entry a 3d matrix corresponding to a
+    participant. The dimensions condition by epoch by time
 
     Parameters
     ----------
@@ -589,7 +594,12 @@ def export_epoch_file(stimfunction,
     stimfunction : list of timepoint by condition arrays
         The stimulus function describing the time course of events. Each
         list entry is from a different participant, each row is a different
-        timepoint, each column is a different condition
+        timepoint (with the given temporal precision), each column is a
+        different condition. For this to be able to partition the start and
+        end of an epoch it is necessary that there is a change in value in
+        the function between the two epochs: if they are coded with the same
+        and weight and there is no time between blocks then this won't be
+        identified
 
     filename : str
         The name of the three column text file to be output
@@ -605,14 +615,14 @@ def export_epoch_file(stimfunction,
 
     # Cycle through the participants, different entries in the list
     epoch_file = [0] * len(stimfunction)
-    for participant_counter in list(range(0, len(stimfunction))):
+    for participant_counter in range(len(stimfunction)):
 
         # What is the time course for the participant (binarized)
         stimfunction_ppt = np.abs(stimfunction[participant_counter]) > 0
 
         # Cycle through conditions
         conditions = stimfunction_ppt.shape[1]
-        for condition_counter in list(range(0, conditions)):
+        for condition_counter in range(conditions):
 
             # Down sample the stim function
             stride = tr_duration * temporal_resolution
@@ -620,9 +630,14 @@ def export_epoch_file(stimfunction,
             stimfunction_temp = stimfunction_temp[::int(stride)]
 
             if condition_counter == 0:
-                # Calculates the number of event onsets (max of all conditions)
-                epochs = int(np.max(np.sum((np.diff(stimfunction_ppt, 1,
-                                                    0) == 1), 0)) / 2)
+                # Calculates the number of event onsets (max of all
+                # conditions). This uses changes in value to reflect
+                # different epochs. This might be false in some cases (the
+                # weight is supposed to unfold over an epoch or there is no
+                # break between identically weighted epochs). In such cases
+                # this will not work
+                epochs = int(np.max(np.sum((np.diff(stimfunction_temp, 1,
+                                                   0) != 0), 0)) / 2)
 
                 # Get other information
                 trs = stimfunction_temp.shape[0]
@@ -707,10 +722,8 @@ def _double_gamma_hrf(response_delay=6,
     Returns
     ----------
 
-    multi dimensional array
-        The time course of the HRF convolved with the stimulus function.
-        This can have multiple time courses specified as different rows in
-        this array.
+    hrf : multi dimensional array
+        A double gamma HRF to be used for convolution.
 
     """
 
@@ -752,41 +765,41 @@ def _double_gamma_hrf(response_delay=6,
 def convolve_hrf(stimfunction,
                  tr_duration,
                  hrf_type='double_gamma',
-                 scale_function=1,
+                 scale_function=True,
                  temporal_resolution=1000.0,
                  ):
     """ Convolve the specified hrf with the timecourse
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        stimfunction : timepoint by timecourse array
-            What is the time course of events to be modelled in this
-            experiment. This can specify one or more timecourses of events.
-            The events can be weighted or binary
+    stimfunction : timepoint by timecourse array
+        What is the time course of events to be modelled in this
+        experiment. This can specify one or more timecourses of events.
+        The events can be weighted or binary
 
-        tr_duration : float
-            How long (in s) between each volume onset
+    tr_duration : float
+        How long (in s) between each volume onset
 
-        hrf_type : str or list
-            Takes in a string describing the hrf that ought to be created.
-            Can instead take in a vector describing the HRF as it was
-            specified by any function
+    hrf_type : str or list
+        Takes in a string describing the hrf that ought to be created.
+        Can instead take in a vector describing the HRF as it was
+        specified by any function
 
-        scale_function : bool
-            Do you want to scale the function to a range of 1
+    scale_function : bool
+        Do you want to scale the function to a range of 1
 
-        temporal_resolution : float
-            How many elements per second are you modeling for the stimfunction
-        Returns
-        ----------
+    temporal_resolution : float
+        How many elements per second are you modeling for the stimfunction
+    Returns
+    ----------
 
-        timepoint by timecourse array
-            The time course of the HRF convolved with the stimulus function.
-            This can have multiple time courses specified as different
-            columns in this array.
+    signal_function : timepoint by timecourse array
+        The time course of the HRF convolved with the stimulus function.
+        This can have multiple time courses specified as different
+        columns in this array.
 
-        """
+    """
 
     # Generate the hrf to use in the convolution
     if hrf_type == 'double_gamma':
@@ -798,7 +811,7 @@ def convolve_hrf(stimfunction,
     list_num = stimfunction.shape[1]
 
     # Create signal functions for each list in the stimfunction
-    for list_counter in list(range(0, list_num)):
+    for list_counter in range(list_num):
 
         # Take the stim function
         stimfunction_temp = stimfunction[:, list_counter]
@@ -815,7 +828,7 @@ def convolve_hrf(stimfunction,
         signal_function_temp = signal_function_temp[0:int(last_timepoint)]
 
         # Scale the function so that the peak response is 1
-        if scale_function == 1:
+        if scale_function:
             signal_function_temp = signal_function_temp / np.max(
                 signal_function_temp)
 
@@ -841,18 +854,23 @@ def apply_signal(signal_function,
 
     signal_function : timepoint by timecourse array, float
         The timecourse of the signal over time. If there is only one column
-        then the same timecourse is applied to all voxels. If there is more
-        than one column then each column is paired with a non-zero voxel in the
-        volume_signal.
+        then the same timecourse is applied to all non-zero voxels in
+        volume_signal. If there is more than one column then each column is
+        paired with a non-zero voxel in the volume_signal (a 3d numpy array
+        generated in generate_signal).
 
     volume_signal : multi dimensional array, float
-        The volume containing the signal to be convolved
+        The volume containing the signal to be convolved with the same
+        dimensions as the output volume. The elements in volume_signal
+        indicate how strong each signal in signal_function are modulated by
+        in the output volume
 
 
     Returns
     ----------
-    multidimensional array, float
-        The convolved signal volume
+    signal : multidimensional array, float
+        The convolved signal volume with the same 3d as volume signal and
+        the same 4th dimension as signal_function
 
     """
 
@@ -872,13 +890,12 @@ def apply_signal(signal_function,
         signal_function = np.matlib.repmat(signal_function, 1, len(idxs[0]))
 
     elif len(idxs[0]) != timecourses:
-        print('The number of non-zero voxels in the volume and the number of'
-              ' timecourses does not match. Aborting')
-        exit()
+        raise IndexError('The number of non-zero voxels in the volume and '
+                         'the number of timecourses does not match. Aborting')
 
     # For each coordinate with a non zero voxel, fill in the timecourse for
     # that voxel
-    for idx_counter in list(range(0, len(idxs[0]))):
+    for idx_counter in range(len(idxs[0])):
         x = idxs[0][idx_counter]
         y = idxs[1][idx_counter]
         z = idxs[2][idx_counter]
@@ -914,7 +931,7 @@ def _calc_fwhm(volume,
     Returns
     -------
 
-    float, list
+    fwhm : float, list
         Returns the FWHM of each TR in mm
 
     """
@@ -1004,24 +1021,24 @@ def _calc_sfnr(volume,
                mask,
                ):
     """ Calculate the the SFNR of a volume
-        Calculates the Signal to Fluctuation Noise Ratio, the mean divided
-        by the detrended standard deviation of each brain voxel. Based on
-        Friedman and Glover, 2006
+    Calculates the Signal to Fluctuation Noise Ratio, the mean divided
+    by the detrended standard deviation of each brain voxel. Based on
+    Friedman and Glover, 2006
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        volume : 4d array, float
-            Take a volume time series
+    volume : 4d array, float
+        Take a volume time series
 
-        mask : 3d array, binary
-            A binary mask the same size as the volume
+    mask : 3d array, binary
+        A binary mask the same size as the volume
 
-        Returns
-        -------
+    Returns
+    -------
 
-        float 
-            The SFNR of the volume
+    snr : float 
+        The SFNR of the volume
 
     """
 
@@ -1039,7 +1056,7 @@ def _calc_sfnr(volume,
 
     # Detrend for each voxel
     detrend_voxels = np.zeros(brain_voxels.shape)
-    for voxel in list(range(0, brain_voxels.shape[0])):
+    for voxel in range(brain_voxels.shape[0]):
         trend = detrend_poly[0, voxel] * seq ** 2 + detrend_poly[1, voxel] * \
                                                    seq + detrend_poly[2, voxel]
         detrend_voxels[voxel, :] = brain_voxels[voxel, :] - trend
@@ -1081,7 +1098,7 @@ def _calc_snr(volume,
     Returns
     -------
 
-    float 
+    snr : float 
         The SNR of the volume
 
     """
@@ -1133,14 +1150,14 @@ def _calc_temporal_noise(volume,
     -------
 
 
-    float 
+    sfnr : float 
         The SFNR of the volume (mean brain activity divided by  temporal
         variability in the averaged non brain voxels)  
 
-    float
+    auto_reg_sigma : float
         A sigma of the autoregression in the data
 
-    float
+    drift_sigma : float
         Sigma of the drift in the data
 
     """
@@ -1187,7 +1204,7 @@ def calc_noise(volume,
     Returns
     -------
 
-    dict
+    noise_dict : dict
         Return a dictionary of the calculated noise parameters of the provided
         dataset
 
@@ -1195,7 +1212,7 @@ def calc_noise(volume,
 
     # Create the mask if not supplied and set the mask size
     if mask is None:
-        mask = np.ones(volume.shape)[:, :, :, 0]
+        mask = np.ones(volume.shape[:-1])
 
     # Update noise dict if it is not yet created
     if noise_dict is None:
@@ -1217,15 +1234,13 @@ def calc_noise(volume,
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
         # Take only 100 shuffled TRs
-        trs = np.arange(volume.shape[3])
-        np.random.shuffle(trs)
-        trs = trs[0:100]
+        trs = np.random.choice(volume.shape[3], size = 100, replace = False)
     else:
         trs = list(range(0, volume.shape[3]))
 
-    # Go through the trs and pull out the fwhm and snr
+    # Go through the trs and pull out the fwhm
     fwhm = [0] * len(trs)
-    for tr in list(range(0, len(trs))):
+    for tr in range(len(trs)):
         fwhm[tr] = _calc_fwhm(volume[:, :, :, trs[tr]],
                               mask,
                               noise_dict['voxel_size'],
@@ -1360,12 +1375,13 @@ def _generate_noise_temporal_task(stimfunction_tr,
     Returns
     ----------
 
-    one dimensional array, float
+    noise_task : one dimensional array, float
         Generates the temporal task noise timecourse
 
     """
 
     # Make the noise to be added
+    stimfunction_tr = stimfunction_tr != 0
     if motion_noise == 'gaussian':
         noise = stimfunction_tr * np.random.normal(0, 1, size=len(
             stimfunction_tr))
@@ -1400,9 +1416,12 @@ def _generate_noise_temporal_drift(trs,
     tr_duration : float
         How long in seconds is each volume acqusition
 
+    period : int
+        How many seconds is the period of oscillation of the drift
+
     Returns
     ----------
-    one dimensional array, float
+    noise_drift : one dimensional array, float
         The drift timecourse of activity
 
     """
@@ -1448,7 +1467,7 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     Returns
     ----------
-    one dimensional array, float
+    noise_autoregression : one dimensional array, float
         Generates the autoregression noise timecourse
 
     """
@@ -1461,7 +1480,7 @@ def _generate_noise_temporal_autoregression(timepoints,
     # Generate a random variable at each time point that is a decayed value
     # of the previous time points
     noise_autoregression = []
-    for tr_counter in list(range(0, len(timepoints))):
+    for tr_counter in range(len(timepoints)):
 
         if tr_counter == 0:
             noise_autoregression.append(np.random.normal(0, 1))
@@ -1476,7 +1495,7 @@ def _generate_noise_temporal_autoregression(timepoints,
                     random = np.random.normal(0, 1)
                     temp.append(past_trs * past_reg + random)
 
-                    noise_autoregression.append(np.mean(temp))
+            noise_autoregression.append(np.mean(temp))
 
     # N.B. You don't want to normalize. Although that may make the sigma of
     # this timecourse 1, it will change the autoregression coefficient to be
@@ -1508,20 +1527,23 @@ def _generate_noise_temporal_phys(timepoints,
 
     Returns
     ----------
-    one dimensional array, float
+    noise_phys : one dimensional array, float
         Generates the physiological temporal noise timecourse
 
     """
 
     noise_phys = []  # Preset
+    resp_phase = (np.random.rand(1) * 2 * np.pi)[0]
+    heart_phase = (np.random.rand(1) * 2 * np.pi)[0]
     for tr_counter in timepoints:
-        # Calculate the radians for each variable at this given TR
-        resp_radians = resp_freq * tr_counter * 2 * np.pi
-        heart_radians = heart_freq * tr_counter * 2 * np.pi
+
+        # Calculate the radians for each variable at this
+        # given TR
+        resp_radians = resp_freq * tr_counter * 2 * np.pi + resp_phase
+        heart_radians = heart_freq * tr_counter * 2 * np.pi + heart_phase
 
         # Combine the two types of noise and append
-        noise_phys.append(np.cos(resp_radians) + np.sin(heart_radians) +
-                          np.random.normal(0, 1))
+        noise_phys.append(np.cos(resp_radians) + np.sin(heart_radians))
 
     # Normalize
     noise_phys = stats.zscore(noise_phys)
@@ -1577,7 +1599,7 @@ def _generate_noise_spatial(dimensions,
     Returns
     ----------
 
-    3d array, float
+    noise_spatial : 3d array, float
         Generates the spatial noise volume for these parameters
 
     """
@@ -1670,10 +1692,9 @@ def _generate_noise_temporal(stimfunction_tr,
                              physiological_sigma,
                              ):
     """Generate the temporal noise
-    Generate the time course of the average brain voxel. To increase or
-    decrease the amount of total noise then change the SFNR noise_dict
-    entry. To change the relative mixing of the noise components, change the
-    sigma's specified below.
+    Generate the time course of the average brain voxel. To change the
+    relative mixing of the noise components, change the sigma's specified
+    below.
 
     Parameters
     ----------
@@ -1700,8 +1721,8 @@ def _generate_noise_temporal(stimfunction_tr,
         to model spatial noise.
 
     motion_sigma : float
-        How much noise is left over after pre-processing has been
-        done. This is noise specifically on the task events
+        This is noise that only occurs for the task events, potentially
+        representing something like noise due to motion
 
     drift_sigma : float
 
@@ -1720,7 +1741,7 @@ def _generate_noise_temporal(stimfunction_tr,
     Returns
     ----------
 
-    one dimensional array, float
+    noise_temporal : one dimensional array, float
         Generates the temporal noise timecourse for these parameters
 
     """
@@ -1885,7 +1906,8 @@ def mask_brain(volume,
                    )
 
     # Scale the mask according to the input brain
-    # You might get a warning but ignore it
+    # You might get a warning if the zoom_factor is not an integer but you
+    # can safely ignore that.
     template = ndimage.zoom(mask_raw, zoom_factor, order=2)
     template[template < 0] = 0
 
@@ -1946,7 +1968,8 @@ def _noise_dict_update(noise_dict):
     Returns
     -------
 
-    Updated dictionary
+    noise_dict : dict
+        Updated dictionary
 
     """
 
@@ -2015,7 +2038,7 @@ def generate_noise(dimensions,
     Returns
     ----------
 
-    multidimensional array, float
+    noise : multidimensional array, float
         Generates the noise volume for these parameters
 
     """
