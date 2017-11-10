@@ -50,14 +50,14 @@ duration = 100
 savename = 'examples/utils/example.nii'
 
 # Generate a volume representing the location and quality of the signal
-volume_static_A = sim.generate_signal(dimensions=dimensions,
+volume_signal_A = sim.generate_signal(dimensions=dimensions,
                                       feature_coordinates=coordinates_A,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
                                       signal_magnitude=signal_magnitude,
                                       )
 
-volume_static_B = sim.generate_signal(dimensions=dimensions,
+volume_signal_B = sim.generate_signal(dimensions=dimensions,
                                       feature_coordinates=coordinates_B,
                                       feature_type=feature_type,
                                       feature_size=feature_size,
@@ -67,7 +67,7 @@ volume_static_B = sim.generate_signal(dimensions=dimensions,
 # Visualize the signal that was generated for condition A
 fig = plt.figure()
 sim.plot_brain(fig,
-               volume_static_A)
+               volume_signal_A)
 plt.show()
 
 # Create the time course for the signal to be generated
@@ -84,23 +84,23 @@ stimfunction_B = sim.generate_stimfunction(onsets=onsets_B,
                                            )
 
 # Convolve the HRF with the stimulus sequence
-signal_function_A = sim.double_gamma_hrf(stimfunction=stimfunction_A,
-                                         tr_duration=tr_duration,
-                                         temporal_resolution=temporal_res,
-                                         )
+signal_function_A = sim.convolve_hrf(stimfunction=stimfunction_A,
+                                     tr_duration=tr_duration,
+                                     temporal_resolution=temporal_res,
+                                     )
 
-signal_function_B = sim.double_gamma_hrf(stimfunction=stimfunction_B,
-                                         tr_duration=tr_duration,
-                                         temporal_resolution=temporal_res,
-                                         )
+signal_function_B = sim.convolve_hrf(stimfunction=stimfunction_B,
+                                     tr_duration=tr_duration,
+                                     temporal_resolution=temporal_res,
+                                     )
 
 # Multiply the HRF timecourse with the signal
 signal_A = sim.apply_signal(signal_function=signal_function_A,
-                            volume_static=volume_static_A,
+                            volume_signal=volume_signal_A,
                             )
 
 signal_B = sim.apply_signal(signal_function=signal_function_B,
-                            volume_static=volume_static_B,
+                            volume_signal=volume_signal_B,
                             )
 
 # Combine the signals from the two conditions
@@ -111,11 +111,11 @@ stimfunction = list(np.add(stimfunction_A, stimfunction_B))
 stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Generate the mask of the signal
-mask = sim.mask_brain(signal)
+mask, template = sim.mask_brain(signal, mask_threshold=0.2)
 
 # Mask the signal to the shape of a brain (attenuates signal according to grey
 # matter likelihood)
-signal *= mask
+signal *= mask.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
 
 # Generate original noise dict for comparison later
 orig_noise_dict = sim._noise_dict_update({})
@@ -125,6 +125,7 @@ noise = sim.generate_noise(dimensions=dimensions,
                            stimfunction_tr=stimfunction_tr,
                            tr_duration=tr_duration,
                            mask=mask,
+                           template=template,
                            noise_dict=orig_noise_dict,
                            )
 
@@ -142,7 +143,7 @@ for tr_counter in list(range(0, brain.shape[3])):
     # Get the axis to be plotted
     ax = sim.plot_brain(fig,
                         brain[:, :, :, tr_counter],
-                        mask=mask[:, :, :, tr_counter],
+                        mask=mask,
                         percentile=99.9)
 
     # Wait for an input
@@ -167,9 +168,9 @@ stimfunction = sim.generate_stimfunction(onsets=[],
 stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
 
 # Calculate the mask
-mask = sim.mask_brain(volume=volume,
-                      mask_self=True,
-                      )
+mask, template = sim.mask_brain(volume=volume,
+                                mask_self=True,
+                                )
 
 # Calculate the noise parameters
 noise_dict = sim.calc_noise(volume=volume,
@@ -180,6 +181,7 @@ noise_dict = sim.calc_noise(volume=volume,
 noise = sim.generate_noise(dimensions=dimensions,
                            tr_duration=tr_duration,
                            stimfunction_tr=stimfunction_tr,
+                           template=template,
                            mask=mask,
                            noise_dict=noise_dict,
                            )
