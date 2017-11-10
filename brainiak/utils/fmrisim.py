@@ -1448,7 +1448,7 @@ def _generate_noise_temporal_drift(trs,
 
 def _generate_noise_temporal_autoregression(timepoints,
                                             auto_reg_order=1,
-                                            auto_reg_rho=[1],
+                                            auto_reg_rho=[0.5],
                                             ):
 
     """Generate the autoregression noise
@@ -1467,9 +1467,9 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     auto_reg_rho : float
         What is the scaling factor on the predictiveness of the previous
-        time point. If you have an order greater than 1, do not have any
-        value of rho equal to or above 1 or else behavior will likely be
-        unpredictable.
+        time point. This value is below 1 to avoid brownian motion (and
+        growing variance). Values near or greater than one may produce drift or
+        other unwanted trends.
 
     Returns
     ----------
