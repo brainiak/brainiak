@@ -91,21 +91,6 @@ class EventSegment(BaseEstimator):
         self.step_var = step_var
         self.n_iter = n_iter
 
-        # Set up transition matrix, with final sink state
-        # For transition matrix of this form, the transition probability has
-        # no impact on the final solution, since all valid paths must take
-        # the same number of transitions
-        self.p_start = np.zeros((1, self.n_events + 1))
-        self.p_start[0, 0] = 1
-        self.P = np.vstack((np.hstack((
-            0.5 * np.diag(np.ones(self.n_events))
-            + 0.5 * np.diag(np.ones(self.n_events - 1), 1),
-            np.append(np.zeros((self.n_events - 1, 1)), [[0.5]], axis=0))),
-                            np.append(np.zeros((1, self.n_events)), [[1]],
-                                      axis=1)))
-        self.p_end = np.zeros((1, self.n_events + 1))
-        self.p_end[0, -2] = 1
-
     def fit(self, X, y=None):
         """Learn a segmentation on training data
 
@@ -266,31 +251,47 @@ class EventSegment(BaseEstimator):
         log_alpha = np.zeros((t, self.n_events + 1))
         log_beta = np.zeros((t, self.n_events + 1))
 
+        # Set up transition matrix, with final sink state
+        # For transition matrix of this form, the transition probability has
+        # no impact on the final solution, since all valid paths must take
+        # the same number of transitions
+        p_start = np.zeros((1, self.n_events + 1))
+        p_start[0, 0] = 1
+        p_trans = (self.n_events-1)/t
+        P = np.vstack((np.hstack((
+            (1 - p_trans) * np.diag(np.ones(self.n_events))
+            + p_trans * np.diag(np.ones(self.n_events - 1), 1),
+            np.append(np.zeros((self.n_events - 1, 1)), [[p_trans]], axis=0))),
+                            np.append(np.zeros((1, self.n_events)), [[1]],
+                                      axis=1)))
+        p_end = np.zeros((1, self.n_events + 1))
+        p_end[0, -2] = 1
+
         # Forward pass
         for t in range(t):
             if t == 0:
-                log_alpha[0, :] = self._log(self.p_start) + logprob[0, :]
+                log_alpha[0, :] = self._log(p_start) + logprob[0, :]
             else:
                 log_alpha[t, :] = self._log(np.exp(log_alpha[t - 1, :])
-                                            .dot(self.P)) + logprob[t, :]
+                                            .dot(P)) + logprob[t, :]
 
             log_scale[t] = np.logaddexp.reduce(log_alpha[t, :])
             log_alpha[t] -= log_scale[t]
 
         # Backward pass
-        log_beta[-1, :] = self._log(self.p_end) - log_scale[-1]
+        log_beta[-1, :] = self._log(p_end) - log_scale[-1]
         for t in reversed(range(t - 1)):
             obs_weighted = log_beta[t + 1, :] + logprob[t + 1, :]
             offset = np.max(obs_weighted)
             log_beta[t, :] = offset + self._log(
-                np.exp(obs_weighted - offset).dot(self.P.T)) - log_scale[t]
+                np.exp(obs_weighted - offset).dot(P.T)) - log_scale[t]
 
         # Combine and normalize
         log_gamma = log_alpha + log_beta
         log_gamma -= np.logaddexp.reduce(log_gamma, axis=1, keepdims=True)
 
         ll = np.sum(log_scale[:(t - 1)]) + np.logaddexp.reduce(
-            log_alpha[-1, :] + log_scale[-1] + self._log(self.p_end), axis=1)
+            log_alpha[-1, :] + log_scale[-1] + self._log(p_end), axis=1)
 
         log_gamma = log_gamma[:, :-1]
 
@@ -401,3 +402,41 @@ class EventSegment(BaseEstimator):
         X = check_array(X)
         segments, test_ll = self.find_events(X)
         return np.argmax(segments, axis=1)
+
+    def calc_weighted_event_var(self, D, weights, event_pat):
+        """Computes normalized weighted variance around event pattern
+
+        Utility function for computing variance in a training set of weighted
+        event examples. For each event, the sum of squared differences for all
+        timepoints from the event pattern is computed, and then the weights
+        specify how much each of these differences contributes to the
+        variance (normalized by the number of voxels).
+
+        Parameters
+        ----------
+        D : timepoint by voxel ndarray
+            fMRI data for which to compute event variances
+
+        weights : timepoint by event ndarray
+            specifies relative weights of timepoints for each event
+
+        event_pat : voxel by event ndarray
+            mean event patterns to compute variance around
+
+        Returns
+        -------
+        ev_var : ndarray of variances for each event
+        """
+        Dz = stats.zscore(D, axis=1, ddof=1)
+        ev_var = np.empty(event_pat.shape[1])
+        for e in range(event_pat.shape[1]):
+            # Only compute variances for weights > 0.1% of max weight
+            nz = weights[:, e] > np.max(weights[:, e])/1000
+            sumsq = np.dot(weights[nz, e],
+                           np.sum(np.square(Dz[nz, :] -
+                                  event_pat[:, e]), axis=1))
+            ev_var[e] = sumsq/(np.sum(weights[nz, e]) -
+                               np.sum(np.square(weights[nz, e])) /
+                               np.sum(weights[nz, e]))
+        ev_var = ev_var / D.shape[1]
+        return ev_var
