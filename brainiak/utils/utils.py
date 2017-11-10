@@ -15,6 +15,7 @@ import numpy as np
 import re
 import warnings
 import os.path
+import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
 
 """
@@ -647,3 +648,22 @@ def center_mass_exp(interval, scale=1.0):
             np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
     else:
         return interval_left + scale
+
+
+def usable_cpu_count():
+    """Get number of CPUs usable by the current process.
+
+    Takes into consideration cpusets restrictions.
+
+    Returns
+    -------
+    int
+    """
+    try:
+        result = len(os.sched_getaffinity(0))
+    except AttributeError:
+        try:
+            result = len(psutil.Process().cpu_affinity())
+        except AttributeError:
+            result = os.cpu_count()
+    return result

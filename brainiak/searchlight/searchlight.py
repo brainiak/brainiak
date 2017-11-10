@@ -12,11 +12,12 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import os
 from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
 from scipy.spatial.distance import cityblock
+
+from ..utils.utils import usable_cpu_count
 
 """Distributed Searchlight
 """
@@ -390,18 +391,13 @@ class Searchlight:
 
         pool_size: int
             Maximum number of processes running the block function in parallel.
-            The actual number of processes created is
-            min(pool_size, len(os.sched_getaffinity(0))) (falling back to
-            min(pool_size, os.cpu_count()).
-
+            If None, number of available hardware threads, considering cpusets
+            restrictions.
         """
         rank = self.comm.rank
 
         results = []
-        try:
-            usable_cpus = len(os.sched_getaffinity(0))
-        except AttributeError:
-            usable_cpus = os.cpu_count()
+        usable_cpus = usable_cpu_count()
         if pool_size is None:
             processes = usable_cpus
         else:
