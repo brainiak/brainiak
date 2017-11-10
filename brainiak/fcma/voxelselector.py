@@ -106,7 +106,7 @@ class VoxelSelector:
                  raw_data,
                  raw_data2=None,
                  voxel_unit=64,
-                 process_num=None,
+                 process_num=4,
                  master_rank=0):
         self.labels = labels
         self.epochs_per_subj = epochs_per_subj
