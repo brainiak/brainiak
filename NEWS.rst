@@ -2,6 +2,47 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.6 (2017-11-10)
+=========================
+
+Features
+--------
+
+- reprsimil: Add Group Bayesian RSA, add transform (decoding) and score (model
+  selection) functions, add automatic determination of the number of necessary
+  nuisance regressors. utils: modified gen_design to make the generated design
+  matrix approximately scaled in amplitudes. (`#194
+  <https://github.com/brainiak/brainiak/issues/194>`_)
+- searchlight: Improved performance via tweaked multiprocessing usage. (`#240
+  <https://github.com/brainiak/brainiak/issues/240>`_)
+- fmrisim: Updated drift calculation and masking. (`#244
+  <https://github.com/brainiak/brainiak/pull/244>`_)
+- eventseg: Add set_event_patterns() and notebook example (`#266
+  <https://github.com/brainiak/brainiak/issues/266>`_)
+- Added a Docker image for testing BrainIAK without installing. (`#272
+  <https://github.com/brainiak/brainiak/issues/272>`_)
+- eventseg: Fixed numerical instability bug, added utility function for
+  weighted variance (`#292 <https://github.com/brainiak/brainiak/issues/292>`_)
+- Restricted multiprocessing to the available number of CPUs. (`#293
+  <https://github.com/brainiak/brainiak/issues/293>`_)
+
+
+Bugfixes
+--------
+
+- searchlight: Do not use ``sys.exit``. (`#156
+  <https://github.com/brainiak/brainiak/issues/156>`_)
+- reprsimil: Follow random number guidelines. (`#239
+  <https://github.com/brainiak/brainiak/issues/239>`_)
+
+
+Deprecations and removals
+-------------------------
+
+- Changed GitHub organization to BrainIAK. Update your remote URLs. (`#277
+  <https://github.com/brainiak/brainiak/issues/277>`_)
+
+
 BrainIAK 0.5 (2017-05-23)
 =========================
 
