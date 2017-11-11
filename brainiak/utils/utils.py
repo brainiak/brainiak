@@ -15,7 +15,8 @@ import numpy as np
 import re
 import warnings
 import os.path
-from .fmrisim import generate_stimfunction, double_gamma_hrf
+import psutil
+from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
 
 """
 Some utility functions that can be used by different algorithms
@@ -432,8 +433,8 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 
     response_delay = hrf_para['response_delay']
     undershoot_delay = hrf_para['undershoot_delay']
-    response_dispersion = hrf_para['response_dispersion']
-    undershoot_dispersion = hrf_para['undershoot_dispersion']
+    response_disp = hrf_para['response_dispersion']
+    undershoot_disp = hrf_para['undershoot_dispersion']
     undershoot_scale = hrf_para['undershoot_scale']
     # generate design matrix
     for i_s in range(n_S):
@@ -444,13 +445,15 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'],
                 temporal_resolution=1.0/temp_res)
-            design[i_s][:, i_c] = double_gamma_hrf(
-                stimfunction, TR, response_delay=response_delay,
-                undershoot_delay=undershoot_delay,
-                response_dispersion=response_dispersion,
-                undershoot_dispersion=undershoot_dispersion,
-                undershoot_scale=undershoot_scale, scale_function=0,
-                temporal_resolution=1.0/temp_res) * temp_res
+            hrf = _double_gamma_hrf(response_delay=response_delay,
+                                    undershoot_delay=undershoot_delay,
+                                    response_dispersion=response_disp,
+                                    undershoot_dispersion=undershoot_disp,
+                                    undershoot_scale=undershoot_scale,
+                                    temporal_resolution=1.0/temp_res)
+            design[i_s][:, i_c] = convolve_hrf(
+                stimfunction, TR, hrf_type=hrf, scale_function=0,
+                temporal_resolution=1.0 / temp_res).transpose() * temp_res
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
@@ -603,33 +606,64 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     return design_info
 
 
-def center_mass_exp(a, b, scale=1.0):
+def center_mass_exp(interval, scale=1.0):
     """ Calculate the center of mass of negative exponential distribution
         p(x) = exp(-x / scale) / scale
-        in the interval of (a, b). scale is the same scale
-        parameter as scipy.stats.expon.pdf
+        in the interval of (interval_left, interval_right).
+        scale is the same scale parameter as scipy.stats.expon.pdf
 
     Parameters
     ----------
-    a: float
-        The starting point of the interval in which the center of mass
-        is calculated for exponential distribution.
-    b: float
-        The ending point of the interval in which the center of mass
-        is calculated for exponential distribution.
-    scale: float
+
+    interval: size 2 tuple, float
+        interval must be in the form of (interval_left, interval_right),
+        where interval_left/interval_right is the starting/end point of the
+        interval in which the center of mass is calculated for exponential
+        distribution.
+        Note that interval_left must be non-negative, since exponential is
+        not supported in the negative domain, and interval_right must be
+        bigger than interval_left (thus positive) to form a well-defined
+        interval.
+    scale: float, positive
         The scale parameter of the exponential distribution. See above.
 
     Returns
     -------
+
     m: float
-        The center of mass in the interval of (a, b) for exponential
-        distribution.
+        The center of mass in the interval of (interval_left,
+        interval_right) for exponential distribution.
     """
-    assert a < b, 'a must be smaller than b'
-    if b < np.inf:
-        return ((a + scale) * np.exp(-a / scale)
-                - (scale + b) * np.exp(-b / scale)) \
-            / (np.exp(-a / scale) - np.exp(-b / scale))
+    assert isinstance(interval, tuple), 'interval must be a tuple'
+    assert len(interval) == 2, 'interval must be length two'
+    (interval_left, interval_right) = interval
+    assert interval_left >= 0, 'interval_left must be non-negative'
+    assert interval_right > interval_left, \
+        'interval_right must be bigger than interval_left'
+    assert scale > 0, 'scale must be positive'
+
+    if interval_right < np.inf:
+        return ((interval_left + scale) * np.exp(-interval_left / scale) - (
+            scale + interval_right) * np.exp(-interval_right / scale)) / (
+            np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
     else:
-        return a + scale
+        return interval_left + scale
+
+
+def usable_cpu_count():
+    """Get number of CPUs usable by the current process.
+
+    Takes into consideration cpusets restrictions.
+
+    Returns
+    -------
+    int
+    """
+    try:
+        result = len(os.sched_getaffinity(0))
+    except AttributeError:
+        try:
+            result = len(psutil.Process().cpu_affinity())
+        except AttributeError:
+            result = os.cpu_count()
+    return result

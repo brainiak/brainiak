@@ -148,6 +148,10 @@ def example_of_correlating_two_components_aggregating_sim_matrix(raw_data, raw_d
 
 # python3 classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
+    if len(sys.argv) != 5:
+        logger.error('the number of input argument is not correct')
+        sys.exit(1)
+
     data_dir = sys.argv[1]
     extension = sys.argv[2]
     mask_file = sys.argv[3]

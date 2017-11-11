@@ -17,6 +17,8 @@ import numpy as np
 from mpi4py import MPI
 from scipy.spatial.distance import cityblock
 
+from ..utils.utils import usable_cpu_count
+
 """Distributed Searchlight
 """
 
@@ -387,14 +389,20 @@ class Searchlight:
         extra_block_fn_params: tuple
             Extra parameters to pass to the block function
 
-        pool_size:    Number of parallel processes in shared memory
-                      process pool
-
+        pool_size: int
+            Maximum number of processes running the block function in parallel.
+            If None, number of available hardware threads, considering cpusets
+            restrictions.
         """
         rank = self.comm.rank
 
         results = []
-        with Pool(pool_size) as pool:
+        usable_cpus = usable_cpu_count()
+        if pool_size is None:
+            processes = usable_cpus
+        else:
+            processes = min(pool_size, usable_cpus)
+        with Pool(processes) as pool:
             for idx, block in enumerate(self.blocks):
                 result = pool.apply_async(
                     block_fn,

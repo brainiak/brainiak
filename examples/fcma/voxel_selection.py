@@ -37,6 +37,9 @@ if __name__ == '__main__':
             'programming starts in %d process(es)' %
             MPI.COMM_WORLD.Get_size()
         )
+    if len(sys.argv) != 7:
+        logger.error('the number of input argument is not correct')
+        sys.exit(1)
     data_dir = sys.argv[1]
     suffix = sys.argv[2]
     mask_file = sys.argv[3]

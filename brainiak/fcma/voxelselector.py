@@ -27,6 +27,7 @@ from sklearn import model_selection
 import sklearn
 from . import fcma_extension  # type: ignore
 from . import cython_blas as blas  # type: ignore
+from ..utils.utils import usable_cpu_count
 import logging
 import multiprocessing
 
@@ -89,10 +90,10 @@ class VoxelSelector:
         The number of voxels assigned to a worker each time
 
     process_num: Optional[int]
-        The number of processes used in cross validation.
+        The maximum number of processes used in cross validation.
         If None, the number of processes will equal
-        the number of hardware threads,
-        i.e. the number returned by cpu_count().
+        the number of available hardware threads, considering cpusets
+        restrictions.
         If 0, cross validation will not use python multiprocessing.
 
     master_rank: int, default 0
@@ -116,7 +117,11 @@ class VoxelSelector:
         self.num_voxels2 = raw_data2[0].shape[1] \
             if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
-        self.process_num = np.min((process_num, multiprocessing.cpu_count()))
+        usable_cpus = usable_cpu_count()
+        if process_num is None:
+            self.process_num = usable_cpus
+        else:
+            self.process_num = np.min((process_num, usable_cpus))
         if self.process_num == 0:
             self.use_multiprocessing = False
         else:

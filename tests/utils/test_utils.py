@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import pytest
+
 
 def test_tri_sym_convert():
     from brainiak.utils.utils import from_tri_2_sym, from_sym_2_tri
@@ -128,3 +130,46 @@ def test_gen_design():
                          scan_duration=[48, 20], TR=2, style='AFNI')
     assert np.all(np.isclose(design1, design6)), (
         'design matrices generated from AFNI style and FSL style do not match')
+
+
+def test_center_mass_exp():
+    from brainiak.utils.utils import center_mass_exp
+    import numpy as np
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp([1, 2])
+    assert ('interval must be a tuple'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2, 3))
+    assert ('interval must be length two'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, -1))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, 3))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((3, 3))
+    assert ('interval_right must be bigger than interval_left'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2), -1)
+    assert ('scale must be positive'
+            in str(excinfo.value))
+
+    result = center_mass_exp((0, np.inf), 2.0)
+    assert np.isclose(result, 2.0), 'center of mass '\
+        'incorrect for the whole distribution'
+    result = center_mass_exp((1.0, 1.0+2e-10))
+    assert np.isclose(result, 1.0+1e-10), 'for a small '\
+        'enough interval, the center of mass should be '\
+        'close to its mid-point'

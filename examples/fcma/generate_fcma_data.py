@@ -104,7 +104,7 @@ for cond_counter in list(range(conds)):
 for cond in list(range(conds)):
 
     # Generate a volume representing the location and quality of the signal
-    volume_static = sim.generate_signal(dimensions=dimensions,
+    volume_signal = sim.generate_signal(dimensions=dimensions,
                                         feature_coordinates=coordinates[cond],
                                         feature_type=feature_type,
                                         feature_size=feature_size,
@@ -126,7 +126,7 @@ for cond in list(range(conds)):
 
     # Multiply the HRF timecourse with the signal
     signal_cond = sim.apply_signal(signal_function=signal_function,
-                                   volume_static=volume_static,
+                                   volume_signal=volume_signal,
                                    )
 
     # Concatenate all the signal and function files
@@ -138,11 +138,14 @@ for cond in list(range(conds)):
         signal += signal_cond
 
 # Generate the mask of the signal
-mask = sim.mask_brain(signal)
+mask, template = sim.mask_brain(signal)
 
 # Mask the signal to the shape of a brain (does not attenuate signal according
 # to grey matter likelihood)
-signal *= mask > 0
+signal *= mask.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
+
+# Downsample the stimulus function to generate it in TR time
+stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
 
 # Iterate through the participants and store participants
 epochs = []
@@ -156,8 +159,9 @@ for participantcounter in range(1, participants + 1):
 
     # Create the noise volumes (using the default parameters
     noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction=stimfunction,
+                               stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                )
 
@@ -173,7 +177,5 @@ for participantcounter in range(1, participants + 1):
 np.save(directory + 'epoch_labels.npy', epochs)
 
 # Store the mask
-mask[mask > 0] = 1
-mask = mask[:, :, :, 0]
 brain_nifti = nibabel.Nifti1Image(mask, affine_matrix)
 nibabel.save(brain_nifti, directory + 'mask.nii')
