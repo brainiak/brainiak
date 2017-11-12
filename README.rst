@@ -149,10 +149,7 @@ BrainIAK installation.
 Documentation
 =============
 
-The documentation is available at `pythonhosted.org/brainiak`_.
-
-.. _pythonhosted.org/brainiak:
-    https://pythonhosted.org/brainiak
+The documentation is available at http://brainiak.org/docs.
 
 
 Contributing
