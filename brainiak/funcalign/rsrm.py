@@ -200,10 +200,46 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """
         S = np.zeros_like(X)
         R = None
-        for iter in range(self.n_iter):
+        for i in range(self.n_iter):
             R = self.w_[subject].T.dot(X - S)
             S = self._shrink(X - self.w_[subject].dot(R), self.lam)
         return R, S
+
+    def transform_subject(self, X, y=None):
+        """Transform a new subject using the existing model
+
+        Parameters
+        ----------
+
+        X : 2D array, shape=[voxels, samples]
+            The fMRI data of the new subject.
+
+        y : not used
+
+        Returns
+        -------
+
+        w : 2D array, shape=[voxels, features]
+            Orthogonal mapping `W_{new}` for new subject 
+
+        s : 2D array, shape=[voxels, samples]
+            Individual term `S_{new}` for new subject
+        """
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of TRs in the subject
+        if X.shape[1] != self.r_.shape[1]:
+            raise ValueError("The number of samples(TRs) does not match the one"
+                             " in the model.")
+
+        s = np.zeros_like(X)
+        for i in range(self.n_iter):
+            w = self._update_transform_subject(X, s, self.r_)
+            s = self._shrink(X - w.dot(self.r_), self.lam)
+
+        return w, s
 
     def _rsrm(self, X):
         """Block-Coordinate Descent algorithm for fitting RSRM.
@@ -242,7 +278,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             logger.info('Objective function %f' % objective)
 
         # Main loop
-        for iter in range(self.n_iter):
+        for i in range(self.n_iter):
             W = self._update_transforms(X, S, R, subjs)
             S = self._update_outliers(X, W, R, subjs, self.lam)
             R = self._update_shared_response(X, S, W, subjs, features, TRs)
