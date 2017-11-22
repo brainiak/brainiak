@@ -120,5 +120,3 @@ def test_can_instantiate():
     with pytest.raises(ValueError):
         s.fit(X)
     print("Test: different number of samples per subject")
-
-
