@@ -35,12 +35,13 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+
 class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     """Robust Shared Response Model (RSRM)
 
     Given multi-subject data, factorize it as a shared response R among all
-    subjects, an orthogonal transform W per subject, and an outlying (individual) 
-    sparse component S per subject:
+    subjects, an orthogonal transform W per subject, and an outlying 
+    (individual) sparse component S per subject:
 
     .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N
 
@@ -54,7 +55,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Number of features to compute.
 
     gamma : float, default: 1.0
-        Regularization parameter for the sparseness of the individual components.
+        Regularization parameter for the sparseness of the individual 
+        components.
 
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
@@ -62,7 +64,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     Attributes
     ----------
-
+    
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
 
@@ -77,7 +79,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     Note
     ----
-
+    
         The number of voxels may be different between subjects. However, the
         number of samples for the alignment data must be the same across
         subjects. 
