@@ -40,7 +40,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     """Robust Shared Response Model (RSRM)
 
     Given multi-subject data, factorize it as a shared response R among all
-    subjects, an orthogonal transform W per subject, and an outlying 
+    subjects, an orthogonal transform W per subject, and an outlying
     (individual) sparse component S per subject:
 
     .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N
@@ -55,7 +55,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Number of features to compute.
 
     gamma : float, default: 1.0
-        Regularization parameter for the sparseness of the individual 
+        Regularization parameter for the sparseness of the individual
         components.
 
     rand_seed : int, default: 0
@@ -64,7 +64,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     Attributes
     ----------
-    
+
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
 
@@ -79,10 +79,10 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     Note
     ----
-    
+
         The number of voxels may be different between subjects. However, the
         number of samples for the alignment data must be the same across
-        subjects. 
+        subjects.
 
         The Robust Shared Response Model is approximated using the
         Block-Coordinate Descent (BCD) algorithm proposed in [Turek2017]_.
@@ -149,15 +149,15 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
             Each element in the list contains the fMRI data of one subject.
-            
-        y : not used 
-        
+
+        y : not used
+
         Returns
         -------
 
         r : list of 2D arrays, element i has shape=[features_i, samples_i]
             Shared responses from input data (X)
-        
+
         s : list of 2D arrays, element i has shape=[voxels_i, samples_i]
             Outlying data obtained from fitting model to input data (X)
         """
@@ -174,7 +174,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         s = [None] * len(X)
         for subject in range(len(X)):
             if X[subject] is not None:
-                r[subject], s[subject] = self._transform_new_data(X[subject], subject)
+                r[subject], s[subject] = self._transform_new_data(X[subject],
+                                                                  subject)
 
         return r, s
 
@@ -187,7 +188,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : array, shape=[voxels, samples]
             The fMRI data of the subject.
-            
+
         subject : int
             The subject id.
 
@@ -222,7 +223,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         -------
 
         w : 2D array, shape=[voxels, features]
-            Orthogonal mapping `W_{new}` for new subject 
+            Orthogonal mapping `W_{new}` for new subject
 
         s : 2D array, shape=[voxels, samples]
             Individual term `S_{new}` for new subject
@@ -233,8 +234,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         # Check the number of TRs in the subject
         if X.shape[1] != self.r_.shape[1]:
-            raise ValueError("The number of samples(TRs) does not match the one"
-                             " in the model.")
+            raise ValueError("The number of samples(TRs) does not match the"
+                             "one in the model.")
 
         s = np.zeros_like(X)
         for i in range(self.n_iter):
@@ -251,7 +252,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data for alignment of
-            one subject. 
+            one subject.
 
         Returns
         -------
@@ -261,7 +262,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         R : array, shape=[features, samples]
             The shared response.
-            
+
         S : list of array, element i has shape=[voxels_i, samples]
             The individual component :math:`S_i` for each subject.
         """
@@ -286,7 +287,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             R = self._update_shared_response(X, S, W, subjs, features, TRs)
             # Print objective function every iteration
             if logger.isEnabledFor(logging.INFO):
-                objective = self._objective_function(X, W, R, S, subjs, self.lam)
+                objective = self._objective_function(X, W, R, S, subjs,
+                                                     self.lam)
                 logger.info('Objective function %f' % objective)
 
         return W, R, S
@@ -304,7 +306,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         features : int
             The number of features in the model.
-            
+
         random_state : `RandomState`
             A random state to draw the mappings.
 
@@ -312,8 +314,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         -------
 
         W : list of array, element i has shape=[voxels_i, features]
-            The initialized orthogonal transforms (mappings) :math:`W_i` for each
-            subject.
+            The initialized orthogonal transforms (mappings) :math:`W_i` for 
+            each subject.
 
         Note
         ----
@@ -324,7 +326,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         np.random.seed(self.rand_seed)
 
         # Draw a random W for each subject
-        W = [random_state.random_sample((voxels[i], features)) for i in range(subjs)]
+        W = [random_state.random_sample((voxels[i], features))
+             for i in range(subjs)]
         for i in range(subjs):
             W[i], _ = np.linalg.qr(W[i])
 
@@ -333,37 +336,39 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     @staticmethod
     def _objective_function(X, W, R, S, subjs, gamma):
         """Evaluate the objective function.
-        
+
         .. math:: \sum_{i=1}^{N} 1/2 \| X_i - W_i R - S_i \|_F^2
         .. math:: + /\gamma * \|S_i\|_1
-        
+
         Parameters
         ----------
-        
+
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data for alignment of
-            one subject. 
+            one subject.
 
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
         R : array, shape=[features, samples]
             The shared response.
-            
+
         S : list of array, element i has shape=[voxels_i, samples]
             The individual component :math:`S_i` for each subject.
-        
+
         subjs : int
             The number of subjects.
-            
+
         gamma : float, default: 1.0
-            Regularization parameter for the sparseness of the individual components.
-        
+            Regularization parameter for the sparseness of the individual
+            components.
+
         Returns
         -------
-        
+
         func : float
-            The RSRM objective function evaluated on the parameters to this function.
+            The RSRM objective function evaluated on the parameters to this
+            function.
         """
         func = .0
         for i in range(subjs):
@@ -380,7 +385,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data for alignment of
-            one subject. 
+            one subject.
 
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
@@ -392,7 +397,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             The number of subjects.
 
         gamma : float, default: 1.0
-            Regularization parameter for the sparseness of the individual components.
+            Regularization parameter for the sparseness of the individual
+            components.
 
         Returns
         -------
@@ -425,7 +431,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         -------
 
         S : list of 2D array, element i has shape=[voxels_i, samples]
-            The individual component :math:`S_i` for each subject initialized to zero.
+            The individual component :math:`S_i` for each subject initialized
+            to zero.
         """
         return [np.zeros((voxels[i], TRs)) for i in range(subjs)]
 
@@ -438,11 +445,11 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data for alignment of
-            one subject. 
+            one subject.
 
         S : list of array, element i has shape=[voxels_i, samples]
             The individual component :math:`S_i` for each subject.
-            
+
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
@@ -451,7 +458,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         features : int
             The number of features in the model.
-        
+
         TRs : int
             The number of samples in the data.
 
@@ -476,7 +483,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         ----------
 
         X : array, shape=[voxels, samples]
-            The fMRI data for aligning the subject. 
+            The fMRI data for aligning the subject.
 
         S : array, shape=[voxels, samples]
             The individual component :math:`S_i` for the subject.
@@ -504,7 +511,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, samples]
             Each element in the list contains the fMRI data for alignment of
-            one subject. 
+            one subject.ß
 
         S : list of array, element i has shape=[voxels_i, samples]
             The individual component :math:`S_i` for each subject.
@@ -535,7 +542,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         v : array
             Array containing the values to be applied to the shrinkage operator
-    
+
         gamma : float
             Shrinkage parameter.
 
