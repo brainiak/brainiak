@@ -314,7 +314,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         -------
 
         W : list of array, element i has shape=[voxels_i, features]
-            The initialized orthogonal transforms (mappings) :math:`W_i` for 
+            The initialized orthogonal transforms (mappings) :math:`W_i` for
             each subject.
 
         Note
