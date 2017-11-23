@@ -101,7 +101,7 @@ def test_can_instantiate():
             "Invalid computation of RSRM! (wrong # samples after transform)")
 
     # Check that it does run to compute a new subject
-    new_w, new_s = s.transform_subject(X)
+    new_w, new_s = s.transform_subject(X[0])
     assert new_w.shape[1] == features, (
             "Invalid computation of RSRM! (wrong # features for new subject)")
     assert new_s.shape[1] == samples, (
