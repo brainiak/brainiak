@@ -100,6 +100,17 @@ def test_can_instantiate():
         assert new_r[subject].shape[1] == samples, (
             "Invalid computation of RSRM! (wrong # samples after transform)")
 
+    # Check that it does run to compute a new subject
+    new_w, new_s = s.transform_subject(X)
+    assert new_w.shape[1] == features, (
+            "Invalid computation of RSRM! (wrong # features for new subject)")
+    assert new_s.shape[1] == samples, (
+            "Invalid computation of RSRM! (wrong # samples for new subject)")
+    assert new_s.shape[0] == voxels, (
+            "Invalid computation of RSRM! (wrong # voxels for new subject)")
+    assert new_w.shape[0] == voxels, (
+            "Invalid computation of RSRM! (wrong # voxels for new subject)")
+
     # Check that it does NOT run with non-matching number of subjects
     with pytest.raises(ValueError):
         s.transform(X[1])
