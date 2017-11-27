@@ -322,6 +322,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         # Draw a random W for each subject
         W = [random_state.random_sample((voxels[i], features))
              for i in range(subjs)]
+        # Make it orthogonal it with QR decomposition
         for i in range(subjs):
             W[i], _ = np.linalg.qr(W[i])
 
