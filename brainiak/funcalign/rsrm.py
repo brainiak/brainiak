@@ -488,6 +488,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """
         A = Xi.dot(R.T)
         A -= Si.dot(R.T)
+        # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
         return U.dot(V)
 
