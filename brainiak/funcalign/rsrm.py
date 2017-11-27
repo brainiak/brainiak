@@ -56,7 +56,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     gamma : float, default: 1.0
         Regularization parameter for the sparseness of the individual
-        components.
+        components. Higher values yield sparser individual components.
 
     rand_seed : int, default: 0
         Seed for initializing the random number generator.
