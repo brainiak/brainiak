@@ -465,16 +465,16 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return R
 
     @staticmethod
-    def _update_transform_subject(X, S, R):
+    def _update_transform_subject(Xi, Si, R):
         """Updates the mappings `W_i` for one subject.
 
         Parameters
         ----------
 
-        X : array, shape=[voxels, timepoints]
-            The fMRI data for aligning the subject.
+        Xi : array, shape=[voxels, timepoints]
+            The fMRI data :math:`X_i` for aligning the subject.
 
-        S : array, shape=[voxels, timepoints]
+        Si : array, shape=[voxels, timepoints]
             The individual component :math:`S_i` for the subject.
 
         R : array, shape=[features, timepoints]
@@ -483,11 +483,11 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Returns
         -------
 
-        W : array, shape=[voxels, features]
+        Wi : array, shape=[voxels, features]
             The orthogonal transform (mapping) :math:`W_i` for the subject.
         """
-        A = X.dot(R.T)
-        A -= S.dot(R.T)
+        A = Xi.dot(R.T)
+        A -= Si.dot(R.T)
         U, _, V = np.linalg.svd(A, full_matrices=False)
         return U.dot(V)
 
