@@ -25,7 +25,7 @@ The implementation is based on the following publications:
 import logging
 
 import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.utils import assert_all_finite
 from sklearn.utils.validation import NotFittedError
 
@@ -36,14 +36,14 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
+class RSRM(BaseEstimator, TransformerMixin):
     """Robust Shared Response Model (RSRM)
 
     Given multi-subject data, factorize it as a shared response R among all
     subjects, an orthogonal transform W per subject, and an individual 
     (outlying) sparse component S per subject:
 
-    .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N
+    .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N 
 
     Parameters
     ----------
