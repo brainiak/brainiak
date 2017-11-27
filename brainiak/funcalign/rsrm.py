@@ -40,8 +40,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     """Robust Shared Response Model (RSRM)
 
     Given multi-subject data, factorize it as a shared response R among all
-    subjects, an orthogonal transform W per subject, and an outlying
-    (individual) sparse component S per subject:
+    subjects, an orthogonal transform W per subject, and an individual 
+    (outlying) sparse component S per subject:
 
     .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N
 
@@ -72,7 +72,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         The shared response.
 
     s_ : list of array, element i has shape=[voxels_i, samples]
-        The individual components with outlying data for each subject.
+        The individual components for each subject.
 
     random_state_: `RandomState`
         Random number generator initialized using rand_seed
@@ -159,7 +159,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             Shared responses from input data (X)
 
         s : list of 2D arrays, element i has shape=[voxels_i, samples_i]
-            Outlying data obtained from fitting model to input data (X)
+            Individual data obtained from fitting model to input data (X)
         """
         # Check if the model exist
         if hasattr(self, 'w_') is False:
@@ -181,7 +181,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
     def _transform_new_data(self, X, subject):
         """Transform new data for a subjects by projecting to the shared subspace and
-        computing the outlying individual information.
+        computing the individual information.
 
         Parameters
         ----------
@@ -199,7 +199,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             Shared response from input data (X)
 
         S : array, shape=[voxels, samples]
-            Outlying data obtained from fitting model to input data (X)
+            Individual data obtained from fitting model to input data (X)
         """
         S = np.zeros_like(X)
         R = None
@@ -273,7 +273,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         # Initialization
         W = self._init_transforms(subjs, voxels, features, self.random_state_)
-        S = self._init_outliers(subjs, voxels, TRs)
+        S = self._init_individual(subjs, voxels, TRs)
         R = self._update_shared_response(X, S, W, subjs, features, TRs)
 
         if logger.isEnabledFor(logging.INFO):
@@ -283,7 +283,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         # Main loop
         for i in range(self.n_iter):
             W = self._update_transforms(X, S, R, subjs)
-            S = self._update_outliers(X, W, R, subjs, self.lam)
+            S = self._update_individual(X, W, R, subjs, self.lam)
             R = self._update_shared_response(X, S, W, subjs, features, TRs)
             # Print objective function every iteration
             if logger.isEnabledFor(logging.INFO):
@@ -377,8 +377,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return func
 
     @staticmethod
-    def _update_outliers(X, W, R, subjs, gamma):
-        """Updates the outlier terms `S_i`.
+    def _update_individual(X, W, R, subjs, gamma):
+        """Update the individual components `S_i`.
 
         Parameters
         ----------
@@ -412,8 +412,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return S
 
     @staticmethod
-    def _init_outliers(subjs, voxels, TRs):
-        """Initializes the outlier terms `S_i` to empty (all zeros).
+    def _init_individual(subjs, voxels, TRs):
+        """Initializes the individual components `S_i` to empty (all zeros).
 
         Parameters
         ----------
