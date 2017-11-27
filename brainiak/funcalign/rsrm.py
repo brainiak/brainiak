@@ -271,7 +271,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         R = self._update_shared_response(X, S, W, subjs, features, TRs)
 
         if logger.isEnabledFor(logging.INFO):
-            objective = self._objective_function(X, W, R, S, subjs, self.lam)
+            objective = self._objective_function(X, W, R, S, self.lam)
             logger.info('Objective function %f' % objective)
 
         # Main loop
@@ -281,8 +281,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             R = self._update_shared_response(X, S, W, subjs, features, TRs)
             # Print objective function every iteration
             if logger.isEnabledFor(logging.INFO):
-                objective = self._objective_function(X, W, R, S, subjs,
-                                                     self.lam)
+                objective = self._objective_function(X, W, R, S, self.lam)
                 logger.info('Objective function %f' % objective)
 
         return W, R, S
@@ -329,7 +328,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return W
 
     @staticmethod
-    def _objective_function(X, W, R, S, subjs, gamma):
+    def _objective_function(X, W, R, S, gamma):
         """Evaluate the objective function.
 
         .. math:: \sum_{i=1}^{N} 1/2 \| X_i - W_i R - S_i \|_F^2
@@ -338,7 +337,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
+        X : list of array, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.
 
@@ -351,9 +350,6 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
 
-        subjs : int
-            The number of subjects.
-
         gamma : float, default: 1.0
             Regularization parameter for the sparseness of the individual
             components.
@@ -365,6 +361,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             The RSRM objective function evaluated on the parameters to this
             function.
         """
+        subjs = len(X)
         func = .0
         for i in range(subjs):
             func += 0.5 * np.sum((X[i] - W[i].dot(R) - S[i])**2) \
