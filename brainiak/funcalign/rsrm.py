@@ -96,7 +96,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         self.lam = gamma
         self.rand_seed = rand_seed
 
-    def fit(self, X, y=None):
+    def fit(self, X):
         """Compute the Robust Shared Response Model
 
         Parameters
@@ -104,8 +104,6 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data of one subject.
-
-        y : not used
         """
         logger.info('Starting RSRM')
 
@@ -141,7 +139,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X):
         """Use the model to transform new data to Shared Response space
 
         Parameters
@@ -149,8 +147,6 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : list of 2D arrays, element i has shape=[voxels_i, timepoints_i]
             Each element in the list contains the fMRI data of one subject.
-
-        y : not used
 
         Returns
         -------
@@ -208,7 +204,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             S = self._shrink(X - self.w_[subject].dot(R), self.lam)
         return R, S
 
-    def transform_subject(self, X, y=None):
+    def transform_subject(self, X):
         """Transform a new subject using the existing model
 
         Parameters
@@ -216,8 +212,6 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         X : 2D array, shape=[voxels, timepoints]
             The fMRI data of the new subject.
-
-        y : not used
 
         Returns
         -------
