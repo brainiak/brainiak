@@ -268,7 +268,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         # Initialization
         W = self._init_transforms(subjs, voxels, features, self.random_state_)
         S = self._init_individual(subjs, voxels, TRs)
-        R = self._update_shared_response(X, S, W, subjs, features, TRs)
+        R = self._update_shared_response(X, S, W, features)
 
         if logger.isEnabledFor(logging.INFO):
             objective = self._objective_function(X, W, R, S, self.lam)
@@ -276,9 +276,9 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         # Main loop
         for i in range(self.n_iter):
-            W = self._update_transforms(X, S, R, subjs)
-            S = self._update_individual(X, W, R, subjs, self.lam)
-            R = self._update_shared_response(X, S, W, subjs, features, TRs)
+            W = self._update_transforms(X, S, R)
+            S = self._update_individual(X, W, R, self.lam)
+            R = self._update_shared_response(X, S, W, features)
             # Print objective function every iteration
             if logger.isEnabledFor(logging.INFO):
                 objective = self._objective_function(X, W, R, S, self.lam)
@@ -429,7 +429,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return [np.zeros((voxels[i], TRs)) for i in range(subjs)]
 
     @staticmethod
-    def _update_shared_response(X, S, W, subjs, features, TRs):
+    def _update_shared_response(X, S, W, features):
         """Update the shared response `R`.
 
         Parameters
@@ -445,14 +445,8 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
-        subjs : int
-            The number of subjects.
-
         features : int
             The number of features in the model.
-
-        TRs : int
-            The number of timepoints in the data.
 
         Returns
         -------
@@ -460,10 +454,13 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         R : array, shape=[features, timepoints]
             The updated shared response.
         """
+        subjs = len(X)
+        TRs = X[0].shape[1]
         R = np.zeros((features, TRs))
+        # Project the subject data with the individual component removed into
+        # the shared subspace and average over all subjects.
         for i in range(subjs):
-            R += W[i].T.dot(X[i])
-            R -= W[i].T.dot(S[i])
+            R += W[i].T.dot(X[i]-S[i])
         R /= subjs
         return R
 
@@ -495,7 +492,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         return U.dot(V)
 
     @staticmethod
-    def _update_transforms(X, S, R, subjs):
+    def _update_transforms(X, S, R):
         """Updates the mappings `W_i` for each subject.
 
         Parameters
@@ -511,15 +508,13 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         R : array, shape=[features, timepoints]
             The shared response.
 
-        subjs : int
-            The number of subjects.
-
         Returns
         -------
 
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
         """
+        subjs = len(X)
         W = []
         for i in range(subjs):
             W.append(RSRM._update_transform_subject(X[i], S[i], R))
