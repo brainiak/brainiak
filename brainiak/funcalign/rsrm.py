@@ -45,6 +45,20 @@ class RSRM(BaseEstimator, TransformerMixin):
 
     .. math:: X_i \\approx W_i R + S_i, \\forall i=1 \\dots N 
 
+    This unsupervised model allows to learn idiosyncratic information for 
+    subjects and simultaneously improve the shared response estimation. 
+    The model has similar properties to the Shared Response Model (SRM) with 
+    the addition of the individual components.
+    
+    The model is estimated solving the following optimization problem:
+    
+    .. math:: \\min_{W_i, S_i, R}\\sum_i 1/2\|X_i - W_i R - S_i\|_F^2 
+    .. math:: + \\gamma\|S_i\|_1
+    .. math:: s.t. \\qquad W_i^TW_i = I  \\forall i=1 \\dots N
+    
+    The solution to this problem is obtained by applying a Block-Coordinate 
+    Descent procedure. More details can be found in [Turek2017]_.
+    
     Parameters
     ----------
 
