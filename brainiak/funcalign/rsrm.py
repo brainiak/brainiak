@@ -68,10 +68,10 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     w_ : list of array, element i has shape=[voxels_i, features]
         The orthogonal transforms (mappings) for each subject.
 
-    r_ : array, shape=[features, samples]
+    r_ : array, shape=[features, timepoints]
         The shared response.
 
-    s_ : list of array, element i has shape=[voxels_i, samples]
+    s_ : list of array, element i has shape=[voxels_i, timepoints]
         The individual components for each subject.
 
     random_state_: `RandomState`
@@ -81,7 +81,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     ----
 
         The number of voxels may be different between subjects. However, the
-        number of samples for the alignment data must be the same across
+        number of timepoints for the alignment data must be the same across
         subjects.
 
         The Robust Shared Response Model is approximated using the
@@ -102,7 +102,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data of one subject.
 
         y : not used
@@ -121,7 +121,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         # Check for input data sizes
         if X[0].shape[1] < self.features:
             raise ValueError(
-                "There are not enough samples to train the model with "
+                "There are not enough timepoints to train the model with "
                 "{0:d} features.".format(self.features))
 
         # Check if all subjects have same number of TRs for alignment
@@ -130,7 +130,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         for subject in range(number_subjects):
             assert_all_finite(X[subject])
             if X[subject].shape[1] != number_trs:
-                raise ValueError("Different number of alignment samples "
+                raise ValueError("Different number of alignment timepoints "
                                  "between subjects.")
 
         # Create a new random state
@@ -147,7 +147,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints_i]
             Each element in the list contains the fMRI data of one subject.
 
         y : not used
@@ -155,10 +155,10 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Returns
         -------
 
-        r : list of 2D arrays, element i has shape=[features_i, samples_i]
+        r : list of 2D arrays, element i has shape=[features_i, timepoints_i]
             Shared responses from input data (X)
 
-        s : list of 2D arrays, element i has shape=[voxels_i, samples_i]
+        s : list of 2D arrays, element i has shape=[voxels_i, timepoints_i]
             Individual data obtained from fitting model to input data (X)
         """
         # Check if the model exist
@@ -186,7 +186,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : array, shape=[voxels, samples]
+        X : array, shape=[voxels, timepoints]
             The fMRI data of the subject.
 
         subject : int
@@ -195,10 +195,10 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Returns
         -------
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             Shared response from input data (X)
 
-        S : array, shape=[voxels, samples]
+        S : array, shape=[voxels, timepoints]
             Individual data obtained from fitting model to input data (X)
         """
         S = np.zeros_like(X)
@@ -214,7 +214,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : 2D array, shape=[voxels, samples]
+        X : 2D array, shape=[voxels, timepoints]
             The fMRI data of the new subject.
 
         y : not used
@@ -225,7 +225,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         w : 2D array, shape=[voxels, features]
             Orthogonal mapping `W_{new}` for new subject
 
-        s : 2D array, shape=[voxels, samples]
+        s : 2D array, shape=[voxels, timepoints]
             Individual term `S_{new}` for new subject
         """
         # Check if the model exist
@@ -234,7 +234,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         # Check the number of TRs in the subject
         if X.shape[1] != self.r_.shape[1]:
-            raise ValueError("The number of samples(TRs) does not match the"
+            raise ValueError("The number of timepoints(TRs) does not match the"
                              "one in the model.")
 
         s = np.zeros_like(X)
@@ -250,7 +250,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.
 
@@ -260,10 +260,10 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The shared response.
 
-        S : list of array, element i has shape=[voxels_i, samples]
+        S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
         """
         subjs = len(X)
@@ -343,17 +343,17 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.
 
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The shared response.
 
-        S : list of array, element i has shape=[voxels_i, samples]
+        S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
 
         subjs : int
@@ -383,14 +383,14 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.
 
         W : list of array, element i has shape=[voxels_i, features]
             The orthogonal transforms (mappings) :math:`W_i` for each subject.
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The shared response.
 
         subjs : int
@@ -403,7 +403,7 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Returns
         -------
 
-        S : list of array, element i has shape=[voxels_i, samples]
+        S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
         """
         S = []
@@ -425,12 +425,12 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             A list with the number of voxels per subject.
 
         TRs : int
-            The number of samples in the data.
+            The number of timepoints in the data.
 
         Returns
         -------
 
-        S : list of 2D array, element i has shape=[voxels_i, samples]
+        S : list of 2D array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject initialized
             to zero.
         """
@@ -443,11 +443,11 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.
 
-        S : list of array, element i has shape=[voxels_i, samples]
+        S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
 
         W : list of array, element i has shape=[voxels_i, features]
@@ -460,12 +460,12 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             The number of features in the model.
 
         TRs : int
-            The number of samples in the data.
+            The number of timepoints in the data.
 
         Returns
         -------
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The updated shared response.
         """
         R = np.zeros((features, TRs))
@@ -482,13 +482,13 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : array, shape=[voxels, samples]
+        X : array, shape=[voxels, timepoints]
             The fMRI data for aligning the subject.
 
-        S : array, shape=[voxels, samples]
+        S : array, shape=[voxels, timepoints]
             The individual component :math:`S_i` for the subject.
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The shared response.
 
         Returns
@@ -509,14 +509,14 @@ class RSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         Parameters
         ----------
 
-        X : list of 2D arrays, element i has shape=[voxels_i, samples]
+        X : list of 2D arrays, element i has shape=[voxels_i, timepoints]
             Each element in the list contains the fMRI data for alignment of
             one subject.ß
 
-        S : list of array, element i has shape=[voxels_i, samples]
+        S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
 
-        R : array, shape=[features, samples]
+        R : array, shape=[features, timepoints]
             The shared response.
 
         subjs : int
