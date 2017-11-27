@@ -54,7 +54,7 @@ class RSRM(BaseEstimator, TransformerMixin):
 
     .. math:: \\min_{W_i, S_i, R}\\sum_i 1/2\|X_i - W_i R - S_i\|_F^2
     .. math:: + \\gamma\|S_i\|_1
-    .. math:: s.t. \\qquad W_i^TW_i = I  \\forall i=1 \\dots N
+    .. math:: s.t. \\qquad W_i^TW_i = I \\quad \\forall i=1 \\dots N
 
     The solution to this problem is obtained by applying a Block-Coordinate
     Descent procedure. More details can be found in [Turek2017]_.
