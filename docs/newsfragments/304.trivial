@@ -1,0 +1,1 @@
+Solved an issue that test won't pass because of a missing evironment variable for Theano with MKL versions >=2018.
