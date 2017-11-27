@@ -383,7 +383,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         return func
 
     @staticmethod
-    def _update_individual(X, W, R, subjs, gamma):
+    def _update_individual(X, W, R, gamma):
         """Update the individual components `S_i`.
 
         Parameters
@@ -399,9 +399,6 @@ class RSRM(BaseEstimator, TransformerMixin):
         R : array, shape=[features, timepoints]
             The shared response.
 
-        subjs : int
-            The number of subjects.
-
         gamma : float, default: 1.0
             Regularization parameter for the sparseness of the individual
             components.
@@ -412,6 +409,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         S : list of array, element i has shape=[voxels_i, timepoints]
             The individual component :math:`S_i` for each subject.
         """
+        subjs = len(X)
         S = []
         for i in range(subjs):
             S.append(RSRM._shrink(X[i] - W[i].dot(R), gamma))
