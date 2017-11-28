@@ -125,7 +125,7 @@ python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
 
 # build documentation
 cd docs
-export THEANO_FLAGS='device=cpu,floatX=float64'
+export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags='
 
 if [ ! -z $SLURM_NODELIST ]
 then
