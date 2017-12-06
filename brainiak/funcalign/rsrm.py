@@ -52,8 +52,8 @@ class RSRM(BaseEstimator, TransformerMixin):
 
     The model is estimated solving the following optimization problem:
 
-    .. math:: \\min_{W_i, S_i, R}\\sum_i \\frac{1}{2}\|X_i - W_i R - S_i\|_F^2 
-    .. math:: + \\gamma\|S_i\|_1 
+    .. math:: \\min_{W_i, S_i, R}\\sum_i \\frac{1}{2}\|X_i - W_i R - S_i\|_F^2
+    .. math:: + \\gamma\|S_i\|_1
     .. math:: s.t. \\qquad W_i^TW_i = I \\quad \\forall i=1 \\dots N
 
     The solution to this problem is obtained by applying a Block-Coordinate
