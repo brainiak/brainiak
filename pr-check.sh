@@ -48,6 +48,9 @@ function create_conda_venv {
 
 function activate_conda_venv {
     source activate $1
+    # Pip may update setuptools while installing BrainIAK requirements and
+    # break the Conda cached package, which breaks subsequent runs.
+    conda install --yes -f setuptools
 }
 
 function deactivate_conda_venv {
