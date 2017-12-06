@@ -48,6 +48,9 @@ function create_conda_venv {
 
 function activate_conda_venv {
     source activate $1
+    # Pip may update setuptools while installing BrainIAK requirements and
+    # break the Conda cached package, which breaks subsequent runs.
+    conda install --yes -f setuptools
 }
 
 function deactivate_conda_venv {
@@ -125,7 +128,7 @@ python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
 
 # build documentation
 cd docs
-export THEANO_FLAGS='device=cpu,floatX=float64'
+export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
 
 if [ ! -z $SLURM_NODELIST ]
 then
