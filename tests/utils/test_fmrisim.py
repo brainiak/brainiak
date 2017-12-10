@@ -88,7 +88,10 @@ def test_generate_stimfunction():
     stim_dur = stimfunction.shape[0] / (tr_duration * 1000)
     assert signal_function.shape[0] == stim_dur, "The length did not change"
 
-    onsets = [10]
+    # Test
+    onsets = [0]
+    tr_duration = 1
+    event_durations = [1]
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
@@ -97,6 +100,9 @@ def test_generate_stimfunction():
     signal_function = sim.convolve_hrf(stimfunction=stimfunction,
                                        tr_duration=tr_duration,
                                        )
+
+    max_response = np.where(signal_function != 0)[0].max()
+    assert 25 < max_response < 30, "HRF is incorrect length"
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 
@@ -170,7 +176,7 @@ def test_generate_noise():
     onsets = [10, 30, 50, 70, 90]
     event_durations = [6]
     tr_duration = 2
-    duration = 100
+    duration = 200
 
     # Create the time course for the signal to be generated
     stimfunction = sim.generate_stimfunction(onsets=onsets,
@@ -269,7 +275,7 @@ def test_calc_noise():
     onsets = [10, 30, 50, 70, 90]
     event_durations = [6]
     tr_duration = 2
-    duration = 100
+    duration = 200
     tr_number = int(np.floor(duration / tr_duration))
     dimensions_tr = np.array([10, 10, 10, tr_number])
 
