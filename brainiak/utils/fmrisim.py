@@ -848,7 +848,7 @@ def convolve_hrf(stimfunction,
         for sample in list(range(duration)):
             idx_start = stride * sample
             idx_end = stride * (sample + 1)
-            stimfunction_idx = stimfunction[idx_start : idx_end, list_counter]
+            stimfunction_idx = stimfunction[idx_start:idx_end, list_counter]
             stimfunction_temp[sample] = np.mean(stimfunction_idx)
 
         # Perform the convolution
@@ -856,7 +856,7 @@ def convolve_hrf(stimfunction,
 
         # Shorten the output if the convolution made it grow
         if len(signal_function_temp) > duration:
-            signal_function_temp = signal_function_temp[0:duration,]
+            signal_function_temp = signal_function_temp[0:duration, ]
 
         # Scale the function so that the peak response is 1
         if scale_function:
@@ -1475,9 +1475,9 @@ def _generate_noise_temporal_drift(trs,
         basis_funcs = int(np.floor(duration / period))  # How bases do you have
 
         if basis_funcs == 0:
-            logger.warning('Too few timepoints (' + str(trs) + ') to '
-                                                              'accurately '
-                                                              'model drift')
+            err_msg = 'Too few timepoints (' + str(trs) + ') to accurately ' \
+                                                          'model drift'
+            logger.warning(err_msg)
             basis_funcs = 1
 
         noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
@@ -1488,7 +1488,7 @@ def _generate_noise_temporal_drift(trs,
                                                              * np.pi * 2)
 
             # Store the drift from this basis func
-            noise_drift[:, basis_counter - 1]= np.cos(timepoints_basis)
+            noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
 
         # Average the drift
         noise_drift = np.mean(noise_drift, 1)
