@@ -17,6 +17,10 @@ import warnings
 import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
+from sklearn.utils import check_random_state
+from scipy.fftpack import fft, ifft
+import math
+
 
 """
 Some utility functions that can be used by different algorithms
@@ -667,3 +671,78 @@ def usable_cpu_count():
         except AttributeError:
             result = os.cpu_count()
     return result
+
+
+def phase_randomize(D, random_state=0):
+    """Randomly shift signal phases
+
+    For each timecourse (from each voxel and each subject), computes its DFT
+    and then randomly shifts the phase of each frequency before inverting
+    back into the time domain. This yields timecourses with the same power
+    spectrum (and thus the same autocorrelation) as the original timecourses,
+    but will remove any meaningful temporal relationships between the
+    timecourses.
+
+    This procedure is described in:
+    Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
+    (2016) Dynamic reconfiguration of the default mode network during narrative
+    comprehension. Nat Commun 7.
+
+    Parameters
+    ----------
+    D : voxel by time by subject ndarray
+        fMRI data to be phase randomized
+
+    random_state : RandomState or an int seed (0 by default)
+        A random number generator instance to define the state of the
+        random permutations generator.
+
+    Returns
+    ----------
+    ndarray of same shape as D
+        phase randomized timecourses
+    """
+
+    random_state = check_random_state(random_state)
+
+    F = fft(D, axis=1)
+    if D.shape[1] % 2 == 0:
+        pos_freq = np.arange(1, D.shape[1] // 2)
+        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
+        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
+
+    shift = random_state.rand(D.shape[0], len(pos_freq),
+                              D.shape[2]) * 2 * math.pi
+
+    # Shift pos and neg frequencies symmetrically, to keep signal real
+    F[:, pos_freq, :] *= np.exp(1j * shift)
+    F[:, neg_freq, :] *= np.exp(-1j * shift)
+
+    return np.real(ifft(F, axis=1))
+
+
+def ecdf(x):
+    """Empirical cumulative distribution function
+
+    Given a 1D array of values, returns a function f(q) that outputs the
+    fraction of values less than or equal to q.
+
+    Parameters
+    ----------
+    x : 1D array
+        values for which to compute CDF
+
+    Returns
+    ----------
+    ecdf_fun: Callable[[float], float]
+        function that returns the value of the CDF at a given point
+    """
+    xp = np.sort(x)
+    yp = np.arange(len(xp) + 1) / len(xp)
+
+    def ecdf_fun(q):
+        return yp[np.searchsorted(xp, q, side="right")]
+
+    return ecdf_fun

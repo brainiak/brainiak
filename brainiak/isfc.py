@@ -32,11 +32,11 @@ comprehension. Nat Commun 7.
 from brainiak.fcma.util import compute_correlation
 import numpy as np
 from scipy import stats
-from scipy.fftpack import fft, ifft
-import math
+from .utils.utils import phase_randomize, ecdf
 
 
-def isc(D, collapse_subj=True, return_p=False, num_perm=1000, two_sided=False):
+def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
+        two_sided=False, random_state=0):
     """Intersubject correlation
 
     For each voxel, computes the correlation of each subject's timecourse with
@@ -63,6 +63,10 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000, two_sided=False):
         Whether the p value should be one-sided (testing only for being
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
+
+    random_state : RandomState or an int seed (0 by default)
+        A random number generator instance to define the state of the
+        random permutations generator.
 
     Returns
     -------
@@ -93,37 +97,20 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000, two_sided=False):
                                                      subj[v, :])[0]
 
         # Randomize phases of D to create next null dataset
-        D = phase_randomize(D)
+        D = phase_randomize(D, random_state)
 
     if collapse_subj:
         ISC = np.mean(ISC, axis=1)
 
-    if not return_p:
-        return np.squeeze(ISC)
-
-    # Compute maximum/minimum ISC in each null dataset
-    if collapse_subj:
-        max_null = np.max(ISC[:, 1:], axis=0)
-        min_null = np.min(ISC[:, 1:], axis=0)
-        ISC = ISC[:, 0]
+    if return_p:
+        p = p_from_null(ISC, two_sided)
+        return ISC[..., 0], p
     else:
-        max_null = np.max(ISC[:, :, 1:], axis=(0, 1))
-        min_null = np.min(ISC[:, :, 1:], axis=(0, 1))
-        ISC = ISC[:, :, 0]
-
-    # Compute where the true values fall on the null distribution
-    max_null_ecdf = ecdf(max_null)
-    if two_sided:
-        min_null_ecdf = ecdf(min_null)
-        p = 2 * np.minimum(1 - max_null_ecdf(ISC), min_null_ecdf(ISC))
-        p = np.minimum(p, 1)
-    else:
-        p = 1 - max_null_ecdf(ISC)
-    return ISC, p
+        return ISC[..., 0]
 
 
 def isfc(D, collapse_subj=True, return_p=False,
-         num_perm=1000, two_sided=False):
+         num_perm=1000, two_sided=False, random_state=0):
     """Intersubject functional correlation
 
     Computes the correlation between the timecoure of each voxel in each
@@ -153,6 +140,10 @@ def isfc(D, collapse_subj=True, return_p=False,
         Whether the p value should be one-sided (testing only for being
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
+
+    random_state : RandomState or an int seed (0 by default)
+        A random number generator instance to define the state of the
+        random permutations generator.
 
     Returns
     -------
@@ -186,92 +177,56 @@ def isfc(D, collapse_subj=True, return_p=False,
                                        ISFC[:, :, loo_subj, p].T) / 2
 
         # Randomize phases of D to create next null dataset
-        D = phase_randomize(D)
+        D = phase_randomize(D, random_state)
 
     if collapse_subj:
         ISFC = np.mean(ISFC, axis=2)
 
-    if not return_p:
-        return np.squeeze(ISFC)
-
-    # Compute maximum/minimum ISFC in each null dataset
-    if collapse_subj:
-        max_null = np.max(ISFC[:, :, 1:], axis=(0, 1))
-        min_null = np.min(ISFC[:, :, 1:], axis=(0, 1))
-        ISFC = ISFC[:, :, 0]
+    if return_p:
+        p = p_from_null(ISFC, two_sided)
+        return ISFC[..., 0], p
     else:
-        max_null = np.max(ISFC[:, :, :, 1:], axis=(0, 1, 2))
-        min_null = np.min(ISFC[:, :, 1:], axis=(0, 1))
-        ISFC = ISFC[:, :, :, 0]
+        return ISFC[..., 0]
+
+
+def p_from_null(X, two_sided=False):
+    """Compute p value of true result from null distribution
+
+    Given an array containing both a real result and a set of null results,
+    computes the fraction of null results larger than the real result (or,
+    if two_sided=True, the fraction of null results more extreme than the real
+    result in either the positive or negative direction).
+
+    Parameters
+    ----------
+    X : ndarray with arbitrary number of dimensions
+        The last dimension of X should contain the real result in X[..., 0]
+        and the null results in X[..., 1:]
+
+    two_sided : bool, default:False
+        Whether the p value should be one-sided (testing only for being
+        above the null) or two-sided (testing for both significantly positive
+        and significantly negative values)
+
+    Returns
+    -------
+    p : ndarray the same shape as X, without the last dimension
+        p values for each true X value under the null distribution
+    """
+    leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
+
+    # Compute maximum/minimum in each null dataset
+    max_null = np.max(X[..., 1:], axis=leading_dims)
+    min_null = np.min(X[..., 1:], axis=leading_dims)
 
     # Compute where the true values fall on the null distribution
     max_null_ecdf = ecdf(max_null)
     if two_sided:
         min_null_ecdf = ecdf(min_null)
-        p = 2 * np.minimum(1 - max_null_ecdf(ISFC), min_null_ecdf(ISFC))
+        p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
+                           min_null_ecdf(X[..., 0]))
         p = np.minimum(p, 1)
     else:
-        p = 1 - max_null_ecdf(ISFC)
-    return ISFC, p
+        p = 1 - max_null_ecdf(X[..., 0])
 
-
-def phase_randomize(D):
-    """Randomly shift signal phases
-
-    For each timecourse (from each voxel and each subject), computes its DFT
-    and then randomly shifts the phase of each frequency before inverting
-    back into the time domain. This yields timecourses with the same power
-    spectrum (and thus the same autocorrelation) as the original timecourses,
-    but will remove any meaningful temporal relationships between the
-    timecourses.
-
-    Parameters
-    ----------
-    D : voxel by time by subject ndarray
-        fMRI data to be phase randomized
-
-    Returns
-    ----------
-    ndarray of same shape as D
-        phase randomized timecourses
-    """
-
-    F = fft(D, axis=1)
-    if D.shape[1] % 2 == 0:
-        pos_freq = np.arange(1, D.shape[1] // 2)
-        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
-    else:
-        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
-        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
-
-    shift = np.random.rand(D.shape[0], len(pos_freq), D.shape[2]) * 2 * math.pi
-
-    # Shift pos and neg frequencies symmetrically, to keep signal real
-    F[:, pos_freq, :] *= np.exp(1j * shift)
-    F[:, neg_freq, :] *= np.exp(-1j * shift)
-
-    return np.real(ifft(F, axis=1))
-
-
-def ecdf(x):
-    """Empirical cumulative distribution function
-
-    Given a 1D array of values, returns a function f(q) that outputs the
-    fraction of values less than or equal to q.
-
-    Parameters
-    ----------
-    x : 1D array
-        values for which to compute CDF
-
-    Returns
-    ----------
-    ecdf_fun: Callable[[float], float]
-        function that returns the value of the CDF at a given point
-    """
-    xp = np.sort(x)
-    yp = np.arange(len(xp) + 1) / len(xp)
-
-    def ecdf_fun(q):
-        return yp[np.searchsorted(xp, q, side="right")]
-    return ecdf_fun
+    return p
