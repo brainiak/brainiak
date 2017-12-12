@@ -471,7 +471,7 @@ def generate_stimfunction(onsets,
             onset, duration, weight = line.strip().split()
 
             # Check if the onset is more precise than the temporal resolution
-            dp = len(onsets[onsets.find('.') + 1:])
+            dp = len(onset[onset.find('.') + 1:])
 
             if 10 ** (dp - 1) > temporal_resolution:
                 raise ValueError('Temporal resolution is lower than the '
