@@ -1,26 +1,35 @@
 matrix:
   include:
-  - os: osx
-    osx_image: xcode7
-    sudo: required
-    language: generic
-    env: MACOS_WHEELS=1
-    before_install:
-    - brew install llvm mpich python3
-    install:
-    - "./bin/build-wheels-macos.sh"
+    - os: osx
+      osx_image: xcode7
+      sudo: required
+      language: generic
+      env: 
+        - MACOS_WHEELS=1
+        - CC=/usr/local/opt/llvm/bin/clang
+        - CXX=/usr/local/opt/llvm/bin/clang++
+        - LDFLAGS="-L/usr/local/opt/llvm/lib
+          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+        - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+        - HOMEBREW_NO_AUTO_UPDATE=1
+      before_install:
+        - brew install llvm mpich python3
+      install:
+        - "./bin/build-wheels-macos.sh"
+      before_script:
+        - brew uninstall llvm mpich python3
 
-deploy:
-  provider: s3
-  access_key_id: AKIAJKBW6H2VKKQDHILQ
-  secret_access_key:
-    secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-  bucket: brainiak
-  acl: public_read
-  region: us-east-1
-  local_dir: .whl
-  upload-dir: $TRAVIS_COMMIT
-  skip_cleanup: true
-  on:
-    condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
+      deploy:
+        provider: s3
+        access_key_id: AKIAJKBW6H2VKKQDHILQ
+        secret_access_key:
+          secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+        bucket: brainiak
+        acl: public_read
+        region: us-east-1
+        local_dir: .whl
+        upload-dir: $TRAVIS_COMMIT
+        skip_cleanup: true
+        on:
+          condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
 
