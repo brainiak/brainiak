@@ -5,6 +5,7 @@
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Test on 32-bit for Linux?
 - Test on other python distros (e.g., conda)?
+- Upload wheels to PyPI
 
 # To verify
 - Upload wheels to somewhere appropriate

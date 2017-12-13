@@ -11,7 +11,7 @@ yum install -y \
   mpich2-devel \
   libgomp
 
-export WHEEL_DIR=/brainiak/.whl
+WHEEL_DIR=/brainiak/.whl
 mkdir -p $WHEEL_DIR
 
 # - Use the brainiak source stored in /brainiak via docker run command
