@@ -26,7 +26,7 @@ for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
     mv wheelhouse/*.whl $WHEEL_DIR
   popd
 
-  git clean -f -f -x -d
+  git clean -f -f -x -d -e .whl
   /opt/python/${PYTHON}/bin/python -m pip install .
   /opt/python/${PYTHON}/bin/python setup.py bdist_wheel
   auditwheel repair dist/*.whl

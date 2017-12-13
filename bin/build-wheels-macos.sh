@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Cause the script to exit if a single command fails.
-set -e
+# set -e
 
 # Show explicitly which commands are currently running.
 set -x
