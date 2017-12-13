@@ -746,3 +746,50 @@ def ecdf(x):
         return yp[np.searchsorted(xp, q, side="right")]
 
     return ecdf_fun
+
+
+def p_from_null(X, two_sided=False):
+    """Compute p value of true result from null distribution
+
+    Given an array containing both a real result and a set of null results,
+    computes the fraction of null results larger than the real result (or,
+    if two_sided=True, the fraction of null results more extreme than the real
+    result in either the positive or negative direction).
+
+    Note that all real results are compared to a pooled null distribution,
+    which is the max/min over all null results, providing multiple
+    comparisons correction.
+
+    Parameters
+    ----------
+    X : ndarray with arbitrary number of dimensions
+        The last dimension of X should contain the real result in X[..., 0]
+        and the null results in X[..., 1:]
+
+    two_sided : bool, default:False
+        Whether the p value should be one-sided (testing only for being
+        above the null) or two-sided (testing for both significantly positive
+        and significantly negative values)
+
+    Returns
+    -------
+    p : ndarray the same shape as X, without the last dimension
+        p values for each true X value under the null distribution
+    """
+    leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
+
+    # Compute maximum/minimum in each null dataset
+    max_null = np.max(X[..., 1:], axis=leading_dims)
+    min_null = np.min(X[..., 1:], axis=leading_dims)
+
+    # Compute where the true values fall on the null distribution
+    max_null_ecdf = ecdf(max_null)
+    if two_sided:
+        min_null_ecdf = ecdf(min_null)
+        p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
+                           min_null_ecdf(X[..., 0]))
+        p = np.minimum(p, 1)
+    else:
+        p = 1 - max_null_ecdf(X[..., 0])
+
+    return p

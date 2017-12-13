@@ -20,6 +20,7 @@ def test_ISC():
 
     (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
                                  two_sided=True, random_state=0)
+
     assert np.isclose(ISC, [0.8909243, 0.0267954]).all(), \
         "Calculated ISC does not match ground truth"
 
@@ -41,7 +42,6 @@ def test_ISFC():
 
     assert D.shape == (4, 5, 2), "Loaded data has incorrect shape"
 
-    np.random.seed(0)
     (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
                                    two_sided=True, random_state=0)
 
