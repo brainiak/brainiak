@@ -3,6 +3,7 @@
 # TODO
 - Modify ```setup.py``` to handle conditional MPI install
 - Build documentation
+- Add LICENSE into whl file
 - Deploy only on master
 - Figure out ```pr-check``` and other testing scripts
 - Get things working on Jenkins

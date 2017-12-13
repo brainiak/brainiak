@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Caust the script to exit if a single command fails.
-set -e
+# set -e
 
 # Show explicitly which commands are currently running.
 set -x
@@ -11,7 +11,7 @@ yum install -y -q \
   mpich2-devel \
   libgomp
 
-WHEEL_DIR=/brainiak/.whl
+WHEEL_DIR=$PWD/.whl
 mkdir -p $WHEEL_DIR
 
 # - Use the brainiak source stored in /brainiak via docker run command

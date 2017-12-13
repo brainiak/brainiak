@@ -22,6 +22,8 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
 
   # Find the appropriate wheel by grepping for the Python version.
   MPI4PY_WHEEL=$(find $ROOT_DIR/../.whl -type f -maxdepth 1 -print | grep "$PY_WHEEL_VERSION" | grep mpi4py)
+
+  # TODO: this will actually pick up both wheels since brainiak is in the path
   BRAINIAK_WHEEL=$(find $ROOT_DIR/../.whl -type f -maxdepth 1 -print | grep "$PY_WHEEL_VERSION" | grep brainiak)
 
    $PIP install -q $MPI4PY_WHEEL
