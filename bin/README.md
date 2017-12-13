@@ -2,6 +2,7 @@
 
 # TODO
 - Modify ```setup.py``` to handle conditional MPI install
+- Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Test on 32-bit for Linux?
 - Test on other python distros (e.g., conda)?
