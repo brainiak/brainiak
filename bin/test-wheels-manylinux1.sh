@@ -15,6 +15,6 @@ for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
 
    PIP=/opt/python/${PYTHON}/bin/pip
 
-   $PIP install $MPI4PY_WHEEL
-   $PIP install $BRAINIAK_WHEEL
+   $PIP install -q $MPI4PY_WHEEL
+   $PIP install -q $BRAINIAK_WHEEL
 done
