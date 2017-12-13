@@ -57,3 +57,5 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   mv dist/*.whl .whl/
 
 done
+
+ls .whl
