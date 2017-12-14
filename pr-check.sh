@@ -126,15 +126,13 @@ fi
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
-$PYTHON_EXE -m pip install -q numpy scipy cython pybind11
-
 if [ $PYTHON_WHL -eq 0 ]; then
    $PYTHON_EXE -m pip install -q $ignore_installed -U -e . || \
        exit_with_error_and_venv "Failed to install BrainIAK."
 fi
 
 # install developer dependencies
-$PYTHON_EXE -m pip install -q $ignore_installed -U -r requirements-dev.txt || \
+$PYTHON_EXE -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
 # static analysis

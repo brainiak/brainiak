@@ -2,10 +2,11 @@
 
 # TODO
 - End-to-end test
-- Package documentation [link](http://python-packaging.readthedocs.io/en/latest/non-code-files.html)
+- Refactor build and test scripts
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Build for other OSs (e.g., xcode[VERSION], 32-bit Linux, Windows)
+   - Rename MacOS wheels for multiple versions?
 - Test on other python distros (e.g., conda)?
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
 
@@ -13,6 +14,7 @@
 - Modify ```setup.py``` to handle conditional MPI install
 - Upload wheels to S3
 - Upload wheels to PyPI (uncomment)
+- Always upload to S3, only upload to PyPI on tag (uncomment)
 - Deploy only on master (uncomment in ```.travis.yml```)
 - Only run on master branch (uncomment)
 - Only deploy on tag (uncomment)
@@ -28,3 +30,4 @@
 - Linux test script
 - MacOS build script
 - MacOS test script
+- ~~Package documentation [link](http://python-packaging.readthedocs.io/en/latest/non-code-files.html)~~

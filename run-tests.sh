@@ -20,8 +20,17 @@ set -e -x
 # detect editable mode. Use the "--sdist-mode" flag.
 sdist_mode=$1
 
+mpi_command=mpiexec.hydra
+COVERAGE="$PYTHON_EXE -m coverage"
 if [ -z $PYTHON_EXE ]; then
    PYTHON_EXE=python3
+   mpi_command=mpiexec
+   COVERAGE=coverage
+fi
+
+if [ ! -z $SLURM_NODELIST ]
+then
+    mpi_command=srun
 fi
 
 $PYTHON_EXE -m pip freeze | grep -qi /brainiak \
@@ -35,14 +44,9 @@ $PYTHON_EXE -m pip freeze | grep -qi /brainiak \
 # Define MKL env variable that is required by Theano to run with MKL 2018
 export MKL_THREADING_LAYER=GNU
 
-mpi_command=mpiexec
-if [ ! -z $SLURM_NODELIST ]
-then
-    mpi_command=srun
-fi
-$mpi_command -n 2 coverage run -m pytest
+$mpi_command -n 2 $COVERAGE run -m pytest
 
-coverage combine
+$COVERAGE combine
 
 # Travis error workaround
 coverage_report=$(mktemp -u coverage_report_XXXXX) || {
@@ -51,11 +55,11 @@ coverage_report=$(mktemp -u coverage_report_XXXXX) || {
 }
 
 set +e
-coverage report > $coverage_report
+$COVERAGE report > $coverage_report
 report_exit_code=$?
 
-coverage html
-coverage xml
+$COVERAGE html
+$COVERAGE xml
 
 cat $coverage_report
 rm $coverage_report

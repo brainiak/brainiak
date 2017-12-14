@@ -98,7 +98,6 @@ deploy:
     skip_cleanup: true
     on:
       condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
-      # tags: true
    # - provider: pypi
      # user: brainiak
      # password:
