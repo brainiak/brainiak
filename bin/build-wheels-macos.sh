@@ -57,8 +57,8 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-wheel dist/*.whl
   mv dist/*.whl $WHEEL_DIR/
 
-  $PIP_CMD uninstall .
-  $PIP_CMD uninstall numpy cython pybind11 scipy mpi4py
+  $PIP_CMD uninstall -y .
+  $PIP_CMD uninstall -y numpy cython pybind11 scipy mpi4py
 
 done
 
