@@ -6,8 +6,8 @@ set -e
 # Show explicitly which commands are currently running.
 set -x
 
-# SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
-# WHEEL_DIR=$SCRIPT_DIR/../.whl
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
+WHEEL_DIR=$SCRIPT_DIR/../.whl
 
 # Test whether we can install without any dependencies
 # TODO: delete once we have setup.py setup correctly
