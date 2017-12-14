@@ -59,4 +59,4 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
 
 done
 
-ls $WHEEL_DIR
+echo $WHEEL_DIR

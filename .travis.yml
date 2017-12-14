@@ -34,6 +34,8 @@ matrix:
            - "./bin/build-wheels-macos.sh"
         before_script:
            - brew uninstall llvm mpich python3
+        script:
+           - ./bin/test-wheels-macos.sh
 
 deploy:
   provider: s3

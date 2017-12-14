@@ -9,7 +9,15 @@ from copy import deepcopy
 import pip
 
 # Attempt to install mpi4py
-pip.main(['install', 'mpi4py'])
+result = pip.main(['install', 'mpi4py'])
+if result != 0:
+    # TODO: download mpi4py wheel
+    # TODO: install mpi4py wheel
+    version = sys.version_info
+
+    # We could use the platform module, but this may be sufficient
+    platform = sys.platform
+    pass
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "

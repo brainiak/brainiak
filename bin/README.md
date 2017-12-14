@@ -10,7 +10,8 @@
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Test on 32-bit for Linux?
-- Consider other OS versions (e.g., xcode8)
+- Consider other OS versions (e.g., xcode8) (or have multi-OS distro)
+- Build Windows wheels?
 - Test on other python distros (e.g., conda)?
 - Upload wheels to PyPI
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
