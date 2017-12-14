@@ -29,7 +29,7 @@ matrix:
         before_install:
            - brew install llvm
            - rm /usr/local/include/c++
-           - brew install llvm mpich python3
+           - brew install mpich python3
         install:
            - "./bin/build-wheels-macos.sh"
         before_script:
