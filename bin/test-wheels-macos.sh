@@ -17,6 +17,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 WHEEL_DIR=$SCRIPT_DIR/../.whl
 
 # Test whether we can install without any dependencies
+# TODO: delete once we have setup.py setup correctly
 for ((i=0; i<${#PY_MMS[@]}; ++i)); do
   # TODO: delete this section once we implement travis stages
   PY_MM=${PY_MMS[i]}

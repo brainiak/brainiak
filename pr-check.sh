@@ -111,11 +111,13 @@ $activate_venv $venv || {
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
+
+python3 -m pip install .whl/mpi4py-3.0.0-cp34-cp34m-manylinux1_x86_64.whl
 python3 -m pip install $ignore_installed -U -e . || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
 # install developer dependencies
-python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
+python3 -m pip install -q $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
 # static analysis

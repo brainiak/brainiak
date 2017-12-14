@@ -36,10 +36,11 @@ if [ -z $mpi_command ]; then
 elif [ ! -z $SLURM_NODELIST ]; then
     mpi_command=srun
 fi
-echo $PATH
-$mpi_command -n 2 coverage run -m pytest
+coverage=$(which coverage)
 
-coverage combine
+$mpi_command -n 2 $coverage run -m pytest
+
+$coverage combine
 
 # Travis error workaround
 coverage_report=$(mktemp -u coverage_report_XXXXX) || {
@@ -48,11 +49,11 @@ coverage_report=$(mktemp -u coverage_report_XXXXX) || {
 }
 
 set +e
-coverage report > $coverage_report
+$coverage report > $coverage_report
 report_exit_code=$?
 
-coverage html
-coverage xml
+$coverage html
+$coverage xml
 
 cat $coverage_report
 rm $coverage_report

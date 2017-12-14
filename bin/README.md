@@ -1,10 +1,13 @@
 # Wheel to-dos
 
 # TODO
+- Create brainiak/manylinux1 Docker image
 - Split wheel build and test into two travis stages
 - End-to-end test
 - Refactor build and test scripts
    - Export PATH and clean up logic
+   - Consolidate python version numbers across various scripts
+   - Rationalize variables; different scripts call the same things different things
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Build for other OSs (e.g., xcode[VERSION], 32-bit Linux, Windows)
