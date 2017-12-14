@@ -2,16 +2,16 @@ matrix:
    include:
 
       # Build Linux wheels
-      - os: linux
-        dist: trusty
-        sudo: required
-        language: generic
-        env:
-           - LINUX_WHEELS=1
-        install:
-           - ./bin/build-wheels.sh
-        script:
-           - ./bin/test-wheels.sh
+      # - os: linux
+        # dist: trusty
+        # sudo: required
+        # language: generic
+        # env:
+           # - LINUX_WHEELS=1
+        # install:
+           # - ./bin/build-wheels.sh
+        # script:
+           # - ./bin/test-wheels.sh
 
       # Build MacOS wheels
       - os: osx
