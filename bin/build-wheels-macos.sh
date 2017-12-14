@@ -21,7 +21,10 @@ PY_MMS=("3.4"
         "3.6")
 
 mkdir -p $DOWNLOAD_DIR
-mkdir -p .whl
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
+WHEEL_DIR=$SCRIPT_DIR/../.whl
+mkdir -p $WHEEL_DIR
 
 git clone -q https://bitbucket.org/mpi4py/mpi4py
 
@@ -47,15 +50,15 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
     $PYTHON_EXE setup.py -q bdist_wheel
     $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-path dist/*.whl
     $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-wheel dist/*.whl
-    mv dist/*.whl ../.whl/
+    mv dist/*.whl $WHEEL_DIR/
   popd
 
   $PIP_CMD install -q .
   $PYTHON_EXE setup.py -q bdist_wheel
   $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-path dist/*.whl
   $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-wheel dist/*.whl
-  mv dist/*.whl .whl/
+  mv dist/*.whl $WHEEL_DIR/
 
 done
 
-ls .whl
+ls $WHEEL_DIR

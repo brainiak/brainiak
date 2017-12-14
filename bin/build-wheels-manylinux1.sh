@@ -11,7 +11,8 @@ yum install -y -q \
   mpich2-devel \
   libgomp
 
-WHEEL_DIR=$PWD/.whl
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
+WHEEL_DIR=$SCRIPT_DIR/../.whl
 mkdir -p $WHEEL_DIR
 
 # - Use the brainiak source stored in /brainiak via docker run command
