@@ -22,15 +22,15 @@ set -x
 # done
 
 # Install and configure ssh so we can ssh locally for MPI tests
-# yum install -y -q openssh-server
-# service sshd start
+yum install -y -q openssh-server
+service sshd start
 
-# ssh-keygen -f ~/.ssh/id_rsa -t rsa -N '' -b 4096
-# cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-# chmod 600 ~/.ssh/authorized_keys
+ssh-keygen -f ~/.ssh/id_rsa -t rsa -N '' -b 4096
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
 
-# echo "Host *" >> ~/.ssh/config
-# echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+echo "Host *" >> ~/.ssh/config
+echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 
 # Separate tests into a separate loop because we want to make sure
 # we can install brainiak without installing mpich, but require mpiexec during tests
@@ -62,7 +62,9 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
 done
 
 # Install dependencies
-# yum install -y -q mpich2-devel
+yum install -y -q mpich2-devel
+
+mpi_command=mpiexec.hydra $SCRIPT_DIR/../pr-check.sh
 
 # for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
   # mpi_command=mpiexec.hydra PATH=/opt/python/$PYTHON/bin:$PATH $SCRIPT_DIR/../pr-check.sh
