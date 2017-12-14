@@ -1,7 +1,6 @@
 # Wheel to-dos
 
 # TODO
-- Modify ```setup.py``` to handle conditional MPI install
 - Restore ```.travis.yml```
 - Figure out ```pr-check.sh```, other testing scripts, and documentation
    - Change ```pr-check.sh``` to optionally take a ```PYTHON``` argument, using ```python3``` if unspecified
@@ -15,6 +14,8 @@
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
 
 # To verify
+- Modify ```setup.py``` to handle conditional MPI install
+- Checkout mpi4py tag so we always create the same wheel
 - Upload wheels to S3
 - Upload wheels to PyPI
 - Deploy only on master (uncomment in ```.travis.yml```)

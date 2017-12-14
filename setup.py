@@ -7,22 +7,41 @@ import sys
 import setuptools
 from copy import deepcopy
 import pip
-
-# Attempt to install mpi4py
-result = pip.main(['install', 'mpi4py'])
-if result != 0:
-    # TODO: download mpi4py wheel
-    # TODO: install mpi4py wheel
-    version = sys.version_info
-
-    # We could use the platform module, but this may be sufficient
-    platform = sys.platform
-    pass
+import urllib.request
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
     "lower versions are not supported"
 )
+
+# Attempt to install mpi4py
+result = pip.main(['install', 'mpi4py'])
+if result != 0:
+    # MacOS: mpi4py-3.0.0-cp34-cp34m-macosx_10_6_intel.whl
+    # Linux: mpi4py-3.0.1a0-cp34-cp34m-manylinux1_x86_64.whl
+
+    base_url = 'https://s3.amazonaws.com/brainiak/.whl/%s'
+
+    # Determine wheel file name
+    # TODO: These templates may change / may need to become more advanced
+    darwin = 'mpi4py-3.0.0-cp%(version)d-cp%(version)dm-macosx_10_6_intel.whl'
+    linux = 'mpi4py-3.0.0-cp%(version)d-cp%(version)dm-manylinux1_x86_64.whl'
+
+    wheel_file = darwin if sys.platform == 'darwin' else linux
+    wheel_file = wheel_file % {
+        'version': sys.version_info[0] * 10 + sys.version_info[1]
+    }
+
+    wheel_url = base_url % wheel_file
+
+    # Download mpi4py wheel
+    local_filename, headers = urllib.request.urlretrieve(wheel_url)
+
+    # Install mpi4py wheel
+    result = pip.main(['install', local_filename])
+
+    if result != 0:
+        sys.exit('ERROR: failed to install mpi4py')
 
 here = os.path.abspath(os.path.dirname(__file__))
 

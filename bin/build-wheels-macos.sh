@@ -27,6 +27,9 @@ WHEEL_DIR=$SCRIPT_DIR/../.whl
 mkdir -p $WHEEL_DIR
 
 git clone -q https://bitbucket.org/mpi4py/mpi4py
+pushd mpi4py
+git checkout 3.0.0
+popd
 
 for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   PY_VERSION=${PY_VERSIONS[i]}
@@ -43,6 +46,7 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   PYTHON_EXE=$MACPYTHON_PY_PREFIX/$PY_MM/bin/python$PY_MM
   PIP_CMD="$(dirname $PYTHON_EXE)/pip$PY_MM"
 
+  $PIP_CMD install -U pip
   $PIP_CMD install -q wheel delocate numpy cython pybind11 scipy
 
   pushd mpi4py
