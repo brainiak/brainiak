@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
+set -e -x
 
 # When installing from sdist, the pip freeze output cannot be used to
 # detect editable mode. Use the "--sdist-mode" flag.

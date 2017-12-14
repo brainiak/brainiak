@@ -14,14 +14,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
+set -ex
 set -o pipefail
 
-flake8 --config setup.cfg brainiak
-flake8 --config tests/.flake8 tests
-mypy --ignore-missing-imports brainiak tests/[!_]*
-rst-lint ./*.rst | { grep -v "is clean.$" || true; }
-towncrier --version=100 --draft > /dev/null 2>&1 \
+if [ $PYTHON_EXE == 'python3' ]; then
+  RST_LINT=rst-lint
+  TOWNCRIER=towncrier
+else
+  RST_LINT=$(dirname $PYTHON_EXE)/rst-lint
+  TOWNCRIER=$(dirname $PYTHON_EXE)/towncrier
+fi
+
+$PYTHON_EXE -m flake8 --config setup.cfg brainiak
+$PYTHON_EXE -m flake8 --config tests/.flake8 tests
+$PYTHON_EXE -m mypy --ignore-missing-imports brainiak tests/[!_]*
+$RST_LINT ./*.rst | { grep -v "is clean.$" || true; }
+$TOWNCRIER --version=100 --draft > /dev/null 2>&1 \
     || echo "Error assembling news fragments using towncrier."
 
 echo "run-checks finished successfully."
