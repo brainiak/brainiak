@@ -17,7 +17,7 @@
 - Modify ```setup.py``` to handle conditional MPI install
 - Checkout mpi4py tag so we always create the same wheel
 - Upload wheels to S3
-- Upload wheels to PyPI
+- Upload wheels to PyPI (uncomment)
 - Deploy only on master (uncomment in ```.travis.yml```)
 - Add LICENSE into whl file
 
