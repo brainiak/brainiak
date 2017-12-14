@@ -33,7 +33,7 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   PY_INST=${PY_INSTS[i]}
   PY_MM=${PY_MMS[i]}
 
-  git clean -f -f -x -d -q -e .whl -e $DOWNLOAD_DIR
+  git clean -f -f -x -d -q -e .whl -e $DOWNLOAD_DIR -e mpi4py
 
   # Install Python.
   INST_PATH=python_downloads/$PY_INST
