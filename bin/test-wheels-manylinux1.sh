@@ -9,7 +9,7 @@ set -x
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 WHEEL_DIR=$SCRIPT_DIR/../.whl
 
-# Test install
+# Test whether we can install without any dependencies
 for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep mpi4py)
    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep brainiak)
@@ -40,5 +40,5 @@ yum install -y -q \
   libgomp
 
 for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
-  PYTHON_EXE=/opt/python/$PYTHON/bin/python $SCRIPT_DIR/../pr-check.sh
+  mpi_command=mpiexec.hydra PATH=/opt/python/$PYTHON/bin:$PATH $SCRIPT_DIR/../pr-check.sh
 done

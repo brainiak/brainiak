@@ -16,7 +16,9 @@ PY_WHEEL_VERSIONS=("34" "35" "36")
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 WHEEL_DIR=$SCRIPT_DIR/../.whl
 
+# Test whether we can install without any dependencies
 for ((i=0; i<${#PY_MMS[@]}; ++i)); do
+  # TODO: delete this section once we implement travis stages
   PY_MM=${PY_MMS[i]}
   PY_WHEEL_VERSION=${PY_WHEEL_VERSIONS[i]}
 
@@ -31,6 +33,10 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
 
    $PIP install -q $MPI4PY_WHEEL
    $PIP install -q $BRAINIAK_WHEEL
+done
 
-   PYTHON_EXE=$PYTHON_EXE $SCRIPT_DIR/../pr-check.sh
+brew install mpich
+# Test packages
+for ((i=0; i<${#PY_MMS[@]}; ++i)); do
+   PATH=$MACPYTHON_PY_PREFIX/$PY_MM/bin:$PATH $SCRIPT_DIR/../pr-check.sh
 done

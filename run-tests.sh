@@ -14,26 +14,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e -x
+set -ex
 
 # When installing from sdist, the pip freeze output cannot be used to
 # detect editable mode. Use the "--sdist-mode" flag.
 sdist_mode=$1
 
-mpi_command=mpiexec.hydra
-COVERAGE="$PYTHON_EXE -m coverage"
-if [ -z $PYTHON_EXE ]; then
-   PYTHON_EXE=python3
-   mpi_command=mpiexec
-   COVERAGE=coverage
-fi
-
-if [ ! -z $SLURM_NODELIST ]
-then
-    mpi_command=srun
-fi
-
-$PYTHON_EXE -m pip freeze | grep -qi /brainiak \
+python3 -m pip freeze | grep -qi /brainiak \
         || [ ${sdist_mode:-default} = "--sdist-mode" ] \
         || {
     echo "You must install brainiak in editable mode"`
@@ -44,9 +31,15 @@ $PYTHON_EXE -m pip freeze | grep -qi /brainiak \
 # Define MKL env variable that is required by Theano to run with MKL 2018
 export MKL_THREADING_LAYER=GNU
 
-$mpi_command -n 2 $COVERAGE run -m pytest
+if [ -z $mpi_command ]; then
+  mpi_command=mpiexec
+elif [ ! -z $SLURM_NODELIST ]; then
+    mpi_command=srun
+fi
+echo $PATH
+$mpi_command -n 2 coverage run -m pytest
 
-$COVERAGE combine
+coverage combine
 
 # Travis error workaround
 coverage_report=$(mktemp -u coverage_report_XXXXX) || {
@@ -55,11 +48,11 @@ coverage_report=$(mktemp -u coverage_report_XXXXX) || {
 }
 
 set +e
-$COVERAGE report > $coverage_report
+coverage report > $coverage_report
 report_exit_code=$?
 
-$COVERAGE html
-$COVERAGE xml
+coverage html
+coverage xml
 
 cat $coverage_report
 rm $coverage_report
