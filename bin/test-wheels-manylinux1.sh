@@ -17,4 +17,6 @@ for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
 
    $PIP install -q $MPI4PY_WHEEL
    $PIP install -q $BRAINIAK_WHEEL
+
+   PYTHON_EXE=$PYTHON_EXE $SCRIPT_DIR/../pr-check.sh
 done

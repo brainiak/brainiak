@@ -18,6 +18,17 @@
 
 set -e
 
+# If we pass PYTHON_EXE, then we have a wheel and we don't want environment
+if [ -z $PYTHON_EXE ]; then
+   PYTHON_EXE=python3
+   PYTHON_WHL=0
+   USE_VENV=1
+else
+   PYTHON_WHL=1
+   USE_VENV=0
+fi
+echo $PYTHON_EXE
+
 if [ ! -f brainiak/__init__.py ]
 then
     echo "Run "$(basename "$0")" from the root of the BrainIAK hierarchy."
@@ -27,7 +38,7 @@ fi
 basedir=$(pwd)
 
 function create_venv_venv {
-    python3 -m venv ../$1
+    $PYTHON_EXE -m venv ../$1
 }
 
 function activate_venv_venv {
@@ -67,10 +78,12 @@ function exit_with_error {
 }
 
 function exit_with_error_and_venv {
-    $deactivate_venv
-    cd $basedir
-    rm -f .coverage.*
-    $remove_venv $venv
+    if [ $USE_VENV -eq 1 ]; then
+        $deactivate_venv
+        cd $basedir
+        rm -f .coverage.*
+        $remove_venv $venv
+    fi
     exit_with_error "$1"
 }
 
@@ -97,25 +110,31 @@ else
     sdist_mode="--sdist-mode"
 fi
 
-venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
-    exit_with_error "mktemp -u error"
-$create_venv $venv || {
-    exit_with_error "Virtual environment creation failed."
-}
-$activate_venv $venv || {
-    $remove_venv $venv
-    exit_with_error "Virtual environment activation failed."
-}
+if [ $USE_VENV -eq 1 ]; then
+   venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
+       exit_with_error "mktemp -u error"
+   $create_venv $venv || {
+       exit_with_error "Virtual environment creation failed."
+   }
+   $activate_venv $venv || {
+       $remove_venv $venv
+       exit_with_error "Virtual environment activation failed."
+   }
+fi
 
 # install brainiak in editable mode (required for testing)
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
-python3 -m pip install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "Failed to install BrainIAK."
+$PYTHON_EXE -m pip install -q numpy scipy cython pybind11
+
+if [ $PYTHON_WHL -eq 0 ]; then
+   $PYTHON_EXE -m pip install -q $ignore_installed -U -e $PYTHON_WHL || \
+       exit_with_error_and_venv "Failed to install BrainIAK."
+fi
 
 # install developer dependencies
-python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
+$PYTHON_EXE -m pip install -q $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
 # static analysis
@@ -123,7 +142,7 @@ python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "run-checks failed"
 
 # run tests
-./run-tests.sh $sdist_mode || \
+PYTHON_EXE=$PYTHON_EXE ./run-tests.sh $sdist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
 # build documentation
@@ -140,7 +159,9 @@ $make_wrapper make || {
 }
 cd -
 
-$deactivate_venv
-$remove_venv $venv
+if [ $USE_VENV -eq 1 ]; then
+  $deactivate_venv
+  $remove_venv $venv
+fi
 
 echo "pr-check finished successfully."

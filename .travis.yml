@@ -1,57 +1,89 @@
 matrix:
-   include:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+      language: python
+      python: 3.4
+      addons: &linux_addons
+        apt: &apt
+          packages:
+            - build-essential libgomp1 libmpich-dev mpich
 
-      # Build Linux wheels
-      # - os: linux
-        # dist: trusty
-        # sudo: required
-        # language: generic
-        # env:
-           # - LINUX_WHEELS=1
-        # install:
-           # - ./bin/build-wheels.sh
-        # script:
-           # - ./bin/test-wheels.sh
+    - os: linux
+      dist: trusty
+      sudo: required
+      language: python
+      python: 3.5
+      addons: *linux_addons
 
-      # Build MacOS wheels
-      - os: osx
-        osx_image: xcode7
-        sudo: required
-        language: generic
-        env:
-           - MACOS_WHEELS=1
-           - CC=/usr/local/opt/llvm/bin/clang
-           - CXX=/usr/local/opt/llvm/bin/clang++
-           - LDFLAGS="-L/usr/local/opt/llvm/lib
-             -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
-           - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
-           - HOMEBREW_NO_AUTO_UPDATE=1
-        before_install:
-           - brew install llvm
-           - rm /usr/local/include/c++
-           - brew install mpich python3
-        install:
-           - "./bin/build-wheels-macos.sh"
-        before_script:
-           - brew uninstall llvm mpich python3
-        script:
-           - ./bin/test-wheels-macos.sh
+    - os: osx
+      osx_image: xcode7.3
+      language: generic
+      env: &macos_env
+        - CC=/usr/local/opt/llvm/bin/clang
+        - CXX=/usr/local/opt/llvm/bin/clang++
+        - LDFLAGS="-L/usr/local/opt/llvm/lib
+          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+        - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+        - HOMEBREW_NO_AUTO_UPDATE=1
+      before_install: &macos_before_install
+        - brew install llvm mpich python3
+
+    - os: osx
+      osx_image: xcode8
+      language: generic
+      env: *macos_env
+      before_install: *macos_before_install
+
+    # Build Linux wheels
+    - os: linux
+      dist: trusty
+      sudo: required
+      language: generic
+      env:
+        - LINUX_WHEELS=1
+      install:
+        - ./bin/build-wheels.sh
+      script:
+        - ./bin/test-wheels.sh
+
+    # Build MacOS wheels
+    - os: osx
+      osx_image: xcode7.3
+      sudo: required
+      language: generic
+      env: *macos_env
+         - MACOS_WHEELS=1
+      before_install: *macos_before_install
+      install:
+         - "./bin/build-wheels-macos.sh"
+      before_script:
+         - brew uninstall llvm mpich python3
+      script:
+         - ./bin/test-wheels-macos.sh
+
+install:
+  - python3 -m pip install -U pip
+
+script:
+  - ./pr-check.sh
 
 deploy:
-   - provider: s3
-     access_key_id: AKIAJKBW6H2VKKQDHILQ
-     secret_access_key:
-        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-     bucket: brainiak
-     acl: public_read
-     region: us-east-1
-     local_dir: brainiak/.whl
-     upload-dir: .whl
-     skip_cleanup: true
-     on:
-        condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
-        # branch: master
-        # tags: true
+  - provider: s3
+    access_key_id: AKIAJKBW6H2VKKQDHILQ
+    secret_access_key:
+      secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+    bucket: brainiak
+    acl: public_read
+    region: us-east-1
+    local_dir: brainiak/.whl
+    upload-dir: .whl
+    skip_cleanup: true
+    on:
+      condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
+      # branch: master
+      # tags: true
    # - provider: pypi
      # user: brainiak
      # password:

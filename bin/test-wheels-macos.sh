@@ -31,4 +31,6 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
 
    $PIP install -q $MPI4PY_WHEEL
    $PIP install -q $BRAINIAK_WHEEL
+
+   PYTHON_EXE=$PYTHON_EXE $SCRIPT_DIR/../pr-check.sh
 done
