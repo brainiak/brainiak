@@ -1,8 +1,10 @@
 # Wheel to-dos
 
 # TODO
+- Split wheel build and test into two travis stages
 - End-to-end test
 - Refactor build and test scripts
+   - Export PATH and clean up logic
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Build for other OSs (e.g., xcode[VERSION], 32-bit Linux, Windows)
