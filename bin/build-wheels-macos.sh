@@ -48,14 +48,12 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   pushd mpi4py
     git clean -f -f -x -d -q
     env ARCHFLAGS="-arch x86_64" $PYTHON_EXE setup.py bdist_wheel
-    $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-path dist/*.whl
     $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-wheel dist/*.whl
     mv dist/*.whl $WHEEL_DIR/
   popd
 
   env ARCHFLAGS="-arch x86_64" $PIP_CMD install -q .
   env ARCHFLAGS="-arch x86_64" $PYTHON_EXE setup.py bdist_wheel
-  $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-path dist/*.whl
   $MACPYTHON_PY_PREFIX/$PY_MM/bin/delocate-wheel dist/*.whl
   mv dist/*.whl $WHEEL_DIR/
 

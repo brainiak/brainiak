@@ -6,6 +6,10 @@ import os
 import sys
 import setuptools
 from copy import deepcopy
+import pip
+
+# Attempt to install mpi4py
+pip.main(['install', 'mpi4py'])
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
