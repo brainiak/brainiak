@@ -2,6 +2,7 @@
 
 # TODO
 - Modify ```setup.py``` to handle conditional MPI install
+- Restore ```.travis.yml```
 - Build documentation
 - Add LICENSE into whl file
 - Deploy only on master
