@@ -1,3 +1,7 @@
+# branches:
+  # only:
+    # - master
+
 matrix:
   include:
     - os: linux
@@ -87,7 +91,6 @@ deploy:
     skip_cleanup: true
     on:
       condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
-      # branch: master
       # tags: true
    # - provider: pypi
      # user: brainiak
@@ -96,7 +99,6 @@ deploy:
      # on:
         # condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
         # tags: true
-        # branch: master
      # TODO: need to verify built wheels are uploaded not ones rebuilt by travis
      # distributions: "sdist bdist_wheel"
      # skip_cleanup: true
