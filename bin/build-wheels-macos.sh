@@ -43,7 +43,7 @@ for ((i=0; i<${#PY_VERSIONS[@]}; ++i)); do
   PYTHON_EXE=$MACPYTHON_PY_PREFIX/$PY_MM/bin/python$PY_MM
   PIP_CMD="$(dirname $PYTHON_EXE)/pip$PY_MM"
 
-  $PIP_CMD install -q wheel delocate
+  $PIP_CMD install -q wheel delocate numpy cython pybind11 scipy
 
   pushd mpi4py
     git clean -f -f -x -d -q
