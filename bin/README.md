@@ -1,6 +1,8 @@
 # Wheel to-dos
 
 # TODO
+- End-to-end test
+- Package documentation [link](http://python-packaging.readthedocs.io/en/latest/non-code-files.html)
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Build for other OSs (e.g., xcode[VERSION], 32-bit Linux, Windows)

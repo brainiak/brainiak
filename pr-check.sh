@@ -129,7 +129,7 @@ fi
 $PYTHON_EXE -m pip install -q numpy scipy cython pybind11
 
 if [ $PYTHON_WHL -eq 0 ]; then
-   $PYTHON_EXE -m pip install -q $ignore_installed -U -e $PYTHON_WHL || \
+   $PYTHON_EXE -m pip install -q $ignore_installed -U -e . || \
        exit_with_error_and_venv "Failed to install BrainIAK."
 fi
 
