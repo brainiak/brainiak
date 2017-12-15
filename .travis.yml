@@ -11,6 +11,7 @@ branches:
 env:
   global:
     - BRAINIAK_REPO=danielsuo/brainiak
+    - PYTHON_VERSIONS="3.4.7 3.5.4 3.6.2"
 
 jobs:
   include:
@@ -102,12 +103,14 @@ jobs:
           -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
         - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
         - HOMEBREW_NO_AUTO_UPDATE=1
+        - ARCHFLAGS="-arch x86_64"
       before_install:
-        - brew install llvm mpich python3
+        - brew install llvm mpich
+        - VERSIONS=$PYTHON_VERSIONS ./bin/install_python_macos.sh
       install:
-        - ./bin/build-wheels-macos.sh
+        - VERSIONS=$PYTHON_VERSIONS ./bin/build-wheels-macos.sh
       before_script:
-        - brew uninstall -f --ignore-dependencies llvm mpich python3
+        - brew uninstall -f --ignore-dependencies llvm mpich
       script:
         - ./bin/test-wheels-macos.sh
       deploy: *wheel_deploy

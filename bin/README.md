@@ -27,6 +27,7 @@
 - Only deploy on tag (uncomment)
 
 # Completed
+- Separate install python and build wheels in MacOS
 - Create brainiak/manylinux Docker image
 - Have dev and prod S3 buckets for testing wheels
 - Add LICENSE into whl file
