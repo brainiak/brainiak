@@ -11,15 +11,15 @@ WHEEL_DIR=$SCRIPT_DIR/../.whl
 
 # Test whether we can install without any dependencies
 # TODO: delete once we have setup.py setup correctly
-# for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
-   # MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep mpi4py)
-   # BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep brainiak)
+for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
+  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep mpi4py)
+  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep brainiak)
 
-   # PIP=/opt/python/${PYTHON}/bin/pip
+  PIP=/opt/python/${PYTHON}/bin/pip
 
-   # $PIP install -q $MPI4PY_WHEEL
-   # $PIP install -q $BRAINIAK_WHEEL
-# done
+  $PIP install -q $MPI4PY_WHEEL
+  $PIP install -q $BRAINIAK_WHEEL
+done
 
 # Install and configure ssh so we can ssh locally for MPI tests
 yum install -y -q openssh-server
