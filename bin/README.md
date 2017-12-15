@@ -4,6 +4,7 @@
 - Split wheel build, test install, test run into three travis stages
 - Have dev and prod S3 buckets for testing wheels
 - Clean up buckets appropriately
+- Add back quiet / silent flags
 - End-to-end test
 - Refactor build and test scripts
    - Consolidate python version numbers across various scripts

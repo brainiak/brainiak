@@ -121,15 +121,15 @@ if [ ! -z $WHEEL_DIR ]; then
   MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
   BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
 
-  python3 -m pip install -q $MPI4PY_WHEEL
-  python3 -m pip install -q $BRAINIAK_WHEEL
+  python3 -m pip install $MPI4PY_WHEEL
+  python3 -m pip install $BRAINIAK_WHEEL
 else
   python3 -m pip install $ignore_installed -U -e . || \
       exit_with_error_and_venv "Failed to install BrainIAK."
 fi
 
 # install developer dependencies
-python3 -m pip install -q $ignore_installed -U -r requirements-dev.txt || \
+python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
 # static analysis
