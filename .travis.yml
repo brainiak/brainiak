@@ -65,7 +65,7 @@ jobs:
       env: DEPLOY_WHEEL=1
       install:
         # - ./bin/build-wheels.sh
-        - echo "Hello!" > .whl/tmp
+        - mkdir .whl && echo "Hello!" >> .whl/tmp
       # script:
         # - ./bin/test-wheels.sh
 
