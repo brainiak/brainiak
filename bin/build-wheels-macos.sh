@@ -19,8 +19,8 @@ for VERSION in $VERSIONS
 do
   MAJOR=${VERSION%.*}
   # Replicate readlink -f
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$VERSION))); pwd)
-  PYTHON=$PYTHON_DIR/python$VERSION
+  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON=$PYTHON_DIR/python$MAJOR
   DELOCATE=$(dirname $PYTHON)/delocate-wheel
 
   git clean -f -f -x -d -q -e .whl -e mpi4py

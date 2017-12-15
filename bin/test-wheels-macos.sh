@@ -14,8 +14,8 @@ WHEEL_DIR=$SCRIPT_DIR/../.whl
 for VERSION in $VERSIONS
 do
   MAJOR=${VERSION%.*}
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$VERSION))); pwd)
-  PYTHON=$PYTHON_DIR/python$VERSION
+  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_VERSION=$(echo $MAJOR | tr -d '.')
 
   # Find the appropriate wheel by grepping for the Python version.
@@ -34,7 +34,8 @@ brew install mpich
 for VERSION in $VERSIONS
 do
   # TODO: refactor this out
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$VERSION))); pwd)
-  PYTHON=$PYTHON_DIR/python$VERSION
+  MAJOR=${VERSION%.*}
+  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/../pr-check.sh
 done
