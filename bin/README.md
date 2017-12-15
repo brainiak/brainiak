@@ -1,8 +1,8 @@
 # Wheel to-dos
 
 # TODO
+- Recreate and encrypt keys for brainiak/brainiak
 - Split wheel build, test install, test run into three travis stages
-- Have dev and prod S3 buckets for testing wheels
 - Clean up buckets appropriately
 - Add back quiet / silent flags
 - End-to-end test
@@ -27,6 +27,7 @@
 
 # Completed
 - Create brainiak/manylinux Docker image
+- Have dev and prod S3 buckets for testing wheels
 - Add LICENSE into whl file
 - Checkout mpi4py tag so we always create the same wheel
 - Figure out ```pr-check.sh```, other testing scripts, and documentation
