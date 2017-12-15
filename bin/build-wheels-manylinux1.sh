@@ -21,15 +21,15 @@ pushd /mpi4py
 git checkout 3.0.0
 popd
 
-for VERSION in 3.4 3.5 3.6; do
-   PYTHON=python$VERSION
+for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
+   PYTHON=/opt/python/$VERSION/bin/python
    $PYTHON -m pip install -U pip wheel
 
    pushd /mpi4py
-   git clean -f -f -x -d -q
-   $PYTHON setup.py -q bdist_wheel
-   auditwheel repair dist/*.whl
-   mv wheelhouse/*.whl $WHEEL_DIR/
+      git clean -f -f -x -d -q
+      $PYTHON setup.py -q bdist_wheel
+      auditwheel repair dist/*.whl
+      mv wheelhouse/*.whl $WHEEL_DIR/
    popd
 
    git clean -f -f -x -d -q -e .whl

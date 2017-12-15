@@ -27,8 +27,8 @@ fi
 basedir=$(pwd)
 
 function create_venv_venv {
-  if [ ! -z $VERSION ]; then
-    python$VERSION -m venv ../$1
+  if [ ! -z $PYTHON ]; then
+    $PYTHON -m venv ../$1
   else
     python3 -m venv ../$1
   fi

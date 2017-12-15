@@ -38,9 +38,9 @@ echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 # Install dependencies
 yum install -y -q mpich2-devel
 
-for VERSION in 3.4 3.5 3.6; do
+for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
   mpi_command=mpiexec.hydra \
     WHEEL_DIR=$WHEEL_DIR \
-    VERSION=$VERSION \
+    PYTHON=/opt/python/$VERSION/bin/python \
     $SCRIPT_DIR/../pr-check.sh
 done
