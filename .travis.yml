@@ -60,7 +60,7 @@ jobs:
       # before_install: *macos_before_install
 
       # Build Linux wheels
-    - os: linux
+      os: linux
       dist: trusty
       sudo: required
       language: generic
