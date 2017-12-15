@@ -1,9 +1,15 @@
+# Testing flow
+# - Install and test sdist
+# - Build wheel, test locally, and deploy
+# - Install wheel
+# - Test wheel
+
 # branches:
   # only:
     # - master
 
-matrix:
-  include:
+# matrix:
+  # include:
     # - os: linux
       # dist: trusty
       # sudo: required
@@ -47,12 +53,16 @@ matrix:
       # env: *macos_env
       # before_install: *macos_before_install
 
+jobs:
+  include:
+    - stage: build
+
       # Build Linux wheels
-    - os: linux
+      os: linux
       dist: trusty
       sudo: required
       language: generic
-      env: LINUX_WHEELS=1
+      env: DEPLOY_WHEEL=1
       install:
         - ./bin/build-wheels.sh
       script:
@@ -64,7 +74,7 @@ matrix:
       sudo: required
       language: generic
       env:
-        - MACOS_WHEELS=1
+        - DEPLOY_WHEEL=1
         - CC=/usr/local/opt/llvm/bin/clang
         - CXX=/usr/local/opt/llvm/bin/clang++
         - LDFLAGS="-L/usr/local/opt/llvm/lib
@@ -80,6 +90,7 @@ matrix:
         - brew uninstall llvm mpich python3
       script:
         - ./bin/test-wheels-macos.sh
+
 
 install:
     - python3 -m pip install -U pip
@@ -99,7 +110,7 @@ deploy:
     upload-dir: .whl
     skip_cleanup: true
     on:
-      condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
+      condition: $DEPLOY_WHEEL=1
    # - provider: pypi
      # user: brainiak
      # password:
