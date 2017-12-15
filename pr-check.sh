@@ -94,11 +94,14 @@ else
 fi
 
 # Check if running in an sdist
-if git ls-files --error-unmatch pr-check.sh 2> /dev/null
+if [ ! -z WHEEL_DIR ]
+then
+    dist_mode='--bdist-mode'
+elif git ls-files --error-unmatch pr-check.sh 2> /dev/null
 then
     git clean -Xf .
 else
-    sdist_mode="--sdist-mode"
+    dist_mode="--sdist-mode"
 fi
 
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
@@ -120,23 +123,22 @@ python3 -m pip install -U pip
 # developer dependencies.
 
 if [ ! -z $WHEEL_DIR ]; then
-  PYTHON_MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
-  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
-  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
+    PYTHON_MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
+    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
+    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
 
-  python3 -m pip install $MPI4PY_WHEEL
-  python3 -m pip install $BRAINIAK_WHEEL
+    python3 -m pip install $MPI4PY_WHEEL
+    python3 -m pip install $BRAINIAK_WHEEL
 
-  # We don't want to install brainiak from source
-  tail -n +2 requirements-dev.txt | python3 -m pip install -r /dev/stdin
+    # We don't want to install brainiak from source
+    tail -n +2 requirements-dev.txt | python3 -m pip install -r /dev/stdin
 else
-  python3 -m pip install $ignore_installed -U -e . || \
-      exit_with_error_and_venv "Failed to install BrainIAK."
+    python3 -m pip install $ignore_installed -U -e . || \
+        exit_with_error_and_venv "Failed to install BrainIAK."
 
-  # install developer dependencies
-  python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
-      exit_with_error_and_venv "Failed to install development requirements."
-
+    # install developer dependencies
+    python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
+        exit_with_error_and_venv "Failed to install development requirements."
 fi
 
 # static analysis

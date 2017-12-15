@@ -18,10 +18,11 @@ set -ex
 
 # When installing from sdist, the pip freeze output cannot be used to
 # detect editable mode. Use the "--sdist-mode" flag.
-sdist_mode=$1
+dist_mode=$1
 
 python3 -m pip freeze | grep -qi /brainiak \
-        || [ ${sdist_mode:-default} = "--sdist-mode" ] \
+        || [ $dist_mode = "--sdist-mode" ] \
+        || [ $dist_mode = "--bdist-mode" ] \
         || {
     echo "You must install brainiak in editable mode"`
         `" before calling "$(basename "$0")

@@ -38,3 +38,5 @@ for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
    auditwheel repair dist/*.whl
    mv wheelhouse/*.whl $WHEEL_DIR/
 done
+
+rm -rf /mpi4py

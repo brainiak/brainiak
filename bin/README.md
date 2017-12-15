@@ -2,6 +2,7 @@
 
 # TODO
 - Recreate and encrypt keys for brainiak/brainiak
+- Split test and build stages
 - Allow setup.py to take argument for mpi4py wheel location
 - Clean up buckets appropriately
 - Add back quiet / silent flags
@@ -18,6 +19,7 @@
 
 # To verify
 - Modify ```setup.py``` to handle conditional MPI install
+- Add bdist exception for editable installs
 - Upload wheels to S3
 - Upload wheels to PyPI (uncomment)
 - Always upload to S3, only upload to PyPI on tag (uncomment)

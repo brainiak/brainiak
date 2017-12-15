@@ -43,3 +43,5 @@ do
   deactivate
   rm -rf venv
 done
+
+rm -rf mpi4py
