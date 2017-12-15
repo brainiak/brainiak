@@ -146,7 +146,7 @@ fi
     exit_with_error_and_venv "run-checks failed"
 
 # run tests
-./run-tests.sh $sdist_mode || \
+./run-tests.sh $dist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
 # build documentation
