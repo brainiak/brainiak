@@ -18,6 +18,9 @@ do
   PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_VERSION=$(echo $MAJOR | tr -d '.')
 
+  $PYTHON -m venv venv
+  source venv/bin/activate
+
   # Find the appropriate wheel by grepping for the Python version.
   MPI4PY_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep mpi4py)
 
@@ -26,6 +29,9 @@ do
 
   $PYTHON -m pip install -q $MPI4PY_WHEEL
   $PYTHON -m pip install -q $BRAINIAK_WHEEL
+
+  deactivate
+  rm -rf venv
 done
 
 brew install mpich

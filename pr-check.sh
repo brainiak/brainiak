@@ -126,14 +126,18 @@ if [ ! -z $WHEEL_DIR ]; then
 
   python3 -m pip install $MPI4PY_WHEEL
   python3 -m pip install $BRAINIAK_WHEEL
+
+  # We don't want to install brainiak from source
+  tail -n +2 requirements-dev.txt | python3 -m pip install -r /dev/stdin
 else
   python3 -m pip install $ignore_installed -U -e . || \
       exit_with_error_and_venv "Failed to install BrainIAK."
-fi
 
-# install developer dependencies
-python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
-    exit_with_error_and_venv "Failed to install development requirements."
+  # install developer dependencies
+  python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
+      exit_with_error_and_venv "Failed to install development requirements."
+
+fi
 
 # static analysis
 ./run-checks.sh || \

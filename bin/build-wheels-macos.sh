@@ -40,8 +40,6 @@ do
   $DELOCATE dist/*.whl
   mv dist/*.whl $WHEEL_DIR/
 
-  $PYTHON -m pip uninstall -y .
-  $PYTHON -m pip uninstall -y numpy cython pybind11 scipy mpi4py
-
   deactivate
+  rm -rf venv
 done
