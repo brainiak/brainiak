@@ -4,21 +4,27 @@
 # - Install wheel
 # - Test wheel
 
-# branches:
-  # only:
-    # - master
+branches:
+  only:
+    - master
 
-# matrix:
-  # include:
+env:
+  global:
+    - BRAINIAK_REPO=danielsuo/brainiak
+
+jobs:
+  include:
+    - stage: test
+
     # - os: linux
       # dist: trusty
       # sudo: required
       # language: python
       # python: 3.4
       # addons: &linux_addons
-        # apt: &apt
-          # packages:
-            # - build-essential libgomp1 libmpich-dev mpich
+      # apt: &apt
+      # packages:
+        # - build-essential libgomp1 libmpich-dev mpich
 
     # - os: linux
       # dist: trusty
@@ -52,13 +58,6 @@
       # language: generic
       # env: *macos_env
       # before_install: *macos_before_install
-env:
-  global:
-    - BRAINIAK_REPO=danielsuo/brainiak
-
-jobs:
-  include:
-    - stage: test
 
       # Build Linux wheels
     - os: linux
@@ -93,20 +92,26 @@ jobs:
       script:
         - ./bin/test-wheels-macos.sh
 
-      # Only publish if we're on master
-    - stage: publish
-      if: repo = $BRAINIAK_REPO and branch = asdf
-      script: skip
-      deploy:
-        - provider: pypi
-          distributions: "sdist bdist_wheel"
-          skip_cleanup: true
+      # Make sure we can install our wheels from scratch if we're on mater (not just targeting master)
+    # - stage: integration
+      # if: repo = $BRAINIAK_REPO and branch = master
 
-# install:
-    # - python3 -m pip install -U pip
+      # Only publish if we're on tagged master commit (not just targeting master) and integration passed.
+    # - stage: publish
+      # if: repo = $BRAINIAK_REPO and branch = master
+      # script: skip
+      # deploy:
+        # - provider: pypi
+          # distributions: "sdist bdist_wheel"
+          # skip_cleanup: true
+          # on:
+            # tags: true
 
-# script:
-    # - ./pr-check.sh
+install:
+    - python3 -m pip install -U pip
+
+script:
+    - ./pr-check.sh
 
 # Deploy wheels to S3 only after build wheel jobs
 # - Deploy all commits to master with travis-cli S3 user to brainiak
