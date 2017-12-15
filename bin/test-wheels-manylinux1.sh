@@ -35,40 +35,12 @@ echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 # Separate tests into a separate loop because we want to make sure
 # we can install brainiak without installing mpich, but require mpiexec during tests
 
-# Install openssl
-yum install -y -q openssl-devel bzip2-devel
-
-# Install libpython from source because manylinux1 doesn't pacakge it
-PY_MMS=("3.4" "3.5" "3.6")
-for ((i=0; i<${#PY_MMS[@]}; ++i)); do
-  # Get Python major version
-  PY_MM=${PY_MMS[i]}
-
-  # Get cython minor version
-  CYTHON=$(find /opt/_internal -maxdepth 1 | grep -- -$PY_MM | xargs basename )
-
-  # Get minor version
-  MINOR=$(echo $CYTHON | cut -d- -f2-)
-
-  # Download source
-  wget https://github.com/python/cpython/archive/v$MINOR.tar.gz
-  tar zxf v$MINOR
-
-  pushd $CYTHON
-  ./configure --enable-shared > /dev/null 2>&1
-  make -s -j
-  make install > /dev/null 2>&1
-  popd
-
-  rm -rf $CYTHON v$MINOR
-done
-
 # Install dependencies
 yum install -y -q mpich2-devel
 
-for ((i=0; i<${#PY_MMS[@]}; ++i)); do
-  PYTHON3=$(which python3)
-  rm -rf $PYTHON3
-  ln -s $(which python${PY_MMS[i]}) $PYTHON3
-  mpi_command=mpiexec.hydra PYTHON_MAJOR=${PY_MMS[i]} $SCRIPT_DIR/../pr-check.sh
+for VERSION in 3.4 3.5 3.6; do
+  mpi_command=mpiexec.hydra \
+    WHEEL_DIR=$WHEEL_DIR \
+    VERSION=$VERSION \
+    $SCRIPT_DIR/../pr-check.sh
 done

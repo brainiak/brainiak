@@ -27,8 +27,8 @@ fi
 basedir=$(pwd)
 
 function create_venv_venv {
-  if [ ! -z $PYTHON_MAJOR ]; then
-    python$PYTHON_MAJOR -m venv ../$1
+  if [ ! -z $VERSION ]; then
+    python$VERSION -m venv ../$1
   else
     python3 -m venv ../$1
   fi
@@ -118,8 +118,8 @@ $activate_venv $venv || {
 
 if [ ! -z $WHEEL_DIR ]; then
   PYTHON_MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
-  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON_MAJOR | grep mpi4py)
-  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON_MAJOR | grep brainiak)
+  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
+  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
 
   python3 -m pip install -q $MPI4PY_WHEEL
   python3 -m pip install -q $BRAINIAK_WHEEL

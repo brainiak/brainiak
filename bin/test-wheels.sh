@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker run --rm -w /src -v `pwd`:/src -ti quay.io/pypa/manylinux1_x86_64 ./bin/test-wheels-manylinux1.sh
+docker run --rm -w /src -v `pwd`:/src -ti brainiak/manylinux ./bin/test-wheels-manylinux1.sh

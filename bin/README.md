@@ -1,11 +1,9 @@
 # Wheel to-dos
 
 # TODO
-- Create brainiak/manylinux1 Docker image
 - Split wheel build, test install, test run into three travis stages
 - End-to-end test
 - Refactor build and test scripts
-   - Export PATH and clean up logic
    - Consolidate python version numbers across various scripts
    - Rationalize variables; different scripts call the same things different things
 - Get things working on Jenkins
@@ -25,6 +23,7 @@
 - Only deploy on tag (uncomment)
 
 # Completed
+- Create brainiak/manylinux Docker image
 - Add LICENSE into whl file
 - Checkout mpi4py tag so we always create the same wheel
 - Figure out ```pr-check.sh```, other testing scripts, and documentation
@@ -35,4 +34,5 @@
 - Linux test script
 - MacOS build script
 - MacOS test script
+- ~~Export PATH and clean up logic~~
 - ~~Package documentation [link](http://python-packaging.readthedocs.io/en/latest/non-code-files.html)~~
