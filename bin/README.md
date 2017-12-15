@@ -2,7 +2,7 @@
 
 # TODO
 - Create brainiak/manylinux1 Docker image
-- Split wheel build and test into two travis stages
+- Split wheel build, test install, test run into three travis stages
 - End-to-end test
 - Refactor build and test scripts
    - Export PATH and clean up logic

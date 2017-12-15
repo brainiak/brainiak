@@ -36,7 +36,7 @@ echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 # we can install brainiak without installing mpich, but require mpiexec during tests
 
 # Install openssl
-yum install -y -q openssl-devel
+yum install -y -q openssl-devel bzip2-devel
 
 # Install libpython from source because manylinux1 doesn't pacakge it
 PY_MMS=("3.4" "3.5" "3.6")
@@ -59,13 +59,16 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
   make -s -j
   make install > /dev/null 2>&1
   popd
+
+  rm -rf $CYTHON v$MINOR
 done
 
 # Install dependencies
 yum install -y -q mpich2-devel
 
-mpi_command=mpiexec.hydra $SCRIPT_DIR/../pr-check.sh
-
-# for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
-  # mpi_command=mpiexec.hydra PATH=/opt/python/$PYTHON/bin:$PATH $SCRIPT_DIR/../pr-check.sh
-# done
+for ((i=0; i<${#PY_MMS[@]}; ++i)); do
+  PYTHON3=$(which python3)
+  rm -rf $PYTHON3
+  ln -s $(which python${PY_MMS[i]}) $PYTHON3
+  mpi_command=mpiexec.hydra $SCRIPT_DIR/../pr-check.sh
+done

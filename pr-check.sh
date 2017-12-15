@@ -112,9 +112,17 @@ $activate_venv $venv || {
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
 
-python3 -m pip install .whl/mpi4py-3.0.0-cp34-cp34m-manylinux1_x86_64.whl
-python3 -m pip install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "Failed to install BrainIAK."
+if [ ! -z $WHEEL_DIR ]; then
+  PYTHON_MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
+  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON_MAJOR | grep mpi4py)
+  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON_MAJOR | grep brainiak)
+
+  python3 -m pip install -q $MPI4PY_WHEEL
+  python3 -m pip install -q $BRAINIAK_WHEEL
+else
+  python3 -m pip install $ignore_installed -U -e . || \
+      exit_with_error_and_venv "Failed to install BrainIAK."
+fi
 
 # install developer dependencies
 python3 -m pip install -q $ignore_installed -U -r requirements-dev.txt || \

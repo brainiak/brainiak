@@ -2,8 +2,8 @@
   # only:
     # - master
 
-# matrix:
-  # include:
+matrix:
+  include:
     # - os: linux
       # dist: trusty
       # sudo: required
@@ -71,7 +71,9 @@
           -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
         - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
         - HOMEBREW_NO_AUTO_UPDATE=1
-      before_install: *macos_before_install
+      # before_install: *macos_before_install
+      before_install:
+        - brew install llvm mpich python3
       install:
         - ./bin/build-wheels-macos.sh
       before_script:
