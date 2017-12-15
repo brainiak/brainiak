@@ -3,6 +3,7 @@
 # TODO
 - Recreate and encrypt keys for brainiak/brainiak
 - Split wheel build, test install, test run into three travis stages
+- Allow setup.py to take argument for mpi4py wheel location
 - Clean up buckets appropriately
 - Add back quiet / silent flags
 - End-to-end test

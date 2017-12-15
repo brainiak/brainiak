@@ -32,8 +32,6 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
    # TODO: this will actually pick up both wheels since brainiak is in the path
    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$PY_WHEEL_VERSION" | grep brainiak)
 
-   $PIP install --upgrade pip
-
    $PIP install -q $MPI4PY_WHEEL
    $PIP install -q $BRAINIAK_WHEEL
 done

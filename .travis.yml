@@ -70,6 +70,25 @@ jobs:
       script:
         - ./bin/test-wheels.sh
 
+      # Deploy wheels to S3 only after build wheel jobs
+      # - Deploy all commits to master with travis-cli S3 user to brainiak
+      # - This deploy MUST come from brainiak/brainiak
+      deploy: &wheel_deploy
+        - provider: s3
+          access_key_id: AKIAJKBW6H2VKKQDHILQ
+          secret_access_key:
+            secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+          bucket: brainiak
+          acl: public_read
+          region: us-east-1
+          local_dir: .whl
+          upload-dir: $TRAVIS_COMMIT/.whl
+          skip_cleanup: true
+          on:
+            repo: $BRAINIAK_REPO
+            branch: master
+            condition: $DEPLOY_WHEEL = 1
+
       # Build MacOS wheels
     - os: osx
       osx_image: xcode7.3
@@ -91,6 +110,7 @@ jobs:
         - brew uninstall -f --ignore-dependencies llvm mpich python3
       script:
         - ./bin/test-wheels-macos.sh
+      deploy: *wheel_deploy
 
       # Make sure we can install our wheels from scratch if we're on mater (not just targeting master)
     # - stage: integration
@@ -107,27 +127,12 @@ jobs:
           # on:
             # tags: true
 
-install:
-    - python3 -m pip install -U pip
+    # - stage: pypi-test
 
-script:
-    - ./pr-check.sh
+# TODO: Move these into each job; steps outside a job are by default grouped into a stage
+# install:
+    # - python3 -m pip install -U pip
 
-# Deploy wheels to S3 only after build wheel jobs
-# - Deploy all commits to master with travis-cli S3 user to brainiak
-# - This deploy MUST come from brainiak/brainiak
-deploy:
-  - provider: s3
-    access_key_id: AKIAJKBW6H2VKKQDHILQ
-    secret_access_key:
-      secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-    bucket: brainiak
-    acl: public_read
-    region: us-east-1
-    local_dir: .whl
-    upload-dir: $TRAVIS_COMMIT/.whl
-    skip_cleanup: true
-    on:
-      repo: $BRAINIAK_REPO
-      branch: master
-      condition: $DEPLOY_WHEEL = 1
+# script:
+    # - ./pr-check.sh
+
