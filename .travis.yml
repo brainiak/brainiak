@@ -112,7 +112,7 @@ jobs:
       before_script:
         - brew uninstall -f --ignore-dependencies llvm mpich
       script:
-        - ./bin/test-wheels-macos.sh
+        - VERSIONS=$PYTHON_VERSIONS ./bin/test-wheels-macos.sh
       deploy: *wheel_deploy
 
       # Make sure we can install our wheels from scratch if we're on mater (not just targeting master)

@@ -18,10 +18,15 @@ popd
 for VERSION in $VERSIONS
 do
   MAJOR=${VERSION%.*}
-  PYTHON=python$MAJOR
+  # Replicate readlink -f
+  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$VERSION))); pwd)
+  PYTHON=$PYTHON_DIR/python$VERSION
   DELOCATE=$(dirname $PYTHON)/delocate-wheel
 
   git clean -f -f -x -d -q -e .whl -e mpi4py
+
+  $PYTHON -m venv venv
+  source venv/bin/activate
 
   pushd mpi4py
     git clean -f -f -x -d -q
@@ -37,4 +42,6 @@ do
 
   $PYTHON -m pip uninstall -y .
   $PYTHON -m pip uninstall -y numpy cython pybind11 scipy mpi4py
+
+  deactivate
 done

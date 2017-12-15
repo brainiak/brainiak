@@ -2,7 +2,6 @@
 
 # TODO
 - Recreate and encrypt keys for brainiak/brainiak
-- Split wheel build, test install, test run into three travis stages
 - Allow setup.py to take argument for mpi4py wheel location
 - Clean up buckets appropriately
 - Add back quiet / silent flags
@@ -27,6 +26,7 @@
 - Only deploy on tag (uncomment)
 
 # Completed
+- Split wheel build, test install, test run into three travis stages
 - Separate install python and build wheels in MacOS
 - Create brainiak/manylinux Docker image
 - Have dev and prod S3 buckets for testing wheels
