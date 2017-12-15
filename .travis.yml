@@ -69,27 +69,27 @@ jobs:
         - ./bin/test-wheels.sh
 
       # Build MacOS wheels
-    - os: osx
-      osx_image: xcode7.3
-      sudo: required
-      language: generic
-      env:
-        - DEPLOY_WHEEL=1
-        - CC=/usr/local/opt/llvm/bin/clang
-        - CXX=/usr/local/opt/llvm/bin/clang++
-        - LDFLAGS="-L/usr/local/opt/llvm/lib
-          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
-        - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
-        - HOMEBREW_NO_AUTO_UPDATE=1
+    # - os: osx
+      # osx_image: xcode7.3
+      # sudo: required
+      # language: generic
+      # env:
+        # - DEPLOY_WHEEL=1
+        # - CC=/usr/local/opt/llvm/bin/clang
+        # - CXX=/usr/local/opt/llvm/bin/clang++
+        # - LDFLAGS="-L/usr/local/opt/llvm/lib
+          # -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+        # - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+        # - HOMEBREW_NO_AUTO_UPDATE=1
       # before_install: *macos_before_install
-      before_install:
-        - brew install llvm mpich python3
-      install:
-        - ./bin/build-wheels-macos.sh
-      before_script:
-        - brew uninstall llvm mpich python3
-      script:
-        - ./bin/test-wheels-macos.sh
+      # before_install:
+        # - brew install llvm mpich python3
+      # install:
+        # - ./bin/build-wheels-macos.sh
+      # before_script:
+        # - brew uninstall llvm mpich python3
+      # script:
+        # - ./bin/test-wheels-macos.sh
 
 
 install:
