@@ -106,7 +106,7 @@ deploy:
     bucket: brainiak
     acl: public_read
     region: us-east-1
-    local_dir: brainiak/.whl
+    local_dir: .whl
     upload-dir: .whl
     skip_cleanup: true
     on:
