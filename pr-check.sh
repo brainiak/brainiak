@@ -27,7 +27,11 @@ fi
 basedir=$(pwd)
 
 function create_venv_venv {
+  if [ ! -z $PYTHON_MAJOR ]; then
+    python$PYTHON_MAJOR -m venv ../$1
+  else
     python3 -m venv ../$1
+  fi
 }
 
 function activate_venv_venv {

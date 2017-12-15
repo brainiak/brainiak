@@ -45,7 +45,7 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
   PY_MM=${PY_MMS[i]}
 
   # Get cython minor version
-  CYTHON=$(find /opt/_internal -maxdepth 1 | grep $PY_MM | xargs basename )
+  CYTHON=$(find /opt/_internal -maxdepth 1 | grep -- -$PY_MM | xargs basename )
 
   # Get minor version
   MINOR=$(echo $CYTHON | cut -d- -f2-)
@@ -70,5 +70,5 @@ for ((i=0; i<${#PY_MMS[@]}; ++i)); do
   PYTHON3=$(which python3)
   rm -rf $PYTHON3
   ln -s $(which python${PY_MMS[i]}) $PYTHON3
-  mpi_command=mpiexec.hydra $SCRIPT_DIR/../pr-check.sh
+  mpi_command=mpiexec.hydra PYTHON_MAJOR=${PY_MMS[i]} $SCRIPT_DIR/../pr-check.sh
 done
