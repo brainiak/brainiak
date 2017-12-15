@@ -98,26 +98,28 @@ jobs:
 # script:
     # - ./pr-check.sh
 
-deploy:
-  - provider: s3
-    access_key_id: AKIAJKBW6H2VKKQDHILQ
-    secret_access_key:
-      secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-    bucket: brainiak
-    acl: public_read
-    region: us-east-1
-    local_dir: .whl
-    upload-dir: .whl
-    skip_cleanup: true
-    # on:
-      # condition: $DEPLOY_WHEEL=1
-   # - provider: pypi
-     # user: brainiak
-     # password:
-        # secure: travis encrypt and add to file manually
-     # on:
-        # condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
-        # tags: true
-     # TODO: need to verify built wheels are uploaded not ones rebuilt by travis
-     # distributions: "sdist bdist_wheel"
-     # skip_cleanup: true
+      deploy:
+        - provider: s3
+          access_key_id: AKIAJKBW6H2VKKQDHILQ
+          secret_access_key:
+            secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+          bucket: brainiak
+          acl: public_read
+          region: us-east-1
+          local_dir: .whl
+          upload-dir: .whl
+          skip_cleanup: true
+          # on:
+            # repo: brainiak/brainiak
+            # condition: $DEPLOY_WHEEL=1
+         # - provider: pypi
+           # user: brainiak
+           # password:
+              # secure: travis encrypt and add to file manually
+           # on:
+              # condition: $LINUX_WHEELS = 1 || $MAC_WHEELS = 1
+              # tags: true
+              # repo: brainiak/brainiak
+           # TODO: need to verify built wheels are uploaded not ones rebuilt by travis
+           # distributions: "sdist bdist_wheel"
+           # skip_cleanup: true
