@@ -150,19 +150,23 @@ fi
 ./run-tests.sh $dist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
-# build documentation
-cd docs
-export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
-
-if [ ! -z $SLURM_NODELIST ]
+# Only build documentation if we aren't in binary mode
+if [ ${dist_mode:-default} != '--bdist-mode' ]
 then
-    make_wrapper="srun -n 1"
+  # build documentation
+  cd docs
+  export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
+
+  if [ ! -z $SLURM_NODELIST ]
+  then
+      make_wrapper="srun -n 1"
+  fi
+  $make_wrapper make || {
+      cd -
+      exit_with_error_and_venv "make docs failed"
+  }
+  cd -
 fi
-$make_wrapper make || {
-    cd -
-    exit_with_error_and_venv "make docs failed"
-}
-cd -
 
 $deactivate_venv
 $remove_venv $venv
