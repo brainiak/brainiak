@@ -128,7 +128,7 @@ if [ ! -z $WHEEL_DIR ]; then
     python3 -m pip install -q $BRAINIAK_WHEEL
 
     # We don't want to install brainiak from source
-    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -r /dev/stdin
+    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -q -r /dev/stdin
 else
     python3 -m pip install $ignore_installed -U -e . || \
         exit_with_error_and_venv "Failed to install BrainIAK."
