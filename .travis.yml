@@ -11,7 +11,8 @@ branches:
 env:
   global:
     - BRAINIAK_REPO=danielsuo/brainiak
-    - PYTHON_VERSIONS="3.4.7 3.5.4 3.6.2"
+      # Latest versions with MacOS binaries
+    - PYTHON_VERSIONS="3.4.4 3.5.4 3.6.4"
 
 jobs:
   include:
