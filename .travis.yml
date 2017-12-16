@@ -6,33 +6,46 @@ env:
   - BRAINIAK_REPO=danielsuo/brainiak
 jobs:
   include:
-  - stage: test
+  - language: generic
+    stage: test
   - addons:
       apt:
         packages:
         - build-essential libgomp1 libmpich-dev mpich
     dist: trusty
+    install:
+    - python3 -m pip install -U pip
     language: python
     os: linux
     python: '3.4'
+    script:
+    - ./pr-check.sh
     sudo: required
   - addons:
       apt:
         packages:
         - build-essential libgomp1 libmpich-dev mpich
     dist: trusty
+    install:
+    - python3 -m pip install -U pip
     language: python
     os: linux
     python: '3.5'
+    script:
+    - ./pr-check.sh
     sudo: required
   - addons:
       apt:
         packages:
         - build-essential libgomp1 libmpich-dev mpich
     dist: trusty
+    install:
+    - python3 -m pip install -U pip
     language: python
     os: linux
     python: '3.6'
+    script:
+    - ./pr-check.sh
     sudo: required
   - before_install:
     - brew install llvm mpich python3
@@ -42,9 +55,13 @@ jobs:
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
+    install:
+    - python3 -m pip install -U pip
     language: generic
     os: osx
     osx_image: xcode7.3
+    script:
+    - ./pr-check.sh
   - before_install:
     - brew install llvm mpich python3
     env:
@@ -53,9 +70,13 @@ jobs:
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
+    install:
+    - python3 -m pip install -U pip
     language: generic
     os: osx
     osx_image: xcode8
+    script:
+    - ./pr-check.sh
   - stage: build
   - deploy:
     - access_key_id: AKIAJKBW6H2VKKQDHILQ

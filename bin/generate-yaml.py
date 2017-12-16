@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# TODO: the first job in a stage must be part of the job dictinoary, not an
+# element in the job array. This results in a dummy job being created
+
 import yaml
 import copy
 
@@ -33,7 +36,7 @@ data['jobs'] = {
 jobs = data['jobs']['include']
 
 # Create test stage
-jobs.append({'stage': 'test'})
+jobs.append({'stage': 'test', 'language': 'generic'})
 
 # Linux
 test_linux = {
@@ -41,6 +44,8 @@ test_linux = {
     'dist': 'trusty',
     'sudo': 'required',
     'language': 'python',
+    'install': ['python3 -m pip install -U pip'],
+    'script': ['./pr-check.sh'],
     'addons': {
             'apt': {
                 'packages': ['build-essential libgomp1 libmpich-dev mpich']
@@ -64,7 +69,9 @@ test_macos = {
         'CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"',
         'HOMEBREW_NO_AUTO_UPDATE=1'
     ],
-    'before_install': ['brew install llvm mpich python3']
+    'before_install': ['brew install llvm mpich python3'],
+    'install': ['python3 -m pip install -U pip'],
+    'script': ['./pr-check.sh']
 }
 
 for osx in ['xcode7.3', 'xcode8']:
