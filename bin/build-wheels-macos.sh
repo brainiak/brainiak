@@ -19,7 +19,7 @@ for VERSION in $VERSIONS
 do
   MAJOR=${VERSION%.*}
   # Replicate readlink -f
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
   DELOCATE=$(dirname $PYTHON)/delocate-wheel
 

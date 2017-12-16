@@ -16,8 +16,6 @@
 
 # To verify
 - Modify ```setup.py``` to handle conditional MPI install
-- Add bdist exception for editable installs
-- Upload wheels to S3
 - Upload wheels to PyPI (uncomment)
 - Always upload to S3, only upload to PyPI on tag (uncomment)
 - Deploy only on master (uncomment in ```.travis.yml```)
@@ -25,6 +23,8 @@
 - Only deploy on tag (uncomment)
 
 # Completed
+- Upload wheels to S3
+- Add bdist exception for editable installs
 - Enforce BrainIAK dependencies while installing dev requirements
 - Add back quiet / silent flags
 - Refactor build and test scripts

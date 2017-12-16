@@ -14,7 +14,7 @@ WHEEL_DIR=$SCRIPT_DIR/../.whl
 for VERSION in $VERSIONS
 do
   MAJOR=${VERSION%.*}
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_VERSION=$(echo $MAJOR | tr -d '.')
 
@@ -41,7 +41,7 @@ for VERSION in $VERSIONS
 do
   # TODO: refactor this out
   MAJOR=${VERSION%.*}
-  PYTHON_DIR=$(cd $(dirname $(readlink $(which python$MAJOR))); pwd)
+  PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/../pr-check.sh
 done

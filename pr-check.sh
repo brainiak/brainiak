@@ -114,7 +114,7 @@ $activate_venv $venv || {
     exit_with_error "Virtual environment activation failed."
 }
 
-# Upgrad pip here
+# Upgrade pip here (for Linux)
 python3 -m pip install -U pip
 
 # install brainiak in editable mode (required for testing)
@@ -123,15 +123,15 @@ python3 -m pip install -U pip
 # developer dependencies.
 
 if [ ! -z $WHEEL_DIR ]; then
-    PYTHON_MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
-    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
-    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
+    MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
+    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py)
+    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak)
 
     python3 -m pip install -q $MPI4PY_WHEEL
     python3 -m pip install -q $BRAINIAK_WHEEL
 
     # We don't want to install brainiak from source
-    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -q -r /dev/stdin
+    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -r /dev/stdin
 else
     python3 -m pip install $ignore_installed -U -e . || \
         exit_with_error_and_venv "Failed to install BrainIAK."
@@ -141,9 +141,13 @@ else
         exit_with_error_and_venv "Failed to install development requirements."
 fi
 
-# static analysis
-./run-checks.sh || \
-    exit_with_error_and_venv "run-checks failed"
+# Only run source checks if we aren't in binary mode
+if [ ${dist_mode:-default} != '--bdist-mode' ]
+then
+   # static analysis
+   ./run-checks.sh || \
+       exit_with_error_and_venv "run-checks failed"
+fi
 
 # run tests
 ./run-tests.sh $dist_mode || \
