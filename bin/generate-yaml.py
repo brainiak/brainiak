@@ -80,7 +80,7 @@ for osx in ['xcode7.3', 'xcode8']:
     jobs.append(block)
 
 # Create build stage
-jobs.append({'stage': 'build'})
+jobs.append({'stage': 'build', 'language': 'generic'})
 
 deploy_s3 = [{
     'provider': 's3',
