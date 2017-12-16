@@ -12,7 +12,7 @@ env:
   global:
     - BRAINIAK_REPO=danielsuo/brainiak
       # Latest versions with MacOS binaries
-    - PYTHON_VERSIONS="3.4.4 3.5.4 3.6.4"
+    - PYTHON_VERSIONS="3.4.4 3.5.4 3.6.3"
 
 jobs:
   include:
