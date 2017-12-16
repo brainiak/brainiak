@@ -11,11 +11,11 @@ WHEEL_DIR=$SCRIPT_DIR/../.whl
 
 # Test whether we can install without any dependencies
 # TODO: delete once we have setup.py setup correctly
-for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
-  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep mpi4py)
-  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep brainiak)
+for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
+  MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $VERSION | grep mpi4py)
+  BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $VERSION | grep brainiak)
 
-  PYTHON=/opt/python/${PYTHON}/bin/python
+  PYTHON=/opt/python/${VERSION}/bin/python3
 
   git clean -f -f -x -d -q -e .whl
 
