@@ -15,16 +15,25 @@ for PYTHON in cp34-cp34m cp35-cp35m cp36-cp36m; do
   MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep mpi4py)
   BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $PYTHON | grep brainiak)
 
-  PIP=/opt/python/${PYTHON}/bin/pip
+  PYTHON=/opt/python/${PYTHON}/bin/python
 
-  $PIP install -q $MPI4PY_WHEEL
-  $PIP install -q $BRAINIAK_WHEEL
+  git clean -f -f -x -d -q -e .whl
+
+  $PYTHON -m venv venv
+  source venv/bin/activate
+
+  $PYTHON -m pip install -q $MPI4PY_WHEEL
+  $PYTHON -m pip install -q $BRAINIAK_WHEEL
+
+  deactivate
+  rm -rf venv
 done
 
 # Separate tests into a separate loop because we want to make sure
 # we can install brainiak without installing mpich, but require mpiexec during tests
 ./bin/install-test-deps-manylinux1.sh
 for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
+  git clean -f -f -x -d -q -e .whl
   mpi_command=mpiexec.hydra \
     WHEEL_DIR=$WHEEL_DIR \
     PYTHON=/opt/python/$VERSION/bin/python \

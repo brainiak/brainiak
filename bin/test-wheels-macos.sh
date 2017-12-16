@@ -24,6 +24,8 @@ do
   PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_VERSION=$(echo $MAJOR | tr -d '.')
 
+  git clean -f -f -x -d -q -e .whl
+
   $PYTHON -m venv venv
   source venv/bin/activate
 
@@ -49,5 +51,6 @@ do
   MAJOR=${VERSION%.*}
   PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
+  git clean -f -f -x -d -q -e .whl
   WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/../pr-check.sh
 done
