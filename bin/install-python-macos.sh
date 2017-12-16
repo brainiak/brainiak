@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -ex
+
 MACPYTHON_URL=https://www.python.org/ftp/python
 DOWNLOAD_DIR=python_downloads
 mkdir -p $DOWNLOAD_DIR
