@@ -127,11 +127,11 @@ if [ ! -z $WHEEL_DIR ]; then
     MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep mpi4py)
     BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$PYTHON_MAJOR | grep brainiak)
 
-    python3 -m pip install $MPI4PY_WHEEL
-    python3 -m pip install $BRAINIAK_WHEEL
+    python3 -m pip install -q $MPI4PY_WHEEL
+    python3 -m pip install -q $BRAINIAK_WHEEL
 
     # We don't want to install brainiak from source
-    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -r /dev/stdin
+    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -q -r /dev/stdin
 else
     python3 -m pip install $ignore_installed -U -e . || \
         exit_with_error_and_venv "Failed to install BrainIAK."

@@ -83,7 +83,7 @@ jobs:
           acl: public_read
           region: us-east-1
           local_dir: .whl
-          upload-dir: $TRAVIS_COMMIT/.whl
+          upload-dir: .whl
           skip_cleanup: true
           on:
             repo: $BRAINIAK_REPO

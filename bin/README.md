@@ -6,11 +6,7 @@
 - Update documentation
 - Allow setup.py to take argument for mpi4py wheel location
 - Clean up buckets appropriately
-- Add back quiet / silent flags
 - End-to-end test
-- Refactor build and test scripts
-   - Consolidate python version numbers across various scripts
-   - Rationalize variables; different scripts call the same things different things
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
 - Build for other OSs (e.g., xcode[VERSION], 32-bit Linux, Windows)
@@ -30,6 +26,10 @@
 
 # Completed
 - Enforce BrainIAK dependencies while installing dev requirements
+- Add back quiet / silent flags
+- Refactor build and test scripts
+- Consolidate python version numbers across various scripts
+- Rationalize variables; different scripts call the same things different things
 - Resolve coverage running pytest as module
 - Split wheel build, test install, test run into three travis stages
 - Separate install python and build wheels in MacOS
