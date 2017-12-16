@@ -17,4 +17,10 @@ do
   sudo installer -pkg $INST_PATH -target /
 
   pip$MAJOR install -q -U pip delocate
+
+  # NOTE: https://stackoverflow.com/questions/41691327/ssl-sslerror-ssl-certificate-verify-failed-certificate-verify-failed-ssl-c
+  if [[ $MAJOR > "3.5" ]]
+  then
+    sudo /Applications/Python\ $MAJOR/Install\ Certificates.command
+  fi
 done
