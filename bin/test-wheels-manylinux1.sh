@@ -36,7 +36,7 @@ echo "  StrictHostKeyChecking no" >> ~/.ssh/config
 # we can install brainiak without installing mpich, but require mpiexec during tests
 
 # Install dependencies
-yum install -y -q mpich2-devel
+yum install -y -q mpich2
 
 for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
   mpi_command=mpiexec.hydra \
