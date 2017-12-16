@@ -107,9 +107,11 @@ jobs:
         - ARCHFLAGS="-arch x86_64"
       before_install:
         - brew install llvm mpich
-        - VERSIONS=$PYTHON_VERSIONS ./bin/install-python-macos.sh
+        # - VERSIONS=$PYTHON_VERSIONS ./bin/install-python-macos.sh
+        - VERSIONS="3.4.4" ./bin/install-python-macos.sh
       install:
-        - VERSIONS=$PYTHON_VERSIONS ./bin/build-wheels-macos.sh
+        # - VERSIONS=$PYTHON_VERSIONS ./bin/build-wheels-macos.sh
+        - VERSIONS="3.4.4" ./bin/build-wheels-macos.sh
       before_script:
         - brew uninstall -f --ignore-dependencies llvm mpich
       script:
