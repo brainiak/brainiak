@@ -40,7 +40,7 @@ fi
 
 if [ ${dist_mode:-default} = "--bdist-mode" ]
 then
-   $mpi_command -n 2 $(which pytest)
+   $mpi_command -n 2 python3 -m pytest
 
 # Only run coverage for editable or source distribution
 else
