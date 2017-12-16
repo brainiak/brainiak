@@ -6,6 +6,12 @@ set -e
 # Show explicitly which commands are currently running.
 set -x
 
+unset CC
+unset CXX
+unset LDFLAGS
+unset CPPFLAGS
+unset ARCHFLAGS
+
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 WHEEL_DIR=$SCRIPT_DIR/../.whl
 
