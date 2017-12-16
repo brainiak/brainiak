@@ -64,6 +64,7 @@ jobs:
       # Build Linux wheels
       os: linux
       dist: trusty
+      sudo: required
       language: generic
       env: DEPLOY_WHEEL=1
       install:
