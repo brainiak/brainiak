@@ -72,7 +72,7 @@ test_linux = OrderedDict({
     'language': 'python',
     'python': None,
     'install': ['python3 -m pip install -U pip'],
-    'script': ['./pr-check.sh'],
+    'script': ['./bin/pr-check.sh'],
     'addons': {
             'apt': {
                 'packages': ['build-essential libgomp1 libmpich-dev mpich']
@@ -98,7 +98,7 @@ test_macos = OrderedDict({
     ],
     'before_install': ['brew install llvm mpich python3'],
     'install': ['python3 -m pip install -U pip'],
-    'script': ['./pr-check.sh']
+    'script': ['./bin/pr-check.sh']
 })
 
 for osx in ['xcode7.3', 'xcode8']:

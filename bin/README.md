@@ -23,6 +23,7 @@
 - Only deploy on tag (uncomment)
 
 # Completed
+- Move all scripts to bin
 - Upload wheels to S3
 - Split test and build stages
 - Add bdist exception for editable installs

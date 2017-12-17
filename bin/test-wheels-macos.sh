@@ -29,8 +29,8 @@ do
   # TODO: this will actually pick up both wheels since brainiak is in the path
   BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep brainiak)
 
-  $PYTHON -m pip install -q $MPI4PY_WHEEL
-  $PYTHON -m pip install -q $BRAINIAK_WHEEL
+  $PYTHON -m pip install $MPI4PY_WHEEL
+  $PYTHON -m pip install $BRAINIAK_WHEEL
 
   deactivate
   rm -rf venv
@@ -46,5 +46,5 @@ do
   PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
   git clean -f -f -x -d -q -e .whl
-  WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/../pr-check.sh
+  WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/pr-check.sh
 done

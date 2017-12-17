@@ -37,5 +37,5 @@ for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
   mpi_command=mpiexec.hydra \
     WHEEL_DIR=$WHEEL_DIR \
     PYTHON=/opt/python/$VERSION/bin/python \
-    $SCRIPT_DIR/../pr-check.sh
+    $SCRIPT_DIR/pr-check.sh
 done

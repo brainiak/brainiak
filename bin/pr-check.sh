@@ -142,12 +142,12 @@ fi
 if [ ${dist_mode:-default} != '--bdist-mode' ]
 then
    # static analysis
-   ./run-checks.sh || \
+   ./bin/run-checks.sh || \
        exit_with_error_and_venv "run-checks failed"
 fi
 
 # run tests
-./run-tests.sh $dist_mode || \
+./bin/run-tests.sh $dist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
 # Only build documentation if we aren't in binary mode
