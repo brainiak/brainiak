@@ -1,11 +1,16 @@
 # Wheel to-dos
 
 # TODO
+- Test-with-deps: test source with dependencies + can be installed (doesn't check install now)
+- Test-wout-deps: test source without dependencies + can be installed (doesn't check tests now)
+- Upload wheels to PyPI (uncomment)
+- Upload to TestPyPI
+- Only upload to PyPI on tagged master
 - Recreate and encrypt keys for brainiak/brainiak
-- Default implementation should grab wheels matching current brainiak version
+- Only need to build mpi4py occasionally; not with every commit
+- mpi4py should always commit to s3://brainiak/.whl
 - Update documentation
-- Allow setup.py to take argument for mpi4py wheel location
-- Clean up buckets appropriately
+- Figure out why ```setup.py``` fails
 - End-to-end test
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
@@ -15,14 +20,17 @@
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
 
 # To verify
-- Modify ```setup.py``` to handle conditional MPI install
-- Upload wheels to PyPI (uncomment)
-- Always upload to S3, only upload to PyPI on tag (uncomment)
-- Deploy only on master (uncomment in ```.travis.yml```)
-- Only run on master branch (uncomment)
-- Only deploy on tag (uncomment)
 
 # Completed
+- Clean up buckets appropriately
+- Change upload / download to $TRAVIS_COMMIT/.whl
+- Test local install (```pip``` vs. ```python setup.py```, editable vs. not)
+- Only deploy on tag (uncomment)
+- Only run on master branch (uncomment)
+- Deploy only on master (uncomment in ```.travis.yml```)
+- Default implementation should grab wheels matching current brainiak version
+- Allow setup.py to take argument for mpi4py wheel location
+- Modify ```setup.py``` to handle conditional MPI install
 - Move all scripts to bin
 - Upload wheels to S3
 - Split test and build stages

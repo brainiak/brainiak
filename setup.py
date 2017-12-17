@@ -6,7 +6,7 @@ import os
 import sys
 import setuptools
 from copy import deepcopy
-import pip
+from subprocess import check_call, CalledProcessError
 import urllib.request
 
 assert sys.version_info >= (3, 4), (
@@ -15,30 +15,33 @@ assert sys.version_info >= (3, 4), (
 )
 
 # Attempt to install mpi4py
-result = pip.main(['install', 'mpi4py'])
-if result != 0:
+try:
+    result = check_call([sys.executable, '-m', 'pip', 'install', 'mpi4py'])
+except CalledProcessError as e:
     # MacOS: mpi4py-3.0.0-cp34-cp34m-macosx_10_6_intel.whl
     # Linux: mpi4py-3.0.1a0-cp34-cp34m-manylinux1_x86_64.whl
 
     base_url = 'https://s3.amazonaws.com/brainiak/.whl/%s'
+    mpi4py_version = '3.0.0'
 
     # Determine wheel file name
     # TODO: These templates may change / may need to become more advanced
-    darwin = 'mpi4py-3.0.0-cp%(version)d-cp%(version)dm-macosx_10_6_intel.whl'
-    linux = 'mpi4py-3.0.0-cp%(version)d-cp%(version)dm-manylinux1_x86_64.whl'
-
-    wheel_file = darwin if sys.platform == 'darwin' else linux
+    wheel_file = 'mpi4py-%(mpi4py)s-cp%(py)d-cp%(py)dm-%(dist)s.whl'
     wheel_file = wheel_file % {
-        'version': sys.version_info[0] * 10 + sys.version_info[1]
+        'mpi4py': mpi4py_version,
+        'py': sys.version_info[0] * 10 + sys.version_info[1],
+        'dist': 'macosx_10_6_intel' if sys.platform == 'darwin'
+        else 'manylinux1_x86_64'
     }
 
     wheel_url = base_url % wheel_file
 
     # Download mpi4py wheel
-    local_filename, headers = urllib.request.urlretrieve(wheel_url)
+    local_filename, headers = urllib.request.urlretrieve(wheel_url, wheel_file)
 
     # Install mpi4py wheel
-    result = pip.main(['install', local_filename])
+    result = check_call([sys.executable, '-m', 'pip',
+                         'install', local_filename])
 
     if result != 0:
         sys.exit('ERROR: failed to install mpi4py')

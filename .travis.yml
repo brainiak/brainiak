@@ -6,7 +6,7 @@ env:
   - BRAINIAK_REPO=danielsuo/brainiak
 jobs:
   include:
-  - stage: test
+  - stage: test-with-deps
     language: generic
   - os: linux
     dist: trusty
@@ -61,6 +61,7 @@ jobs:
     install:
     - python3 -m pip install -U pip
     script:
+    - ./bin/test-local-install.sh
     - ./bin/pr-check.sh
     osx_image: xcode7.3
   - os: osx
@@ -77,11 +78,21 @@ jobs:
     install:
     - python3 -m pip install -U pip
     script:
+    - ./bin/test-local-install.sh
     - ./bin/pr-check.sh
     osx_image: xcode8
   - stage: build
     language: generic
-  - deploy:
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: generic
+    env: DEPLOY_WHEEL=1
+    install:
+    - ./bin/build-wheels.sh
+    script:
+    - ./bin/test-wheels.sh
+    deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
       secret_access_key:
@@ -96,15 +107,6 @@ jobs:
         branch: master
         condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
-    dist: trusty
-    env: DEPLOY_WHEEL=1
-    install:
-    - ./bin/build-wheels.sh
-    language: generic
-    os: linux
-    script:
-    - ./bin/test-wheels.sh
-    sudo: required
   - os: osx
     osx_image: xcode7.3
     sudo: required
@@ -133,6 +135,7 @@ jobs:
         condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
+    - brew update
     - brew install llvm mpich
     - VERSIONS="3.4.4" ./bin/install-python-macos.sh
     install:
@@ -174,6 +177,7 @@ jobs:
         condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
+    - brew update
     - brew install llvm mpich
     - VERSIONS="3.5.3" ./bin/install-python-macos.sh
     install:
@@ -215,6 +219,7 @@ jobs:
         condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
+    - brew update
     - brew install llvm mpich
     - VERSIONS="3.6.0" ./bin/install-python-macos.sh
     install:
@@ -228,3 +233,21 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.6.0" ./bin/test-wheels-macos.sh
+  - stage: test-wout-deps
+    language: generic
+    if: branch = master and repo = danielsuo/brainiak
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: generic
+    install: true
+    script:
+    - ./bin/test-s3.sh
+  - os: osx
+    osx_image: xcode7.3
+    sudo: required
+    language: generic
+    install:
+    - ./bin/install-python-macos.sh
+    script:
+    - ./bin/test-s3-macos.sh

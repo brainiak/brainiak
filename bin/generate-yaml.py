@@ -3,6 +3,15 @@
 # TODO: the first job in a stage must be part of the job dictinoary, not an
 # element in the job array. This results in a dummy job being created
 
+# Stages: (Travis capitalizes first letter and lowers the rest)
+# - Test-with-deps: test source and source distribution, dependencies
+# - Build: build wheels and test
+# - Test-wout-deps: download wheels from S3, install w/out dependencies
+# - Testpypi: upload to test PyPI
+# - Testpypi-download: download wheels from test PyPI and test
+# - Pypi: Upload to PyPI
+# - Pypi-download: download wheels from PyPI and test
+
 import yaml
 import copy
 
@@ -30,7 +39,7 @@ Dumper.add_representer(str,
                        SafeRepresenter.represent_str)
 
 #  Dumper.add_representer(unicode,
-                       #  SafeRepresenter.represent_unicode)
+#  SafeRepresenter.represent_unicode)
 
 travis = '.travis.yml'
 repo = 'danielsuo/brainiak'
@@ -41,7 +50,7 @@ majors = [version[:-2] for version in versions]
 bucket = 'brainiak'
 region = 'us-east-1'
 access_key_id = 'AKIAJKBW6H2VKKQDHILQ'
-secret_access_key = "A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg="
+secret_access_key = 'A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg='
 
 data = OrderedDict()
 
@@ -62,7 +71,7 @@ data['jobs'] = OrderedDict({
 jobs = data['jobs']['include']
 
 # Create test stage
-jobs.append(OrderedDict({'stage': 'test', 'language': 'generic'}))
+jobs.append(OrderedDict({'stage': 'test-with-deps', 'language': 'generic'}))
 
 # Linux
 test_linux = OrderedDict({
@@ -98,7 +107,7 @@ test_macos = OrderedDict({
     ],
     'before_install': ['brew update', 'brew install llvm mpich python3'],
     'install': ['python3 -m pip install -U pip'],
-    'script': ['./bin/pr-check.sh']
+    'script': ['./bin/test-local-install.sh', './bin/pr-check.sh']
 })
 
 for osx in ['xcode7.3', 'xcode8']:
@@ -114,7 +123,7 @@ deploy_s3 = [OrderedDict({
     'access_key_id': access_key_id,
     'secret_access_key': {
         'secure': secret_access_key
-        },
+    },
     'bucket': bucket,
     'region': region,
     'acl': 'public_read',
@@ -125,10 +134,10 @@ deploy_s3 = [OrderedDict({
         'repo': repo,
         'branch': 'master',
         'condition': '$DEPLOY_WHEEL = 1'
-        }
-    })]
+    }
+})]
 
-jobs.append({
+jobs.append(OrderedDict({
     'os': 'linux',
     'dist': 'trusty',
     'sudo': 'required',
@@ -137,7 +146,7 @@ jobs.append({
     'install': ['./bin/build-wheels.sh'],
     'script': ['./bin/test-wheels.sh'],
     'deploy': deploy_s3
-})
+}))
 
 
 build_macos_env = copy.deepcopy(test_macos['env'])
@@ -152,11 +161,12 @@ build_macos = OrderedDict({
     'language': 'generic',
     'env': build_macos_env,
     'deploy': deploy_s3
-    })
+})
 
 for version in versions:
     block = copy.deepcopy(build_macos)
     block['before_install'] = [
+        'brew update',
         'brew install llvm mpich',
         'VERSIONS="%s" ./bin/install-python-macos.sh' % version
     ]
@@ -181,6 +191,31 @@ for version in versions:
     block['deploy'] = copy.deepcopy(deploy_s3)
 
     jobs.append(block)
+
+# S3-Download
+jobs.append(OrderedDict({
+    'stage': 'test-wout-deps',
+    'language': 'generic',
+    'if': 'branch = master and repo = %s' % repo
+}))
+
+jobs.append(OrderedDict({
+    'os': 'linux',
+    'dist': 'trusty',
+    'sudo': 'required',
+    'language': 'generic',
+    'install': True,
+    'script': ['./bin/test-s3.sh']
+}))
+
+jobs.append(OrderedDict({
+    'os': 'osx',
+    'osx_image': 'xcode7.3',
+    'sudo': 'required',
+    'language': 'generic',
+    'install': ['./bin/install-python-macos.sh'],
+    'script': ['./bin/test-s3-macos.sh']
+}))
 
 with open(travis, 'w') as yml:
     yaml.dump(data, yml, default_flow_style=False)
