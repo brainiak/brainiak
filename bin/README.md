@@ -6,6 +6,7 @@
 - Fix stages; it appears that everything just gets lumped into a single stage
 - Upload wheels to PyPI (uncomment)
 - Upload to TestPyPI
+- Upload wheels to PyPI (uncomment)
 - Only upload to PyPI on tagged master
 - Recreate and encrypt keys for brainiak/brainiak
 - Only need to build mpi4py occasionally; not with every commit
@@ -23,11 +24,11 @@
 # To verify
 
 # Completed
+- Confirm stages that run only on master commit to main don't run for PRs other branchs
 - Clean up buckets appropriately
 - Change upload / download to $TRAVIS_COMMIT/.whl
 - Test local install (```pip``` vs. ```python setup.py```, editable vs. not)
 - Only deploy on tag (uncomment)
-- Only run on master branch (uncomment)
 - Deploy only on master (uncomment in ```.travis.yml```)
 - Default implementation should grab wheels matching current brainiak version
 - Allow setup.py to take argument for mpi4py wheel location
