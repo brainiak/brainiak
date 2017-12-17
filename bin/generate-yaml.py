@@ -175,7 +175,7 @@ for version in versions:
     ]
 
     block['script'] = [
-        'VERSIONS="%s" ./bin/test-wheels-macos.sh'
+        'VERSIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
     block['deploy'] = copy.deepcopy(deploy_s3)
