@@ -119,7 +119,7 @@ deploy_s3 = [OrderedDict({
     'region': region,
     'acl': 'public_read',
     'local_dir': '.whl',
-    'upload-dir': '.whl',
+    'upload-dir': '$TRAVIS_COMMIT/.whl',
     'skip_cleanup': True,
     'on': {
         'repo': repo,

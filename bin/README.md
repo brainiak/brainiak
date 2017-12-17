@@ -2,7 +2,7 @@
 
 # TODO
 - Recreate and encrypt keys for brainiak/brainiak
-- Split test and build stages
+- Default implementation should grab wheels matching current brainiak version
 - Update documentation
 - Allow setup.py to take argument for mpi4py wheel location
 - Clean up buckets appropriately
@@ -24,6 +24,7 @@
 
 # Completed
 - Upload wheels to S3
+- Split test and build stages
 - Add bdist exception for editable installs
 - Enforce BrainIAK dependencies while installing dev requirements
 - Add back quiet / silent flags
