@@ -96,7 +96,7 @@ test_macos = OrderedDict({
         'CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"',
         'HOMEBREW_NO_AUTO_UPDATE=1'
     ],
-    'before_install': ['brew install llvm mpich python3'],
+    'before_install': ['brew update', 'brew install llvm mpich python3'],
     'install': ['python3 -m pip install -U pip'],
     'script': ['./bin/pr-check.sh']
 })
