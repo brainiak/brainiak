@@ -6,11 +6,12 @@
 # Stages: (Travis capitalizes first letter and lowers the rest)
 # - Test-with-deps: test source and source distribution, dependencies
 # - Build: build wheels and test
+#   - deploy to s3
 # - Test-wout-deps: download wheels from S3, install w/out dependencies
-# - Testpypi: upload to test PyPI
-# - Testpypi-download: download wheels from test PyPI and test
-# - Pypi: Upload to PyPI
-# - Pypi-download: download wheels from PyPI and test
+#   - deploy to testpypi
+# - Testpypi: download wheels from test PyPI and test
+#   - deploy to pypi
+# - Pypi: download wheels from PyPI and test
 
 import yaml
 import copy
@@ -116,7 +117,11 @@ for osx in ['xcode7.3', 'xcode8']:
     jobs.append(block)
 
 # Create build stage
-jobs.append(OrderedDict({'stage': 'build', 'language': 'generic'}))
+jobs.append(OrderedDict({
+    'stage': 'build',
+    'language': 'generic',
+    'if': 'branch = master and repo = %s' % repo
+}))
 
 deploy_s3 = [OrderedDict({
     'provider': 's3',
@@ -213,8 +218,12 @@ jobs.append(OrderedDict({
     'osx_image': 'xcode7.3',
     'sudo': 'required',
     'language': 'generic',
-    'install': ['./bin/install-python-macos.sh'],
-    'script': ['./bin/test-s3-macos.sh']
+    'install': [
+        'VERSIONS="%s" ./bin/install-python-macos.sh' % ' '.join(versions)
+    ],
+    'script': [
+        'VERSIONS="%s" ./bin/test-s3-macos.sh' % ' '.join(versions)
+    ]
 }))
 
 with open(travis, 'w') as yml:
