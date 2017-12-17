@@ -6,93 +6,94 @@ env:
   - BRAINIAK_REPO=danielsuo/brainiak
 jobs:
   include:
-  - language: generic
-    stage: test
-  - addons:
-      apt:
-        packages:
-        - build-essential libgomp1 libmpich-dev mpich
+  - stage: test
+    language: generic
+  - os: linux
     dist: trusty
-    install:
-    - python3 -m pip install -U pip
+    sudo: required
     language: python
-    os: linux
     python: '3.4'
+    install:
+    - python3 -m pip install -U pip
     script:
     - ./pr-check.sh
-    sudo: required
-  - addons:
+    addons:
       apt:
         packages:
         - build-essential libgomp1 libmpich-dev mpich
+  - os: linux
     dist: trusty
-    install:
-    - python3 -m pip install -U pip
+    sudo: required
     language: python
-    os: linux
     python: '3.5'
+    install:
+    - python3 -m pip install -U pip
     script:
     - ./pr-check.sh
-    sudo: required
-  - addons:
+    addons:
       apt:
         packages:
         - build-essential libgomp1 libmpich-dev mpich
+  - os: linux
     dist: trusty
-    install:
-    - python3 -m pip install -U pip
-    language: python
-    os: linux
-    python: '3.6'
-    script:
-    - ./pr-check.sh
     sudo: required
-  - before_install:
-    - brew install llvm mpich python3
+    language: python
+    python: '3.6'
+    install:
+    - python3 -m pip install -U pip
+    script:
+    - ./pr-check.sh
+    addons:
+      apt:
+        packages:
+        - build-essential libgomp1 libmpich-dev mpich
+  - os: osx
+    language: generic
     env:
     - CC=/usr/local/opt/llvm/bin/clang
     - CXX=/usr/local/opt/llvm/bin/clang++
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
+    before_install:
+    - brew install llvm mpich python3
     install:
     - python3 -m pip install -U pip
-    language: generic
-    os: osx
+    script:
+    - ./pr-check.sh
     osx_image: xcode7.3
-    script:
-    - ./pr-check.sh
-  - before_install:
-    - brew install llvm mpich python3
+  - os: osx
+    language: generic
     env:
     - CC=/usr/local/opt/llvm/bin/clang
     - CXX=/usr/local/opt/llvm/bin/clang++
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
+    before_install:
+    - brew install llvm mpich python3
     install:
     - python3 -m pip install -U pip
-    language: generic
-    os: osx
-    osx_image: xcode8
     script:
     - ./pr-check.sh
+    osx_image: xcode8
   - stage: build
+    language: generic
   - deploy:
-    - access_key_id: AKIAJKBW6H2VKKQDHILQ
-      acl: public_read
+    - provider: s3
+      access_key_id: AKIAJKBW6H2VKKQDHILQ
+      secret_access_key:
+        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
       bucket: brainiak
+      region: us-east-1
+      acl: public_read
       local_dir: .whl
+      upload-dir: .whl
+      skip_cleanup: true
       'on':
         branch: master
         condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
-      provider: s3
-      region: us-east-1
-      secret_access_key:
-        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-      skip_cleanup: true
-      upload-dir: .whl
     dist: trusty
     env: DEPLOY_WHEEL=1
     install:
@@ -102,91 +103,79 @@ jobs:
     script:
     - ./bin/test-wheels.sh
     sudo: required
-  - before_install:
+  - os: osx
+    osx_image: xcode7.3
+    sudo: required
+    language: generic
+    env:
+    - CC=/usr/local/opt/llvm/bin/clang
+    - CXX=/usr/local/opt/llvm/bin/clang++
+    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+    - HOMEBREW_NO_AUTO_UPDATE=1
+    - DEPLOY_WHEEL=1
+    - ARCHFLAGS="-arch x86_64"
+    deploy:
+    - provider: s3
+      access_key_id: AKIAJKBW6H2VKKQDHILQ
+      secret_access_key:
+        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+      bucket: brainiak
+      region: us-east-1
+      acl: public_read
+      local_dir: .whl
+      upload-dir: .whl
+      skip_cleanup: true
+      'on':
+        branch: master
+        condition: $DEPLOY_WHEEL = 1
+        repo: danielsuo/brainiak
+    before_install:
     - brew install llvm mpich
     - VERSIONS="3.4.4" ./bin/install-python-macos.sh
-    before_script:
-    - brew uninstall -f --ignore-dependencies llvm mpich
-    - unset CC
-    - unset CXX
-    - unset LDFLAGS
-    - unset CPPFLAGS
-    - unset ARCHFLAGS
-    deploy:
-    - access_key_id: AKIAJKBW6H2VKKQDHILQ
-      acl: public_read
-      bucket: brainiak
-      local_dir: .whl
-      'on':
-        branch: master
-        condition: $DEPLOY_WHEEL = 1
-        repo: danielsuo/brainiak
-      provider: s3
-      region: us-east-1
-      secret_access_key:
-        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-      skip_cleanup: true
-      upload-dir: .whl
-    env:
-    - CC=/usr/local/opt/llvm/bin/clang
-    - CXX=/usr/local/opt/llvm/bin/clang++
-    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
-    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
-    - HOMEBREW_NO_AUTO_UPDATE=1
-    - DEPLOY_WHEEL=1
-    - ARCHFLAGS="-arch x86_64"
     install:
     - VERSIONS="3.4.4" ./bin/build-wheels-macos.sh
-    language: generic
-    os: osx
-    osx_image: xcode7.3
+    before_script:
+    - brew uninstall -f --ignore-dependencies llvm mpich
+    - unset CC
+    - unset CXX
+    - unset LDFLAGS
+    - unset CPPFLAGS
+    - unset ARCHFLAGS
     script:
     - VERSIONS="%s" ./bin/test-wheels-macos.sh
+  - os: osx
+    osx_image: xcode7.3
     sudo: required
-  - before_install:
+    language: generic
+    env:
+    - CC=/usr/local/opt/llvm/bin/clang
+    - CXX=/usr/local/opt/llvm/bin/clang++
+    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+    - HOMEBREW_NO_AUTO_UPDATE=1
+    - DEPLOY_WHEEL=1
+    - ARCHFLAGS="-arch x86_64"
+    deploy:
+    - provider: s3
+      access_key_id: AKIAJKBW6H2VKKQDHILQ
+      secret_access_key:
+        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+      bucket: brainiak
+      region: us-east-1
+      acl: public_read
+      local_dir: .whl
+      upload-dir: .whl
+      skip_cleanup: true
+      'on':
+        branch: master
+        condition: $DEPLOY_WHEEL = 1
+        repo: danielsuo/brainiak
+    before_install:
     - brew install llvm mpich
     - VERSIONS="3.5.3" ./bin/install-python-macos.sh
-    before_script:
-    - brew uninstall -f --ignore-dependencies llvm mpich
-    - unset CC
-    - unset CXX
-    - unset LDFLAGS
-    - unset CPPFLAGS
-    - unset ARCHFLAGS
-    deploy:
-    - access_key_id: AKIAJKBW6H2VKKQDHILQ
-      acl: public_read
-      bucket: brainiak
-      local_dir: .whl
-      'on':
-        branch: master
-        condition: $DEPLOY_WHEEL = 1
-        repo: danielsuo/brainiak
-      provider: s3
-      region: us-east-1
-      secret_access_key:
-        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-      skip_cleanup: true
-      upload-dir: .whl
-    env:
-    - CC=/usr/local/opt/llvm/bin/clang
-    - CXX=/usr/local/opt/llvm/bin/clang++
-    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
-    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
-    - HOMEBREW_NO_AUTO_UPDATE=1
-    - DEPLOY_WHEEL=1
-    - ARCHFLAGS="-arch x86_64"
     install:
     - VERSIONS="3.5.3" ./bin/build-wheels-macos.sh
-    language: generic
-    os: osx
-    osx_image: xcode7.3
-    script:
-    - VERSIONS="%s" ./bin/test-wheels-macos.sh
-    sudo: required
-  - before_install:
-    - brew install llvm mpich
-    - VERSIONS="3.6.0" ./bin/install-python-macos.sh
     before_script:
     - brew uninstall -f --ignore-dependencies llvm mpich
     - unset CC
@@ -194,21 +183,12 @@ jobs:
     - unset LDFLAGS
     - unset CPPFLAGS
     - unset ARCHFLAGS
-    deploy:
-    - access_key_id: AKIAJKBW6H2VKKQDHILQ
-      acl: public_read
-      bucket: brainiak
-      local_dir: .whl
-      'on':
-        branch: master
-        condition: $DEPLOY_WHEEL = 1
-        repo: danielsuo/brainiak
-      provider: s3
-      region: us-east-1
-      secret_access_key:
-        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
-      skip_cleanup: true
-      upload-dir: .whl
+    script:
+    - VERSIONS="%s" ./bin/test-wheels-macos.sh
+  - os: osx
+    osx_image: xcode7.3
+    sudo: required
+    language: generic
     env:
     - CC=/usr/local/opt/llvm/bin/clang
     - CXX=/usr/local/opt/llvm/bin/clang++
@@ -217,11 +197,32 @@ jobs:
     - HOMEBREW_NO_AUTO_UPDATE=1
     - DEPLOY_WHEEL=1
     - ARCHFLAGS="-arch x86_64"
+    deploy:
+    - provider: s3
+      access_key_id: AKIAJKBW6H2VKKQDHILQ
+      secret_access_key:
+        secure: A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg=
+      bucket: brainiak
+      region: us-east-1
+      acl: public_read
+      local_dir: .whl
+      upload-dir: .whl
+      skip_cleanup: true
+      'on':
+        branch: master
+        condition: $DEPLOY_WHEEL = 1
+        repo: danielsuo/brainiak
+    before_install:
+    - brew install llvm mpich
+    - VERSIONS="3.6.0" ./bin/install-python-macos.sh
     install:
     - VERSIONS="3.6.0" ./bin/build-wheels-macos.sh
-    language: generic
-    os: osx
-    osx_image: xcode7.3
+    before_script:
+    - brew uninstall -f --ignore-dependencies llvm mpich
+    - unset CC
+    - unset CXX
+    - unset LDFLAGS
+    - unset CPPFLAGS
+    - unset ARCHFLAGS
     script:
     - VERSIONS="%s" ./bin/test-wheels-macos.sh
-    sudo: required

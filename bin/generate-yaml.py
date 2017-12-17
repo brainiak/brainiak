@@ -1,10 +1,36 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # TODO: the first job in a stage must be part of the job dictinoary, not an
 # element in the job array. This results in a dummy job being created
 
 import yaml
 import copy
+
+from collections import OrderedDict
+
+# Ensure yaml works with OrderedDict
+from yaml import Loader, Dumper
+from yaml.representer import SafeRepresenter
+
+_mapping_tag = yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG
+
+
+def dict_representer(dumper, data):
+    return dumper.represent_dict(data.items())
+
+
+def dict_constructor(loader, node):
+    return OrderedDict(loader.construct_pairs(node))
+
+
+Dumper.add_representer(OrderedDict, dict_representer)
+Loader.add_constructor(_mapping_tag, dict_constructor)
+
+Dumper.add_representer(str,
+                       SafeRepresenter.represent_str)
+
+#  Dumper.add_representer(unicode,
+                       #  SafeRepresenter.represent_unicode)
 
 travis = '.travis.yml'
 repo = 'danielsuo/brainiak'
@@ -17,33 +43,34 @@ region = 'us-east-1'
 access_key_id = 'AKIAJKBW6H2VKKQDHILQ'
 secret_access_key = "A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg="
 
-data = {}
+data = OrderedDict()
 
-data['branches'] = {
+data['branches'] = OrderedDict({
     'only': ['master']
-}
+})
 
-data['env'] = {
+data['env'] = OrderedDict({
     'global': [
         'BRAINIAK_REPO=%s' % repo
     ]
-}
+})
 
-data['jobs'] = {
+data['jobs'] = OrderedDict({
     'include': []
-}
+})
 
 jobs = data['jobs']['include']
 
 # Create test stage
-jobs.append({'stage': 'test', 'language': 'generic'})
+jobs.append(OrderedDict({'stage': 'test', 'language': 'generic'}))
 
 # Linux
-test_linux = {
+test_linux = OrderedDict({
     'os': 'linux',
     'dist': 'trusty',
     'sudo': 'required',
     'language': 'python',
+    'python': None,
     'install': ['python3 -m pip install -U pip'],
     'script': ['./pr-check.sh'],
     'addons': {
@@ -51,7 +78,7 @@ test_linux = {
                 'packages': ['build-essential libgomp1 libmpich-dev mpich']
             }
     }
-}
+})
 
 for major in majors:
     block = copy.deepcopy(test_linux)
@@ -59,7 +86,7 @@ for major in majors:
     jobs.append(block)
 
 # MacOS
-test_macos = {
+test_macos = OrderedDict({
     'os': 'osx',
     'language': 'generic',
     'env': [
@@ -72,7 +99,7 @@ test_macos = {
     'before_install': ['brew install llvm mpich python3'],
     'install': ['python3 -m pip install -U pip'],
     'script': ['./pr-check.sh']
-}
+})
 
 for osx in ['xcode7.3', 'xcode8']:
     block = copy.deepcopy(test_macos)
@@ -80,14 +107,14 @@ for osx in ['xcode7.3', 'xcode8']:
     jobs.append(block)
 
 # Create build stage
-jobs.append({'stage': 'build', 'language': 'generic'})
+jobs.append(OrderedDict({'stage': 'build', 'language': 'generic'}))
 
-deploy_s3 = [{
+deploy_s3 = [OrderedDict({
     'provider': 's3',
     'access_key_id': access_key_id,
     'secret_access_key': {
         'secure': secret_access_key
-    },
+        },
     'bucket': bucket,
     'region': region,
     'acl': 'public_read',
@@ -98,8 +125,8 @@ deploy_s3 = [{
         'repo': repo,
         'branch': 'master',
         'condition': '$DEPLOY_WHEEL = 1'
-    }
-}]
+        }
+    })]
 
 jobs.append({
     'os': 'linux',
@@ -118,14 +145,14 @@ build_macos_env.extend([
     'DEPLOY_WHEEL=1',
     'ARCHFLAGS="-arch x86_64"'
 ])
-build_macos = {
+build_macos = OrderedDict({
     'os': 'osx',
     'osx_image': 'xcode7.3',
     'sudo': 'required',
     'language': 'generic',
     'env': build_macos_env,
     'deploy': deploy_s3
-}
+    })
 
 for version in versions:
     block = copy.deepcopy(build_macos)
