@@ -2,7 +2,8 @@
 
 # TODO
 - Test-with-deps: test source with dependencies + can be installed (doesn't check install now)
-- Test-wout-deps: test source without dependencies + can be installed (doesn't check tests now)
+- Test-wout-deps: test binary without dependencies + can be installed (doesn't check tests now)
+- Fix stages; it appears that everything just gets lumped into a single stage
 - Upload wheels to PyPI (uncomment)
 - Upload to TestPyPI
 - Only upload to PyPI on tagged master
