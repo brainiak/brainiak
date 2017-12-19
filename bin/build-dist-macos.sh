@@ -22,8 +22,10 @@ do
   git clean -f -f -x -d -q -e dist -e mpi4py
 
   # Use virtual environments because we want to install later
+  pushd ..
   $PYTHON -m venv venv
   source venv/bin/activate
+  popd
 
   pushd mpi4py
     git clean -f -f -x -d -q
@@ -42,7 +44,7 @@ do
   fi
 
   deactivate
-  rm -rf venv
+  rm -rf ../venv
 done
 
 rm -rf mpi4py

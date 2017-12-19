@@ -22,8 +22,10 @@ then
 
      git clean -f -f -x -d -q -e dist
 
+     pushd ..
      $PYTHON -m venv venv
      source venv/bin/activate
+     popd
 
      # Find the appropriate wheel by grepping for the Python version.
      MPI4PY_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep mpi4py)
@@ -35,7 +37,7 @@ then
      $PYTHON -m pip install $BRAINIAK_WHEEL
 
      deactivate
-     rm -rf venv
+     rm -rf ../venv
    done
 fi
 

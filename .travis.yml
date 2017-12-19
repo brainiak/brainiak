@@ -7,7 +7,7 @@ matrix:
     env:
       - TWINE_USERNAME="brainiak-bot"
       - secure: "BHzjkB2HoIIN8njur7R/2+fBqubStLh+KH4vS4WdNMPdshLBYuFXFPAo3kg0CR72jAQ5+pPwPwQDrVbuA4jz8rXSLjpOxwsu8l4TCE6pcISbAGARgWBxOSDsLazIWyKL83aMqwtViEU9ChCdYHOiQZ6YfvVlgGOK4o8hY9eZrLcKy1H66yuMYTJOSu9ct3lUzxexiffGz1JmdJ6lg6jVB1Ga2pYoS1CPk8gK4bf3hRKCBaIhNEV93KGGNtbXbKBhEtHCtJBrCA3aZ9spJySNMt+6ggKCllDdWq26TfMKIl6Q7koV9idgIXkY+hW+3WlPWx5aVH8lR6cw7f0GOiu4E2c5yFKElnGYCqEPkuL2fcg0y9t64T9wMwpMsOgQHD8RX5DPMpK1Rm83mXU2HZLmf4F/FjLWgZmMXQgjYv/dXIMBkO2Ba6cbfCq3a8G2jUxugZw7UcuQpjGKs6XV9/EprrQnuZjSv4SCp0hCNmb9JVv+hd7R+QDtw7sL8VBMQJxZwtbpGDobTGxFS1hC9rmlVnp0jXUhF99ERahhrERj4IdnNuuVvEWpiN085qT3UPp2WU+9o4Cw5NgVdBDTO5wmaEptGdXqfP+EfxdEfQxJNs2WJOHBOA+EeyNsP3LFQVeYLxYOeDBWFaJLh0P5uhb3c+L5UNuO31NpUBBQ+//3b64="
-      - TWINE_REPOSITORY_URL="https://testpypi.python.org/pypi"
+      - TWINE_REPOSITORY_URL="https://test.pypi.org/legacy/"
     install:
       - python3 -m pip install -U pip twine
     script:
