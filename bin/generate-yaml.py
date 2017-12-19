@@ -42,6 +42,7 @@ Dumper.add_representer(str,
 
 travis = '.travis.yml'
 repo = 'danielsuo/brainiak'
+twine_username = 'brainiak-bot'
 versions = ['3.4.4', '3.5.3', '3.6.0']
 majors = [version[:-2] for version in versions]
 
@@ -51,6 +52,8 @@ region = 'us-east-1'
 access_key_id = 'AKIAJKBW6H2VKKQDHILQ'
 secret_access_key = 'A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg='
 
+twine_password = 'BHzjkB2HoIIN8njur7R/2+fBqubStLh+KH4vS4WdNMPdshLBYuFXFPAo3kg0CR72jAQ5+pPwPwQDrVbuA4jz8rXSLjpOxwsu8l4TCE6pcISbAGARgWBxOSDsLazIWyKL83aMqwtViEU9ChCdYHOiQZ6YfvVlgGOK4o8hY9eZrLcKy1H66yuMYTJOSu9ct3lUzxexiffGz1JmdJ6lg6jVB1Ga2pYoS1CPk8gK4bf3hRKCBaIhNEV93KGGNtbXbKBhEtHCtJBrCA3aZ9spJySNMt+6ggKCllDdWq26TfMKIl6Q7koV9idgIXkY+hW+3WlPWx5aVH8lR6cw7f0GOiu4E2c5yFKElnGYCqEPkuL2fcg0y9t64T9wMwpMsOgQHD8RX5DPMpK1Rm83mXU2HZLmf4F/FjLWgZmMXQgjYv/dXIMBkO2Ba6cbfCq3a8G2jUxugZw7UcuQpjGKs6XV9/EprrQnuZjSv4SCp0hCNmb9JVv+hd7R+QDtw7sL8VBMQJxZwtbpGDobTGxFS1hC9rmlVnp0jXUhF99ERahhrERj4IdnNuuVvEWpiN085qT3UPp2WU+9o4Cw5NgVdBDTO5wmaEptGdXqfP+EfxdEfQxJNs2WJOHBOA+EeyNsP3LFQVeYLxYOeDBWFaJLh0P5uhb3c+L5UNuO31NpUBBQ+//3b64='
+
 data = OrderedDict()
 
 data['branches'] = OrderedDict({
@@ -59,7 +62,9 @@ data['branches'] = OrderedDict({
 
 data['env'] = OrderedDict({
     'global': [
-        'BRAINIAK_REPO=%s' % repo
+        'BRAINIAK_REPO=%s' % repo,
+        'TWINE_USERNAME=%s' % twine_username,
+        'secure: %s' % twine_password
     ]
 })
 
