@@ -196,7 +196,7 @@ jobs:
     - aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read
   - stage: s3
     language: generic
-    if: branch = mater and repo = danielsuo/brainiak
+    if: branch = master and repo = danielsuo/brainiak
   - if: branch = master and repo = danielsuo/brainiak
     os: linux
     dist: trusty
