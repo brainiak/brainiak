@@ -220,7 +220,7 @@ for version in versions:
 jobs.append(OrderedDict({
     'stage': 's3',
     'language': 'generic',
-    'if': 'branch = mater and repo = %s' % repo
+    'if': 'branch = master and repo = %s' % repo
 }))
 
 s3_linux = OrderedDict({
