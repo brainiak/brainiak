@@ -150,7 +150,8 @@ class BuildExt(build_ext):
 
 setup(
     name='brainiak',
-    use_scm_version=True,
+    #  use_scm_version=True,
+    version='0.2.1',
     setup_requires=[
         'cython',
         'numpy',
