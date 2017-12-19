@@ -12,7 +12,7 @@ matrix:
       - python3 -m pip install -U pip twine
     script:
       - python3 -m pip install -e .
-      - python3 -m python setup.py sdist
+      - python3 setup.py sdist
       - twine upload dist/*
     addons:
       apt:
