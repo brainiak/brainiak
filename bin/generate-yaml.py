@@ -3,6 +3,8 @@
 # TODO: the first job in a stage must be part of the job dictinoary, not an
 # element in the job array. This results in a dummy job being created
 
+# NOTE: we use deep copies even though we could rely on YAML references
+
 # Stages: (Travis capitalizes first letter and lowers the rest)
 # - Test: test source and source distribution, dependencies
 # - Build: build wheels and test
@@ -73,30 +75,58 @@ data['env'] = OrderedDict({
     ]
 })
 
-data['jobs'] = OrderedDict({
-    'include': []
-})
-
+data['jobs'] = OrderedDict({'include': []})
 jobs = data['jobs']['include']
 
-# Create test stage
-jobs.append(OrderedDict({'stage': 'test', 'language': 'generic'}))
+conditions = {
+    'pr': 'branch = master',
+    'master': 'branch = master and repo = %s' % repo,
+    'tag': 'branch = master and repo = %s and tag IS present' % repo
+}
 
-# Linux
-test_linux = OrderedDict({
+actions = {
+    'download-s3': 'aws s3 cp s3://brainiak/$TRAVIS_COMMIT/dist dist --recursive',
+    'upload-s3': 'aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read',
+    'upload-testpypi': 'if [ ! -z $TRAVIS_TAG ]; then twine upload dist/*; fi',
+
+    # TODO: populate this command
+    'upload-pypi': ';'
+}
+
+linux = OrderedDict({
     'os': 'linux',
     'dist': 'trusty',
     'sudo': 'required',
     'language': 'python',
-    'python': None,
-    'install': ['python3 -m pip install -U pip'],
-    'script': ['./bin/pr-check.sh'],
-    'addons': {
-            'apt': {
-                'packages': ['build-essential libgomp1 libmpich-dev mpich']
-            }
-    }
+    'python': '3.4',
+    'before_install': ['python3 -m pip install -U pip awscli twine']
 })
+
+macos = OrderedDict({
+    'os': 'osx',
+    'osx_image': 'xcode7.3',
+    'language': 'generic',
+    'env': ['HOMEBREW_NO_AUTO_UPDATE=1'],
+    'before_install': [
+        'brew update',
+        'brew install python3',
+        'python3 -m pip install -U pip awscli twine'
+    ]
+})
+
+###############################################################################
+# Stage: Test
+###############################################################################
+jobs.append(OrderedDict({'stage': 'test', 'language': 'generic'}))
+
+# Linux
+test_linux = copy.deepcopy(linux)
+test_linux['script'] = ['./bin/pr-check.sh']
+test_linux['addons'] = {
+    'apt': {
+        'packages': ['build-essential libgomp1 libmpich-dev mpich']
+    }
+}
 
 for major in majors:
     block = copy.deepcopy(test_linux)
@@ -104,101 +134,57 @@ for major in majors:
     jobs.append(block)
 
 # MacOS
-test_macos = OrderedDict({
-    'os': 'osx',
-    'language': 'generic',
-    'env': [
-        'CC=/usr/local/opt/llvm/bin/clang',
-        'CXX=/usr/local/opt/llvm/bin/clang++',
-        'LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"',
-        'CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"',
-        'HOMEBREW_NO_AUTO_UPDATE=1'
-    ],
-    'before_install': ['brew update', 'brew install llvm mpich python3'],
-    'install': ['python3 -m pip install -U pip'],
-    'script': ['./bin/pr-check.sh']
-})
+macos_build_env = [
+    'CC=/usr/local/opt/llvm/bin/clang',
+    'CXX=/usr/local/opt/llvm/bin/clang++',
+    'LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"',
+    'CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"',
+    'HOMEBREW_NO_AUTO_UPDATE=1'
+]
+
+test_macos = copy.deepcopy(macos)
+test_macos['env'] = macos_build_env
+test_macos['install'] = ['brew install llvm mpich']
+test_macos['script'] = ['./bin/pr-check.sh']
 
 for osx in ['xcode7.3', 'xcode8']:
     block = copy.deepcopy(test_macos)
     block['osx_image'] = osx
     jobs.append(block)
 
-# Create build stage
+###############################################################################
+# Stage: Build
+###############################################################################
 jobs.append(OrderedDict({
     'stage': 'build',
     'language': 'generic',
-    'if': 'branch = master and repo = %s' % repo
+    'if': conditions['pr']
 }))
 
-#  deploy_s3 = [OrderedDict({
-#  'provider': 's3',
-#  'access_key_id': access_key_id,
-#  'secret_access_key': {
-#  'secure': secret_access_key
-#  },
-#  'bucket': bucket,
-#  'region': region,
-#  'acl': 'public_read',
-#  'local_dir': 'dist',
-#  'upload-dir': '$TRAVIS_COMMIT/dist',
-#  'skip_cleanup': True,
-#  'on': {
-#  'repo': repo,
-#  'branch': 'master',
-#  }
-#  })]
-
-upload_s3 = [
-    'aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read'
-]
-
-build_linux = OrderedDict({
-    'if': 'branch = master and repo = %s' % repo,
-    'os': 'linux',
-    'dist': 'trusty',
-    'sudo': 'required',
-    'language': 'python',
-    'python': '3.4',
-    'env': 'TWINE_REPOSITORY_URL=https://test.pypi.org/legacy',
-    'install': [
-        'python3 -m pip install -U pip awscli'
-    ],
-    'script': [
-        './bin/build-dist.sh',
-        './bin/test-wheels.sh'
-    ],
-    'after_script': copy.deepcopy(upload_s3)
-})
-
+# Linux
+build_linux = copy.deepcopy(linux)
+build_linux['if'] = conditions['pr']
+build_linux['install'] = ['./bin/build-dist.sh']
+build_linux['script'] = ['./bin/test-wheels.sh']
+build_linux['after_script'] = [actions['upload-s3']]
 jobs.append(build_linux)
 
+# MacOS
 build_macos_env = copy.deepcopy(test_macos['env'])
-build_macos_env.extend([
-    'TWINE_REPOSITORY_URL=https://test.pypi.org/legacy',
-    'ARCHFLAGS="-arch x86_64"'
-])
-build_macos = OrderedDict({
-    'if': 'branch = master and repo = %s' % repo,
-    'os': 'osx',
-    'osx_image': 'xcode7.3',
-    'sudo': 'required',
-    'language': 'generic',
-    'env': build_macos_env,
-    'before_install': [
-        'brew update',
-        'brew install llvm mpich python3',
-        'python3 -m pip install --user pip awscli'
-    ]
-})
+build_macos_env.extend(['ARCHFLAGS="-arch x86_64"'])
+
+build_macos = copy.deepcopy(macos)
+build_macos['if'] = conditions['pr']
+build_macos['env'] = build_macos_env
+build_macos['install'] = ['brew install llvm mpich']
 
 for version in versions:
     block = copy.deepcopy(build_macos)
 
-    block['install'] = [
+    block['install'].extend([
         'VERSIONS="%s" ./bin/install-python-macos.sh' % version,
         'VERSIONS="%s" ./bin/build-dist-macos.sh' % version
-    ]
+    ])
 
     block['before_script'] = [
         'brew uninstall -f --ignore-dependencies llvm mpich',
@@ -213,51 +199,32 @@ for version in versions:
         'VERSIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
-    block['after_script'] = copy.deepcopy(upload_s3)
+    block['after_script'] = [actions['upload-s3']]
 
     jobs.append(block)
 
+###############################################################################
+# Stage: S3
+###############################################################################
 jobs.append(OrderedDict({
     'stage': 's3',
     'language': 'generic',
-    'if': 'branch = master and repo = %s' % repo
+    'if': conditions['pr']
 }))
 
-s3_linux = OrderedDict({
-    'if': 'branch = master and repo = %s' % repo,
-    'os': 'linux',
-    'dist': 'trusty',
-    'sudo': 'required',
-    'env': 'TWINE_REPOSITORY_URL="https://test.pypi.org/legacy/"',
-    'language': 'python',
-    'python': '3.4',
-    'install': [
-        'python3 -m pip install -U pip awscli twine',
-        './bin/download-wheels-s3.sh'
-    ],
-    'script': ['./bin/test-wheels.sh'],
-    'after_script': ['twine upload dist/*']
-})
-
+# Linux
+s3_linux = copy.deepcopy(linux)
+s3_linux['if'] = conditions['pr']
+s3_linux['env'] = 'TWINE_REPOSITORY_URL=https://test.pypi.org/legacy'
+s3_linux['install'] = actions['download-s3']
+s3_linux['script'] = ['./bin/test-wheels.sh']
+s3_linux['after_script'] = [actions['upload-testpypi']]
 jobs.append(s3_linux)
 
-s3_macos = OrderedDict({
-    'if': 'branch = master and repo = %s' % repo,
-    'os': 'osx',
-    'osx_image': 'xcode7.3',
-    'sudo': 'required',
-    'language': 'generic',
-    'before_install': [
-        'brew update',
-        'brew install python3',
-        'python3 -m pip install -U pip awscli twine',
-        './bin/download-wheels-s3.sh'
-    ],
-    'install': [
-        './bin/install-python-macos.sh'
-    ],
-    'script': ['./bin/test-wheels-macos.sh']
-})
+# MacOS
+s3_macos = copy.deepcopy(macos)
+s3_macos['if'] = conditions['pr']
+s3_macos['before_install'].append(actions['download-s3'])
 
 for version in versions:
     block = copy.deepcopy(s3_macos)
@@ -271,29 +238,26 @@ for version in versions:
 
     jobs.append(block)
 
-# Test PyPI install
+###############################################################################
+# Stage: Testpypi
+###############################################################################
 jobs.append(OrderedDict({
     'stage': 'testpypi',
     'language': 'generic',
-    'if': 'branch = master and repo = %s' % repo
+    'if': conditions['master']
 }))
 
-testpypi_linux = copy.deepcopy(build_linux)
-testpypi_linux.pop('deploy', None)
+testpypi_linux = copy.deepcopy(linux)
 testpypi_linux['env'] = [
     'TWINE_REPOSITORY_URL=https://pypi.python.org/pypi',
     'PYPI_REPOSITORY_URL=https://testpypi.python.org'
 ]
 testpypi_linux['script'] = './bin/test-wheels.sh'
-
+testpypi_linux['after_script'] = [actions['upload-pypi']]
 jobs.append(testpypi_linux)
 
 testpypi_macos = copy.deepcopy(build_macos)
-testpypi_macos.pop('deploy', None)
-testpypi_macos['env'] = [
-    'TWINE_REPOSITORY_URL=https://pypi.python.org/pypi',
-    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
-]
+testpypi_macos['env'] = copy.deepcopy(testpypi_linux['env'])
 
 for version in versions:
     block = copy.deepcopy(testpypi_macos)
@@ -305,28 +269,26 @@ for version in versions:
         'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
+    block['after_script'] = [actions['upload-pypi']]
+
     jobs.append(block)
 
-# Pypi install
+###############################################################################
+# Stage: Pypi
+###############################################################################
 jobs.append(OrderedDict({
     'stage': 'pypi',
     'language': 'generic',
-    'if': 'branch = master and repo = %s' % repo
+    'if': conditions['tag']
 }))
 
-pypi_linux = copy.deepcopy(testpypi_linux)
-pypi_linux.pop('after_script', None)
-pypi_linux['env'] = [
-    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
-]
-
+pypi_linux = copy.deepcopy(linux)
+pypi_linux['env'] = ['PYPI_REPOSITORY_URL=https://pypi.python.org']
+pypi_linux['install'] = ['./bin/test-wheels.sh']
 #  jobs.append(pypi_linux)
 
-pypi_macos = copy.deepcopy(testpypi_macos)
-pypi_macos.pop('after_script', None)
-pypi_macos['env'] = [
-    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
-]
+pypi_macos = copy.deepcopy(macos)
+pypi_macos['env'] = copy.deepcopy(pypi_linux['env'])
 
 for version in versions:
     block = copy.deepcopy(pypi_macos)
