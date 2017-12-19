@@ -41,9 +41,6 @@ Loader.add_constructor(_mapping_tag, dict_constructor)
 Dumper.add_representer(str,
                        SafeRepresenter.represent_str)
 
-#  Dumper.add_representer(unicode,
-#  SafeRepresenter.represent_unicode)
-
 travis = '.travis.yml'
 repo = 'danielsuo/brainiak'
 twine_username = 'brainiak-bot'
