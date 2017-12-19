@@ -164,7 +164,7 @@ jobs.append(build_linux)
 
 build_macos_env = copy.deepcopy(test_macos['env'])
 build_macos_env.extend([
-    'TWINE_REPOSITORY_URL=https://testpypi.python.org/pypi'
+    'TWINE_REPOSITORY_URL=https://testpypi.python.org/pypi',
     'ARCHFLAGS="-arch x86_64"'
 ])
 build_macos = OrderedDict({
