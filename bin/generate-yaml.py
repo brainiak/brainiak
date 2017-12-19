@@ -6,7 +6,9 @@
 # Stages: (Travis capitalizes first letter and lowers the rest)
 # - Test: test source and source distribution, dependencies
 # - Build: build wheels and test
-#   - deploy to s3 and testpypi
+#   - deploy to s3
+# - S3: download from s3 and test
+#   - deploy to testpypi
 # - Testpypi: download wheels from test PyPI and test
 #   - deploy to pypi
 # - Pypi: download wheels from PyPI and test
@@ -51,8 +53,8 @@ bucket = 'brainiak'
 region = 'us-east-1'
 access_key_id = 'AKIAJKBW6H2VKKQDHILQ'
 secret_access_key = 'A1wrWjyfpCAPCYfu/Y4JpKOgjaAbZTubDfNur1K4rXqLWsi5JHWW9UUcmVXHHZGxy5wM56dTa5Y5smarjNno+KU21ioZ9u4LKthbMq/aDtLc9bMXbWJ+k1fu+jJT5yZ174NwrYFtyOrkwRcJR7ttfBIapY31IgCCkNQ6NtzFLFsf0rNEaW1K0lZIj8k0MvD5aJ77Pi06zRRZdwTibAu27w+FHQzDYTRfPGcutlS/3zfdvBEWC7FpZK772bJFfUsSZ3tUy8BBLhQztnssC3jCvIv4zFkeG7PnZULPjq4f/0EfvvNt7aF2cxsdbwG16L2Ia++/aS98qgA9+f5u+LB83rt7fWmxSyc47kRmyrXKipv9o/mDjZXW7OmlqHVgwRUBkZ6suPwrrv1ZBAbYCk8uNk5wGt69OyJDsyegEoKSSGkYDhQZ8I5JgbiB1myJf2wUVyyd8g71U0/W0CtboqCXiHYZWPIhyIYzN6n044IoNpWleusIAABqp2TU/zSAM+sOjqJqZ59mNVYU5hpPUGVJPuoZ9TW63oOX1q/eO5XSnl2asoNFjjooTr3A38YQ5PdWz+IbIlBJL35pZgnzxOkyskNIYuwOTexLqx7G4nZj9wgDxUUL8UA48wmiu8MnfNxBeZcnmxPqRPVQM3qf9nhpaM3OaX3Cs/OO5leHK/BSPPg='
-
-twine_password = 'BHzjkB2HoIIN8njur7R/2+fBqubStLh+KH4vS4WdNMPdshLBYuFXFPAo3kg0CR72jAQ5+pPwPwQDrVbuA4jz8rXSLjpOxwsu8l4TCE6pcISbAGARgWBxOSDsLazIWyKL83aMqwtViEU9ChCdYHOiQZ6YfvVlgGOK4o8hY9eZrLcKy1H66yuMYTJOSu9ct3lUzxexiffGz1JmdJ6lg6jVB1Ga2pYoS1CPk8gK4bf3hRKCBaIhNEV93KGGNtbXbKBhEtHCtJBrCA3aZ9spJySNMt+6ggKCllDdWq26TfMKIl6Q7koV9idgIXkY+hW+3WlPWx5aVH8lR6cw7f0GOiu4E2c5yFKElnGYCqEPkuL2fcg0y9t64T9wMwpMsOgQHD8RX5DPMpK1Rm83mXU2HZLmf4F/FjLWgZmMXQgjYv/dXIMBkO2Ba6cbfCq3a8G2jUxugZw7UcuQpjGKs6XV9/EprrQnuZjSv4SCp0hCNmb9JVv+hd7R+QDtw7sL8VBMQJxZwtbpGDobTGxFS1hC9rmlVnp0jXUhF99ERahhrERj4IdnNuuVvEWpiN085qT3UPp2WU+9o4Cw5NgVdBDTO5wmaEptGdXqfP+EfxdEfQxJNs2WJOHBOA+EeyNsP3LFQVeYLxYOeDBWFaJLh0P5uhb3c+L5UNuO31NpUBBQ+//3b64='
+secret_access_key_env = 'gCGZuvBQVZ09rmH5tPUn3GT17NzyBX9JRO3SJwq6WcLbmKDRo50xAhqib/VAKfMXmcteaIPQdxjWUcohPXAoFQ67Z3Jx8abjxEIJ6t7IwIH3aRYWh7PX28Iu5Cr3b/pLbSBw0r+tj/X0mHsbS1dF/uVOBo4fSGN5f4li3EMv+iWQNimwC64uT+ywbzjdUPwJBZ+rVoyh/uxBR/14CpYMi2b1Bf79iVYZr1INShWH+4JNqw6RkJQVhQbAXq9CdSH3bNgyrnASno542cDa9l++xJhJ9okFTdWchiDj1FH4BhBLdEQHVEm790dAZGcE41APg8gW/4hDA8G5wXrCN/T+QtEEgzIDKJ9o/VImabjWcuB1oMERM4Rcvr0wpRNd+DCcPNyEpLPHlOV8WGiIu/5cgLv7O8n38+LmyjCNeJKKR9TxcCoZ53LhrwHgfcokElz1aXQvHcNh+IAG0WF0+OxclBiqEwvasyq8PT4r9MMNYwklINcSDO5RdK2xVJJbehFT81LodAJ9ydgrfagAB7haLq6JfdIucvlllmeVyLwznJm/Gtx9WNOFeSVEN0pufJWsiQJelu4S+4OesfdCCzypAXkSWQ2M4vQBcWNYjJ6Ns6svhNX/9wC9+QLPusAieLan2WDFjxrQwUM7n+J3/GxEEPI6heUGNh3n0wimmVpGxZo='
+twine_password = 'JWCpO0caWN4M0xaGPqKMPPHg8WB6sybPQPcCFtXc+dwsD3mu+mDv7lGV3l/5sRoDqIi87uhXBtfnPVKao7AdPaLZoZc8ktBP3b7QwG49U479odN1OuxZcdLBmQBPZlAnqyH7wbM0xhkskr6Yl8gkKWynDfyod1GWbr/plcGRuX82unvuq5tkX8gNSdJ4vHbHGGcvgUbDkyEJdQz7y96qJn7VUpD4FhujO7bGyGVB2ZVcAcEyHuQZiyPxknrXSE0dnk0IeEH77DY40SLpPf5WG4fl/gGYLlccw2ZmBOAOYYE/nq9HF+/b5gnYp+0zLUCgA1tK9uC1UdT3IE24hr8XJMdMIog1BSVjv5k31RjFi0mwCVaasiCN/IOYvwrg+yod5UjXBag7f/Wjo3AEoUSByFERTr+Y7Gs+uCHQKT8Jw4mCTwmI+3JnH+4ZcuMbIQUr10uaocmpNuWhA1IVMTewIKjaAgY9qWy2X5e7X5/faYXlUhV68QiA5TB4MCvA+jeq84+bIk00HBnOadL/iAKFVhBlbkqe8OZWNbsBKFERWEVJFIoOLMg43NORWRs54Mi3eie4bNxWUwwPsxHR4FoBSeWjm2yorDbUIFDK57xZH3jUFu11xSXW3x9BqGWdgQg71j/P1nVKGMoHvPUBX0wO2CLQnSl6katSwgM6aLeJl1U='
 
 data = OrderedDict()
 
@@ -64,7 +66,10 @@ data['env'] = OrderedDict({
     'global': [
         'BRAINIAK_REPO=%s' % repo,
         'TWINE_USERNAME=%s' % twine_username,
-        'secure: %s' % twine_password
+        'secure: "%s"' % twine_password,
+        'AWS_ACCESS_KEY_ID="%s"' % access_key_id,
+        'secure: "%s"' % secret_access_key_env,
+        'AWS_DEFAULT_REGION="%s"' % region
     ]
 })
 
@@ -126,23 +131,27 @@ jobs.append(OrderedDict({
     'if': 'branch = master and repo = %s' % repo
 }))
 
-deploy_s3 = [OrderedDict({
-    'provider': 's3',
-    'access_key_id': access_key_id,
-    'secret_access_key': {
-        'secure': secret_access_key
-    },
-    'bucket': bucket,
-    'region': region,
-    'acl': 'public_read',
-    'local_dir': 'dist',
-    'upload-dir': '$TRAVIS_COMMIT/dist',
-    'skip_cleanup': True,
-    'on': {
-        'repo': repo,
-        'branch': 'master',
-    }
-})]
+#  deploy_s3 = [OrderedDict({
+#  'provider': 's3',
+#  'access_key_id': access_key_id,
+#  'secret_access_key': {
+#  'secure': secret_access_key
+#  },
+#  'bucket': bucket,
+#  'region': region,
+#  'acl': 'public_read',
+#  'local_dir': 'dist',
+#  'upload-dir': '$TRAVIS_COMMIT/dist',
+#  'skip_cleanup': True,
+#  'on': {
+#  'repo': repo,
+#  'branch': 'master',
+#  }
+#  })]
+
+upload_s3 = [
+    'aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read'
+]
 
 build_linux = OrderedDict({
     'if': 'branch = master and repo = %s' % repo,
@@ -153,16 +162,13 @@ build_linux = OrderedDict({
     'python': '3.4',
     'env': 'TWINE_REPOSITORY_URL=https://test.pypi.org/legacy',
     'install': [
-        'python3 -m pip install -U pip twine'
+        'python3 -m pip install -U pip awscli'
     ],
     'script': [
         './bin/build-dist.sh',
         './bin/test-wheels.sh'
     ],
-    #  'after_script': [
-    #  'twine upload dist/*'
-    #  ],
-    'deploy': deploy_s3
+    'after_script': copy.deepcopy(upload_s3)
 })
 
 jobs.append(build_linux)
@@ -182,9 +188,8 @@ build_macos = OrderedDict({
     'before_install': [
         'brew update',
         'brew install llvm mpich python3',
-        'python3 -m pip install --user twine'
-    ],
-    'deploy': deploy_s3
+        'python3 -m pip install --user pip awscli'
+    ]
 })
 
 for version in versions:
@@ -208,11 +213,61 @@ for version in versions:
         'VERSIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
-    #  block['after_script'] = [
-    #  'twine upload dist/*'
-    #  ]
+    block['after_script'] = copy.deepcopy(upload_s3)
 
-    block['deploy'] = copy.deepcopy(deploy_s3)
+    jobs.append(block)
+
+jobs.append(OrderedDict({
+    'stage': 's3',
+    'language': 'generic',
+    'if': 'branch = mater and repo = %s' % repo
+}))
+
+s3_linux = OrderedDict({
+    'if': 'branch = master and repo = %s' % repo,
+    'os': 'linux',
+    'dist': 'trusty',
+    'sudo': 'required',
+    'env': 'TWINE_REPOSITORY_URL="https://test.pypi.org/legacy/"',
+    'language': 'python',
+    'python': '3.4',
+    'install': [
+        'python3 -m pip install -U pip awscli twine',
+        './bin/download-wheels-s3.sh'
+    ],
+    'script': ['./bin/test-wheels.sh'],
+    'after_script': ['twine upload dist/*']
+})
+
+jobs.append(s3_linux)
+
+s3_macos = OrderedDict({
+    'if': 'branch = master and repo = %s' % repo,
+    'os': 'osx',
+    'osx_image': 'xcode7.3',
+    'sudo': 'required',
+    'language': 'generic',
+    'before_install': [
+        'brew update',
+        'brew install python3',
+        'python3 -m pip install -U pip awscli twine',
+        './bin/download-wheels-s3.sh'
+    ],
+    'install': [
+        './bin/install-python-macos.sh'
+    ],
+    'script': ['./bin/test-wheels-macos.sh']
+})
+
+for version in versions:
+    block = copy.deepcopy(s3_macos)
+    block['install'] = [
+        'VERSIONS="%s" ./bin/install-python-macos.sh' % version
+    ]
+
+    block['script'] = [
+        'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
+    ]
 
     jobs.append(block)
 
@@ -231,7 +286,7 @@ testpypi_linux['env'] = [
 ]
 testpypi_linux['script'] = './bin/test-wheels.sh'
 
-# jobs.append(testpypi_linux)
+jobs.append(testpypi_linux)
 
 testpypi_macos = copy.deepcopy(build_macos)
 testpypi_macos.pop('deploy', None)
@@ -250,9 +305,9 @@ for version in versions:
         'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
-    #  jobs.append(block)
+    jobs.append(block)
 
-# Test PyPI install
+# Pypi install
 jobs.append(OrderedDict({
     'stage': 'pypi',
     'language': 'generic',

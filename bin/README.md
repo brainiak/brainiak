@@ -1,6 +1,10 @@
 # Wheel to-dos
 
 # TODO
+- Deal with versions and tagging (pypi only accepts non-dev tags)
+- Download from S3 and install
+   - Pick up from the correct travis commit
+- Upload to S3 even for PRs (custom deploy)
 - Recreate and encrypt keys for brainiak/brainiak
 - Only need to build mpi4py occasionally; not with every commit, and not with every job
 - mpi4py should always commit to s3://brainiak/.whl
