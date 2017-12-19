@@ -140,6 +140,7 @@ deploy_s3 = [OrderedDict({
 })]
 
 jobs.append(OrderedDict({
+    'if': 'branch = master and repo = %s' % repo,
     'os': 'linux',
     'dist': 'trusty',
     'sudo': 'required',
@@ -153,9 +154,9 @@ jobs.append(OrderedDict({
         './bin/test-wheels.sh',
         './bin/build-dist.sh'
     ],
-    'after_script': [
-        'twine upload dist/*'
-    ],
+    #  'after_script': [
+        #  'twine upload dist/*'
+    #  ],
     'deploy': deploy_s3
 }))
 
@@ -166,6 +167,7 @@ build_macos_env.extend([
     'ARCHFLAGS="-arch x86_64"'
 ])
 build_macos = OrderedDict({
+    'if': 'branch = master and repo = %s' % repo,
     'os': 'osx',
     'osx_image': 'xcode7.3',
     'sudo': 'required',
@@ -200,9 +202,9 @@ for version in versions:
         'VERSIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
-    block['after_script'] = [
-        'twine upload dist/*'
-    ]
+    #  block['after_script'] = [
+        #  'twine upload dist/*'
+    #  ]
 
     block['deploy'] = copy.deepcopy(deploy_s3)
 

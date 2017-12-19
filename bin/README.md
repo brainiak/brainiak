@@ -1,11 +1,6 @@
 # Wheel to-dos
 
 # TODO
-- Fix stages; it appears that everything just gets lumped into a single stage
-- Upload wheels to PyPI (uncomment)
-- Upload to TestPyPI
-- Upload wheels to PyPI (uncomment)
-- Only upload to PyPI on tagged master
 - Recreate and encrypt keys for brainiak/brainiak
 - Only need to build mpi4py occasionally; not with every commit, and not with every job
 - mpi4py should always commit to s3://brainiak/.whl
@@ -20,6 +15,10 @@
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
 
 # To verify
+- Fix stages; it appears that everything just gets lumped into a single stage
+- Upload to TestPyPI
+- Upload wheels to PyPI (uncomment)
+- Only upload to PyPI on tagged master
 
 # Completed
 - Test-with-deps: test source with dependencies + can be installed (doesn't check install now)

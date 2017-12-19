@@ -82,7 +82,8 @@ jobs:
   - stage: build
     language: generic
     if: branch = master and repo = danielsuo/brainiak
-  - os: linux
+  - if: branch = master and repo = danielsuo/brainiak
+    os: linux
     dist: trusty
     sudo: required
     language: python
@@ -93,8 +94,6 @@ jobs:
     script:
     - ./bin/test-wheels.sh
     - ./bin/build-dist.sh
-    after_script:
-    - twine upload dist/*
     deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
@@ -109,7 +108,8 @@ jobs:
       'on':
         branch: master
         repo: danielsuo/brainiak
-  - os: osx
+  - if: branch = master and repo = danielsuo/brainiak
+    os: osx
     osx_image: xcode7.3
     sudo: required
     language: generic
@@ -149,9 +149,8 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.4.4" ./bin/test-wheels-macos.sh
-    after_script:
-    - twine upload dist/*
-  - os: osx
+  - if: branch = master and repo = danielsuo/brainiak
+    os: osx
     osx_image: xcode7.3
     sudo: required
     language: generic
@@ -191,9 +190,8 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.5.3" ./bin/test-wheels-macos.sh
-    after_script:
-    - twine upload dist/*
-  - os: osx
+  - if: branch = master and repo = danielsuo/brainiak
+    os: osx
     osx_image: xcode7.3
     sudo: required
     language: generic
@@ -233,5 +231,3 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.6.0" ./bin/test-wheels-macos.sh
-    after_script:
-    - twine upload dist/*
