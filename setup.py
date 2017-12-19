@@ -43,6 +43,9 @@ except CalledProcessError as e:
     result = check_call([sys.executable, '-m', 'pip',
                          'install', local_filename])
 
+    # TODO: Need better clean-up mechanism
+    os.system('rm -f %s' % local_filename)
+
     if result != 0:
         sys.exit('ERROR: failed to install mpi4py')
 

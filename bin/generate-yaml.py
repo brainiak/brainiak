@@ -139,7 +139,7 @@ deploy_s3 = [OrderedDict({
     }
 })]
 
-jobs.append(OrderedDict({
+build_linux = OrderedDict({
     'if': 'branch = master and repo = %s' % repo,
     'os': 'linux',
     'dist': 'trusty',
@@ -151,15 +151,16 @@ jobs.append(OrderedDict({
         'python3 -m pip install -U pip twine'
     ],
     'script': [
-        './bin/test-wheels.sh',
-        './bin/build-dist.sh'
+        './bin/build-dist.sh',
+        './bin/test-wheels.sh'
     ],
     #  'after_script': [
-        #  'twine upload dist/*'
+    #  'twine upload dist/*'
     #  ],
     'deploy': deploy_s3
-}))
+})
 
+jobs.append(build_linux)
 
 build_macos_env = copy.deepcopy(test_macos['env'])
 build_macos_env.extend([
@@ -173,19 +174,19 @@ build_macos = OrderedDict({
     'sudo': 'required',
     'language': 'generic',
     'env': build_macos_env,
+    'before_install': [
+        'brew update',
+        'brew install llvm mpich python3',
+        'python3 -m pip install --user twine'
+    ],
     'deploy': deploy_s3
 })
 
 for version in versions:
     block = copy.deepcopy(build_macos)
-    block['before_install'] = [
-        'brew update',
-        'brew install llvm mpich python3',
-        'python3 -m pip install --user twine'
-        'VERSIONS="%s" ./bin/install-python-macos.sh' % version
-    ]
 
     block['install'] = [
+        'VERSIONS="%s" ./bin/install-python-macos.sh' % version,
         'VERSIONS="%s" ./bin/build-dist-macos.sh' % version
     ]
 
@@ -203,12 +204,81 @@ for version in versions:
     ]
 
     #  block['after_script'] = [
-        #  'twine upload dist/*'
+    #  'twine upload dist/*'
     #  ]
 
     block['deploy'] = copy.deepcopy(deploy_s3)
 
     jobs.append(block)
+
+# Test PyPI install
+jobs.append(OrderedDict({
+    'stage': 'testpypi',
+    'language': 'generic',
+    'if': 'branch = master and repo = %s' % repo
+}))
+
+testpypi_linux = copy.deepcopy(build_linux)
+testpypi_linux.pop('deploy', None)
+testpypi_linux['env'] = [
+    'TWINE_REPOSITORY_URL=https://pypi.python.org/pypi',
+    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
+]
+testpypi_linux['script'] = './bin/test-wheels.sh'
+
+# jobs.append(testpypi_linux)
+
+testpypi_macos = copy.deepcopy(build_macos)
+testpypi_macos.pop('deploy', None)
+testpypi_macos['env'] = [
+    'TWINE_REPOSITORY_URL=https://pypi.python.org/pypi',
+    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
+]
+
+for version in versions:
+    block = copy.deepcopy(testpypi_macos)
+    block['install'] = [
+        'VERSIONS="%s" ./bin/install-python-macos.sh' % version
+    ]
+
+    block['script'] = [
+        'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
+    ]
+
+    #  jobs.append(block)
+
+# Test PyPI install
+jobs.append(OrderedDict({
+    'stage': 'pypi',
+    'language': 'generic',
+    'if': 'branch = master and repo = %s' % repo
+}))
+
+pypi_linux = copy.deepcopy(testpypi_linux)
+pypi_linux.pop('after_script', None)
+pypi_linux['env'] = [
+    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
+]
+
+#  jobs.append(pypi_linux)
+
+pypi_macos = copy.deepcopy(testpypi_macos)
+pypi_macos.pop('after_script', None)
+pypi_macos['env'] = [
+    'PYPI_REPOSITORY_URL=https://testpypi.python.org'
+]
+
+for version in versions:
+    block = copy.deepcopy(pypi_macos)
+    block['install'] = [
+        'VERSIONS="%s" ./bin/install-python-macos.sh' % version
+    ]
+
+    block['script'] = [
+        'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
+    ]
+
+    #  jobs.append(block)
 
 with open(travis, 'w') as yml:
     yaml.dump(data, yml, default_flow_style=False)

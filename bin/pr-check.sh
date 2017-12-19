@@ -94,7 +94,7 @@ else
 fi
 
 # Check if running in an sdist
-if [ ! -z WHEEL_DIR ]
+if [ ! -z $WHEEL_DIR ] || [ ! -z $PYPI_REPOSITORY_URL ]
 then
     dist_mode='--bdist-mode'
 elif git ls-files --error-unmatch pr-check.sh 2> /dev/null
@@ -119,7 +119,8 @@ $activate_venv $venv || {
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
 
-if [ ! -z $WHEEL_DIR ]; then
+if [ ! -z $WHEEL_DIR ]
+then
     MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
     MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py)
     BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak)
@@ -129,6 +130,12 @@ if [ ! -z $WHEEL_DIR ]; then
 
     # We don't want to install brainiak from source
     { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -q -r /dev/stdin
+elif [ ! -z $PYPI_REPOSITORY_URL ]
+then
+    python3 -m pip install -q -i $PYPI_REPOSITORY_URL brainiak
+
+    tail -n +2 requirements-dev.txt | python3 -m pip install --index-url $PYPI_REPOSITORY_URL \
+       --extra-index-url="https://pypi.python.org/pypi" brainiak -q -r /dev/stdin
 else
     python3 -m pip install $ignore_installed -U -e . || \
         exit_with_error_and_venv "Failed to install BrainIAK."
