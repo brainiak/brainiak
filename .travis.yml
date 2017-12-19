@@ -6,7 +6,7 @@ matrix:
     python: "3.5"
     env:
       - TWINE_USERNAME="brainiak-bot"
-      - secure: "Ptttm+7EYhN6FiusRQV4lWeAh/48lghaotSvmDw/PLCh69Vqq7YnM6qLS+r+K99qvJLctHj+jPX3TT5xYZhcLD8S5WWq04N2fQyxd23Yr8cL0QeFHE1KeDQqOpcoYW1eMEHx2Xv6YHOrGlQIvi4FCL6T/jEXORfQGwjn4UxCtSU1eP6FLsSdBq3hFnV7hwK9rywzCiWacCahIgiWx6n1qt/Qj3FFbBZmsbBvH1lJdagj1wwCMEwSS57fKq1j1LcJRFzA97jG+mYJHEEAhj6Eyuc7m29hDhFCnbYZ8N+LHBmuSS1zweVgKignBEz2cpEvEtB0eTA/n+SAqbrRPzxYIcHA3wTTz9Cr1HDMNdYox2ZBoWSECPWv+CDrts/s2WFbC8UpClQ67BPctKwQNLuQhf4ztWu2QclDjtND1RBMeoZlwZeCcGhJaDLPtIuiaZRqvh0O8a2Kyq+eJs62zNu/B8VXd6e8WcRdodh4uNc7UOJBwnYk9bmWuP28rATaLIjdFuVtWMlTHO8TyBjqFgeB61SbONBqD7pvv9Oxjrf/wEjifZSoRivoVtfqS231UB+1m2VdI6Ow28G9SOkjaFHkrL/WaoUhWL4oedbpoKwrpWK/qnnFO19J1G5M6p/Zsw7iAiawdkoEU+w01nG/7PdX9DpbLtWghxhd+e3t9WS+9+I="
+      - secure: "YDzVN9IjAu7kEAPaIDSQi48cGYV8HoQQJpb4ZzGeTA6lfs5OmpQ4QF6Bte7FUpMU5/ibNVaEG+uihk70/3rVCl+hWxSYo7MlvS4viYbZCUE5suQnT0ncasGYYoqdZCroMuTmt4reSn3vThWKPEtURUVac4nb+F0VpNSGhFH9PFwu/7b4Ph37N5ge2KXrjQBEKLc8Q71LlnHASCROjkMcG+6tAOA3kVERInZ/U3gRcjdzekzpLm+YDduKQqSkqNTAus4mNXa5baLGVcq5gvCXZxTntx6GCSBCLbzG8tj8VniCgNkDi6BsQzqdI1rJQI1I7DUxzyIf6OEBoBA/VCl5e+ZxCRGS7mRoMKioQcORLpUGEYF0nY8RrG3C6cxWF9LXqr44HuyYyS8EByn0tjZYgljBEsAxI15FvBibsVpWza9lHksj0sXolBenf6DQCDJlt4V26mbafvRkkJyV2Xcaks7/YfKngxawanRpl5pvzkjl21k7GKWLr3i4gs1Ammbm6Cr3n505Plae/fp+wZCkiHv3GA2cznvPumKaB7VNVWMvr/CClbY5Qe7vY8ZSoChV6V0RSzEW0+h7F+80kCGvA2QhJ4UdiSkYB3+dmGvC2nFLD/TIpjQn8mLbYlRfTwdnbOp1J0eVd+xqPlMY8HmfndYMzmQc8FteNcI7oluZlbU="
       - TWINE_REPOSITORY_URL="https://test.pypi.org/legacy/"
     install:
       - python3 -m pip install -U pip twine
