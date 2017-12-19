@@ -6,10 +6,6 @@ set -e
 # Show explicitly which commands are currently running.
 set -x
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
-WHEEL_DIR=$SCRIPT_DIR/../.whl
-mkdir -p $WHEEL_DIR
-
 git clone -q https://bitbucket.org/mpi4py/mpi4py
 pushd mpi4py
 git checkout 3.0.0
@@ -23,22 +19,27 @@ do
   PYTHON=$PYTHON_DIR/python$MAJOR
   DELOCATE=$(dirname $PYTHON)/delocate-wheel
 
-  git clean -f -f -x -d -q -e .whl -e mpi4py
+  git clean -f -f -x -d -q -e dist -e mpi4py
 
+  # Use virtual environments because we want to install later
   $PYTHON -m venv venv
   source venv/bin/activate
 
   pushd mpi4py
     git clean -f -f -x -d -q
-    $PYTHON setup.py bdist_wheel
+    $PYTHON setup.py -q bdist_wheel
     $DELOCATE dist/*.whl
-    mv dist/*.whl $WHEEL_DIR/
   popd
 
   $PYTHON -m pip install -q .
-  $PYTHON setup.py bdist_wheel
+  $PYTHON setup.py -q bdist_wheel
   $DELOCATE dist/*.whl
-  mv dist/*.whl $WHEEL_DIR/
+
+  # Build source distribution
+  if [ $MAJOR == '3.4' ]
+  then
+     $PYTHON setup.py -q sdist
+  fi
 
   deactivate
   rm -rf venv

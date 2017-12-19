@@ -4,11 +4,9 @@
 # element in the job array. This results in a dummy job being created
 
 # Stages: (Travis capitalizes first letter and lowers the rest)
-# - Test-with-deps: test source and source distribution, dependencies
+# - Test: test source and source distribution, dependencies
 # - Build: build wheels and test
-#   - deploy to s3
-# - Test-wout-deps: download wheels from S3, install w/out dependencies
-#   - deploy to testpypi
+#   - deploy to s3 and testpypi
 # - Testpypi: download wheels from test PyPI and test
 #   - deploy to pypi
 # - Pypi: download wheels from PyPI and test
@@ -72,7 +70,7 @@ data['jobs'] = OrderedDict({
 jobs = data['jobs']['include']
 
 # Create test stage
-jobs.append(OrderedDict({'stage': 'test-with-deps', 'language': 'generic'}))
+jobs.append(OrderedDict({'stage': 'test', 'language': 'generic'}))
 
 # Linux
 test_linux = OrderedDict({
@@ -108,7 +106,7 @@ test_macos = OrderedDict({
     ],
     'before_install': ['brew update', 'brew install llvm mpich python3'],
     'install': ['python3 -m pip install -U pip'],
-    'script': ['./bin/test-local-install.sh', './bin/pr-check.sh']
+    'script': ['./bin/pr-check.sh']
 })
 
 for osx in ['xcode7.3', 'xcode8']:
@@ -132,13 +130,12 @@ deploy_s3 = [OrderedDict({
     'bucket': bucket,
     'region': region,
     'acl': 'public_read',
-    'local_dir': '.whl',
-    'upload-dir': '$TRAVIS_COMMIT/.whl',
+    'local_dir': 'dist',
+    'upload-dir': '$TRAVIS_COMMIT/dist',
     'skip_cleanup': True,
     'on': {
         'repo': repo,
         'branch': 'master',
-        'condition': '$DEPLOY_WHEEL = 1'
     }
 })]
 
@@ -146,17 +143,26 @@ jobs.append(OrderedDict({
     'os': 'linux',
     'dist': 'trusty',
     'sudo': 'required',
-    'language': 'generic',
-    'env': 'DEPLOY_WHEEL=1',
-    'install': ['./bin/build-wheels.sh'],
-    'script': ['./bin/test-wheels.sh'],
+    'language': 'python',
+    'python': '3.4',
+    'env': 'TWINE_REPOSITORY_URL=https://testpypi.python.org/pypi',
+    'install': [
+        'python3 -m pip install -U pip twine'
+    ],
+    'script': [
+        './bin/test-wheels.sh',
+        './bin/build-dist.sh'
+    ],
+    'after_script': [
+        'twine upload dist/*'
+    ],
     'deploy': deploy_s3
 }))
 
 
 build_macos_env = copy.deepcopy(test_macos['env'])
 build_macos_env.extend([
-    'DEPLOY_WHEEL=1',
+    'TWINE_REPOSITORY_URL=https://testpypi.python.org/pypi'
     'ARCHFLAGS="-arch x86_64"'
 ])
 build_macos = OrderedDict({
@@ -172,12 +178,13 @@ for version in versions:
     block = copy.deepcopy(build_macos)
     block['before_install'] = [
         'brew update',
-        'brew install llvm mpich',
+        'brew install llvm mpich python3',
+        'python3 -m pip install --user twine'
         'VERSIONS="%s" ./bin/install-python-macos.sh' % version
     ]
 
     block['install'] = [
-        'VERSIONS="%s" ./bin/build-wheels-macos.sh' % version
+        'VERSIONS="%s" ./bin/build-dist-macos.sh' % version
     ]
 
     block['before_script'] = [
@@ -193,38 +200,13 @@ for version in versions:
         'VERSIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
+    block['after_script'] = [
+        'twine upload dist/*'
+    ]
+
     block['deploy'] = copy.deepcopy(deploy_s3)
 
     jobs.append(block)
-
-# S3-Download
-jobs.append(OrderedDict({
-    'stage': 'test-wout-deps',
-    'language': 'generic',
-    'if': 'branch = master and repo = %s' % repo
-}))
-
-jobs.append(OrderedDict({
-    'os': 'linux',
-    'dist': 'trusty',
-    'sudo': 'required',
-    'language': 'generic',
-    'install': True,
-    'script': ['./bin/test-s3.sh']
-}))
-
-jobs.append(OrderedDict({
-    'os': 'osx',
-    'osx_image': 'xcode7.3',
-    'sudo': 'required',
-    'language': 'generic',
-    'install': [
-        'VERSIONS="%s" ./bin/install-python-macos.sh' % ' '.join(versions)
-    ],
-    'script': [
-        'VERSIONS="%s" ./bin/test-s3-macos.sh' % ' '.join(versions)
-    ]
-}))
 
 with open(travis, 'w') as yml:
     yaml.dump(data, yml, default_flow_style=False)

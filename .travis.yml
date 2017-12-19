@@ -6,7 +6,7 @@ env:
   - BRAINIAK_REPO=danielsuo/brainiak
 jobs:
   include:
-  - stage: test-with-deps
+  - stage: test
     language: generic
   - os: linux
     dist: trusty
@@ -61,7 +61,6 @@ jobs:
     install:
     - python3 -m pip install -U pip
     script:
-    - ./bin/test-local-install.sh
     - ./bin/pr-check.sh
     osx_image: xcode7.3
   - os: osx
@@ -78,7 +77,6 @@ jobs:
     install:
     - python3 -m pip install -U pip
     script:
-    - ./bin/test-local-install.sh
     - ./bin/pr-check.sh
     osx_image: xcode8
   - stage: build
@@ -87,12 +85,16 @@ jobs:
   - os: linux
     dist: trusty
     sudo: required
-    language: generic
-    env: DEPLOY_WHEEL=1
+    language: python
+    python: '3.4'
+    env: TWINE_REPOSITORY_URL=https://testpypi.python.org/pypi
     install:
-    - ./bin/build-wheels.sh
+    - python3 -m pip install -U pip twine
     script:
     - ./bin/test-wheels.sh
+    - ./bin/build-dist.sh
+    after_script:
+    - twine upload dist/*
     deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
@@ -101,12 +103,11 @@ jobs:
       bucket: brainiak
       region: us-east-1
       acl: public_read
-      local_dir: .whl
-      upload-dir: $TRAVIS_COMMIT/.whl
+      local_dir: dist
+      upload-dir: $TRAVIS_COMMIT/dist
       skip_cleanup: true
       'on':
         branch: master
-        condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
   - os: osx
     osx_image: xcode7.3
@@ -118,8 +119,7 @@ jobs:
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
-    - DEPLOY_WHEEL=1
-    - ARCHFLAGS="-arch x86_64"
+    - TWINE_REPOSITORY_URL=https://testpypi.python.org/pypiARCHFLAGS="-arch x86_64"
     deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
@@ -128,19 +128,18 @@ jobs:
       bucket: brainiak
       region: us-east-1
       acl: public_read
-      local_dir: .whl
-      upload-dir: $TRAVIS_COMMIT/.whl
+      local_dir: dist
+      upload-dir: $TRAVIS_COMMIT/dist
       skip_cleanup: true
       'on':
         branch: master
-        condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
     - brew update
-    - brew install llvm mpich
-    - VERSIONS="3.4.4" ./bin/install-python-macos.sh
+    - brew install llvm mpich python3
+    - python3 -m pip install --user twineVERSIONS="3.4.4" ./bin/install-python-macos.sh
     install:
-    - VERSIONS="3.4.4" ./bin/build-wheels-macos.sh
+    - VERSIONS="3.4.4" ./bin/build-dist-macos.sh
     before_script:
     - brew uninstall -f --ignore-dependencies llvm mpich
     - unset CC
@@ -150,6 +149,8 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.4.4" ./bin/test-wheels-macos.sh
+    after_script:
+    - twine upload dist/*
   - os: osx
     osx_image: xcode7.3
     sudo: required
@@ -160,8 +161,7 @@ jobs:
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
-    - DEPLOY_WHEEL=1
-    - ARCHFLAGS="-arch x86_64"
+    - TWINE_REPOSITORY_URL=https://testpypi.python.org/pypiARCHFLAGS="-arch x86_64"
     deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
@@ -170,19 +170,18 @@ jobs:
       bucket: brainiak
       region: us-east-1
       acl: public_read
-      local_dir: .whl
-      upload-dir: $TRAVIS_COMMIT/.whl
+      local_dir: dist
+      upload-dir: $TRAVIS_COMMIT/dist
       skip_cleanup: true
       'on':
         branch: master
-        condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
     - brew update
-    - brew install llvm mpich
-    - VERSIONS="3.5.3" ./bin/install-python-macos.sh
+    - brew install llvm mpich python3
+    - python3 -m pip install --user twineVERSIONS="3.5.3" ./bin/install-python-macos.sh
     install:
-    - VERSIONS="3.5.3" ./bin/build-wheels-macos.sh
+    - VERSIONS="3.5.3" ./bin/build-dist-macos.sh
     before_script:
     - brew uninstall -f --ignore-dependencies llvm mpich
     - unset CC
@@ -192,6 +191,8 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.5.3" ./bin/test-wheels-macos.sh
+    after_script:
+    - twine upload dist/*
   - os: osx
     osx_image: xcode7.3
     sudo: required
@@ -202,8 +203,7 @@ jobs:
     - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
     - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
     - HOMEBREW_NO_AUTO_UPDATE=1
-    - DEPLOY_WHEEL=1
-    - ARCHFLAGS="-arch x86_64"
+    - TWINE_REPOSITORY_URL=https://testpypi.python.org/pypiARCHFLAGS="-arch x86_64"
     deploy:
     - provider: s3
       access_key_id: AKIAJKBW6H2VKKQDHILQ
@@ -212,19 +212,18 @@ jobs:
       bucket: brainiak
       region: us-east-1
       acl: public_read
-      local_dir: .whl
-      upload-dir: $TRAVIS_COMMIT/.whl
+      local_dir: dist
+      upload-dir: $TRAVIS_COMMIT/dist
       skip_cleanup: true
       'on':
         branch: master
-        condition: $DEPLOY_WHEEL = 1
         repo: danielsuo/brainiak
     before_install:
     - brew update
-    - brew install llvm mpich
-    - VERSIONS="3.6.0" ./bin/install-python-macos.sh
+    - brew install llvm mpich python3
+    - python3 -m pip install --user twineVERSIONS="3.6.0" ./bin/install-python-macos.sh
     install:
-    - VERSIONS="3.6.0" ./bin/build-wheels-macos.sh
+    - VERSIONS="3.6.0" ./bin/build-dist-macos.sh
     before_script:
     - brew uninstall -f --ignore-dependencies llvm mpich
     - unset CC
@@ -234,21 +233,5 @@ jobs:
     - unset ARCHFLAGS
     script:
     - VERSIONS="3.6.0" ./bin/test-wheels-macos.sh
-  - stage: test-wout-deps
-    language: generic
-    if: branch = master and repo = danielsuo/brainiak
-  - os: linux
-    dist: trusty
-    sudo: required
-    language: generic
-    install: true
-    script:
-    - ./bin/test-s3.sh
-  - os: osx
-    osx_image: xcode7.3
-    sudo: required
-    language: generic
-    install:
-    - VERSIONS="3.4.4 3.5.3 3.6.0" ./bin/install-python-macos.sh
-    script:
-    - VERSIONS="3.4.4 3.5.3 3.6.0" ./bin/test-s3-macos.sh
+    after_script:
+    - twine upload dist/*

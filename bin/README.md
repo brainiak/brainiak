@@ -1,15 +1,13 @@
 # Wheel to-dos
 
 # TODO
-- Test-with-deps: test source with dependencies + can be installed (doesn't check install now)
-- Test-wout-deps: test binary without dependencies + can be installed (doesn't check tests now)
 - Fix stages; it appears that everything just gets lumped into a single stage
 - Upload wheels to PyPI (uncomment)
 - Upload to TestPyPI
 - Upload wheels to PyPI (uncomment)
 - Only upload to PyPI on tagged master
 - Recreate and encrypt keys for brainiak/brainiak
-- Only need to build mpi4py occasionally; not with every commit
+- Only need to build mpi4py occasionally; not with every commit, and not with every job
 - mpi4py should always commit to s3://brainiak/.whl
 - Update documentation
 - Figure out why ```setup.py``` fails
@@ -24,6 +22,8 @@
 # To verify
 
 # Completed
+- Test-with-deps: test source with dependencies + can be installed (doesn't check install now)
+- Test-wout-deps: test binary without dependencies + can be installed (doesn't check tests now)
 - Confirm stages that run only on master commit to main don't run for PRs other branchs
 - Clean up buckets appropriately
 - Change upload / download to $TRAVIS_COMMIT/.whl

@@ -7,7 +7,7 @@ set -e
 set -x
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
-WHEEL_DIR=$SCRIPT_DIR/../.whl
+WHEEL_DIR=$SCRIPT_DIR/../dist
 
 # Test whether we can install without any dependencies
 # TODO: delete once we have setup.py setup correctly
@@ -18,7 +18,7 @@ do
   PYTHON=$PYTHON_DIR/python$MAJOR
   WHEEL_VERSION=$(echo $MAJOR | tr -d '.')
 
-  git clean -f -f -x -d -q -e .whl
+  git clean -f -f -x -d -q -e dist
 
   $PYTHON -m venv venv
   source venv/bin/activate
@@ -45,6 +45,6 @@ do
   MAJOR=${VERSION%.*}
   PYTHON_DIR=$(dirname $(realpath $(which python$MAJOR)))
   PYTHON=$PYTHON_DIR/python$MAJOR
-  git clean -f -f -x -d -q -e .whl
+  git clean -f -f -x -d -q -e dist
   WHEEL_DIR=$WHEEL_DIR PYTHON=$PYTHON $SCRIPT_DIR/pr-check.sh
 done

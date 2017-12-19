@@ -7,7 +7,7 @@ set -e
 set -x
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
-WHEEL_DIR=$SCRIPT_DIR/../.whl
+WHEEL_DIR=$SCRIPT_DIR/../dist
 
 # Test whether we can install without any dependencies
 # TODO: delete once we have setup.py setup correctly
@@ -17,7 +17,7 @@ for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
 
   PYTHON=/opt/python/${VERSION}/bin/python3
 
-  git clean -f -f -x -d -q -e .whl
+  git clean -f -f -x -d -q -e dist
 
   $PYTHON -m venv venv
   source venv/bin/activate
@@ -33,7 +33,7 @@ done
 # we can install brainiak without installing mpich, but require mpiexec during tests
 ./bin/install-test-deps-manylinux1.sh
 for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
-  git clean -f -f -x -d -q -e .whl
+  git clean -f -f -x -d -q -e dist
   mpi_command=mpiexec.hydra \
     WHEEL_DIR=$WHEEL_DIR \
     PYTHON=/opt/python/$VERSION/bin/python \
