@@ -2,14 +2,10 @@
 
 # TODO
 - Deal with versions and tagging (pypi only accepts non-dev tags)
-- Download from S3 and install
-   - Pick up from the correct travis commit
-- Upload to S3 even for PRs (custom deploy)
 - Recreate and encrypt keys for brainiak/brainiak
 - Only need to build mpi4py occasionally; not with every commit, and not with every job
 - mpi4py should always commit to s3://brainiak/.whl
 - Update documentation
-- Figure out why ```setup.py``` fails
 - End-to-end test
 - Get things working on Jenkins
 - Verify using other MPI (e.g., Intel MPI, mpich3)
@@ -19,12 +15,15 @@
 - Change quiet to no progress bar (merged, but not released in pip. See [here](https://github.com/pypa/pip/pull/4194/commits/0124945031e93236c2300eb45c2f962768be62d8))
 
 # To verify
-- Fix stages; it appears that everything just gets lumped into a single stage
+- Upload to S3 even for PRs (custom deploy)
+- Download from S3 and install
+- Pick up from the correct travis commit
 - Upload to TestPyPI
 - Upload wheels to PyPI (uncomment)
 - Only upload to PyPI on tagged master
 
 # Completed
+- Fix stages; it appears that everything just gets lumped into a single stage
 - Test-with-deps: test source with dependencies + can be installed (doesn't check install now)
 - Test-wout-deps: test binary without dependencies + can be installed (doesn't check tests now)
 - Confirm stages that run only on master commit to main don't run for PRs other branchs
