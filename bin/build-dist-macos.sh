@@ -6,6 +6,10 @@ set -e
 # Show explicitly which commands are currently running.
 set -x
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
+WHEEL_DIR=$SCRIPT_DIR/../dist
+mkdir -p $WHEEL_DIR
+
 git clone -q https://bitbucket.org/mpi4py/mpi4py
 pushd mpi4py
 git checkout 3.0.0
@@ -29,14 +33,13 @@ do
 
   pushd mpi4py
     git clean -f -f -x -d -q
-    $PYTHON setup.py -q bdist_wheel
-    $DELOCATE dist/*.whl
+    $PYTHON setup.py -q bdist_wheel -d $WHEEL_DIR
+    $DELOCATE $WHEEL_DIR/*.whl
   popd
-  mv mpi4py/dist/*.whl dist/
 
   $PYTHON -m pip install .
-  $PYTHON setup.py bdist_wheel
-  $DELOCATE dist/*.whl
+  $PYTHON setup.py bdist_wheel -d $WHEEL_DIR
+  $DELOCATE $WHEEL_DIR/*.whl
 
   # Build source distribution
   if [ $MAJOR == '3.4' ]
