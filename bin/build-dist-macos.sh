@@ -33,14 +33,14 @@ do
     $DELOCATE dist/*.whl
   popd
 
-  $PYTHON -m pip install -q .
-  $PYTHON setup.py -q bdist_wheel
+  $PYTHON -m pip install .
+  $PYTHON setup.py bdist_wheel
   $DELOCATE dist/*.whl
 
   # Build source distribution
   if [ $MAJOR == '3.4' ]
   then
-     $PYTHON setup.py -q sdist
+     $PYTHON setup.py sdist
   fi
 
   deactivate
