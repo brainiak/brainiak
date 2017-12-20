@@ -32,6 +32,7 @@ do
     $PYTHON setup.py -q bdist_wheel
     $DELOCATE dist/*.whl
   popd
+  mv mpi4py/dist/*.whl dist/
 
   $PYTHON -m pip install .
   $PYTHON setup.py bdist_wheel
