@@ -16,6 +16,7 @@
 
 # To verify
 - Upload to S3 even for PRs (custom deploy)
+   - NOTE: untrusted builds don't have access to encrypted environment variables or deploy
 - Download from S3 and install
 - Pick up from the correct travis commit
 - Upload to TestPyPI

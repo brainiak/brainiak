@@ -83,7 +83,11 @@ conditions = {
 
 actions = {
     'download-s3': 'aws s3 cp s3://brainiak/$TRAVIS_COMMIT/dist dist --recursive',
+
+    # TODO: make this for master only
     'upload-s3': 'aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read',
+
+    # TODO: make this for master only / possibly only for tag
     #  'upload-testpypi': 'if [ ! -z $TRAVIS_TAG ]; then twine upload dist/*; fi',
     'upload-testpypi': 'twine upload dist/*',
 
@@ -233,6 +237,8 @@ for version in versions:
     block['script'] = [
         'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
+
+    block['after_script'] = [actions['upload-testpypi']]
 
     jobs.append(block)
 
