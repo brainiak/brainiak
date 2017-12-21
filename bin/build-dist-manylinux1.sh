@@ -17,20 +17,20 @@ mkdir -p tmp
 
 # - Use the brainiak source stored in /brainiak via docker run command
 # - Use head of mpi4py (we can pick some more suitable tag)
-git clone -q https://bitbucket.org/mpi4py/mpi4py /mpi4py
-pushd /mpi4py
-git checkout 3.0.0
-popd
+# git clone -q https://bitbucket.org/mpi4py/mpi4py /mpi4py
+# pushd /mpi4py
+# git checkout 3.0.0
+# popd
 
 for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
    PYTHON=/opt/python/$VERSION/bin/python
    $PYTHON -m pip install -U pip wheel
 
-   pushd /mpi4py
-      git clean -f -f -x -d -q
-      $PYTHON setup.py -q bdist_wheel -d tmp
-      auditwheel repair tmp/*.whl -w $WHEEL_DIR
-   popd
+   # pushd /mpi4py
+      # git clean -f -f -x -d -q
+      # $PYTHON setup.py -q bdist_wheel -d tmp
+      # auditwheel repair tmp/*.whl -w $WHEEL_DIR
+   # popd
 
    git clean -f -f -x -d -q -e dist
    $PYTHON -m pip install -q .
@@ -44,5 +44,5 @@ for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
    fi
 done
 
-rm -rf /mpi4py
+# rm -rf /mpi4py
 rm -rf tmp

@@ -10,10 +10,10 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE:-$0}")"; pwd)
 WHEEL_DIR=$SCRIPT_DIR/../dist
 mkdir -p $WHEEL_DIR
 
-git clone -q https://bitbucket.org/mpi4py/mpi4py
-pushd mpi4py
-git checkout 3.0.0
-popd
+# git clone -q https://bitbucket.org/mpi4py/mpi4py
+# pushd mpi4py
+# git checkout 3.0.0
+# popd
 
 for VERSION in $VERSIONS
 do
@@ -31,11 +31,11 @@ do
   source venv/bin/activate
   popd
 
-  pushd mpi4py
-    git clean -f -f -x -d -q
-    $PYTHON setup.py -q bdist_wheel -d $WHEEL_DIR
-    $DELOCATE $WHEEL_DIR/*.whl
-  popd
+  # pushd mpi4py
+    # git clean -f -f -x -d -q
+    # $PYTHON setup.py -q bdist_wheel -d $WHEEL_DIR
+    # $DELOCATE $WHEEL_DIR/*.whl
+  # popd
 
   $PYTHON -m pip install .
   $PYTHON setup.py bdist_wheel -d $WHEEL_DIR
@@ -51,4 +51,4 @@ do
   rm -rf ../venv
 done
 
-rm -rf mpi4py
+# rm -rf mpi4py

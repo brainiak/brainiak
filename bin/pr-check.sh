@@ -135,10 +135,10 @@ then
     fi
 
     MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
-    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py | grep $platform)
+    # MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py | grep $platform)
     BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak | grep $platform)
 
-    python3 -m pip install -q $MPI4PY_WHEEL
+    # python3 -m pip install -q $MPI4PY_WHEEL
     python3 -m pip install -q $BRAINIAK_WHEEL
 
     # We don't want to install brainiak from source

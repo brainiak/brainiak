@@ -9,8 +9,6 @@
    - Python packages incorrectly installed / files not found (e.g., six)
 - Deal with versions and tagging (pypi only accepts non-dev tags)
 - Recreate and encrypt keys for brainiak/brainiak
-- Only need to build mpi4py occasionally; not with every commit, and not with every job
-- mpi4py should always commit to s3://brainiak/.whl
 - Update documentation
 - End-to-end test
 - Get things working on Jenkins
@@ -28,6 +26,8 @@
 - Upload to TestPyPI
 - Upload wheels to PyPI (uncomment)
 - Only upload to PyPI on tagged master
+- Only need to build mpi4py occasionally; not with every commit, and not with every job
+- mpi4py should always commit to s3://brainiak/.whl
 
 # Completed
 - Fix stages; it appears that everything just gets lumped into a single stage

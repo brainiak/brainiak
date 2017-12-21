@@ -15,7 +15,7 @@ then
    # Test whether we can install without any dependencies
    # TODO: delete once we have setup.py setup correctly
    for VERSION in cp34-cp34m cp35-cp35m cp36-cp36m; do
-     MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $VERSION | grep mpi4py | grep manylinux)
+     # MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep $VERSION | grep mpi4py | grep manylinux)
      BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep $VERSION | grep brainiak | grep manylinux)
 
      PYTHON=/opt/python/${VERSION}/bin/python3
@@ -25,7 +25,7 @@ then
      $PYTHON -m venv venv
      source venv/bin/activate
 
-     $PYTHON -m pip install -q $MPI4PY_WHEEL
+     # $PYTHON -m pip install -q $MPI4PY_WHEEL
      $PYTHON -m pip install -q $BRAINIAK_WHEEL
 
      deactivate
