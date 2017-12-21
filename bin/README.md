@@ -1,6 +1,7 @@
 # Wheel to-dos
 
 # TODO
+- Investigate [caching](https://docs.travis-ci.com/user/caching) for pip / brew and for getting wheels from job to job
 - Problematic issues with installs
    - `pip install` hangs
    - `brew` hangs when updating, or unable to download bottle -> forces compilation
