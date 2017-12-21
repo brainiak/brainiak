@@ -11,6 +11,81 @@ env:
   - AWS_DEFAULT_REGION="us-east-1"
 jobs:
   include:
+  - stage: test
+    language: generic
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: python
+    python: '3.4'
+    before_install:
+    - python3 -m pip install -U pip awscli twine
+    script:
+    - ./bin/pr-check.sh
+    addons:
+      apt:
+        packages:
+        - build-essential libgomp1 libmpich-dev mpich
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: python
+    python: '3.5'
+    before_install:
+    - python3 -m pip install -U pip awscli twine
+    script:
+    - ./bin/pr-check.sh
+    addons:
+      apt:
+        packages:
+        - build-essential libgomp1 libmpich-dev mpich
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: python
+    python: '3.6'
+    before_install:
+    - python3 -m pip install -U pip awscli twine
+    script:
+    - ./bin/pr-check.sh
+    addons:
+      apt:
+        packages:
+        - build-essential libgomp1 libmpich-dev mpich
+  - os: osx
+    osx_image: xcode7.3
+    language: generic
+    env:
+    - CC=/usr/local/opt/llvm/bin/clang
+    - CXX=/usr/local/opt/llvm/bin/clang++
+    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+    - HOMEBREW_NO_AUTO_UPDATE=1
+    before_install:
+    - brew update
+    - brew install python3
+    - python3 -m pip install -U pip awscli twine
+    install:
+    - brew install llvm mpich
+    script:
+    - ./bin/pr-check.sh
+  - os: osx
+    osx_image: xcode8
+    language: generic
+    env:
+    - CC=/usr/local/opt/llvm/bin/clang
+    - CXX=/usr/local/opt/llvm/bin/clang++
+    - LDFLAGS="-L/usr/local/opt/llvm/lib -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+    - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+    - HOMEBREW_NO_AUTO_UPDATE=1
+    before_install:
+    - brew update
+    - brew install python3
+    - python3 -m pip install -U pip awscli twine
+    install:
+    - brew install llvm mpich
+    script:
+    - ./bin/pr-check.sh
   - stage: build
     language: generic
     if: branch = master
@@ -134,7 +209,7 @@ jobs:
     script:
     - ./bin/test-wheels.sh
     after_script:
-    - if [ ! -z $TRAVIS_TAG ]; then twine upload dist/*; fi
+    - twine upload dist/*
   - os: osx
     osx_image: xcode7.3
     language: generic
@@ -190,12 +265,13 @@ jobs:
     python: '3.4'
     before_install:
     - python3 -m pip install -U pip awscli twine
+    if: branch = master and repo = danielsuo/brainiak
     env:
     - TWINE_REPOSITORY_URL=https://pypi.python.org/pypi
     - PYPI_REPOSITORY_URL=https://testpypi.python.org
     script: ./bin/test-wheels.sh
     after_script:
-    - ;
+    - 'true'
   - os: osx
     osx_image: xcode7.3
     language: generic
@@ -206,13 +282,13 @@ jobs:
     - brew update
     - brew install python3
     - python3 -m pip install -U pip awscli twine
-    if: branch = master
+    if: branch = master and repo = danielsuo/brainiak
     install:
     - VERSIONS="3.4.4" ./bin/install-python-macos.sh
     script:
     - VERIONS="3.4.4" ./bin/test-wheels-macos.sh
     after_script:
-    - ;
+    - 'true'
   - os: osx
     osx_image: xcode7.3
     language: generic
@@ -223,13 +299,13 @@ jobs:
     - brew update
     - brew install python3
     - python3 -m pip install -U pip awscli twine
-    if: branch = master
+    if: branch = master and repo = danielsuo/brainiak
     install:
     - VERSIONS="3.5.3" ./bin/install-python-macos.sh
     script:
     - VERIONS="3.5.3" ./bin/test-wheels-macos.sh
     after_script:
-    - ;
+    - 'true'
   - os: osx
     osx_image: xcode7.3
     language: generic
@@ -240,13 +316,67 @@ jobs:
     - brew update
     - brew install python3
     - python3 -m pip install -U pip awscli twine
-    if: branch = master
+    if: branch = master and repo = danielsuo/brainiak
     install:
     - VERSIONS="3.6.0" ./bin/install-python-macos.sh
     script:
     - VERIONS="3.6.0" ./bin/test-wheels-macos.sh
     after_script:
-    - ;
+    - 'true'
   - stage: pypi
     language: generic
     if: branch = master and repo = danielsuo/brainiak and tag IS present
+  - os: linux
+    dist: trusty
+    sudo: required
+    language: python
+    python: '3.4'
+    before_install:
+    - python3 -m pip install -U pip awscli twine
+    if: branch = master and repo = danielsuo/brainiak and tag IS present
+    env:
+    - PYPI_REPOSITORY_URL=https://pypi.python.org
+    install:
+    - ./bin/test-wheels.sh
+  - os: osx
+    osx_image: xcode7.3
+    language: generic
+    env:
+    - PYPI_REPOSITORY_URL=https://pypi.python.org
+    before_install:
+    - brew update
+    - brew install python3
+    - python3 -m pip install -U pip awscli twine
+    if: branch = master and repo = danielsuo/brainiak and tag IS present
+    install:
+    - VERSIONS="3.4.4" ./bin/install-python-macos.sh
+    script:
+    - VERIONS="3.4.4" ./bin/test-wheels-macos.sh
+  - os: osx
+    osx_image: xcode7.3
+    language: generic
+    env:
+    - PYPI_REPOSITORY_URL=https://pypi.python.org
+    before_install:
+    - brew update
+    - brew install python3
+    - python3 -m pip install -U pip awscli twine
+    if: branch = master and repo = danielsuo/brainiak and tag IS present
+    install:
+    - VERSIONS="3.5.3" ./bin/install-python-macos.sh
+    script:
+    - VERIONS="3.5.3" ./bin/test-wheels-macos.sh
+  - os: osx
+    osx_image: xcode7.3
+    language: generic
+    env:
+    - PYPI_REPOSITORY_URL=https://pypi.python.org
+    before_install:
+    - brew update
+    - brew install python3
+    - python3 -m pip install -U pip awscli twine
+    if: branch = master and repo = danielsuo/brainiak and tag IS present
+    install:
+    - VERSIONS="3.6.0" ./bin/install-python-macos.sh
+    script:
+    - VERIONS="3.6.0" ./bin/test-wheels-macos.sh

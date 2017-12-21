@@ -84,10 +84,11 @@ conditions = {
 actions = {
     'download-s3': 'aws s3 cp s3://brainiak/$TRAVIS_COMMIT/dist dist --recursive',
     'upload-s3': 'aws s3 cp dist s3://brainiak/$TRAVIS_COMMIT/dist --recursive --acl=public-read',
-    'upload-testpypi': 'if [ ! -z $TRAVIS_TAG ]; then twine upload dist/*; fi',
+    #  'upload-testpypi': 'if [ ! -z $TRAVIS_TAG ]; then twine upload dist/*; fi',
+    'upload-testpypi': 'twine upload dist/*',
 
     # TODO: populate this command
-    'upload-pypi': ';'
+    'upload-pypi': 'true'
 }
 
 linux = OrderedDict({
@@ -245,6 +246,7 @@ jobs.append(OrderedDict({
 }))
 
 testpypi_linux = copy.deepcopy(linux)
+testpypi_linux['if'] = conditions['master']
 testpypi_linux['env'] = [
     'TWINE_REPOSITORY_URL=https://pypi.python.org/pypi',
     'PYPI_REPOSITORY_URL=https://testpypi.python.org'
@@ -254,6 +256,7 @@ testpypi_linux['after_script'] = [actions['upload-pypi']]
 jobs.append(testpypi_linux)
 
 testpypi_macos = copy.deepcopy(build_macos)
+testpypi_macos['if'] = conditions['master']
 testpypi_macos['env'] = copy.deepcopy(testpypi_linux['env'])
 
 for version in versions:
@@ -280,11 +283,13 @@ jobs.append(OrderedDict({
 }))
 
 pypi_linux = copy.deepcopy(linux)
+pypi_linux['if'] = conditions['tag']
 pypi_linux['env'] = ['PYPI_REPOSITORY_URL=https://pypi.python.org']
 pypi_linux['install'] = ['./bin/test-wheels.sh']
-#  jobs.append(pypi_linux)
+jobs.append(pypi_linux)
 
 pypi_macos = copy.deepcopy(macos)
+pypi_macos['if'] = conditions['tag']
 pypi_macos['env'] = copy.deepcopy(pypi_linux['env'])
 
 for version in versions:
@@ -297,7 +302,7 @@ for version in versions:
         'VERIONS="%s" ./bin/test-wheels-macos.sh' % version
     ]
 
-    #  jobs.append(block)
+    jobs.append(block)
 
 with open(travis, 'w') as yml:
     yaml.dump(data, yml, default_flow_style=False)
