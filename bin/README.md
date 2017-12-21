@@ -1,6 +1,11 @@
 # Wheel to-dos
 
 # TODO
+- Problematic issues with installs
+   - `pip install` hangs
+   - `brew` hangs when updating, or unable to download bottle -> forces compilation
+   - `apt` unreachable
+   - Python packages incorrectly installed / files not found (e.g., six)
 - Deal with versions and tagging (pypi only accepts non-dev tags)
 - Recreate and encrypt keys for brainiak/brainiak
 - Only need to build mpi4py occasionally; not with every commit, and not with every job
