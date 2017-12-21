@@ -28,10 +28,10 @@ then
      popd
 
      # Find the appropriate wheel by grepping for the Python version.
-     MPI4PY_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep mpi4py)
+     MPI4PY_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep mpi4py | grep macosx)
 
      # TODO: this will actually pick up both wheels since brainiak is in the path
-     BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep brainiak)
+     BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep brainiak | grep macosx)
 
      $PYTHON -m pip install $MPI4PY_WHEEL
      $PYTHON -m pip install $BRAINIAK_WHEEL

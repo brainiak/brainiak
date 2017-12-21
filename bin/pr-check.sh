@@ -121,9 +121,22 @@ $activate_venv $venv || {
 
 if [ ! -z $WHEEL_DIR ]
 then
+    platform="unknown"
+    unamestr="$(uname)"
+    if [[ "$unamestr" == "Linux" ]]
+    then
+       platform="manylinux"
+    elif [[ "$unamestr" == "Darwin" ]]
+    then
+       platform="macosx"
+    else
+       echo "Unrecognized platform."
+       exit 1
+    fi
+
     MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
-    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py)
-    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak)
+    MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py | grep $platform)
+    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak | grep $platform)
 
     python3 -m pip install -q $MPI4PY_WHEEL
     python3 -m pip install -q $BRAINIAK_WHEEL
