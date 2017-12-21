@@ -65,10 +65,14 @@ data['env'] = OrderedDict({
     'global': [
         'BRAINIAK_REPO=%s' % repo,
         'TWINE_USERNAME=%s' % twine_username,
-        'secure: "%s"' % twine_password,
         'AWS_ACCESS_KEY_ID="%s"' % access_key_id,
-        'secure: "%s"' % secret_access_key_env,
-        'AWS_DEFAULT_REGION="%s"' % region
+        'AWS_DEFAULT_REGION="%s"' % region,
+        {
+            'secure': twine_password
+        },
+        {
+            'secure': secret_access_key_env
+        }
     ]
 })
 
