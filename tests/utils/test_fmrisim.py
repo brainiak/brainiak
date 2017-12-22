@@ -75,8 +75,7 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    assert stimfunction.shape[0] == duration * 100, "stimfunc incorrect " \
-                                                     "length"
+    assert stimfunction.shape[0] == duration * 100, "stimfunc incorrect length"
     eventNumber = np.sum(event_durations * len(onsets)) * 100
     assert np.sum(stimfunction) == eventNumber, "Event number"
 
