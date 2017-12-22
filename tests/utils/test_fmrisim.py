@@ -75,9 +75,9 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    assert stimfunction.shape[0] == duration * 1000, "stimfunc incorrect " \
+    assert stimfunction.shape[0] == duration * 100, "stimfunc incorrect " \
                                                      "length"
-    eventNumber = np.sum(event_durations * len(onsets)) * 1000
+    eventNumber = np.sum(event_durations * len(onsets)) * 100
     assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
@@ -85,7 +85,7 @@ def test_generate_stimfunction():
                                        tr_duration=tr_duration,
                                        )
 
-    stim_dur = stimfunction.shape[0] / (tr_duration * 1000)
+    stim_dur = stimfunction.shape[0] / (tr_duration * 100)
     assert signal_function.shape[0] == stim_dur, "The length did not change"
 
     # Test
@@ -102,7 +102,7 @@ def test_generate_stimfunction():
                                        )
 
     max_response = np.where(signal_function != 0)[0].max()
-    assert 25 < max_response < 30, "HRF is incorrect length"
+    assert 25 < max_response <= 30, "HRF is incorrect length"
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 

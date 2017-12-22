@@ -408,7 +408,7 @@ def generate_stimfunction(onsets,
                           total_time,
                           weights=[1],
                           timing_file=None,
-                          temporal_resolution=1000.0,
+                          temporal_resolution=100.0,
                           ):
     """Return the function for the timecourse events
 
@@ -471,9 +471,9 @@ def generate_stimfunction(onsets,
             onset, duration, weight = line.strip().split()
 
             # Check if the onset is more precise than the temporal resolution
-            dp = len(onset[onset.find('.') + 1:])
+            upsampled_onset = float(onset) * temporal_resolution
 
-            if 10 ** (dp - 1) > temporal_resolution:
+            if upsampled_onset - np.round(upsampled_onset) != 0:
                 raise ValueError('Temporal resolution is lower than the '
                                  'decimal place precision of the timing '
                                  'file. This can mean that events are '
@@ -521,7 +521,7 @@ def generate_stimfunction(onsets,
 
 def export_3_column(stimfunction,
                     filename,
-                    temporal_resolution=1000.0
+                    temporal_resolution=100.0
                     ):
     """ Output a tab separated three column timing file
 
@@ -591,7 +591,7 @@ def export_3_column(stimfunction,
 def export_epoch_file(stimfunction,
                       filename,
                       tr_duration,
-                      temporal_resolution=1000.0
+                      temporal_resolution=100.0
                       ):
     """ Output an epoch file, necessary for some inputs into brainiak
 
@@ -700,7 +700,7 @@ def _double_gamma_hrf(response_delay=6,
                       undershoot_dispersion=0.9,
                       response_scale=1,
                       undershoot_scale=0.035,
-                      temporal_resolution=1000.0,
+                      temporal_resolution=100.0,
                       ):
     """Create the double gamma HRF with the timecourse evoked activity.
     Default values are based on Glover, 1999 and Walvaert, Durnez,
@@ -779,21 +779,20 @@ def convolve_hrf(stimfunction,
                  tr_duration,
                  hrf_type='double_gamma',
                  scale_function=True,
-                 temporal_resolution=1000.0,
+                 temporal_resolution=100.0,
                  ):
-    """ Convolve the specified hrf with the timecourse. In order
-    to accelerate the (slow) convolution, stimfunction is downsampled (mean
-    filtering) by the specified temporal resolution (e.g. a stimfunction of
-    100000 elements becomes 100 elements if the temporal_resolution is
-    1000). If temporal_resolution is 1 then the output will be the same
-    length as stimfunction.
-    Be aware that if scaling is on and events are very short
-    (> temporal_resolution * tr_duration) then the hrf may or may not come
-    out as anticipated. This is because very short events would evoke a small
-    absolute response after convolution  but if there are only short events
-    and you scale then this will look identical to a convolution with longer
-    events. In general scaling is useful, which is why it is the default,
-    but be aware of this edge case
+    """ Convolve the specified hrf with the timecourse.
+    The output of this is a downsampled convolution of the stimfunction and
+    the HRF function. If temporal_resolution is 1 / tr_duration then the
+    output will be the same length as stimfunction.
+
+    Be aware that if scaling is on and event durations are less than the
+    duration of a TR then the hrf may or may not come out as anticipated.
+    This is because very short events would evoke a small absolute response
+    after convolution  but if there are only short events and you scale then
+    this will look similar to a convolution with longer events. In general
+    scaling is useful, which is why it is the default, but be aware of this
+    edge case and if it is a concern, set the scale_function to false.
 
     Parameters
     ----------
@@ -832,7 +831,7 @@ def convolve_hrf(stimfunction,
 
     # Generate the hrf to use in the convolution
     if hrf_type == 'double_gamma':
-        hrf = _double_gamma_hrf(temporal_resolution=1 / tr_duration)
+        hrf = _double_gamma_hrf(temporal_resolution=temporal_resolution)
     elif isinstance(hrf_type, list):
         hrf = hrf_type
 
@@ -842,32 +841,27 @@ def convolve_hrf(stimfunction,
     # Create signal functions for each list in the stimfunction
     for list_counter in range(list_num):
 
+        # Perform the convolution
+        signal_temp = np.convolve(stimfunction[:, list_counter], hrf)
+
         # Down sample the stim function so that it only has one element per
         # TR. This accelerates the convolution greatly
-        stimfunction_temp = np.zeros((duration,))
+        signal_vox = np.zeros((duration,))
         for sample in list(range(duration)):
             idx_start = stride * sample
             idx_end = stride * (sample + 1)
-            stimfunction_idx = stimfunction[idx_start:idx_end, list_counter]
-            stimfunction_temp[sample] = np.mean(stimfunction_idx)
-
-        # Perform the convolution
-        signal_function_temp = np.convolve(stimfunction_temp, hrf)
-
-        # Shorten the output if the convolution made it grow
-        if len(signal_function_temp) > duration:
-            signal_function_temp = signal_function_temp[0:duration, ]
+            idxs = signal_temp[idx_start:idx_end]
+            signal_vox[sample] = np.mean(idxs)
 
         # Scale the function so that the peak response is 1
         if scale_function:
-            signal_function_temp = signal_function_temp / np.max(
-                signal_function_temp)
+            signal_vox = signal_vox / np.max(signal_vox)
 
         # Add this function to the stack
         if list_counter == 0:
-            signal_function = np.zeros((len(signal_function_temp), list_num))
+            signal_function = np.zeros((len(signal_vox), list_num))
 
-        signal_function[:, list_counter] = signal_function_temp
+        signal_function[:, list_counter] = signal_vox
 
     return signal_function
 
@@ -1414,11 +1408,11 @@ def _generate_noise_temporal_task(stimfunction_tr,
     # Make the noise to be added
     stimfunction_tr = stimfunction_tr != 0
     if motion_noise == 'gaussian':
-        noise = stimfunction_tr * np.random.normal(0, 1, size=len(
-            stimfunction_tr))
+        noise = stimfunction_tr * np.random.normal(0, 1,
+                                                   size=stimfunction_tr.shape)
     elif motion_noise == 'rician':
-        noise = stimfunction_tr * stats.rice.rvs(0, 1, size=len(
-            stimfunction_tr))
+        noise = stimfunction_tr * stats.rice.rvs(0, 1,
+                                                 size=stimfunction_tr.shape)
 
     noise_task = stimfunction_tr + noise
 
@@ -1450,8 +1444,8 @@ def _generate_noise_temporal_drift(trs,
 
     basis : str
         What is the basis function for the drift. Could be made of discrete
-        cosines (number of bases scale with duration) or a sine wave with
-        the temporal order
+        cosines (for longer run durations, more basis functions are
+        created) or a sine wave.
 
     period : int
         How many seconds is the period of oscillation of the drift
