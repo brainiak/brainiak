@@ -72,7 +72,7 @@ One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
 add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
 you have one). For them to take effect, you must logout or launch a new login
-shell, e.g., ``bash -l`` or ``source ~/.bash_profile``::
+shell, e.g., ``bash -l``::
 
     export CC=/usr/local/opt/llvm/bin/clang
     export CXX=/usr/local/opt/llvm/bin/clang++
