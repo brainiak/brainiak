@@ -64,6 +64,9 @@ Then install the following::
 
     brew install llvm cmake mpich python3
 
+Note that if your MacOS does not have ``gcc`` (a prerequisite of ``mpich``), 
+it will take a long time (perhaps over an hour) to install ``gcc`` from source for you.
+
 You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``.
 One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
