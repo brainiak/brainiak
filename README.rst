@@ -43,7 +43,8 @@ Install updated version of the following Python packages::
 Note the ``--user`` flag, which instructs Pip to not overwrite system
 files. You must add ``$HOME/.local/bin`` to your ``$PATH`` to be able to run
 the updated Pip, e.g., by adding the following line to ``$HOME/.profile``
-and launching a new login shell (e.g., logout or execute ``bash -l``)::
+and launching a new login shell (e.g., logout or execute ``bash -l`` 
+or execute ``source ~/.profile``)::
 
     PATH="$HOME/.local/bin:$PATH"
 
@@ -64,12 +65,15 @@ Then install the following::
 
     brew install llvm cmake mpich python3
 
+Note that if your MacOS does not have GCC (a prerequisite of mpich), 
+it will take a long time (perhaps over an hour) to install the GCC from source for you.
+
 You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``.
 One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
 add the following lines to ``$HOME/.profile`` (or ``$HOME/.bash_profile``, if
 you have one). For them to take effect, you must logout or launch a new login
-shell, e.g., ``bash -l``::
+shell, e.g., ``bash -l`` or ``source ~/.bash_profile``::
 
     export CC=/usr/local/opt/llvm/bin/clang
     export CXX=/usr/local/opt/llvm/bin/clang++
