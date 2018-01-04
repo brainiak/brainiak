@@ -101,7 +101,7 @@ def test_generate_stimfunction():
                                        )
 
     max_response = np.where(signal_function != 0)[0].max()
-    assert 25 < max_response <= 30, "HRF is incorrect length"
+    assert 25 < max_response <= 30, "HRF has the incorrect length"
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 

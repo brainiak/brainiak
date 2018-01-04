@@ -473,7 +473,9 @@ def generate_stimfunction(onsets,
             # Check if the onset is more precise than the temporal resolution
             upsampled_onset = float(onset) * temporal_resolution
 
-            if upsampled_onset - np.round(upsampled_onset) != 0:
+            # Because of float precision, there can be issues. E.g.
+            #  float('1.001') * 1000 = 1000.99
+            if np.allclose(upsampled_onset, np.round(upsampled_onset)):
                 raise ValueError('Temporal resolution is lower than the '
                                  'decimal place precision of the timing '
                                  'file. This can mean that events are '
@@ -846,12 +848,8 @@ def convolve_hrf(stimfunction,
 
         # Down sample the stim function so that it only has one element per
         # TR. This accelerates the convolution greatly
-        signal_vox = np.zeros((duration,))
-        for sample in list(range(duration)):
-            idx_start = stride * sample
-            idx_end = stride * (sample + 1)
-            idxs = signal_temp[idx_start:idx_end]
-            signal_vox[sample] = np.mean(idxs)
+        signal_temp = signal_temp[:duration * stride]
+        signal_vox = np.mean(signal_temp.reshape(-1, stride), 1)
 
         # Scale the function so that the peak response is 1
         if scale_function:
