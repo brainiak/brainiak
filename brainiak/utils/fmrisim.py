@@ -473,13 +473,21 @@ def generate_stimfunction(onsets,
             # Check if the onset is more precise than the temporal resolution
             upsampled_onset = float(onset) * temporal_resolution
 
-            # Because of float precision, there can be issues. E.g.
-            #  float('1.001') * 1000 = 1000.99
+            # Because of float precision, the upsampled values might
+            # not round as expected .
+            # E.g. float('1.001') * 1000 = 1000.99
             if np.allclose(upsampled_onset, np.round(upsampled_onset)):
-                raise ValueError('Temporal resolution is lower than the '
-                                 'decimal place precision of the timing '
-                                 'file. This can mean that events are '
-                                 'missed. Aborting')
+                warning = 'Your onset: ' + str(onset) + ' has more decimal ' \
+                                                        'points than the ' \
+                                                        'specified temporal ' \
+                                                        'resolution can ' \
+                                                        'resolve. This means' \
+                                                        ' that events might' \
+                                                        ' be missed. ' \
+                                                        'Consider increasing' \
+                                                        ' the temporal ' \
+                                                        'resolution.'
+                logging.warning(warning)
 
             onsets.append(float(onset))
             event_durations.append(float(duration))
