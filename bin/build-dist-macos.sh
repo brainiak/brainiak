@@ -23,7 +23,7 @@ do
   PYTHON=$PYTHON_DIR/python$MAJOR
   DELOCATE=$(dirname $PYTHON)/delocate-wheel
 
-  git clean -f -f -x -d -q -e dist -e mpi4py
+  git clean -f -f -x -d -q -e dist
 
   # Use virtual environments because we want to install later
   pushd ..

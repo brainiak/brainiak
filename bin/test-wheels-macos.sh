@@ -34,7 +34,7 @@ then
      BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f -maxdepth 1 -print | grep "$WHEEL_VERSION" | grep brainiak | grep macosx)
 
      # $PYTHON -m pip install $MPI4PY_WHEEL
-     $PYTHON -m pip install $BRAINIAK_WHEEL
+     python3 -m pip install $BRAINIAK_WHEEL
 
      deactivate
      rm -rf ../venv
