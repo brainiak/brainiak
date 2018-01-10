@@ -476,7 +476,7 @@ def generate_stimfunction(onsets,
             # Because of float precision, the upsampled values might
             # not round as expected .
             # E.g. float('1.001') * 1000 = 1000.99
-            if np.allclose(upsampled_onset, np.round(upsampled_onset)):
+            if np.allclose(upsampled_onset, np.round(upsampled_onset)) == 0:
                 warning = 'Your onset: ' + str(onset) + ' has more decimal ' \
                                                         'points than the ' \
                                                         'specified temporal ' \
