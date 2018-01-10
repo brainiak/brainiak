@@ -379,6 +379,8 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
         It is acceptable to not provide the weight,
         or not provide both duration and weight.
         In such cases, these parameters will default to 1.0.
+        This code will accept timing files with only 1 or 2 columns for
+        convenience but please note that the FSL package does not allow this
 
         'AFNI' style has one line for each scan (run).
         Each line has a few triplets in the format of
