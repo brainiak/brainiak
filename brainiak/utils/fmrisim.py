@@ -794,7 +794,9 @@ def convolve_hrf(stimfunction,
     """ Convolve the specified hrf with the timecourse.
     The output of this is a downsampled convolution of the stimfunction and
     the HRF function. If temporal_resolution is 1 / tr_duration then the
-    output will be the same length as stimfunction.
+    output will be the same length as stimfunction. This time course assumes
+    that slice time correction has occurred and all slices have been aligned
+    to the middle time point in the TR.
 
     Be aware that if scaling is on and event durations are less than the
     duration of a TR then the hrf may or may not come out as anticipated.
@@ -854,10 +856,12 @@ def convolve_hrf(stimfunction,
         # Perform the convolution
         signal_temp = np.convolve(stimfunction[:, list_counter], hrf)
 
-        # Down sample the stim function so that it only has one element per
-        # TR. This accelerates the convolution greatly
+        # Down sample the signal function so that it only has one element per
+        # TR. This assumes that all slices are collected at the same time,
+        # which is often the result of slice time correction. In other
+        # words, the output assumes slice time correction
         signal_temp = signal_temp[:duration * stride]
-        signal_vox = np.mean(signal_temp.reshape(-1, stride), 1)
+        signal_vox = signal_temp[int(stride / 2)::stride]
 
         # Scale the function so that the peak response is 1
         if scale_function:
