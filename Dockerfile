@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-venv \
     \
+    python3-tk\
+    ffmpeg\
     curl \
     unzip \
     wget \
