@@ -130,6 +130,7 @@ setup(
         'pymanopt',
         'theano',
         'pybind11>=1.7',
+        'psutil',
         'nibabel',
         'typing',
     ],

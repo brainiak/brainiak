@@ -75,17 +75,18 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    assert len(stimfunction) == duration * 1000, "stimfunction incorrect " \
-                                                 "length"
+    assert stimfunction.shape[0] == duration * 1000, "stimfunc incorrect " \
+                                                     "length"
     eventNumber = np.sum(event_durations * len(onsets)) * 1000
     assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
-    assert len(signal_function) == len(stimfunction) / (tr_duration * 1000), \
-        "The length did not change"
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
+
+    stim_dur = stimfunction.shape[0] / (tr_duration * 1000)
+    assert signal_function.shape[0] == stim_dur, "The length did not change"
 
     onsets = [10]
     stimfunction = sim.generate_stimfunction(onsets=onsets,
@@ -93,9 +94,9 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 
@@ -128,13 +129,13 @@ def test_apply_signal():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     assert signal.shape == (dimensions[0], dimensions[1], dimensions[2],
@@ -142,7 +143,7 @@ def test_apply_signal():
                                                      "wrong size"
 
     signal = sim.apply_signal(signal_function=stimfunction,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     assert np.any(signal == signal_magnitude), "The stimfunction is not binary"
@@ -177,25 +178,27 @@ def test_generate_noise():
                                              total_time=duration,
                                              )
 
-    signal_function = sim.double_gamma_hrf(stimfunction=stimfunction,
-                                           tr_duration=tr_duration,
-                                           )
+    signal_function = sim.convolve_hrf(stimfunction=stimfunction,
+                                       tr_duration=tr_duration,
+                                       )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
-                              volume_static=volume,
+                              volume_signal=volume,
                               )
 
     # Generate the mask of the signal
-    mask = sim.mask_brain(signal, mask_threshold=0.1)
+    mask, template = sim.mask_brain(signal, mask_threshold=0.1)
 
     assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
+    assert len(np.unique(template) > 2), "Template creation did not work"
 
     stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                )
 
@@ -207,13 +210,14 @@ def test_generate_noise():
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
-                               noise_dict={'temporal_noise': 0, 'sfnr': 10000},
+                               noise_dict={'sfnr': 10000, 'snr': 10000},
                                )
 
-    temporal_noise = np.std(noise[mask[:, :, :, 0] > 0], 1).mean()
+    system_noise = np.std(noise[mask > 0], 1).mean()
 
-    assert temporal_noise <= 0.1, "Noise strength could not be manipulated"
+    assert system_noise <= 0.1, "Noise strength could not be manipulated"
 
 
 def test_mask_brain():
@@ -235,8 +239,8 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:, :, :, 0]
-    brain = volume * (mask > 0)
+    mask, _ = sim.mask_brain(volume)
+    brain = volume * mask
 
     assert np.sum(brain != 0) == np.sum(volume != 0), "Masking did not work"
     assert brain[0, 0, 0] == 0, "Masking did not work"
@@ -253,8 +257,8 @@ def test_mask_brain():
                                  )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(volume)[:, :, :, 0]
-    brain = volume * (mask > 0)
+    mask, _ = sim.mask_brain(volume)
+    brain = volume * mask
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
 
@@ -272,7 +276,7 @@ def test_calc_noise():
     # Preset the noise dict
     nd_orig = {'auto_reg_sigma': 0.6,
                'drift_sigma': 0.4,
-               'temporal_noise': 5,
+               'snr': 30,
                'sfnr': 30,
                'max_activity': 1000,
                'fwhm': 4,
@@ -285,21 +289,36 @@ def test_calc_noise():
                                              )
 
     # Mask the volume to be the same shape as a brain
-    mask = sim.mask_brain(dimensions_tr)
+    mask, template = sim.mask_brain(dimensions_tr, mask_threshold=0.2)
     stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
+                               template=template,
                                mask=mask,
                                noise_dict=nd_orig,
                                )
 
+    # Check that noise_system is being calculated correctly
+    spatial_sd = 5
+    temporal_sd = 5
+    noise_system = sim._generate_noise_system(dimensions_tr,
+                                              spatial_sd,
+                                              temporal_sd)
+
+    precision = abs(noise_system[0, 0, 0, :].std() - spatial_sd)
+    assert precision < spatial_sd, 'noise_system calculated incorrectly'
+
+    precision = abs(noise_system[:, :, :, 0].std() - temporal_sd)
+    assert precision < spatial_sd, 'noise_system calculated incorrectly'
+
     # Calculate the noise
-    nd_calc = sim.calc_noise(noise, mask)
+    nd_calc = sim.calc_noise(volume=noise,
+                             mask=mask)
 
     # How precise are these estimates
-    precision = abs(nd_calc['temporal_noise'] - nd_orig['temporal_noise'])
-    assert precision < 1, 'temporal_noise calculated incorrectly'
+    precision = abs(nd_calc['snr'] - nd_orig['snr'])
+    assert precision < nd_orig['snr'], 'snr calculated incorrectly'
 
     precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
-    assert precision < 5, 'sfnr calculated incorrectly'
+    assert precision < nd_orig['sfnr'], 'sfnr calculated incorrectly'

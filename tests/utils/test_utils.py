@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import pytest
+
 
 def test_tri_sym_convert():
     from brainiak.utils.utils import from_tri_2_sym, from_sym_2_tri
@@ -128,3 +130,105 @@ def test_gen_design():
                          scan_duration=[48, 20], TR=2, style='AFNI')
     assert np.all(np.isclose(design1, design6)), (
         'design matrices generated from AFNI style and FSL style do not match')
+
+
+def test_center_mass_exp():
+    from brainiak.utils.utils import center_mass_exp
+    import numpy as np
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp([1, 2])
+    assert ('interval must be a tuple'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2, 3))
+    assert ('interval must be length two'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, -1))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, 3))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((3, 3))
+    assert ('interval_right must be bigger than interval_left'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2), -1)
+    assert ('scale must be positive'
+            in str(excinfo.value))
+
+    result = center_mass_exp((0, np.inf), 2.0)
+    assert np.isclose(result, 2.0), 'center of mass '\
+        'incorrect for the whole distribution'
+    result = center_mass_exp((1.0, 1.0+2e-10))
+    assert np.isclose(result, 1.0+1e-10), 'for a small '\
+        'enough interval, the center of mass should be '\
+        'close to its mid-point'
+
+
+def test_phase_randomize():
+    from brainiak.utils.utils import phase_randomize
+    import numpy as np
+    from scipy.fftpack import fft
+    import math
+    from scipy.stats import pearsonr
+
+    # Generate auto-correlated signals
+    nv = 2
+    T = 100
+    ns = 3
+    D = np.zeros((nv, T, ns))
+    for v in range(nv):
+        for s in range(ns):
+            D[v, :, s] = np.sin(np.linspace(0, math.pi * 5 * (v + 1), T)) + \
+                         np.sin(np.linspace(0, math.pi * 6 * (s + 1), T))
+
+    freq = fft(D, axis=1)
+    D_pr = phase_randomize(D)
+    freq_pr = fft(D_pr, axis=1)
+    p_corr = pearsonr(np.angle(freq).flatten(), np.angle(freq_pr).flatten())[0]
+
+    assert np.isclose(abs(freq), abs(freq_pr)).all(), \
+        "Amplitude spectrum not preserved under phase randomization"
+
+    assert abs(p_corr) < 0.03, \
+        "Phases still correlated after randomization"
+
+
+def test_ecdf():
+    from brainiak.utils.utils import ecdf
+    import numpy as np
+
+    x = np.array([1, 4, 3])
+    cdf_fun = ecdf(x)
+
+    assert np.isclose(cdf_fun(0), [0]), "Left side of cdf should be 0"
+    assert np.isclose(cdf_fun(5), [1]), "Right side of cdf should be 1"
+    assert np.isclose(cdf_fun(1.5), [1 / 3]), "CDF value incorrect"
+    assert np.isclose(cdf_fun(1), [1 / 3]), "CDF should be right-continuous"
+
+
+def test_p_from_null():
+    from brainiak.utils.utils import p_from_null
+    import numpy as np
+
+    X = np.zeros((2, 5))  # One true value, 4 null values
+    X[0, 0] = 1
+    X[1, 0] = -2
+    X[0, 1:] = [-1.0, 0.00,  0.50, 2.00]
+    X[1, 1:] = [-1.5, 0.25, -0.25, 0.25]
+
+    p_1side = p_from_null(X, two_sided=False)
+    assert np.isclose(p_1side, [0.25, 1]).all(), "One-sided p value incorrect"
+
+    p_2side = p_from_null(X, two_sided=True)
+    assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"

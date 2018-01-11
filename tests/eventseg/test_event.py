@@ -31,7 +31,7 @@ def test_fit_shapes():
 
 
 def test_simple_boundary():
-    es = brainiak.eventseg.event.EventSegment(2, n_iter=10)
+    es = brainiak.eventseg.event.EventSegment(2)
     sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
     es.fit(sample_data.T)
 
@@ -49,3 +49,28 @@ def test_event_transfer():
     events = np.argmax(seg, axis=1)
     assert np.array_equal(events, [0, 0, 0, 1, 1, 1, 1]),\
         "Failed to correctly transfer two events to new data"
+
+
+def test_weighted_var():
+    es = brainiak.eventseg.event.EventSegment(2)
+
+    D = np.zeros((8, 4))
+    for t in range(4):
+        D[t, :] = (1/np.sqrt(4/3)) * np.array([-1, -1, 1, 1])
+    for t in range(4, 8):
+        D[t, :] = (1 / np.sqrt(4 / 3)) * np.array([1, 1, -1, -1])
+    mean_pat = D[[0, 4], :].T
+
+    weights = np.zeros((8, 2))
+    weights[:, 0] = [1, 1, 1, 1, 0, 0, 0, 0]
+    weights[:, 1] = [0, 0, 0, 0, 1, 1, 1, 1]
+    assert np.array_equal(
+        es.calc_weighted_event_var(D, weights, mean_pat), [0, 0]),\
+        "Failed to compute variance with 0/1 weights"
+
+    weights[:, 0] = [1, 1, 1, 1, 0.5, 0.5, 0.5, 0.5]
+    weights[:, 1] = [0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1]
+    true_var = (4 * 0.5 * 12)/(6 - 5/6) * np.ones(2) / 4
+    assert np.allclose(
+        es.calc_weighted_event_var(D, weights, mean_pat), true_var),\
+        "Failed to compute variance with fractional weights"

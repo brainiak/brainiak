@@ -14,7 +14,7 @@
 
 from brainiak.fcma.classifier import Classifier
 from brainiak.fcma.preprocessing import prepare_fcma_data
-from brainiak.io import dataset
+from brainiak import io
 from sklearn import svm
 #from sklearn.linear_model import LogisticRegression
 import sys
@@ -148,6 +148,10 @@ def example_of_correlating_two_components_aggregating_sim_matrix(raw_data, raw_d
 
 # python3 classification.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
+    if len(sys.argv) != 5:
+        logger.error('the number of input argument is not correct')
+        sys.exit(1)
+
     data_dir = sys.argv[1]
     extension = sys.argv[2]
     mask_file = sys.argv[3]
@@ -157,9 +161,9 @@ if __name__ == '__main__':
     num_subjects = len(epoch_list)
     num_epochs_per_subj = epoch_list[0].shape[1]
 
-    images = dataset.load_images_from_dir(data_dir, extension)
-    mask = dataset.load_boolean_mask(mask_file)
-    conditions = dataset.load_labels(epoch_file)
+    images = io.load_images_from_dir(data_dir, extension)
+    mask = io.load_boolean_mask(mask_file)
+    conditions = io.load_labels(epoch_file)
     raw_data, _, labels = prepare_fcma_data(images, conditions, mask)
 
     example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs_per_subj)
@@ -169,8 +173,8 @@ if __name__ == '__main__':
     example_of_cross_validation_using_model_selection(raw_data, labels, num_subjects, num_epochs_per_subj)
 
     # test of two different components for correlation computation
-    # images = dataset.load_images_from_dir(data_dir, extension)
-    # mask2 = dataset.load_boolean_mask('face_scene/visual_top_mask.nii.gz')
+    # images = io.load_images_from_dir(data_dir, extension)
+    # mask2 = io.load_boolean_mask('face_scene/visual_top_mask.nii.gz')
     # raw_data, raw_data2, labels = prepare_fcma_data(images, conditions, mask,
     #                                                 mask2)
     #example_of_correlating_two_components(raw_data, raw_data2, labels, num_subjects, num_epochs_per_subj)

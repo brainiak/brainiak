@@ -15,7 +15,12 @@ import numpy as np
 import re
 import warnings
 import os.path
-from .fmrisim import generate_stimfunction, double_gamma_hrf
+import psutil
+from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
+from sklearn.utils import check_random_state
+from scipy.fftpack import fft, ifft
+import math
+
 
 """
 Some utility functions that can be used by different algorithms
@@ -432,8 +437,8 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 
     response_delay = hrf_para['response_delay']
     undershoot_delay = hrf_para['undershoot_delay']
-    response_dispersion = hrf_para['response_dispersion']
-    undershoot_dispersion = hrf_para['undershoot_dispersion']
+    response_disp = hrf_para['response_dispersion']
+    undershoot_disp = hrf_para['undershoot_dispersion']
     undershoot_scale = hrf_para['undershoot_scale']
     # generate design matrix
     for i_s in range(n_S):
@@ -444,13 +449,15 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                 total_time=scan_duration[i_s],
                 weights=design_info[i_s][i_c]['weight'],
                 temporal_resolution=1.0/temp_res)
-            design[i_s][:, i_c] = double_gamma_hrf(
-                stimfunction, TR, response_delay=response_delay,
-                undershoot_delay=undershoot_delay,
-                response_dispersion=response_dispersion,
-                undershoot_dispersion=undershoot_dispersion,
-                undershoot_scale=undershoot_scale, scale_function=0,
-                temporal_resolution=1.0/temp_res) * temp_res
+            hrf = _double_gamma_hrf(response_delay=response_delay,
+                                    undershoot_delay=undershoot_delay,
+                                    response_dispersion=response_disp,
+                                    undershoot_dispersion=undershoot_disp,
+                                    undershoot_scale=undershoot_scale,
+                                    temporal_resolution=1.0/temp_res)
+            design[i_s][:, i_c] = convolve_hrf(
+                stimfunction, TR, hrf_type=hrf, scale_function=0,
+                temporal_resolution=1.0 / temp_res).transpose() * temp_res
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
@@ -603,33 +610,186 @@ def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     return design_info
 
 
-def center_mass_exp(a, b, scale=1.0):
+def center_mass_exp(interval, scale=1.0):
     """ Calculate the center of mass of negative exponential distribution
         p(x) = exp(-x / scale) / scale
-        in the interval of (a, b). scale is the same scale
-        parameter as scipy.stats.expon.pdf
+        in the interval of (interval_left, interval_right).
+        scale is the same scale parameter as scipy.stats.expon.pdf
 
     Parameters
     ----------
-    a: float
-        The starting point of the interval in which the center of mass
-        is calculated for exponential distribution.
-    b: float
-        The ending point of the interval in which the center of mass
-        is calculated for exponential distribution.
-    scale: float
+
+    interval: size 2 tuple, float
+        interval must be in the form of (interval_left, interval_right),
+        where interval_left/interval_right is the starting/end point of the
+        interval in which the center of mass is calculated for exponential
+        distribution.
+        Note that interval_left must be non-negative, since exponential is
+        not supported in the negative domain, and interval_right must be
+        bigger than interval_left (thus positive) to form a well-defined
+        interval.
+    scale: float, positive
         The scale parameter of the exponential distribution. See above.
 
     Returns
     -------
+
     m: float
-        The center of mass in the interval of (a, b) for exponential
-        distribution.
+        The center of mass in the interval of (interval_left,
+        interval_right) for exponential distribution.
     """
-    assert a < b, 'a must be smaller than b'
-    if b < np.inf:
-        return ((a + scale) * np.exp(-a / scale)
-                - (scale + b) * np.exp(-b / scale)) \
-            / (np.exp(-a / scale) - np.exp(-b / scale))
+    assert isinstance(interval, tuple), 'interval must be a tuple'
+    assert len(interval) == 2, 'interval must be length two'
+    (interval_left, interval_right) = interval
+    assert interval_left >= 0, 'interval_left must be non-negative'
+    assert interval_right > interval_left, \
+        'interval_right must be bigger than interval_left'
+    assert scale > 0, 'scale must be positive'
+
+    if interval_right < np.inf:
+        return ((interval_left + scale) * np.exp(-interval_left / scale) - (
+            scale + interval_right) * np.exp(-interval_right / scale)) / (
+            np.exp(-interval_left / scale) - np.exp(-interval_right / scale))
     else:
-        return a + scale
+        return interval_left + scale
+
+
+def usable_cpu_count():
+    """Get number of CPUs usable by the current process.
+
+    Takes into consideration cpusets restrictions.
+
+    Returns
+    -------
+    int
+    """
+    try:
+        result = len(os.sched_getaffinity(0))
+    except AttributeError:
+        try:
+            result = len(psutil.Process().cpu_affinity())
+        except AttributeError:
+            result = os.cpu_count()
+    return result
+
+
+def phase_randomize(D, random_state=0):
+    """Randomly shift signal phases
+
+    For each timecourse (from each voxel and each subject), computes its DFT
+    and then randomly shifts the phase of each frequency before inverting
+    back into the time domain. This yields timecourses with the same power
+    spectrum (and thus the same autocorrelation) as the original timecourses,
+    but will remove any meaningful temporal relationships between the
+    timecourses.
+
+    This procedure is described in:
+    Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
+    (2016) Dynamic reconfiguration of the default mode network during narrative
+    comprehension. Nat Commun 7.
+
+    Parameters
+    ----------
+    D : voxel by time by subject ndarray
+        fMRI data to be phase randomized
+
+    random_state : RandomState or an int seed (0 by default)
+        A random number generator instance to define the state of the
+        random permutations generator.
+
+    Returns
+    ----------
+    ndarray of same shape as D
+        phase randomized timecourses
+    """
+
+    random_state = check_random_state(random_state)
+
+    F = fft(D, axis=1)
+    if D.shape[1] % 2 == 0:
+        pos_freq = np.arange(1, D.shape[1] // 2)
+        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
+        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
+
+    shift = random_state.rand(D.shape[0], len(pos_freq),
+                              D.shape[2]) * 2 * math.pi
+
+    # Shift pos and neg frequencies symmetrically, to keep signal real
+    F[:, pos_freq, :] *= np.exp(1j * shift)
+    F[:, neg_freq, :] *= np.exp(-1j * shift)
+
+    return np.real(ifft(F, axis=1))
+
+
+def ecdf(x):
+    """Empirical cumulative distribution function
+
+    Given a 1D array of values, returns a function f(q) that outputs the
+    fraction of values less than or equal to q.
+
+    Parameters
+    ----------
+    x : 1D array
+        values for which to compute CDF
+
+    Returns
+    ----------
+    ecdf_fun: Callable[[float], float]
+        function that returns the value of the CDF at a given point
+    """
+    xp = np.sort(x)
+    yp = np.arange(len(xp) + 1) / len(xp)
+
+    def ecdf_fun(q):
+        return yp[np.searchsorted(xp, q, side="right")]
+
+    return ecdf_fun
+
+
+def p_from_null(X, two_sided=False):
+    """Compute p value of true result from null distribution
+
+    Given an array containing both a real result and a set of null results,
+    computes the fraction of null results larger than the real result (or,
+    if two_sided=True, the fraction of null results more extreme than the real
+    result in either the positive or negative direction).
+
+    Note that all real results are compared to a pooled null distribution,
+    which is the max/min over all null results, providing multiple
+    comparisons correction.
+
+    Parameters
+    ----------
+    X : ndarray with arbitrary number of dimensions
+        The last dimension of X should contain the real result in X[..., 0]
+        and the null results in X[..., 1:]
+
+    two_sided : bool, default:False
+        Whether the p value should be one-sided (testing only for being
+        above the null) or two-sided (testing for both significantly positive
+        and significantly negative values)
+
+    Returns
+    -------
+    p : ndarray the same shape as X, without the last dimension
+        p values for each true X value under the null distribution
+    """
+    leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
+
+    # Compute maximum/minimum in each null dataset
+    max_null = np.max(X[..., 1:], axis=leading_dims)
+    min_null = np.min(X[..., 1:], axis=leading_dims)
+
+    # Compute where the true values fall on the null distribution
+    max_null_ecdf = ecdf(max_null)
+    if two_sided:
+        min_null_ecdf = ecdf(min_null)
+        p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
+                           min_null_ecdf(X[..., 0]))
+        p = np.minimum(p, 1)
+    else:
+        p = 1 - max_null_ecdf(X[..., 0])
+
+    return p

@@ -64,6 +64,9 @@ Then install the following::
 
     brew install llvm cmake mpich python3
 
+Note that if your MacOS does not have ``gcc`` (a prerequisite of ``mpich``), 
+it will take a long time (perhaps over an hour) to install ``gcc`` from source for you.
+
 You must instruct programs to use this ``clang`` version at ``/usr/local/opt/llvm/bin``.
 One way to do this, which
 works for most programs, is setting the ``CC`` environment variable. You can
@@ -128,9 +131,9 @@ Support
 =======
 
 If you have a question or feedback, chat with us on `Gitter
-<https://gitter.im/brainiak/brainiak>`_. If you find a problem with BrainIAK,
-you can also `open an issue on GitHub
-<https://github.com/brainiak/brainiak/issues>`_.
+<https://gitter.im/brainiak/brainiak>`_ or email our list at
+brainiak@googlegroups.com. If you find a problem with BrainIAK, you can also
+`open an issue on GitHub <https://github.com/brainiak/brainiak/issues>`_.
 
 
 Examples
@@ -149,10 +152,7 @@ BrainIAK installation.
 Documentation
 =============
 
-The documentation is available at `pythonhosted.org/brainiak`_.
-
-.. _pythonhosted.org/brainiak:
-    https://pythonhosted.org/brainiak
+The documentation is available at http://brainiak.org/docs.
 
 
 Contributing
