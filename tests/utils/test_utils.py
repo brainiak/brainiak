@@ -123,7 +123,7 @@ def test_gen_design():
         'gen_design does not treat missing values correctly')
     design5 = gen_design(stimtime_files=[files['FSL2']],
                          scan_duration=[48, 20], TR=1)
-    assert (design4 - design5[::2]).mean() < 0.1, (
+    assert (np.abs(design4 - design5[::2])).mean() < 0.1, (
         'design matrices sampled at different frequency do not match'
         ' at corresponding time points')
     design6 = gen_design(stimtime_files=[files['AFNI1']],
