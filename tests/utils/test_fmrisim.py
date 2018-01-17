@@ -75,9 +75,8 @@ def test_generate_stimfunction():
                                              total_time=duration,
                                              )
 
-    assert stimfunction.shape[0] == duration * 1000, "stimfunc incorrect " \
-                                                     "length"
-    eventNumber = np.sum(event_durations * len(onsets)) * 1000
+    assert stimfunction.shape[0] == duration * 100, "stimfunc incorrect length"
+    eventNumber = np.sum(event_durations * len(onsets)) * 100
     assert np.sum(stimfunction) == eventNumber, "Event number"
 
     # Create the signal function
@@ -85,10 +84,13 @@ def test_generate_stimfunction():
                                        tr_duration=tr_duration,
                                        )
 
-    stim_dur = stimfunction.shape[0] / (tr_duration * 1000)
+    stim_dur = stimfunction.shape[0] / (tr_duration * 100)
     assert signal_function.shape[0] == stim_dur, "The length did not change"
 
-    onsets = [10]
+    # Test
+    onsets = [0]
+    tr_duration = 1
+    event_durations = [1]
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
@@ -97,6 +99,9 @@ def test_generate_stimfunction():
     signal_function = sim.convolve_hrf(stimfunction=stimfunction,
                                        tr_duration=tr_duration,
                                        )
+
+    max_response = np.where(signal_function != 0)[0].max()
+    assert 25 < max_response <= 30, "HRF has the incorrect length"
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
 
@@ -170,7 +175,7 @@ def test_generate_noise():
     onsets = [10, 30, 50, 70, 90]
     event_durations = [6]
     tr_duration = 2
-    duration = 100
+    duration = 200
 
     # Create the time course for the signal to be generated
     stimfunction = sim.generate_stimfunction(onsets=onsets,
@@ -193,7 +198,7 @@ def test_generate_noise():
     assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
     assert len(np.unique(template) > 2), "Template creation did not work"
 
-    stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
+    stimfunction_tr = stimfunction[::int(tr_duration * 100)]
     # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
@@ -269,7 +274,7 @@ def test_calc_noise():
     onsets = [10, 30, 50, 70, 90]
     event_durations = [6]
     tr_duration = 2
-    duration = 100
+    duration = 200
     tr_number = int(np.floor(duration / tr_duration))
     dimensions_tr = np.array([10, 10, 10, tr_number])
 
@@ -290,7 +295,7 @@ def test_calc_noise():
 
     # Mask the volume to be the same shape as a brain
     mask, template = sim.mask_brain(dimensions_tr, mask_threshold=0.2)
-    stimfunction_tr = stimfunction[::int(tr_duration * 1000)]
+    stimfunction_tr = stimfunction[::int(tr_duration * 100)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
