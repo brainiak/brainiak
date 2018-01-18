@@ -132,7 +132,7 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'typing',
+        'typing'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
