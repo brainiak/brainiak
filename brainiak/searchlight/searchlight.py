@@ -26,20 +26,20 @@ __all__ = [
         "Searchlight",
 ]
 
+"""Shape
+
+Searchlight shape which is contained in a cube sized
+(2*rad+1,2*rad+1,2*rad+1)
+
+Attributes
+----------
+
+mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
+        which is set to True within the boundaries of the desired shape
+"""
+
 
 class Shape:
-    """Shape
-
-    Searchlight shape which is contained in a cube sized
-    (2*rad+1,2*rad+1,2*rad+1)
-
-    Attributes
-    ----------
-
-    mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
-            which is set to True within the boundaries of the desired shape
-    """
-
     def __init__(self, rad):
         """Constructor
 
@@ -53,11 +53,13 @@ class Shape:
         self.rad = rad
 
 
-class Cube(Shape):
-    """Cube
+"""Cube
 
-    Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
-    """
+Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
+"""
+
+
+class Cube(Shape):
     def __init__(self, rad):
         """Constructor
 
@@ -73,14 +75,16 @@ class Cube(Shape):
         self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
 
 
-class Diamond(Shape):
-    """Diamond
+"""Diamond
 
-    Searchlight shape which is a diamond
-    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
-    Any location in the cube which has a Manhattan distance of less than rad
-    from the center point is set to True.
-    """
+Searchlight shape which is a diamond
+inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+Any location in the cube which has a Manhattan distance of less than rad
+from the center point is set to True.
+"""
+
+
+class Diamond(Shape):
     def __init__(self, rad):
         """Constructor
 
@@ -101,15 +105,17 @@ class Diamond(Shape):
                         self.mask_[r1, r2, r3] = True
 
 
+"""Distributed Searchlight
+
+Run a user-defined function over each voxel in a multi-subject
+dataset.
+
+Optionally, users can define a block function which runs over
+larger portions of the volume called blocks.
+"""
+
+
 class Searchlight:
-    """Distributed Searchlight
-
-    Run a user-defined function over each voxel in a multi-subject
-    dataset.
-
-    Optionally, users can define a block function which runs over
-    larger portions of the volume called blocks.
-    """
     def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
                  min_active_voxels_proportion=0):
         """Constructor
