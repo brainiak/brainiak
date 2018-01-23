@@ -408,7 +408,7 @@ def generate_stimfunction(onsets,
                           total_time,
                           weights=[1],
                           timing_file=None,
-                          temporal_resolution=1000.0,
+                          temporal_resolution=100.0,
                           ):
     """Return the function for the timecourse events
 
@@ -469,6 +469,26 @@ def generate_stimfunction(onsets,
         # Pull out the onsets, weights and durations, set as a float
         for line in text:
             onset, duration, weight = line.strip().split()
+
+            # Check if the onset is more precise than the temporal resolution
+            upsampled_onset = float(onset) * temporal_resolution
+
+            # Because of float precision, the upsampled values might
+            # not round as expected .
+            # E.g. float('1.001') * 1000 = 1000.99
+            if np.allclose(upsampled_onset, np.round(upsampled_onset)) == 0:
+                warning = 'Your onset: ' + str(onset) + ' has more decimal ' \
+                                                        'points than the ' \
+                                                        'specified temporal ' \
+                                                        'resolution can ' \
+                                                        'resolve. This means' \
+                                                        ' that events might' \
+                                                        ' be missed. ' \
+                                                        'Consider increasing' \
+                                                        ' the temporal ' \
+                                                        'resolution.'
+                logging.warning(warning)
+
             onsets.append(float(onset))
             event_durations.append(float(duration))
             weights.append(float(weight))
@@ -511,7 +531,7 @@ def generate_stimfunction(onsets,
 
 def export_3_column(stimfunction,
                     filename,
-                    temporal_resolution=1000.0
+                    temporal_resolution=100.0
                     ):
     """ Output a tab separated three column timing file
 
@@ -581,7 +601,7 @@ def export_3_column(stimfunction,
 def export_epoch_file(stimfunction,
                       filename,
                       tr_duration,
-                      temporal_resolution=1000.0
+                      temporal_resolution=100.0
                       ):
     """ Output an epoch file, necessary for some inputs into brainiak
 
@@ -690,7 +710,7 @@ def _double_gamma_hrf(response_delay=6,
                       undershoot_dispersion=0.9,
                       response_scale=1,
                       undershoot_scale=0.035,
-                      temporal_resolution=1000.0,
+                      temporal_resolution=100.0,
                       ):
     """Create the double gamma HRF with the timecourse evoked activity.
     Default values are based on Glover, 1999 and Walvaert, Durnez,
@@ -769,9 +789,22 @@ def convolve_hrf(stimfunction,
                  tr_duration,
                  hrf_type='double_gamma',
                  scale_function=True,
-                 temporal_resolution=1000.0,
+                 temporal_resolution=100.0,
                  ):
-    """ Convolve the specified hrf with the timecourse
+    """ Convolve the specified hrf with the timecourse.
+    The output of this is a downsampled convolution of the stimfunction and
+    the HRF function. If temporal_resolution is 1 / tr_duration then the
+    output will be the same length as stimfunction. This time course assumes
+    that slice time correction has occurred and all slices have been aligned
+    to the middle time point in the TR.
+
+    Be aware that if scaling is on and event durations are less than the
+    duration of a TR then the hrf may or may not come out as anticipated.
+    This is because very short events would evoke a small absolute response
+    after convolution  but if there are only short events and you scale then
+    this will look similar to a convolution with longer events. In general
+    scaling is useful, which is why it is the default, but be aware of this
+    edge case and if it is a concern, set the scale_function to false.
 
     Parameters
     ----------
@@ -804,6 +837,9 @@ def convolve_hrf(stimfunction,
         columns in this array.
 
     """
+    # How will stimfunction be resized
+    stride = int(temporal_resolution * tr_duration)
+    duration = int(stimfunction.shape[0] / stride)
 
     # Generate the hrf to use in the convolution
     if hrf_type == 'double_gamma':
@@ -817,30 +853,25 @@ def convolve_hrf(stimfunction,
     # Create signal functions for each list in the stimfunction
     for list_counter in range(list_num):
 
-        # Take the stim function
-        stimfunction_temp = stimfunction[:, list_counter]
+        # Perform the convolution
+        signal_temp = np.convolve(stimfunction[:, list_counter], hrf)
 
-        signal_function_temp = np.convolve(stimfunction_temp, hrf)
-
-        # Decimate the signal function so that it only has one element per TR
-        decimate_interval = int(tr_duration * temporal_resolution)
-        signal_function_temp = signal_function_temp[0::decimate_interval]
-
-        # Cut off the HRF
-        last_timepoint = stimfunction_temp.shape[0] / tr_duration
-        last_timepoint /= temporal_resolution
-        signal_function_temp = signal_function_temp[0:int(last_timepoint)]
+        # Down sample the signal function so that it only has one element per
+        # TR. This assumes that all slices are collected at the same time,
+        # which is often the result of slice time correction. In other
+        # words, the output assumes slice time correction
+        signal_temp = signal_temp[:duration * stride]
+        signal_vox = signal_temp[int(stride / 2)::stride]
 
         # Scale the function so that the peak response is 1
         if scale_function:
-            signal_function_temp = signal_function_temp / np.max(
-                signal_function_temp)
+            signal_vox = signal_vox / np.max(signal_vox)
 
         # Add this function to the stack
         if list_counter == 0:
-            signal_function = np.zeros((len(signal_function_temp), list_num))
+            signal_function = np.zeros((len(signal_vox), list_num))
 
-        signal_function[:, list_counter] = signal_function_temp
+        signal_function[:, list_counter] = signal_vox
 
     return signal_function
 
@@ -1387,11 +1418,11 @@ def _generate_noise_temporal_task(stimfunction_tr,
     # Make the noise to be added
     stimfunction_tr = stimfunction_tr != 0
     if motion_noise == 'gaussian':
-        noise = stimfunction_tr * np.random.normal(0, 1, size=len(
-            stimfunction_tr))
+        noise = stimfunction_tr * np.random.normal(0, 1,
+                                                   size=stimfunction_tr.shape)
     elif motion_noise == 'rician':
-        noise = stimfunction_tr * stats.rice.rvs(0, 1, size=len(
-            stimfunction_tr))
+        noise = stimfunction_tr * stats.rice.rvs(0, 1,
+                                                 size=stimfunction_tr.shape)
 
     noise_task = stimfunction_tr + noise
 
@@ -1403,13 +1434,14 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
 def _generate_noise_temporal_drift(trs,
                                    tr_duration,
-                                   period=300,
+                                   basis="discrete_cos",
+                                   period=150,
                                    ):
 
     """Generate the drift noise
 
-    Create a sinewave, of a given period and random phase, to represent the
-    drift of the signal over time
+    Create a trend (either sine or discrete_cos), of a given period and random
+    phase, to represent the drift of the signal over time
 
     Parameters
     ----------
@@ -1419,6 +1451,11 @@ def _generate_noise_temporal_drift(trs,
 
     tr_duration : float
         How long in seconds is each volume acqusition
+
+    basis : str
+        What is the basis function for the drift. Could be made of discrete
+        cosines (for longer run durations, more basis functions are
+        created) or a sine wave.
 
     period : int
         How many seconds is the period of oscillation of the drift
@@ -1430,14 +1467,46 @@ def _generate_noise_temporal_drift(trs,
 
     """
 
-    # Calculate the cycles of the drift for a given function.
-    cycles = trs * tr_duration / period
+    # Calculate drift differently depending on the basis function
+    if basis == 'discrete_cos':
 
-    # Create a sine wave with a given number of cycles and random phase
-    timepoints = np.linspace(0, trs - 1, trs)
-    phaseshift = np.pi * 2 * np.random.random()
-    phase = (timepoints / (trs - 1) * cycles * 2 * np.pi) + phaseshift
-    noise_drift = np.sin(phase)
+        # Specify each tr in terms of its phase with the given period
+        timepoints = np.linspace(0, trs - 1, trs)
+        timepoints = ((timepoints * tr_duration) / period) * 2 * np.pi
+
+        # Specify the other timing information
+        duration = trs * tr_duration
+        basis_funcs = int(np.floor(duration / period))  # How bases do you have
+
+        if basis_funcs == 0:
+            err_msg = 'Too few timepoints (' + str(trs) + ') to accurately ' \
+                                                          'model drift'
+            logger.warning(err_msg)
+            basis_funcs = 1
+
+        noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
+        for basis_counter in list(range(1, basis_funcs + 1)):
+
+            # What steps do you want to take for this basis function
+            timepoints_basis = (timepoints/basis_counter) + (np.random.rand()
+                                                             * np.pi * 2)
+
+            # Store the drift from this basis func
+            noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
+
+        # Average the drift
+        noise_drift = np.mean(noise_drift, 1)
+
+    elif basis == 'sine':
+
+        # Calculate the cycles of the drift for a given function.
+        cycles = trs * tr_duration / period
+
+        # Create a sine wave with a given number of cycles and random phase
+        timepoints = np.linspace(0, trs - 1, trs)
+        phaseshift = np.pi * 2 * np.random.random()
+        phase = (timepoints / (trs - 1) * cycles * 2 * np.pi) + phaseshift
+        noise_drift = np.sin(phase)
 
     # Normalize so the sigma is 1
     noise_drift = stats.zscore(noise_drift)

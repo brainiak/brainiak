@@ -28,6 +28,9 @@ python3 -m pip freeze | grep -qi /brainiak \
     exit 1
 }
 
+# Define MKL env variable that is required by Theano to run with MKL 2018
+export MKL_THREADING_LAYER=GNU
+
 mpi_command=mpiexec
 if [ ! -z $SLURM_NODELIST ]
 then

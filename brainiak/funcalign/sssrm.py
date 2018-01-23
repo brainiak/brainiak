@@ -17,8 +17,10 @@ The implementations are based on the following publications:
 
 .. [Turek2016] "A Semi-Supervised Method for Multi-Subject fMRI Functional
    Alignment",
-   J. Turek, T. Willke, P.-H. Chen, P. Ramadge
-   under review, 2016.
+   J. S. Turek, T. L. Willke, P.-H. Chen, P. J. Ramadge
+   IEEE International Conference on Acoustics, Speech and Signal Processing
+   (ICASSP), 2017, pp. 1098-1102.
+   https://doi.org/10.1109/ICASSP.2017.7952326
 """
 
 # Authors: Javier Turek (Intel Labs), 2016
