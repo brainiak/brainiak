@@ -26,75 +26,65 @@ __all__ = [
         "Searchlight",
 ]
 
-"""Shape
-
-Searchlight shape which is contained in a cube sized
-(2*rad+1,2*rad+1,2*rad+1)
-
-Attributes
-----------
-
-mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
-        which is set to True within the boundaries of the desired shape
-"""
-
 
 class Shape:
+    """Shape
+
+    Searchlight shape which is contained in a cube sized
+    (2*rad+1,2*rad+1,2*rad+1)
+
+    Attributes
+    ----------
+
+    mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
+            which is set to True within the boundaries of the desired shape
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
+
     def __init__(self, rad):
-        """Constructor
-
-        Parameters
-        ----------
-
-        rad: radius, in voxels, of the sphere inscribed in the
-             searchlight cube, not counting the center voxel
-
-        """
         self.rad = rad
 
 
-"""Cube
-
-Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
-"""
-
-
 class Cube(Shape):
+    """Cube
+
+    Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
     def __init__(self, rad):
-        """Constructor
-
-        Parameters
-        ----------
-
-        rad: radius, in voxels, of the sphere inscribed in the
-             searchlight cube, not counting the center voxel
-
-        """
         super().__init__(rad)
         self.rad = rad
         self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
 
 
-"""Diamond
-
-Searchlight shape which is a diamond
-inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
-Any location in the cube which has a Manhattan distance of less than rad
-from the center point is set to True.
-"""
-
-
 class Diamond(Shape):
+    """Diamond
+
+    Searchlight shape which is a diamond
+    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+    Any location in the cube which has a Manhattan distance of less than rad
+    from the center point is set to True.
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
     def __init__(self, rad):
-        """Constructor
-
-        Parameters
-        ----------
-
-        rad: radius, in voxels, of the sphere inscribed in the
-             searchlight cube, not counting the center voxel
-
-        """
         super().__init__(rad)
         self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
         for r1 in range(2*self.rad+1):
@@ -105,40 +95,36 @@ class Diamond(Shape):
                         self.mask_[r1, r2, r3] = True
 
 
-"""Distributed Searchlight
-
-Run a user-defined function over each voxel in a multi-subject
-dataset.
-
-Optionally, users can define a block function which runs over
-larger portions of the volume called blocks.
-"""
-
-
 class Searchlight:
+    """Distributed Searchlight
+
+    Run a user-defined function over each voxel in a multi-subject
+    dataset.
+
+    Optionally, users can define a block function which runs over
+    larger portions of the volume called blocks.
+
+    Parameters
+    ----------
+
+    sl_rad: radius, in voxels, of the sphere inscribed in the
+               searchlight cube, not counting the center voxel
+
+    max_blk_edge: max edge length, in voxels, of the 3D block
+
+    shape: brainiak.searchlight.searchlight.Shape indicating the
+    shape in voxels of the searchlight region
+
+    min_active_voxels_proportion: float
+        If a searchlight region does not have more than this minimum
+        proportion of active voxels in the mask, it is not processed by the
+        searchlight function. The mask used for the test is the
+        intersection of the global (brain) mask and the `Shape` mask. The
+        seed (central) voxel of the searchlight region is taken into
+        consideration.
+    """
     def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
                  min_active_voxels_proportion=0):
-        """Constructor
-
-        Parameters
-        ----------
-
-        sl_rad: radius, in voxels, of the sphere inscribed in the
-                   searchlight cube, not counting the center voxel
-
-        max_blk_edge: max edge length, in voxels, of the 3D block
-
-        shape: brainiak.searchlight.searchlight.Shape indicating the
-        shape in voxels of the searchlight region
-
-        min_active_voxels_proportion: float
-            If a searchlight region does not have more than this minimum
-            proportion of active voxels in the mask, it is not processed by the
-            searchlight function. The mask used for the test is the
-            intersection of the global (brain) mask and the `Shape` mask. The
-            seed (central) voxel of the searchlight region is taken into
-            consideration.
-        """
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.min_active_voxels_proportion = min_active_voxels_proportion
