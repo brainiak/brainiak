@@ -11,6 +11,7 @@ Table of contents
 .. toctree::
 
    release_notes
+   examples/index
    api
    contributing
 

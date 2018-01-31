@@ -24,6 +24,8 @@ build
 coverage.xml
 dist
 docs/*.rst
+docs/examples
+docs/backreferences
 examples/data
 htmlcov
 .idea
