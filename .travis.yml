@@ -40,6 +40,17 @@ matrix:
       env: *macos_env
       before_install: *macos_before_install
 
+    # Build and test conda packages
+    - os: linux
+      dist: trusty
+      install: ./.conda/bin/install
+      script: ./.conda/bin/build
+
+    - os: osx
+      osx_image: xcode8
+      install: ./.conda/bin/install
+      script: ./.conda/bin/build
+
 install:
     - python3 -m pip install -U pip
 

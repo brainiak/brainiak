@@ -1,0 +1,93 @@
+package:
+  name: brainiak
+  version: {{ GIT_DESCRIBE_TAG }}
+
+about:
+  home: http://brainiak.org
+  license: Apache 2
+  summary: 'Brain Imaging Analysis Kit'
+  license_family: APACHE
+
+source:
+  # git_url: https://github.com/brainiak/brainiak
+  # git_rev: master
+  path: ../
+
+build:
+  # If this is a new build for the same version, increment the build
+  # number. If you do not include this key, it defaults to 0.
+  # number: 1
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  script_env:
+
+    # We need the source directory because conda removes source / working
+    # directories by the time we reach the test phase. We can optionally pass in
+    # the --keep-old-work flag later on to use the $PREFIX/work directory
+    - BRAINIAK_HOME
+
+requirements:
+  build:
+    - python
+    - pip
+    - llvm
+    - cmake
+    - setuptools
+    - setuptools_scm
+    - mpich
+    - openmp
+    - cython
+    - mpi4py
+    - nitime
+    - numpy
+    - scikit-learn
+    - scipy !=1.0.0
+    - theano
+    - pybind11 >=1.7
+    - psutil
+    - nibabel
+    - typing
+
+  run:
+    - python
+    - pip
+    - llvm
+    - mpich
+    - openmp
+    - cython
+    - mpi4py
+    - nitime
+    - numpy
+    - scikit-learn
+    - scipy !=1.0.0
+    - theano
+    - pybind11 >=1.7
+    - psutil
+    - nibabel
+    - typing
+
+test:
+  # Python imports
+  imports:
+    - brainiak
+    - brainiak.eventseg
+    - brainiak.factoranalysis
+    - brainiak.fcma
+    - brainiak.funcalign
+    - brainiak.hyperparamopt
+    - brainiak.reprsimil
+    - brainiak.searchlight
+    - brainiak.utils
+  commands:
+    - export CC=$(which clang) CXX=$(which clang++) && mpiexec -n 2 pytest $BRAINIAK_HOME
+
+      # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
+    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
+    - conda inspect linkages -p $PREFIX brainiak  # [not win]
+    - conda inspect objects -p $PREFIX brainiak  # [osx]
+  requires:
+    - pytest
+    - numdifftools
+
+# See
+# http://docs.continuum.io/conda/build.html for
+# more information about meta.yaml
