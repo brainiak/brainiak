@@ -14,14 +14,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-set -e
+set -ex
 
 # When installing from sdist, the pip freeze output cannot be used to
 # detect editable mode. Use the "--sdist-mode" flag.
-sdist_mode=$1
+dist_mode=$1
 
 python3 -m pip freeze | grep -qi /brainiak \
-        || [ ${sdist_mode:-default} = "--sdist-mode" ] \
+        || [ ${dist_mode:-default} = "--sdist-mode" ] \
+        || [ ${dist_mode:-default} = "--bdist-mode" ] \
         || {
     echo "You must install brainiak in editable mode"`
         `" before calling "$(basename "$0")
@@ -31,33 +32,41 @@ python3 -m pip freeze | grep -qi /brainiak \
 # Define MKL env variable that is required by Theano to run with MKL 2018
 export MKL_THREADING_LAYER=GNU
 
-mpi_command=mpiexec
-if [ ! -z $SLURM_NODELIST ]
-then
+if [ -z $mpi_command ]; then
+  mpi_command=mpiexec
+elif [ ! -z $SLURM_NODELIST ]; then
     mpi_command=srun
 fi
-$mpi_command -n 2 coverage run -m pytest
 
-coverage combine
-
-# Travis error workaround
-coverage_report=$(mktemp -u coverage_report_XXXXX) || {
-    echo "mktemp -u error" >&2;
-    exit 1;
-}
-
-set +e
-coverage report > $coverage_report
-report_exit_code=$?
-
-coverage html
-coverage xml
-
-cat $coverage_report
-rm $coverage_report
-
-if [ $report_exit_code = 2 ]
+if [ ${dist_mode:-default} = "--bdist-mode" ]
 then
-    echo "ERROR: Coverage too low."
+  $mpi_command -n 2 $(which pytest)
+
+# Only run coverage for editable or source distribution
+else
+   $mpi_command -n 2 $(which coverage) run -m pytest
+   coverage combine
+
+   # Travis error workaround
+   coverage_report=$(mktemp -u coverage_report_XXXXX) || {
+      echo "mktemp -u error" >&2;
+      exit 1;
+   }
+
+   set +e
+   coverage report > $coverage_report
+   report_exit_code=$?
+
+   coverage html
+   coverage xml
+
+   cat $coverage_report
+   rm $coverage_report
+
+   if [ $report_exit_code = 2 ]
+   then
+      echo "ERROR: Coverage too low."
+   fi
+   exit $report_exit_code
 fi
-exit $report_exit_code
+

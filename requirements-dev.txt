@@ -5,6 +5,7 @@ flake8-print
 mypy
 numdifftools
 pytest
+pyyaml
 restructuredtext-lint
 setuptools_scm
 sphinx

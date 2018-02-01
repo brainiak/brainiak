@@ -16,7 +16,7 @@
 
 # Check readiness for pull request
 
-set -e
+set -ex
 
 if [ ! -f brainiak/__init__.py ]
 then
@@ -27,7 +27,11 @@ fi
 basedir=$(pwd)
 
 function create_venv_venv {
+  if [ ! -z $PYTHON ]; then
+    $PYTHON -m venv ../$1
+  else
     python3 -m venv ../$1
+  fi
 }
 
 function activate_venv_venv {
@@ -90,11 +94,14 @@ else
 fi
 
 # Check if running in an sdist
-if git ls-files --error-unmatch pr-check.sh 2> /dev/null
+if [ ! -z $WHEEL_DIR ] || [ ! -z $PYPI_REPOSITORY_URL ]
+then
+    dist_mode='--bdist-mode'
+elif git ls-files --error-unmatch pr-check.sh 2> /dev/null
 then
     git clean -Xf .
 else
-    sdist_mode="--sdist-mode"
+    dist_mode="--sdist-mode"
 fi
 
 venv=$(mktemp -u brainiak_pr_venv_XXXXX) || \
@@ -111,34 +118,75 @@ $activate_venv $venv || {
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
-python3 -m pip install $ignore_installed -U -e . || \
-    exit_with_error_and_venv "Failed to install BrainIAK."
 
-# install developer dependencies
-python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
-    exit_with_error_and_venv "Failed to install development requirements."
+if [ ! -z $WHEEL_DIR ]
+then
+    platform="unknown"
+    unamestr="$(uname)"
+    if [[ "$unamestr" == "Linux" ]]
+    then
+       platform="manylinux"
+    elif [[ "$unamestr" == "Darwin" ]]
+    then
+       platform="macosx"
+    else
+       echo "Unrecognized platform."
+       exit 1
+    fi
 
-# static analysis
-./run-checks.sh || \
-    exit_with_error_and_venv "run-checks failed"
+    MAJOR=$(python3 -c "import sys; v = sys.version_info; print(v[0] * 10 + v[1])")
+    # MPI4PY_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep mpi4py | grep $platform)
+    BRAINIAK_WHEEL=$(find $WHEEL_DIR -type f | grep cp$MAJOR | grep brainiak | grep $platform)
+
+    # python3 -m pip install -q $MPI4PY_WHEEL
+    python3 -m pip install -q $BRAINIAK_WHEEL
+
+    # We don't want to install brainiak from source
+    { echo $BRAINIAK_WHEEL; tail -n +2 requirements-dev.txt; } | python3 -m pip install -q -r /dev/stdin
+elif [ ! -z $PYPI_REPOSITORY_URL ]
+then
+    python3 -m pip install -q -i $PYPI_REPOSITORY_URL brainiak
+
+    tail -n +2 requirements-dev.txt | python3 -m pip install --index-url $PYPI_REPOSITORY_URL \
+       --extra-index-url="https://pypi.python.org/pypi" brainiak -q -r /dev/stdin
+else
+    python3 -m pip install $ignore_installed -U -e . || \
+        exit_with_error_and_venv "Failed to install BrainIAK."
+
+    # install developer dependencies
+    python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
+        exit_with_error_and_venv "Failed to install development requirements."
+fi
+
+# Only run source checks if we aren't in binary mode
+if [ ${dist_mode:-default} != '--bdist-mode' ]
+then
+   # static analysis
+   ./bin/run-checks.sh || \
+       exit_with_error_and_venv "run-checks failed"
+fi
 
 # run tests
-./run-tests.sh $sdist_mode || \
+./bin/run-tests.sh $dist_mode || \
     exit_with_error_and_venv "run-tests failed"
 
-# build documentation
-cd docs
-export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
-
-if [ ! -z $SLURM_NODELIST ]
+# Only build documentation if we aren't in binary mode
+if [ ${dist_mode:-default} != '--bdist-mode' ]
 then
-    make_wrapper="srun -n 1"
+  # build documentation
+  cd docs
+  export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
+
+  if [ ! -z $SLURM_NODELIST ]
+  then
+      make_wrapper="srun -n 1"
+  fi
+  $make_wrapper make || {
+      cd -
+      exit_with_error_and_venv "make docs failed"
+  }
+  cd -
 fi
-$make_wrapper make || {
-    cd -
-    exit_with_error_and_venv "make docs failed"
-}
-cd -
 
 $deactivate_venv
 $remove_venv $venv

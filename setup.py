@@ -6,11 +6,48 @@ import os
 import sys
 import setuptools
 from copy import deepcopy
+from subprocess import check_call, CalledProcessError
+import urllib.request
 
 assert sys.version_info >= (3, 4), (
     "Please use Python version 3.4 or higher, "
     "lower versions are not supported"
 )
+
+# Attempt to install mpi4py
+try:
+    result = check_call([sys.executable, '-m', 'pip', 'install', 'mpi4py'])
+except CalledProcessError as e:
+    # MacOS: mpi4py-3.0.0-cp34-cp34m-macosx_10_6_intel.whl
+    # Linux: mpi4py-3.0.1a0-cp34-cp34m-manylinux1_x86_64.whl
+
+    base_url = 'https://s3.amazonaws.com/brainiak/.whl/%s'
+    mpi4py_version = '3.0.0'
+
+    # Determine wheel file name
+    # TODO: These templates may change / may need to become more advanced
+    wheel_file = 'mpi4py-%(mpi4py)s-cp%(py)d-cp%(py)dm-%(dist)s.whl'
+    wheel_file = wheel_file % {
+        'mpi4py': mpi4py_version,
+        'py': sys.version_info[0] * 10 + sys.version_info[1],
+        'dist': 'macosx_10_6_intel' if sys.platform == 'darwin'
+        else 'manylinux1_x86_64'
+    }
+
+    wheel_url = base_url % wheel_file
+
+    # Download mpi4py wheel
+    local_filename, headers = urllib.request.urlretrieve(wheel_url, wheel_file)
+
+    # Install mpi4py wheel
+    result = check_call([sys.executable, '-m', 'pip',
+                         'install', local_filename])
+
+    # TODO: Need better clean-up mechanism
+    os.system('rm -f %s' % local_filename)
+
+    if result != 0:
+        sys.exit('ERROR: failed to install mpi4py')
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -113,7 +150,10 @@ class BuildExt(build_ext):
 
 setup(
     name='brainiak',
-    use_scm_version=True,
+
+    # TODO: Change this back
+    #  use_scm_version=True,
+    version='0.2.2',
     setup_requires=[
         'cython',
         'numpy',
