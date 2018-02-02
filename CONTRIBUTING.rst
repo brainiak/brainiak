@@ -313,3 +313,17 @@ right to make releases.
 
        git tag --push
        twine upload dist/brainiak-<v>.tar.gz
+
+6. Install Miniconda 3 if necessary::
+
+       ./.conda/bin/install-miniconda
+
+7. Create and test the Conda package::
+       
+       ./.conda/bin/build
+
+8. Upload the built Conda package::
+
+       anaconda upload -u brainiak /path-to-miniconda3/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
+
+9. Repeat the process for desired operating systems and versions of Python.
