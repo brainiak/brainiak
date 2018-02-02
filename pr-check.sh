@@ -69,7 +69,6 @@ function exit_with_error {
 function exit_with_error_and_venv {
     $deactivate_venv
     cd $basedir
-    rm -f .coverage.*
     $remove_venv $venv
     exit_with_error "$1"
 }
