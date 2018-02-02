@@ -2,10 +2,11 @@
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   export MACOSX_DEPLOYMENT_TARGET=10.9
+  export CC=$(which clang)
+  export CXX=$(which clang++)
 fi
 
-export CC=$(which clang)
-export CXX=$(which clang++)
+echo $PREFIX
 
 # Install pymanopt via pip because there isn't a conda package
 $PYTHON -m pip install pymanopt

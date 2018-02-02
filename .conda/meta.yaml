@@ -29,7 +29,8 @@ requirements:
   build:
     - python
     - pip
-    - llvm
+    - llvm # [osx]
+    - gcc # [linux]
     - cmake
     - setuptools
     - setuptools_scm
@@ -78,7 +79,9 @@ test:
     - brainiak.searchlight
     - brainiak.utils
   commands:
-    - export CC=$(which clang) CXX=$(which clang++) && mpiexec -n 2 pytest $BRAINIAK_HOME
+    # Pytest on Linux gets quite upset if we don't remove pycache from the tests directory
+    - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf # [linux]
+    - mpiexec -n 2 pytest $BRAINIAK_HOME
 
       # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
