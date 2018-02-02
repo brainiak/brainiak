@@ -43,23 +43,12 @@ matrix:
     # Build and test conda packages
     - os: linux
       dist: trusty
-      env:
-        - MINICONDA_URL="https://repo.continuum.io/miniconda"
-        - MINICONDA_FILE="Miniconda3-latest-Linux-x86_64.sh"
-      install: &install_miniconda
-        - curl -L "${MINICONDA_URL}/${MINICONDA_FILE}" -o ~/${MINICONDA_FILE}
-        - bash ~/$MINICONDA_FILE -b -u
-        - source ~/miniconda3/bin/activate root
-        - conda install --yes --quiet conda-build
-        - source deactivate
+      install: ./.conda/bin/install-miniconda
       script: ./.conda/bin/build
 
     - os: osx
       osx_image: xcode8
-      env:
-        - MINICONDA_URL="https://repo.continuum.io/miniconda"
-        - MINICONDA_FILE="Miniconda3-latest-MacOSX-x86_64.sh"
-      install: *install_miniconda
+      install: ./.conda/bin/install-miniconda
       script: ./.conda/bin/build
 
 install:
