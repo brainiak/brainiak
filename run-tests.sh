@@ -61,6 +61,5 @@ rm $coverage_report
 
 if [ $report_exit_code = 2 ]
 then
-    echo "ERROR: Coverage too low."
+    echo "WARNING: Coverage too low."
 fi
-exit $report_exit_code
