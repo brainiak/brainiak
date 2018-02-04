@@ -1108,15 +1108,16 @@ def _calc_sfnr(volume,
 def _calc_snr(volume,
               mask,
               tr=None,
+              remove_baseline=False,
               ):
     """ Calculate the the SNR of a volume
     Calculates the Signal to  Noise Ratio, the mean of brain voxels
     divided by the standard deviation across non-brain voxels. Specify a TR
     value to calculate the mean and standard deviation for that TR. To
-    calculate the standard deviation this subtracts any baseline structure
-    in the non-brain voxels, hence getting at deviations due to the system
-    noise and not something like high baseline values in non-brain parts of
-    the body.
+    calculate the standard deviation of non-brain voxels we can subtract
+    any baseline structure away first, hence getting at deviations due to the
+    system noise and not something like high baseline values in non-brain
+    parts of the body.
 
     Parameters
     ----------
@@ -1129,6 +1130,9 @@ def _calc_snr(volume,
 
     tr : int
         Integer specifying TR to calculate the SNR for
+
+    remove_baseline : bool
+        Is the baseline (a.k.a. temporal mean activation) removed.
 
     Returns
     -------
@@ -1147,12 +1151,17 @@ def _calc_snr(volume,
     nonbrain_voxels = volume[:, :, :, tr][mask == 0]
 
     # Find the mean of the non_brain voxels (deals with structure that may
-    # exist outside of the mask)
-    nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
 
     # Take the means of each voxel over time
     mean_voxels = np.nanmean(brain_voxels)
-    std_voxels = np.nanstd(nonbrain_voxels - nonbrain_voxels_mean)
+
+    # Find the standard deviation of the voxels
+    if remove_baseline == True:
+        # exist outside of the mask)
+        nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
+        std_voxels = np.nanstd(nonbrain_voxels - nonbrain_voxels_mean)
+    else:
+        std_voxels = np.nanstd(nonbrain_voxels)
 
     # Return the snr
     return mean_voxels / std_voxels
@@ -1895,10 +1904,10 @@ def _generate_noise_temporal(stimfunction_tr,
 def mask_brain(volume,
                template_name=None,
                mask_threshold=None,
-               mask_self=0,
+               mask_self=True,
                ):
     """ Mask the simulated volume
-    This creates a mask specifying the likelihood (kind of) a voxel is
+    This creates a mask specifying the approximate likelihood that a voxel is
     part of the brain. All values are bounded to the range of 0 to 1. An
     appropriate threshold to isolate brain voxels is >0.2
 
@@ -1911,8 +1920,8 @@ def mask_brain(volume,
 
     template_name : str
         What is the path to the template to be loaded? If empty then it
-        defaults to an MNI152 grey matter mask. This is ignored if mask_self is
-        True.
+        defaults to an MNI152 grey matter mask. This is ignored if mask_self
+        is True.
 
     mask_threshold : float
         What is the threshold (0 -> 1) for including a voxel in the mask? If
@@ -1921,9 +1930,10 @@ def mask_brain(volume,
         the minima before that peak as the threshold. Won't work when the
         data is not bimodal.
 
-    mask_self : bool
+    mask_self : bool or None
         If set to true then it makes a mask from the volume supplied (by
-        averaging across time points and changing the range).
+        averaging across time points and changing the range). If it is set
+        to false then it will use the template_name as an input.
 
     Returns
     ----------
@@ -1950,7 +1960,7 @@ def mask_brain(volume,
     else:
         mask_raw = np.load(template_name)
 
-    # Make the masks 3d
+    # Make the masks 3dremove_baseline
     if len(mask_raw.shape) == 3:
         mask_raw = np.array(mask_raw)
     elif len(mask_raw.shape) == 4 and mask_raw.shape[3] == 1:
@@ -2079,6 +2089,8 @@ def generate_noise(dimensions,
                    template,
                    mask=None,
                    noise_dict=None,
+                   temporal_proportion=0.5,
+                   iterations=10,
                    ):
     """ Generate the noise to be added to the signal.
     Default noise parameters will create a noise volume with a standard
@@ -2107,8 +2119,19 @@ def generate_noise(dimensions,
 
     noise_dict : dictionary, float
         This is a dictionary which describes the noise parameters of the
-        data. If there are no other variables provided then it will use default
-        values
+        data. If there are no other variables provided then it will use
+        default values
+
+    temporal_proportion, float
+        What is the proportion of the temporal variance (as specified by the
+        SFNR noise parameter) that is accounted for by the system noise. If
+        this number is high then all of the temporal variability is due to
+        system noise, if it is low then all of the temporal variability is
+        due to brain variability.
+
+    iterations : int
+        How many steps of fitting the SFNR and SNR values will be performed.
+        Usually converges after < 10.
 
     Returns
     ----------
@@ -2156,6 +2179,10 @@ def generate_noise(dimensions,
     # Create the base (this inverts the process to make the template)
     base = template * noise_dict['max_activity']
 
+    # Reshape the base (to be the same size as the volume to be created)
+    base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
+    base = np.ones(dimensions_tr) * base
+
     # What is the mean signal of the non masked voxels in this template?
     mean_signal = (base[mask > 0]).mean()
 
@@ -2163,28 +2190,46 @@ def generate_noise(dimensions,
     # variability
     temporal_sd = (mean_signal / noise_dict['sfnr'])
 
-    # Calculate the sd that is necessary to be combined with itself in order
-    # to generate the temporal_sd
-    temporal_sd_element = np.sqrt(temporal_sd ** 2 / 2)
+    # Calculate the temporal sd of the system noise (as opposed to the noise
+    #  attributed to the functional variability).
+    temporal_sd_system = np.sqrt((temporal_sd ** 2) * temporal_proportion)
 
     # What is the standard deviation of the background activity
     spatial_sd = mean_signal / noise_dict['snr']
 
-    # Set up the machine noise
-    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
-                                          spatial_sd=spatial_sd,
-                                          temporal_sd=temporal_sd_element,
-                                          )
+    # Cycle through the iterations
+    spat_sd_orig = np.copy(spatial_sd)
+    temp_sd_orig = np.copy(temporal_sd_system)
+    for iteration in list(range(iterations + 1)):
+        # Set up the machine noise
+        noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
+                                              spatial_sd=spatial_sd,
+                                              temporal_sd=temporal_sd_system,
+                                              )
 
-    # Reshape the base (to be the same size as the volume to be created)
-    base = base.reshape(dimensions[0], dimensions[1], dimensions[2], 1)
-    base = np.ones(dimensions_tr) * base
+        # Sum up the noise of the brain
+        noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
+                noise_system
 
-    # Sum up the noise of the brain
-    noise = base + (noise_temporal * temporal_sd_element) + noise_system
+        # Reject negative values (only happens outside of the brain)
+        noise[noise < 0] = 0
 
-    # Reject negative values (only happens outside of the brain)
-    noise[noise < 0] = 0
+        # If there are iterations left to perform then recalculate the
+        # metrics and try again
+        alpha = 0.5
+        if iteration < iterations:
+
+            # Calculate the new metrics
+            new_sfnr = _calc_sfnr(noise, mask)
+            new_snr = _calc_snr(noise, mask)
+
+            temp_sd_new = np.sqrt(((mean_signal / new_sfnr) ** 2) *
+                                         temporal_proportion)
+            spat_sd_new = mean_signal / new_snr
+
+            # Update the variables
+            temporal_sd_system -= ((temp_sd_new - temp_sd_orig) * alpha)
+            spatial_sd -= ((spat_sd_new - spat_sd_orig) * alpha)
 
     return noise
 

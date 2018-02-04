@@ -212,17 +212,26 @@ def test_generate_noise():
 
     assert np.std(signal) < np.std(noise), "Noise was not created"
 
-    noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction_tr=stimfunction_tr,
-                               tr_duration=tr_duration,
-                               template=template,
-                               mask=mask,
-                               noise_dict={'sfnr': 10000, 'snr': 10000},
-                               )
+    noise_high = sim.generate_noise(dimensions=dimensions,
+                                    stimfunction_tr=stimfunction_tr,
+                                    tr_duration=tr_duration,
+                                    template=template,
+                                    mask=mask,
+                                    noise_dict={'sfnr': 1000, 'snr': 1000},
+                                    )
 
-    system_noise = np.std(noise[mask > 0], 1).mean()
+    noise_low = sim.generate_noise(dimensions=dimensions,
+                                   stimfunction_tr=stimfunction_tr,
+                                   tr_duration=tr_duration,
+                                   template=template,
+                                   mask=mask,
+                                   noise_dict={'sfnr': 100, 'snr': 100},
+                                   )
 
-    assert system_noise <= 0.1, "Noise strength could not be manipulated"
+    system_high = np.std(noise_high[mask > 0], 0).mean()
+    system_low = np.std(noise_low[mask > 0], 0).mean()
+
+    assert system_low > system_high, "Noise strength could not be manipulated"
 
 
 def test_mask_brain():
@@ -294,7 +303,7 @@ def test_calc_noise():
                                              )
 
     # Mask the volume to be the same shape as a brain
-    mask, template = sim.mask_brain(dimensions_tr, mask_threshold=0.2)
+    mask, template = sim.mask_brain(dimensions_tr)
     stimfunction_tr = stimfunction[::int(tr_duration * 100)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
@@ -304,26 +313,8 @@ def test_calc_noise():
                                noise_dict=nd_orig,
                                )
 
-    # Check that noise_system is being calculated correctly
-    spatial_sd = 5
-    temporal_sd = 5
-    noise_system = sim._generate_noise_system(dimensions_tr,
-                                              spatial_sd,
-                                              temporal_sd)
+    new_sfnr = sim._calc_sfnr(noise, mask)
+    new_snr = sim._calc_snr(noise, mask)
 
-    precision = abs(noise_system[0, 0, 0, :].std() - spatial_sd)
-    assert precision < spatial_sd, 'noise_system calculated incorrectly'
-
-    precision = abs(noise_system[:, :, :, 0].std() - temporal_sd)
-    assert precision < spatial_sd, 'noise_system calculated incorrectly'
-
-    # Calculate the noise
-    nd_calc = sim.calc_noise(volume=noise,
-                             mask=mask)
-
-    # How precise are these estimates
-    precision = abs(nd_calc['snr'] - nd_orig['snr'])
-    assert precision < nd_orig['snr'], 'snr calculated incorrectly'
-
-    precision = abs(nd_calc['sfnr'] - nd_orig['sfnr'])
-    assert precision < nd_orig['sfnr'], 'sfnr calculated incorrectly'
+    assert abs(nd_orig['snr'] - new_snr) < 5, 'snr calculated incorrectly'
+    assert abs(nd_orig['sfnr'] - new_sfnr) < 5, 'sfnr calculated incorrectly'
