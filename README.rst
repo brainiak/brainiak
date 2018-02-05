@@ -4,6 +4,9 @@ Brain Imaging Analysis Kit
 .. image:: https://travis-ci.org/brainiak/brainiak.svg?branch=master
     :target: https://travis-ci.org/brainiak/brainiak
 
+.. image:: https://codecov.io/gh/brainiak/brainiak/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/brainiak/brainiak
+
 .. image:: https://badges.gitter.im/brainiak/brainiak.svg
    :alt: Join the chat at https://gitter.im/brainiak/brainiak
    :target: https://gitter.im/brainiak/brainiak?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
