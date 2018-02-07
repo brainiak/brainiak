@@ -1167,14 +1167,13 @@ def _calc_snr(volume,
     return mean_voxels / std_voxels
 
 
-def _calc_temporal_noise(volume,
-                         mask,
-                         auto_reg_order=1,
-                         ):
-    """ Calculate the the temporal noise of a volume
-    This calculates the variability of the volume over time and the
-    proportion of variance over time that is due to autoregression and how
-    much is due to scanner drift.
+def _calc_AR_noise(volume,
+                   mask,
+                   auto_reg_order=2,
+                   ):
+    """ Calculate the the AR noise of a volume
+    This calculates the AR of the volume over time by averaging all brain
+    voxels.
 
     Parameters
     ----------
@@ -1187,42 +1186,25 @@ def _calc_temporal_noise(volume,
         A binary mask the same size as the volume
 
     auto_reg_order : int
-        What order of the autoregression do you want to pull out
+        What order of the autoregression do you want to estimate
 
 
     Returns
     -------
 
-
-    sfnr : float 
-        The SFNR of the volume (mean brain activity divided by  temporal
-        variability in the averaged non brain voxels)  
-
-    auto_reg_sigma : float
-        A sigma of the autoregression in the data
-
-    drift_sigma : float
-        Sigma of the drift in the data
+    auto_reg_rho : list of floats
+        A rho of the autoregression in the data
 
     """
-
-    # Calculate sfnr and convert from memmap
-    sfnr = _calc_sfnr(volume,
-                      mask,
-                      )
 
     # Calculate the time course of voxels within the brain
     timecourse = np.mean(volume[mask > 0], 0)
     demeaned_timecourse = timecourse-timecourse.mean()
 
     # Pull out the AR values (depends on order)
-    auto_reg_sigma = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
-    auto_reg_sigma = np.sqrt(auto_reg_sigma[1])
+    auto_reg_rho,_ = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
 
-    # What is the size of the change in the time course
-    drift_sigma = timecourse.std().tolist()
-
-    return sfnr, auto_reg_sigma, drift_sigma
+    return auto_reg_rho.tolist()
 
 
 def calc_noise(volume,
@@ -1268,12 +1250,23 @@ def calc_noise(volume,
     # convert between the mask and the mean of the brain volume)
     noise_dict['max_activity'] = np.nanmax(np.mean(volume, 3))
 
-    # Since you are deriving the 'true' values then you want your noise to
-    # be set to that level
-
     # Calculate the temporal variability of the volume
-    sfnr, auto_reg, drift = _calc_temporal_noise(volume, mask)
-    noise_dict['sfnr'] = sfnr
+    noise_dict['auto_reg_rho'] = _calc_AR_noise(volume, mask)
+
+    # Set it such that all of the temporal variability will be accounted for
+    #  by the AR component
+    noise_dict['auto_reg_sigma'] = 1
+
+    # Preset these values to be zero, as in you are not attempting to
+    # simulate them
+    noise_dict['physiological_sigma'] = 0
+    noise_dict['task_sigma'] = 0
+    noise_dict['drift_sigma'] = 0
+
+    # Calculate the sfnr
+    noise_dict['sfnr'] = _calc_sfnr(volume,
+                                    mask,
+                                    )
 
     # Calculate the fwhm on a subset of volumes
     if volume.shape[3] > 100:
@@ -1295,13 +1288,6 @@ def calc_noise(volume,
     noise_dict['snr'] = _calc_snr(volume,
                                   mask,
                                   )
-
-    # Total temporal noise, since these values only make sense relatively
-    total_temporal_noise = auto_reg + drift
-
-    # What proportion of noise is accounted for by these variables?
-    noise_dict['auto_reg_sigma'] = auto_reg / total_temporal_noise
-    noise_dict['drift_sigma'] = drift / total_temporal_noise
 
     # Return the noise dictionary
     return noise_dict
@@ -1525,7 +1511,6 @@ def _generate_noise_temporal_drift(trs,
 
 
 def _generate_noise_temporal_autoregression(timepoints,
-                                            auto_reg_order=1,
                                             auto_reg_rho=[0.5],
                                             ):
 
@@ -1539,15 +1524,11 @@ def _generate_noise_temporal_autoregression(timepoints,
     timepoints : 1 Dimensional array
         What time points are sampled by a TR
 
-    auto_reg_order : float
-        How many timepoints ought to be taken into consideration for the
-        autoregression function
-
-    auto_reg_rho : float
+    auto_reg_rho : list of floats
         What is the scaling factor on the predictiveness of the previous
-        time point. This value is below 1 to avoid brownian motion (and
-        growing variance). Values near or greater than one may produce drift or
-        other unwanted trends.
+        time point. Values near or greater than one may produce drift or
+        other unwanted trends. The length of this list determines the order
+        of the AR function
 
     Returns
     ----------
@@ -1556,10 +1537,8 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     """
 
-    if len(auto_reg_rho) == 1:
-        auto_reg_rho = auto_reg_rho * auto_reg_order  # Duplicate this so that
-        # there is one
-        #  for each value
+    # Specify the order based on the number of rho supplied
+    auto_reg_order = len(auto_reg_rho)
 
     # Generate a random variable at each time point that is a decayed value
     # of the previous time points
@@ -1769,11 +1748,7 @@ def _generate_noise_temporal(stimfunction_tr,
                              dimensions,
                              template,
                              mask,
-                             fwhm,
-                             motion_sigma,
-                             drift_sigma,
-                             auto_reg_sigma,
-                             physiological_sigma,
+                             noise_dict
                              ):
     """Generate the temporal noise
     Generate the time course of the average brain voxel. To change the
@@ -1800,27 +1775,14 @@ def _generate_noise_temporal(stimfunction_tr,
     mask : 3 dimensional array, binary
         The masked brain, thresholded to distinguish brain and non-brain
 
-    fwhm : float
-        What is the full width half max of the gaussian fields being created
-        to model spatial noise.
-
-    motion_sigma : float
-        This is noise that only occurs for the task events, potentially
-        representing something like noise due to motion
-
-    drift_sigma : float
-
-        What is the sigma on the size of the sine wave
-
-    auto_reg_sigma : float, list
-        How large is the sigma on the autocorrelation. Higher means more
-        variable over time. If there are multiple entries then this is
-        inferred as higher orders of the autoregression
-
-    physiological_sigma : float
-
-        How variable is the signal as a result of physiology,
-        like heart beat and breathing
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, all noise types
+        ending with sigma (e.g. motion sigma) are mixed together in
+        _generate_temporal_noise. The sigma values describe the proportion of
+        mixing of these elements. However critically, SFNR is the
+        parameter that describes how much noise these components contribute
+        to the brain.
 
     Returns
     ----------
@@ -1837,68 +1799,84 @@ def _generate_noise_temporal(stimfunction_tr,
     # What time points are sampled by a TR?
     timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
 
-    noise_drift = _generate_noise_temporal_drift(trs,
-                                                 tr_duration,
-                                                 )
+    # Preset the volume
+    noise_volume = np.zeros((dimensions[0], dimensions[1], dimensions[2], trs))
 
-    noise_phys = _generate_noise_temporal_phys(timepoints,
+    # Generate the drift noise
+    if noise_dict['drift_sigma'] != 0:
+        # Calculate the drift time course
+        noise = _generate_noise_temporal_drift(trs,
+                                               tr_duration,
+                                               )
+        # Create a volume with the drift properties
+        volume = np.ones(dimensions)
+
+        # Combine the volume and noise
+        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
+            'drift_sigma']
+
+    # Generate the physiological noise
+    if noise_dict['physiological_sigma'] != 0:
+
+        # Calculate the physiological time course
+        noise = _generate_noise_temporal_phys(timepoints,
                                                )
 
-    noise_autoregression = _generate_noise_temporal_autoregression(timepoints,
-                                                                   )
+        # Create a brain shaped volume with similar smoothing properties
+        volume = _generate_noise_spatial(dimensions=dimensions,
+                                         template=template,
+                                         mask=mask,
+                                         fwhm=noise_dict['fwhm'],
+                                         )
 
-    # Generate the volumes that will differ depending on the type of noise
-    # that it will be used for. For drift you want the volume to not have
-    # the shape of the brain, for the other types of noise you want them to
-    # have brain shapes
-    volume_drift = np.ones(dimensions)
+        # Combine the volume and noise
+        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
+            'physiological_sigma']
 
-    volume_phys = _generate_noise_spatial(dimensions=dimensions,
-                                          template=template,
-                                          mask=mask,
-                                          fwhm=fwhm,
-                                          )
+    # Generate the AR noise
+    if noise_dict['auto_reg_sigma'] != 0:
+        # Calculate the AR time course
+        noise = _generate_noise_temporal_autoregression(timepoints,
+                                                        noise_dict[
+                                                            'auto_reg_rho'],
+                                                        )
 
-    volume_autoreg = _generate_noise_spatial(dimensions=dimensions,
-                                             template=template,
-                                             mask=mask,
-                                             fwhm=fwhm,
-                                             )
+        # Create a brain shaped volume with similar smoothing properties
+        volume = _generate_noise_spatial(dimensions=dimensions,
+                                         template=template,
+                                         mask=mask,
+                                         fwhm=noise_dict['fwhm'],
+                                         )
 
-    # Multiply the noise by the spatial volume
-    noise_drift_volume = np.multiply.outer(volume_drift, noise_drift)
-    noise_phys_volume = np.multiply.outer(volume_phys, noise_phys)
-    noise_autoregression_volume = np.multiply.outer(volume_autoreg,
-                                                    noise_autoregression)
+        # Combine the volume and noise
+        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
+            'auto_reg_sigma']
 
-    # Sum the noise (it would have been nice to just add all of them in a
-    # single line but this was causing formatting problems)
-    noise_temporal = noise_drift_volume * drift_sigma
-    noise_temporal = noise_temporal + (noise_phys_volume * physiological_sigma)
-    noise_temporal = noise_temporal + (noise_autoregression_volume *
-                                       auto_reg_sigma)
+    # Generate the task related noise
+    if noise_dict['task_sigma'] != 0 and np.sum(stimfunction_tr) > 0:
 
-    # Only do this if you are making motion variance
-    if motion_sigma != 0 and np.sum(stimfunction_tr) > 0:
-        # Make each noise type
-        noise_task = _generate_noise_temporal_task(stimfunction_tr,
-                                                   )
-        volume_task = _generate_noise_spatial(dimensions=dimensions,
-                                              template=template,
-                                              mask=mask,
-                                              fwhm=fwhm,
+        # Calculate the task based noise time course
+        noise = _generate_noise_temporal_task(stimfunction_tr,
                                               )
-        noise_task_volume = np.multiply.outer(volume_task, noise_task)
-        noise_temporal = noise_temporal + (noise_task_volume * motion_sigma)
+
+        # Create a brain shaped volume with similar smoothing properties
+        volume = _generate_noise_spatial(dimensions=dimensions,
+                                         template=template,
+                                         mask=mask,
+                                         fwhm=noise_dict['fwhm'],
+                                         )
+        # Combine the volume and noise
+        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
+            'task_sigma']
 
     # Finally, z score each voxel so things mix nicely
-    noise_temporal = stats.zscore(noise_temporal, 3)
+    noise_volume = stats.zscore(noise_volume, 3)
 
     # If it is a nan it is because you just divided by zero (since some
     # voxels are zeros in the template)
-    noise_temporal[np.isnan(noise_temporal)] = 0
+    noise_volume[np.isnan(noise_volume)] = 0
 
-    return noise_temporal
+    return noise_volume
 
 
 def mask_brain(volume,
@@ -2061,12 +2039,14 @@ def _noise_dict_update(noise_dict):
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
 
-    if 'motion_sigma' not in noise_dict:
-        noise_dict['motion_sigma'] = 0
+    if 'task_sigma' not in noise_dict:
+        noise_dict['task_sigma'] = 0
     if 'drift_sigma' not in noise_dict:
         noise_dict['drift_sigma'] = 0.45
     if 'auto_reg_sigma' not in noise_dict:
-        noise_dict['auto_reg_sigma'] = 0.45
+        noise_dict['auto_reg_sigma'] = 0.5
+    if 'auto_reg_rho' not in noise_dict:
+        noise_dict['auto_reg_rho'] = [0.5]
     if 'physiological_sigma' not in noise_dict:
         noise_dict['physiological_sigma'] = 0.1
     if 'sfnr' not in noise_dict:
@@ -2145,7 +2125,7 @@ def generate_noise(dimensions,
     if noise_dict is None:
         noise_dict = {}
 
-    # Take in the noise dictionary and determine whether
+    # Take in the noise dictionary and add any missing information
     noise_dict = _noise_dict_update(noise_dict)
 
     # What are the dimensions of the volume, including time
@@ -2164,16 +2144,7 @@ def generate_noise(dimensions,
                                               dimensions=dimensions,
                                               template=template,
                                               mask=mask,
-                                              fwhm=noise_dict[
-                                                 'fwhm'],
-                                              motion_sigma=noise_dict[
-                                                 'motion_sigma'],
-                                              drift_sigma=noise_dict[
-                                                 'drift_sigma'],
-                                              auto_reg_sigma=noise_dict[
-                                                 'auto_reg_sigma'],
-                                              physiological_sigma=noise_dict[
-                                                 'physiological_sigma'],
+                                              noise_dict=noise_dict,
                                               )
 
     # Create the base (this inverts the process to make the template)
