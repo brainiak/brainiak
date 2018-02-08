@@ -29,6 +29,7 @@ python3 -m pip freeze | grep -qi /brainiak \
 }
 
 # Define MKL env variable that is required by Theano to run with MKL 2018
+# If removing, also remove from .conda/*
 export MKL_THREADING_LAYER=GNU
 
 mpi_command=mpiexec
