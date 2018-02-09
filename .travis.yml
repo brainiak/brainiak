@@ -52,7 +52,9 @@ matrix:
       script: ./.conda/bin/build
 
 install:
-    - python3 -m pip install -U pip
+    - python3 -m pip install -U pip codecov
 
 script:
     - ./pr-check.sh
+after_success:
+    - codecov
