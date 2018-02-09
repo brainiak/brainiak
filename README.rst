@@ -28,7 +28,7 @@ Quickstart
 
 If you have `Conda <conda.io>`_::
 
-    conda install -c brainiak brainiak
+    conda install -c brainiak -c defaults -c conda-forge brainiak
 
 Otherwise, or if you want to compile from source, install the requirements (see
 docs/installation) and then install from PyPI::
