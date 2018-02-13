@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Need to run apt update && apt install -y build-essential curl git
+docker run --rm -w /src -v $DIR/../..:/src -ti ubuntu:trusty /bin/bash

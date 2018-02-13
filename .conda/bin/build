@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+export BRAINIAK_HOME=$DIR/../../
+
+# See run-tests.sh
+export MKL_THREADING_LAYER=GNU
+
+if [ -z ${CONDA_HOME+dummy} ]
+then
+    CONDA_HOME="$HOME"/miniconda3
+fi
+
+"$CONDA_HOME"/bin/conda build "$DIR"/..

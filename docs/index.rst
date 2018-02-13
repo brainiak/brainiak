@@ -10,6 +10,7 @@ Table of contents
 
 .. toctree::
 
+   installation
    release_notes
    api
    contributing
