@@ -2,6 +2,22 @@
 Installation
 ============
 
+Conda
++++++
+
+Make sure you have the ``conda-forge`` channel active, because some of our
+dependencies are not available in the default channels.
+
+Use our ``brainiak`` channel to install::
+
+    conda install -c brainiak brainiak
+
+Note that `~brainiak.funcalign.sssrm.SSSRM` currently uses Theano, which
+requires the Xcode Command Line Tools on `MacOS`_.
+
+Source
+++++++
+
 Requirements
 ============
 
