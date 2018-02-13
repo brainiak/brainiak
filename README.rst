@@ -31,7 +31,7 @@ If you have `Conda <conda.io>`_::
     conda install -c brainiak -c defaults -c conda-forge brainiak
 
 Otherwise, or if you want to compile from source, install the requirements (see
-:doc:`installation`) and then install from PyPI::
+`docs/installation`) and then install from PyPI::
 
     python3 -m pip install brainiak
 
