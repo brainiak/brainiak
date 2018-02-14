@@ -1170,6 +1170,7 @@ def _calc_snr(volume,
 def _calc_AR_noise(volume,
                    mask,
                    auto_reg_order=2,
+                   sample_num=100,
                    ):
     """ Calculate the the AR noise of a volume
     This calculates the AR of the volume over time by averaging all brain
@@ -1188,6 +1189,8 @@ def _calc_AR_noise(volume,
     auto_reg_order : int
         What order of the autoregression do you want to estimate
 
+    sample_num : int
+        How many voxels would you like to sample to calculate the AR values
 
     Returns
     -------
@@ -1198,13 +1201,27 @@ def _calc_AR_noise(volume,
     """
 
     # Calculate the time course of voxels within the brain
-    timecourse = np.mean(volume[mask > 0], 0)
-    demeaned_timecourse = timecourse-timecourse.mean()
+    brain_timecourse = volume[mask > 0]
 
-    # Pull out the AR values (depends on order)
-    auto_reg_rho,_ = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
+    # Identify some brain voxels to assess
+    voxel_idxs = list(range(brain_timecourse.shape[0]))
+    np.random.shuffle(voxel_idxs)
 
-    return auto_reg_rho.tolist()
+    auto_reg_rho_all = np.zeros((sample_num, auto_reg_order))
+    for voxel_counter in range(sample_num):
+
+        # Get the timecourse and demean it
+        timecourse = brain_timecourse[voxel_idxs[voxel_counter], :]
+        demeaned_timecourse = timecourse - timecourse.mean()
+
+        # Pull out the AR values (depends on order)
+        auto_reg_rho,_ = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
+
+        # Add to the list
+        auto_reg_rho_all[voxel_counter, :] = auto_reg_rho
+
+    # Average all of the values and then convert them to a list
+    return np.mean(auto_reg_rho_all, 0).tolist()
 
 
 def calc_noise(volume,
@@ -1511,7 +1528,11 @@ def _generate_noise_temporal_drift(trs,
 
 
 def _generate_noise_temporal_autoregression(timepoints,
-                                            auto_reg_rho=[0.5],
+                                            auto_reg_rho,
+                                            dimensions,
+                                            template,
+                                            mask,
+                                            fwhm,
                                             ):
 
     """Generate the autoregression noise
@@ -1530,6 +1551,33 @@ def _generate_noise_temporal_autoregression(timepoints,
         other unwanted trends. The length of this list determines the order
         of the AR function
 
+    dimensions : 3 length array, int
+        What is the shape of the volume to be generated
+
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
+
+    mask : 3 dimensional array, binary
+        The masked brain, thresholded to distinguish brain and non-brain
+
+    fwhm : float
+        What is the full width half max of the gaussian fields being created.
+        This is converted into a sigma which is used in this function.
+        However, this conversion was found empirically by testing values of
+        sigma and how it relates to fwhm values. The relationship that would be
+        found in such a test depends on the size of the brain (bigger brains
+        can have bigger fwhm).
+        However, small errors shouldn't matter too much since the fwhm
+        generated here can only be approximate anyway: firstly, although the
+        distribution that is being drawn from is set to this value,
+        this will manifest differently on every draw. Secondly, because of
+        the masking and dimensions of the generated volume, this does not
+        behave simply- wrapping effects matter (the outputs are
+        closer to the input value if you have no mask).
+        Use _calc_fwhm on this volume alone if you have concerns about the
+        accuracy of the fwhm.
+
     Returns
     ----------
     noise_autoregression : one dimensional array, float
@@ -1542,23 +1590,39 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     # Generate a random variable at each time point that is a decayed value
     # of the previous time points
-    noise_autoregression = []
+    noise_autoregression = np.zeros((dimensions[0], dimensions[1],
+                                     dimensions[2], len(timepoints)))
     for tr_counter in range(len(timepoints)):
 
+        # Create a brain shaped volume with similar smoothing properties
+        volume = _generate_noise_spatial(dimensions=dimensions,
+                                         template=template,
+                                         mask=mask,
+                                         fwhm=fwhm,
+                                         )
+
         if tr_counter == 0:
-            noise_autoregression.append(np.random.normal(0, 1))
+            noise_autoregression[:, :, :, tr_counter] = volume
 
         else:
 
-            temp = []
+            temp_vol = np.zeros((dimensions[0], dimensions[1], dimensions[
+                2], auto_reg_order + 1))
             for pCounter in list(range(1, auto_reg_order + 1)):
+                past_TR = int(tr_counter - pCounter)
                 if tr_counter - pCounter >= 0:
-                    past_trs = noise_autoregression[int(tr_counter - pCounter)]
-                    past_reg = auto_reg_rho[pCounter - 1]
-                    temp.append(past_trs * past_reg)
 
-            random = np.random.normal(0, 1)
-            noise_autoregression.append(np.sum(temp) + random)
+                    # Pull out a previous TR
+                    past_vols = noise_autoregression[:, :, :, past_TR]
+
+                    # How much to 'discount' this TR
+                    past_reg = auto_reg_rho[pCounter - 1]
+
+                    # Add it to the list of TRs to consider
+                    temp_vol[:, :, :, pCounter] = past_vols * past_reg
+
+                    noise_autoregression[:, :, :, tr_counter] = np.sum(
+                        temp_vol, 3) + volume
 
     # N.B. You don't want to normalize. Although that may make the sigma of
     # this timecourse 1, it will change the autoregression coefficient to be
@@ -1835,22 +1899,19 @@ def _generate_noise_temporal(stimfunction_tr,
 
     # Generate the AR noise
     if noise_dict['auto_reg_sigma'] != 0:
-        # Calculate the AR time course
+
+        # Calculate the AR time course volume
         noise = _generate_noise_temporal_autoregression(timepoints,
                                                         noise_dict[
                                                             'auto_reg_rho'],
+                                                        dimensions,
+                                                        template,
+                                                        mask,
+                                                        noise_dict['fwhm'],
                                                         )
 
-        # Create a brain shaped volume with similar smoothing properties
-        volume = _generate_noise_spatial(dimensions=dimensions,
-                                         template=template,
-                                         mask=mask,
-                                         fwhm=noise_dict['fwhm'],
-                                         )
-
         # Combine the volume and noise
-        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
-            'auto_reg_sigma']
+        noise_volume += noise * noise_dict['auto_reg_sigma']
 
     # Generate the task related noise
     if noise_dict['task_sigma'] != 0 and np.sum(stimfunction_tr) > 0:

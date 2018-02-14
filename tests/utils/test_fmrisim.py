@@ -219,7 +219,7 @@ def test_generate_noise():
                                     tr_duration=tr_duration,
                                     template=template,
                                     mask=mask,
-                                    noise_dict={'sfnr': 1000, 'snr': 1000},
+                                    noise_dict={'sfnr': 100, 'snr': 100},
                                     )
 
     noise_low = sim.generate_noise(dimensions=dimensions,
@@ -227,13 +227,13 @@ def test_generate_noise():
                                    tr_duration=tr_duration,
                                    template=template,
                                    mask=mask,
-                                   noise_dict={'sfnr': 100, 'snr': 100},
+                                   noise_dict={'sfnr': 1000, 'snr': 1000},
                                    )
 
     system_high = np.std(noise_high[mask > 0], 0).mean()
     system_low = np.std(noise_low[mask > 0], 0).mean()
 
-    assert system_low > system_high, "Noise strength could not be manipulated"
+    assert system_low < system_high, "Noise strength could not be manipulated"
 
 
 def test_mask_brain():
