@@ -3837,8 +3837,6 @@ class GBRSA(BRSA):
         # In the equation of the log likelihood, this "denominator"
         # term is in fact divided by 2. But we absorb that into the
         # log fixted term.
-        print('YTAcorrY_diag', YTAcorrY_diag)
-        print('s2YTAcorrXL_LAMBDA_LTXTAcorrY', s2YTAcorrXL_LAMBDA_LTXTAcorrY)
         LL_raw = -half_log_det_X0TAX0[:, None] \
             - half_log_det_LAMBDA_i[:, None] \
             - (n_T - n_X0 - 2) / 2 * np.log(denominator) \
