@@ -503,8 +503,7 @@ def generate_stimfunction(onsets,
 
     # Check files
     if np.max(onsets) > total_time:
-        print('Onsets outside of range of total time. Aborting')
-        exit()
+        raise ValueError('Onsets outside of range of total time.')
 
     # Generate the time course as empty, each element is a millisecond by
     # default

@@ -2,6 +2,29 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.7 (2018-02-12)
+=========================
+
+Features
+--------
+
+- funcalign: Added the Robust Shared Response Model method. (`#302
+  <https://github.com/brainiak/brainiak/issues/302>`_)
+- fmrisim: Update convolution and drift. (`#309
+  <https://github.com/brainiak/brainiak/pull/309>`_)
+- eventseg: Added option to compute p values for ISC and ISFC (`#310
+  <https://github.com/brainiak/brainiak/issues/310>`_)
+- Added Conda packages. (`#328
+  <https://github.com/brainiak/brainiak/issues/328>`_)
+
+
+Documentation improvements
+--------------------------
+
+- Updated the searchlight API docs. (`#324
+  <https://github.com/brainiak/brainiak/issues/324>`_)
+
+
 BrainIAK 0.6 (2017-11-10)
 =========================
 

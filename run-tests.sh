@@ -29,6 +29,7 @@ python3 -m pip freeze | grep -qi /brainiak \
 }
 
 # Define MKL env variable that is required by Theano to run with MKL 2018
+# If removing, also remove from .conda/*
 export MKL_THREADING_LAYER=GNU
 
 mpi_command=mpiexec
@@ -37,6 +38,9 @@ then
     mpi_command=srun
 fi
 $mpi_command -n 2 coverage run -m pytest
+
+# Coverage produces empty files which trigger warnings on combine
+find . -name ".coverage.*" -size 0 -print0 | xargs -0 rm -f
 
 coverage combine
 
@@ -58,6 +62,5 @@ rm $coverage_report
 
 if [ $report_exit_code = 2 ]
 then
-    echo "ERROR: Coverage too low."
+    echo "WARNING: Coverage too low."
 fi
-exit $report_exit_code
