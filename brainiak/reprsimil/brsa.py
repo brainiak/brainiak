@@ -238,6 +238,22 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         \\epsilon_i \\sim AR(1)
 
+    Please note that the model assumes that the covariance matrix U which
+    all \\beta_i follow is zero-meaned. This assumption does not imply
+    there must be both positive and negative responses across voxels.
+    However, it means that Bayesian RSA treats the task-evoked activity
+    against baseline BOLD level as signal, while in other RSA tools
+    the deviation of task-evoked activity in each voxel from the average
+    task-evoked activity level across voxels may be considered as signal
+    of interest. Due to this assumption in BRSA, relatively high degree
+    of similarity may be expected when the activity patterns of two
+    task conditions both include strong sensory driven signals regardless
+    of their specific stimuli. When two task conditions elicit exactly
+    the same activity patterns but only differ in their global magnitudes,
+    under the assumption in BRSA, their similarity is 1; under the assumption
+    that only deviation of pattern from average patterns is signal of interest,
+    their similarity should be -1.
+
     Parameters
     ----------
     n_iter : int. Default: 50
@@ -387,12 +403,12 @@ class BRSA(BaseEstimator, TransformerMixin):
         without introducing the GP prior before fitting with it,
         if GP_space or GP_inten is requested. This initial
         fitting is to give the parameters a good starting point.
-    optimizer: str or callable. Default: 'BFGS'
+    optimizer: str or callable. Default: 'L-BFGS-B'
         The optimizer to use for minimizing cost function which
         scipy.optimize.minimize can accept.
         We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
+        or a custom optimizer, such as 'BFGS' or 'CG'.
         Note that BRSA fits a lot of parameters. So a chosen optimizer
         should accept gradient (Jacobian) of the cost function. Otherwise
         the fitting is likely to be unbarely slow. We do not calculate
@@ -499,14 +515,14 @@ class BRSA(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-            self, n_iter=50, rank=None,
+            self, n_iter=80, rank=None,
             auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA', baseline_single=False,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
-            eta=0.0001, init_iter=20, optimizer='BFGS',
+            eta=0.0001, init_iter=20, optimizer='L-BFGS-B',
             random_state=None, anneal_speed=10, tol=1e-4,
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 6}):
@@ -2711,6 +2727,10 @@ class GBRSA(BRSA):
 
     See also `.BRSA`.
 
+    Please note that the model assumes that the covariance matrix U which
+    all \\beta_i follow is zero-meaned. For more details of its implication,
+    see documentation of `.BRSA`
+
     Parameters
     ----------
     n_iter : int. Default: 50
@@ -2837,12 +2857,12 @@ class GBRSA(BRSA):
         This only takes effect for fitting the marginalized version.
         If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
-    optimizer: str or callable. Default: 'BFGS'
+    optimizer: str or callable. Default: 'L-BFGS-B'
         The optimizer to use for minimizing cost function which
         scipy.optimize.minimize can accept.
         We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
+        or a custom optimizer, such as 'BFGS' or 'CG'.
         Note that BRSA fits a lot of parameters. So a chosen optimizer
         should accept gradient (Jacobian) of the cost function. Otherwise
         the fitting is likely to be unbarely slow. We do not calculate
@@ -2945,11 +2965,11 @@ class GBRSA(BRSA):
     """
 
     def __init__(
-            self, n_iter=50, rank=None,
+            self, n_iter=80, rank=None,
             auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA',
             baseline_single=False, logS_range=1.0, SNR_prior='exp',
-            SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
+            SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='L-BFGS-B',
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 20}, random_state=None,
             anneal_speed=10):
@@ -3817,6 +3837,8 @@ class GBRSA(BRSA):
         # In the equation of the log likelihood, this "denominator"
         # term is in fact divided by 2. But we absorb that into the
         # log fixted term.
+        print('YTAcorrY_diag', YTAcorrY_diag)
+        print('s2YTAcorrXL_LAMBDA_LTXTAcorrY', s2YTAcorrXL_LAMBDA_LTXTAcorrY)
         LL_raw = -half_log_det_X0TAX0[:, None] \
             - half_log_det_LAMBDA_i[:, None] \
             - (n_T - n_X0 - 2) / 2 * np.log(denominator) \
