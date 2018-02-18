@@ -26,6 +26,11 @@ and [AndersonMJ2016]_.
    K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
    2014 International Workshop on, June 2014.
 
+.. [Manning2018] "A Probabilistic Approach to Discovering Dynamic Full-brain
+   Functional Connectivit Patterns", J. R. Manning, X. Zhu, T.L. Willke,
+   R. Ranganath, K. Stachenfeld, U. Hasson, D. M. Blei and K. A. Norman.
+   Neuroimage, 2018.
+
 .. [AndersonMJ2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
    Datasets",
    Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
