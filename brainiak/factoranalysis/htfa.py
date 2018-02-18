@@ -14,7 +14,7 @@
 """Hierarchical Topographical Factor Analysis (HTFA)
 
 This implementation is based on the work in [Manning2014-1]_, [Manning2014-2]_,
-, [AndersonMJ2016]_ and [Manning2018].
+, [AndersonMJ2016]_ and [Manning2018]_.
 
 .. [Manning2014-1] "Topographic factor analysis: a bayesian model for
    inferring brain networks from neural data", J. R. Manning,
