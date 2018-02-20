@@ -2733,7 +2733,7 @@ class GBRSA(BRSA):
 
     Parameters
     ----------
-    n_iter : int. 
+    n_iter : int.
         Number of maximum iterations to run the algorithm.
     rank : int.
         The rank of the covariance matrix.
