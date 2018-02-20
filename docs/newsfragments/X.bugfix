@@ -1,0 +1,1 @@
+Fixed bug in eventseg that was causing fits to be asymmetric
