@@ -78,7 +78,7 @@ highlighted against the outline of the brain.
 import logging
 
 from itertools import product
-import nitime.algorithms.autoregressive as ar
+from statsmodels.tsa.arima_model import ARMA
 import math
 import numpy as np
 from pkg_resources import resource_stream
@@ -1167,21 +1167,23 @@ def _calc_snr(volume,
     return mean_voxels / std_voxels
 
 
-def _calc_AR_noise(volume,
-                   mask,
-                   auto_reg_order=2,
-                   sample_num=100,
-                   ):
-    """ Calculate the the AR noise of a volume
-    This calculates the AR of the volume over time by averaging all brain
-    voxels.
+def _calc_ARMA_noise(volume,
+                     mask,
+                     auto_reg_order=2,
+                     ma_order=1,
+                     sample_num=10,
+                     ):
+    """ Calculate the the ARMA noise of a volume
+    This calculates the autoregressive and moving average noise of the volume
+    over time by sampling brain voxels and averaging them.
 
     Parameters
     ----------
 
-    volume : 4d array, float
+    volume : 4d array or 1d array, float
         Take a volume time series to extract the middle slice from the
-        middle TR
+        middle TR. Can also accept a one dimensional time course (mask input
+        is then ignored).
 
     mask : 3d array, binary
         A binary mask the same size as the volume
@@ -1196,33 +1198,55 @@ def _calc_AR_noise(volume,
     -------
 
     auto_reg_rho : list of floats
-        A rho of the autoregression in the data
+        Rho of a specific order for the autoregression noise in the data
+
+    na_rho : list of floats
+        Moving average of a specific order for the data
 
     """
 
-    # Calculate the time course of voxels within the brain
-    brain_timecourse = volume[mask > 0]
+    # Pull out the non masked voxels
+    if len(volume.shape) > 1:
+        brain_timecourse = volume[mask > 0]
+    else:
+        # If a 1 dimensional input is supplied then reshape it to make the
+        # timecourse
+        brain_timecourse = volume.reshape(1, len(volume))
 
     # Identify some brain voxels to assess
     voxel_idxs = list(range(brain_timecourse.shape[0]))
     np.random.shuffle(voxel_idxs)
 
+    # If there are more samples than voxels, take all of the voxels
+    if len(voxel_idxs) < sample_num:
+        sample_num = len(voxel_idxs)
+
     auto_reg_rho_all = np.zeros((sample_num, auto_reg_order))
+    ma_all = np.zeros((sample_num, ma_order))
     for voxel_counter in range(sample_num):
 
         # Get the timecourse and demean it
         timecourse = brain_timecourse[voxel_idxs[voxel_counter], :]
         demeaned_timecourse = timecourse - timecourse.mean()
 
-        # Pull out the AR values (depends on order)
-        auto_reg_rho,_ = ar.AR_est_YW(demeaned_timecourse, auto_reg_order)
+        # Pull out the ARMA values (depends on order)
+        try:
+            model = ARMA(demeaned_timecourse, [auto_reg_order, ma_order])
+            model_fit = model.fit(disp=False)
+            params = model_fit.params
+        except:
+            params = np.ones(auto_reg_order + ma_order + 1) * np.nan
 
         # Add to the list
-        auto_reg_rho_all[voxel_counter, :] = auto_reg_rho
+        auto_reg_rho_all[voxel_counter, :] = params[1:auto_reg_order + 1]
+        ma_all[voxel_counter, :] = params[auto_reg_order + 1:]
 
     # Average all of the values and then convert them to a list
-    return np.mean(auto_reg_rho_all, 0).tolist()
+    auto_reg_rho =np.nanmean(auto_reg_rho_all, 0).tolist()
+    ma_rho = np.nanmean(ma_all, 0).tolist()
 
+    # Return the coefficients
+    return auto_reg_rho, ma_rho
 
 def calc_noise(volume,
                mask=None,
@@ -1268,7 +1292,8 @@ def calc_noise(volume,
     noise_dict['max_activity'] = np.nanmax(np.mean(volume, 3))
 
     # Calculate the temporal variability of the volume
-    noise_dict['auto_reg_rho'] = _calc_AR_noise(volume, mask)
+    noise_dict['auto_reg_rho'], noise_dict['ma_rho'] = _calc_ARMA_noise(
+        volume, mask)
 
     # Set it such that all of the temporal variability will be accounted for
     #  by the AR component
@@ -1528,7 +1553,7 @@ def _generate_noise_temporal_drift(trs,
 
 
 def _generate_noise_temporal_autoregression(timepoints,
-                                            auto_reg_rho,
+                                            noise_dict,
                                             dimensions,
                                             template,
                                             mask,
@@ -1537,7 +1562,7 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     """Generate the autoregression noise
     Make a slowly drifting timecourse with the given autoregression
-    parameters. The output should have an autoregression coefficient of 1
+    parameters. This can take in both AR and MA components
 
     Parameters
     ----------
@@ -1545,11 +1570,14 @@ def _generate_noise_temporal_autoregression(timepoints,
     timepoints : 1 Dimensional array
         What time points are sampled by a TR
 
-    auto_reg_rho : list of floats
-        What is the scaling factor on the predictiveness of the previous
-        time point. Values near or greater than one may produce drift or
-        other unwanted trends. The length of this list determines the order
-        of the AR function
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, all noise types
+        ending with sigma (e.g. motion sigma) are mixed together in
+        _generate_temporal_noise. The sigma values describe the proportion of
+        mixing of these elements. However critically, SFNR is the
+        parameter that describes how much noise these components contribute
+        to the brain.
 
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
@@ -1585,48 +1613,70 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     """
 
+    # Pull out the relevant noise parameters
+    auto_reg_rho = noise_dict['auto_reg_rho']
+    ma_rho = noise_dict['ma_rho']
+
     # Specify the order based on the number of rho supplied
     auto_reg_order = len(auto_reg_rho)
+    ma_order = len(ma_rho)
+
+    # This code assumes that the AR order is higher than the MA order
+    if ma_order > auto_reg_order:
+        err_str = 'MA order (' + str(ma_order) +') is greater than AR order ' \
+                                                '('+ str(auto_reg_order) + \
+                  '). Cannot run.'
+        raise ValueError(err_str)
 
     # Generate a random variable at each time point that is a decayed value
     # of the previous time points
     noise_autoregression = np.zeros((dimensions[0], dimensions[1],
                                      dimensions[2], len(timepoints)))
+    err_vols = np.zeros((dimensions[0], dimensions[1], dimensions[2],
+                         len(timepoints)))
     for tr_counter in range(len(timepoints)):
 
-        # Create a brain shaped volume with similar smoothing properties
-        volume = _generate_noise_spatial(dimensions=dimensions,
+        # Create a brain shaped volume with appropriate smoothing properties
+        noise = _generate_noise_spatial(dimensions=dimensions,
                                          template=template,
                                          mask=mask,
                                          fwhm=fwhm,
                                          )
 
         if tr_counter == 0:
-            noise_autoregression[:, :, :, tr_counter] = volume
+            noise_autoregression[:, :, :, tr_counter] = noise
 
         else:
 
-            temp_vol = np.zeros((dimensions[0], dimensions[1], dimensions[
-                2], auto_reg_order + 1))
+            # Preset the volume to collect the AR estimated process
+            AR_vol = np.zeros((dimensions[0], dimensions[1], dimensions[2]))
+
+            # Iterate through both the AR and MA values
             for pCounter in list(range(1, auto_reg_order + 1)):
                 past_TR = int(tr_counter - pCounter)
+
                 if tr_counter - pCounter >= 0:
 
                     # Pull out a previous TR
                     past_vols = noise_autoregression[:, :, :, past_TR]
 
-                    # How much to 'discount' this TR
-                    past_reg = auto_reg_rho[pCounter - 1]
+                    # Add the discounted previous volume
+                    AR_vol += past_vols * auto_reg_rho[pCounter - 1]
 
-                    # Add it to the list of TRs to consider
-                    temp_vol[:, :, :, pCounter] = past_vols * past_reg
+                    # If the MA order has at least this many coefficients
+                    # then consider the error terms
+                    if ma_order >= pCounter:
 
-                    noise_autoregression[:, :, :, tr_counter] = np.sum(
-                        temp_vol, 3) + volume
+                        # Collect the noise from the previous TRs
+                        err_vols[:, :, :, tr_counter] = noise
 
-    # N.B. You don't want to normalize. Although that may make the sigma of
-    # this timecourse 1, it will change the autoregression coefficient to be
-    #  much lower.
+                        # Pull out a previous TR
+                        past_noise = err_vols[:, :, :, past_TR]
+
+                        # Add the discounted previous noise
+                        AR_vol += past_noise * ma_rho[pCounter - 1]
+
+            noise_autoregression[:, :, :, tr_counter] = AR_vol + noise
 
     return noise_autoregression
 
@@ -1902,8 +1952,7 @@ def _generate_noise_temporal(stimfunction_tr,
 
         # Calculate the AR time course volume
         noise = _generate_noise_temporal_autoregression(timepoints,
-                                                        noise_dict[
-                                                            'auto_reg_rho'],
+                                                        noise_dict,
                                                         dimensions,
                                                         template,
                                                         mask,
@@ -2108,6 +2157,8 @@ def _noise_dict_update(noise_dict):
         noise_dict['auto_reg_sigma'] = 0.5
     if 'auto_reg_rho' not in noise_dict:
         noise_dict['auto_reg_rho'] = [0.5]
+    if 'ma_rho' not in noise_dict:
+        noise_dict['ma_rho'] = [0]
     if 'physiological_sigma' not in noise_dict:
         noise_dict['physiological_sigma'] = 0.1
     if 'sfnr' not in noise_dict:
@@ -2131,7 +2182,7 @@ def generate_noise(dimensions,
                    mask=None,
                    noise_dict=None,
                    temporal_proportion=0.5,
-                   iterations=10,
+                   iterations=20,
                    ):
     """ Generate the noise to be added to the signal.
     Default noise parameters will create a noise volume with a standard
@@ -2199,15 +2250,6 @@ def generate_noise(dimensions,
     if mask is None:
         mask = np.ones(dimensions)
 
-    # Generate the noise
-    noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
-                                              tr_duration=tr_duration,
-                                              dimensions=dimensions,
-                                              template=template,
-                                              mask=mask,
-                                              noise_dict=noise_dict,
-                                              )
-
     # Create the base (this inverts the process to make the template)
     base = template * noise_dict['max_activity']
 
@@ -2217,6 +2259,15 @@ def generate_noise(dimensions,
 
     # What is the mean signal of the non masked voxels in this template?
     mean_signal = (base[mask > 0]).mean()
+
+    # Generate the noise
+    noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
+                                              tr_duration=tr_duration,
+                                              dimensions=dimensions,
+                                              template=template,
+                                              mask=mask,
+                                              noise_dict=noise_dict,
+                                              )
 
     # Convert SFNR into the size of the standard deviation of temporal
     # variability
@@ -2229,7 +2280,7 @@ def generate_noise(dimensions,
     # What is the standard deviation of the background activity
     spatial_sd = mean_signal / noise_dict['snr']
 
-    # Cycle through the iterations
+    # Iterate through different parameters to fit SNR and SFNR
     spat_sd_orig = np.copy(spatial_sd)
     temp_sd_orig = np.copy(temporal_sd_system)
     for iteration in list(range(iterations + 1)):
@@ -2249,11 +2300,19 @@ def generate_noise(dimensions,
         # If there are iterations left to perform then recalculate the
         # metrics and try again
         alpha = 0.5
+        sfnr_threshold = 1
+        snr_threshold = 0.1
         if iteration < iterations:
 
             # Calculate the new metrics
             new_sfnr = _calc_sfnr(noise, mask)
             new_snr = _calc_snr(noise, mask)
+
+            # If the AR is sufficiently close then break the loop
+            if abs(new_sfnr) < sfnr_threshold and abs(new_snr) < snr_threshold:
+                print('Terminated SNR and SFNR fit after ' + str(
+                    iteration) + ' iterations.')
+                break
 
             temp_sd_new = np.sqrt(((mean_signal / new_sfnr) ** 2) *
                                          temporal_proportion)
@@ -2262,6 +2321,56 @@ def generate_noise(dimensions,
             # Update the variables
             temporal_sd_system -= ((temp_sd_new - temp_sd_orig) * alpha)
             spatial_sd -= ((spat_sd_new - spat_sd_orig) * alpha)
+
+    # Iterate through different MA parameters to fit AR
+    for iteration in list(range(iterations + 1)):
+
+        # Generate the noise
+        noise_temporal = _generate_noise_temporal(stimfunction_tr,
+                                                  tr_duration,
+                                                  dimensions,
+                                                  template,
+                                                  mask,
+                                                  noise_dict,
+                                                  )
+
+        # Set up the machine noise
+        noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
+                                              spatial_sd=spatial_sd,
+                                              temporal_sd=temporal_sd_system,
+                                              )
+
+        # Sum up the noise of the brain
+        noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
+                noise_system
+
+        # Reject negative values (only happens outside of the brain)
+        noise[noise < 0] = 0
+
+        # If there are iterations left to perform then recalculate the
+        # metrics and try again
+        alpha = 0.95
+        ar_threshold = 0.025
+        if iteration < iterations:
+
+            # Calculate the new metrics
+            auto_reg_rho, _ = _calc_ARMA_noise(noise,
+                                               mask,
+                                               len(noise_dict['auto_reg_rho']),
+                                               len(noise_dict['ma_rho']),
+                                               )
+
+            # Calculate the difference in the first AR component
+            AR_0_diff = auto_reg_rho[0] - noise_dict['auto_reg_rho'][0]
+            noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (AR_0_diff *
+                                                               alpha)]
+
+            # If the AR is sufficiently close then break the loop
+            if abs(AR_0_diff) < ar_threshold:
+                print('Terminated AR fit after ' + str(iteration) +
+                      ' iterations.')
+                break
+
 
     return noise
 

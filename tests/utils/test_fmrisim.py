@@ -219,7 +219,7 @@ def test_generate_noise():
                                     tr_duration=tr_duration,
                                     template=template,
                                     mask=mask,
-                                    noise_dict={'sfnr': 100, 'snr': 100},
+                                    noise_dict={'sfnr': 100, 'snr': 7},
                                     )
 
     noise_low = sim.generate_noise(dimensions=dimensions,
@@ -227,7 +227,7 @@ def test_generate_noise():
                                    tr_duration=tr_duration,
                                    template=template,
                                    mask=mask,
-                                   noise_dict={'sfnr': 1000, 'snr': 1000},
+                                   noise_dict={'sfnr': 200, 'snr': 10},
                                    )
 
     system_high = np.std(noise_high[mask > 0], 0).mean()
@@ -295,8 +295,8 @@ def test_calc_noise():
                'auto_reg_rho': [1.0, -0.5],
                'physiological_sigma': 0,
                'task_sigma': 0,
-               'snr': 30,
-               'sfnr': 30,
+               'snr': 10,
+               'sfnr': 90,
                'max_activity': 1000,
                'fwhm': 4,
                }
