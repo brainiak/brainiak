@@ -30,6 +30,7 @@ This implementation is based on the work in [Manning2014-1]_, [Manning2014-2]_,
    Functional Connectivit Patterns", J. R. Manning, X. Zhu, T.L. Willke,
    R. Ranganath, K. Stachenfeld, U. Hasson, D. M. Blei and K. A. Norman.
    Neuroimage, 2018.
+   https://doi.org/10.1016/j.neuroimage.2018.01.071
 
 .. [AndersonMJ2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
    Datasets",
