@@ -1,4 +1,0 @@
-* Change the default optimizer of (G)BRSA to 'L-BFGD-B'.
-* Removed all the description of default parameters in docstring of brsa module.
-* Increased the default number of iteration for BRSA and GBRSA
-* Added explanation in docstring and example that both BRSA and GBRSA assume zero-mean in the distribution of beta patterns.
