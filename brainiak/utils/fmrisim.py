@@ -66,6 +66,10 @@ Create a mask volume that has similar contrast as an fMRI image. Defaults to
 use an MNI grey matter atlas but any image can be supplied to create an
 estimate.
 
+compute_signal_change
+Convert the signal function into useful metric units according to metrics
+used by others (Welvaert & Rosseel, 2013)
+
 plot_brain
 Display the brain, timepoint by timepoint, with above threshold voxels
 highlighted against the outline of the brain.
@@ -96,6 +100,7 @@ __all__ = [
     "calc_noise",
     "generate_noise",
     "mask_brain",
+    "compute_signal_change",
     "plot_brain",
 ]
 
@@ -1107,6 +1112,7 @@ def _calc_sfnr(volume,
 
 def _calc_snr(volume,
               mask,
+              dilation=0,
               tr=None,
               remove_baseline=False,
               ):
@@ -1128,6 +1134,10 @@ def _calc_snr(volume,
     mask : 3d array, binary
         A binary mask the same size as the volume
 
+    dilation : int
+        How many binary dilations do you want to perform on the mask to
+        determine the non-brain voxels
+
     tr : int
         Integer specifying TR to calculate the SNR for
 
@@ -1146,9 +1156,17 @@ def _calc_snr(volume,
     if tr is None:
         tr = int(np.ceil(volume.shape[3] / 2))
 
+    # Dilate the mask in order to ensure that non-brain voxels are far from
+    # the brain
+    if dilation > 0:
+        mask_dilated = ndimage.morphology.binary_dilation(mask,
+                                                          iterations=dilation)
+    else:
+        mask_dilated = mask
+
     # Make a matrix of brain and non_brain voxels by time
     brain_voxels = volume[mask > 0]
-    nonbrain_voxels = volume[:, :, :, tr][mask == 0]
+    nonbrain_voxels = volume[:, :, :, tr][mask_dilated == 0]
 
     # Find the mean of the non_brain voxels (deals with structure that may
 
@@ -1158,7 +1176,7 @@ def _calc_snr(volume,
     # Find the standard deviation of the voxels
     if remove_baseline == True:
         # exist outside of the mask)
-        nonbrain_voxels_mean = np.mean(volume[mask == 0], 1)
+        nonbrain_voxels_mean = np.mean(volume[mask_dilated == 0], 1)
         std_voxels = np.nanstd(nonbrain_voxels - nonbrain_voxels_mean)
     else:
         std_voxels = np.nanstd(nonbrain_voxels)
@@ -1763,10 +1781,12 @@ def _generate_noise_spatial(dimensions,
 
     """
 
+    # Check the input is correct
     if len(dimensions) == 4:
-        return
+        raise IndexError('4 dimensions have been supplied, only using 3')
+        dimensions = dimensions[0:3]
 
-    def logfunc(x, a, b, c):
+    def _logfunc(x, a, b, c):
         """Solve for y given x for log function.
 
             Parameters
@@ -1792,37 +1812,80 @@ def _generate_noise_spatial(dimensions,
             """
         return (np.log(x + a) / np.log(b)) + c
 
+    def _fftIndgen(n):
+        """# Specify the fft coefficents
+
+        Parameters
+        ----------
+
+        n : int
+            Dim size to estimate over
+
+        Returns
+        ----------
+
+        array of ints
+            fft indexes
+        """
+
+        # Pull out the ascending and descending indexes
+        ascending = np.linspace(0, int(n / 2), int(n / 2 + 1))
+        descending = np.linspace(-int(n / 2 - 1), -1, int(n / 2 - 1))
+
+        return np.concatenate((ascending, descending))
+
+    def _Pk2(idxs, sigma):
+        """# Specify the amplitude given the fft coefficents
+
+        Parameters
+        ----------
+
+        idxs : 3 by voxel array int
+            fft indexes
+
+        sigma : float
+            spatial sigma
+
+        Returns
+        ----------
+
+        amplitude : 3 by voxel array
+            amplitude of the fft coefficients
+        """
+
+        # The first set of idxs ought to be zero so make the first value zero to
+        # avoid a divide by zero error
+        amp_start = np.array((0))
+
+        # Compute the amplitude of the function for a series of indices
+        amp_end = np.sqrt(np.sqrt(np.sum(idxs[:, 1:] ** 2, 0)) ** (-1 * sigma))
+        amplitude = np.append(amp_start, amp_end)
+
+        # Return the output
+        return amplitude
+
     # Convert from fwhm to sigma (relationship discovered empirical, only an
     #  approximation up to sigma = 0 -> 5 which corresponds to fwhm = 0 -> 8,
     # relies on an assumption of brain size).
-    spatial_sigma = logfunc(fwhm, -0.36778719, 2.10601011, 2.15439247)
-
-    # Set up the input to the fast fourier transform
-    def fftIndgen(n):
-        a = list(range(0, int(n / 2 + 1)))
-        b = list(range(1, int(n / 2)))
-        b.reverse()
-        b = [-i for i in b]
-        return a + b
-
-    # Take in an array of fft values and determine the amplitude for those
-    # values
-    def Pk2(idxs):
-
-        # If all the indexes are zero then set the out put to zero
-        if np.all(idxs == 0):
-            return 0.0
-        return np.sqrt(np.sqrt(np.sum(idxs ** 2)) ** (-1 * spatial_sigma))
+    spatial_sigma = _logfunc(fwhm, -0.36778719, 2.10601011, 2.15439247)
 
     noise = np.fft.fftn(np.random.normal(size=dimensions))
-    amplitude = np.zeros(dimensions)
 
-    for x, fft_x in enumerate(fftIndgen(dimensions[0])):
-        for y, fft_y in enumerate(fftIndgen(dimensions[1])):
-            for z, fft_z in enumerate(fftIndgen(dimensions[2])):
-                amplitude[x, y, z] = Pk2(np.array([fft_x, fft_y, fft_z]))
+    # Create a meshgrid of the object
+    fft_vol = np.meshgrid(_fftIndgen(dimensions[0]), _fftIndgen(dimensions[1]),
+                          _fftIndgen(dimensions[2]))
 
-    # The output
+    # Reshape the data into a vector
+    fft_vec = np.asarray((fft_vol[0].flatten(), fft_vol[1].flatten(), fft_vol[
+        2].flatten()))
+
+    # Compute the amplitude for each element in the grid
+    amp_vec = _Pk2(fft_vec, spatial_sigma)
+
+    # Reshape to be a brain volume
+    amplitude = amp_vec.reshape(dimensions)
+
+    # Inverse FFT of the noise plus amplitude
     noise_spatial = np.fft.ifftn(noise * amplitude)
 
     # Mask or not, then z score
