@@ -1830,7 +1830,8 @@ def _generate_noise_spatial(dimensions,
 
         # Pull out the ascending and descending indexes
         ascending = np.linspace(0, int(n / 2), int(n / 2 + 1))
-        descending = np.linspace(-int(n / 2 - 1), -1, int(n / 2 - 1))
+        elements = int(np.ceil(n / 2 - 1))  # Round up so that len(output)==n
+        descending = np.linspace(-elements, -1, elements)
 
         return np.concatenate((ascending, descending))
 
@@ -2226,7 +2227,7 @@ def generate_noise(dimensions,
                    mask=None,
                    noise_dict=None,
                    temporal_proportion=0.5,
-                   iterations=20,
+                   iterations=[20, 5],
                    ):
     """ Generate the noise to be added to the signal.
     Default noise parameters will create a noise volume with a standard
@@ -2265,9 +2266,12 @@ def generate_noise(dimensions,
         system noise, if it is low then all of the temporal variability is
         due to brain variability.
 
-    iterations : int
-        How many steps of fitting the SFNR and SNR values will be performed.
-        Usually converges after < 10.
+    iterations : list, int
+        The first element is how many steps of fitting the SFNR and SNR values
+        will be performed. Usually converges after < 10. The second element
+        is the number of iterations for the AR fitting. This is much more
+        time consuming (has to make a new timecourse on each iteration) so
+        be careful about setting this appropriately.
 
     Returns
     ----------
@@ -2327,7 +2331,7 @@ def generate_noise(dimensions,
     # Iterate through different parameters to fit SNR and SFNR
     spat_sd_orig = np.copy(spatial_sd)
     temp_sd_orig = np.copy(temporal_sd_system)
-    for iteration in list(range(iterations + 1)):
+    for iteration in list(range(iterations[0] + 1)):
         # Set up the machine noise
         noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
                                               spatial_sd=spatial_sd,
@@ -2346,7 +2350,7 @@ def generate_noise(dimensions,
         alpha = 0.5
         sfnr_threshold = 1
         snr_threshold = 0.1
-        if iteration < iterations:
+        if iteration < iterations[0]:
 
             # Calculate the new metrics
             new_sfnr = _calc_sfnr(noise, mask)
@@ -2367,7 +2371,7 @@ def generate_noise(dimensions,
             spatial_sd -= ((spat_sd_new - spat_sd_orig) * alpha)
 
     # Iterate through different MA parameters to fit AR
-    for iteration in list(range(iterations + 1)):
+    for iteration in list(range(iterations[1] + 1)):
 
         # Generate the noise
         noise_temporal = _generate_noise_temporal(stimfunction_tr,
@@ -2395,7 +2399,7 @@ def generate_noise(dimensions,
         # metrics and try again
         alpha = 0.95
         ar_threshold = 0.025
-        if iteration < iterations:
+        if iteration < iterations[1]:
 
             # Calculate the new metrics
             auto_reg_rho, _ = _calc_ARMA_noise(noise,
@@ -2422,7 +2426,7 @@ def compute_signal_change(signal_function,
                           noise_function,
                           noise_dict,
                           magnitude,
-                          method='PSE',
+                          method='PSC',
                           ):
     """ Rescale the current a signal functions based on a metric and
     magnitude supplied. Metrics are heavily influenced by Welvaert & Rosseel
@@ -2474,7 +2478,7 @@ def compute_signal_change(signal_function,
             relative to standard deviation in noise
             - 'CNR_Signal-Var/Noise-Var_dB': Same as above but converted to
             decibels
-            - 'PSE': Calculate the percent signal change based on the
+            - 'PSC': Calculate the percent signal change based on the
             average activity of the noise (mean / 100 * magnitude)
 
 
@@ -2558,7 +2562,7 @@ def compute_signal_change(signal_function,
                                                                   ** 2))
             new_sig = sig_voxel * np.sqrt(scale)
 
-        elif method == 'PSE':
+        elif method == 'PSC':
 
             # What is the average activity divided by percentage
             scale = ((noise_voxel.mean() / 100) * magnitude_voxel)
