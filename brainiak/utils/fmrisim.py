@@ -2207,11 +2207,11 @@ def _noise_dict_update(noise_dict):
     if 'physiological_sigma' not in noise_dict:
         noise_dict['physiological_sigma'] = 0.1
     if 'sfnr' not in noise_dict:
-        noise_dict['sfnr'] = 30
+        noise_dict['sfnr'] = 80
     if 'snr' not in noise_dict:
-        noise_dict['snr'] = 30
+        noise_dict['snr'] = 7
     if 'max_activity' not in noise_dict:
-        noise_dict['max_activity'] = 1000
+        noise_dict['max_activity'] = 1500
     if 'voxel_size' not in noise_dict:
         noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
     if 'fwhm' not in noise_dict:
