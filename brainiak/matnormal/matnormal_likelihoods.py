@@ -15,17 +15,20 @@ def solve_det_marginal(x, sigma, A, Q):
     Use matrix inversion lemma for the solve:
     .. math::
         (\Sigma + AQA')^{-1} X =\\
-         \Sigma^{-1} - \Sigma^{-1} A (Q^{-1} + A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1}
+         \Sigma^{-1} - \Sigma^{-1} A (Q^{-1} +
+          A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1}
 
     Use matrix determinant lemma for determinant:
     ..math::
-        \log|(\Sigma + AQA')| = \log|Q^{-1} + A' \Sigma^{-1} A| + \log|Q| + \log|\Sigma|
+        \log|(\Sigma + AQA')| = \log|Q^{-1} + A' \Sigma^{-1} A|
+         + \log|Q| + \log|\Sigma|
     """
 
     # we care about condition number of i_qf
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         A = tf.Print(A, [_condition(Q.Sigma_inv + tf.matmul(A,
-                     sigma.Sigma_inv_x(A), transpose_a=True))], 'i_qf condition')
+                     sigma.Sigma_inv_x(A), transpose_a=True))],
+                     'i_qf condition')
         # since the sigmas expose only inverse, we invert their
         # conditions to get what we want
         A = tf.Print(A, [1/_condition(Q.Sigma_inv)], 'Q condition')
@@ -42,7 +45,8 @@ def solve_det_marginal(x, sigma, A, Q):
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logdet = tf.Print(logdet, [Q.logdet], 'Q logdet')
         logdet = tf.Print(logdet, [sigma.logdet], 'sigma logdet')
-        logdet = tf.Print(logdet, [2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(i_qf_cholesky)))],
+        logdet = tf.Print(logdet, [2 * tf.reduce_sum(tf.log(
+                          tf.matrix_diag_part(i_qf_cholesky)))],
                           'iqf logdet')
 
     # A' Sigma^{-1}
@@ -61,11 +65,13 @@ def solve_det_conditional(x, sigma, A, Q):
     Use matrix inversion lemma for the solve:
     .. math::
         (\Sigma - AQ^{-1}A')^{-1} X =\\
-         \Sigma^{-1} + \Sigma^{-1} A (Q - A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1} X 
+         \Sigma^{-1} + \Sigma^{-1} A (Q -
+          A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1} X
 
     Use matrix determinant lemma for determinant:
     ..math::
-        \log|(\Sigma - AQ^{-1}A')| = \log|Q - A' \Sigma^{-1} A| - \log|Q| + \log|\Sigma|
+        \log|(\Sigma - AQ^{-1}A')| =
+         \log|Q - A' \Sigma^{-1} A| - \log|Q| + \log|\Sigma|
     """
 
     # (Q - A' Sigma^{-1} A)

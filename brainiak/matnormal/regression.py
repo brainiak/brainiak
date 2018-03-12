@@ -26,8 +26,8 @@ class MatnormRegression(BaseEstimator):
                  optimizer='L-BFGS-B', optCtrl=None):
 
         self.optCtrl, self.optMethod = optCtrl, optimizer
-
-        self.time_noise_cov, self.space_noise_cov = time_noise_cov, space_noise_cov
+        self.time_noise_covtime_noise_cov
+        self.space_noise_cov = space_noise_cov
 
         self.n_t = time_noise_cov.size
         self.n_v = space_noise_cov.size
@@ -85,12 +85,13 @@ class MatnormRegression(BaseEstimator):
 
         # initialize to the least squares solution (basically all
         # we need now is the cov)
-        sigma_inv_x = self.time_noise_cov.Sigma_inv_x(self.X).eval(session=self.sess,
-                                                                   feed_dict=feed_dict)
-        sigma_inv_y = self.time_noise_cov.Sigma_inv_x(self.Y).eval(session=self.sess,
-                                                                   feed_dict=feed_dict)
+        sigma_inv_x = self.time_noise_cov.Sigma_inv_x(self.X)\
+            .eval(session=self.sess, feed_dict=feed_dict)
+        sigma_inv_y = self.time_noise_cov.Sigma_inv_x(self.Y)\
+            .eval(session=self.sess, feed_dict=feed_dict)
 
-        beta_init = np.linalg.solve((X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
+        beta_init = np.linalg.solve((X.T).dot(sigma_inv_x),
+                                    (X.T).dot(sigma_inv_y))
 
         self.beta = tf.Variable(beta_init, name="beta")
 
@@ -143,7 +144,8 @@ class MatnormRegression(BaseEstimator):
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
         # (B Sigma_s^{-1} B')^{-1}
-        B_Sigma_Btrp = tf.matmul(self.beta, Sigma_s_btrp).eval(session=self.sess)
+        B_Sigma_Btrp = tf.matmul(self.beta, Sigma_s_btrp)\
+            .eval(session=self.sess)
 
         X_test = np.linalg.solve(B_Sigma_Btrp.T, Y_Sigma_Btrp.T).T
 

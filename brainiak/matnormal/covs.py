@@ -131,21 +131,29 @@ class CovAR1(CovBase):
         if scan_onsets is None:
             self.run_sizes = [size]
             self.offdiag_template = tf.constant(scipy.linalg.toeplitz(np.r_[0,
-                                                1, np.zeros(size-2)]), dtype=tf.float64)
-            self.diag_template = tf.constant(np.diag(np.r_[0, np.ones(size-2), 0]))
+                                                1, np.zeros(size-2)]),
+                                                dtype=tf.float64)
+            self.diag_template = tf.constant(np.diag(np.r_[0,
+                                                           np.ones(size-2),
+                                                           0]))
         else:
             self.run_sizes = np.ediff1d(np.r_[scan_onsets, size])
             sub_offdiags = [scipy.linalg.toeplitz(np.r_[0, 1, np.zeros(r-2)])
                             for r in self.run_sizes]
-            self.offdiag_template = tf.constant(scipy.sparse.block_diag(sub_offdiags).toarray())
-            subdiags = [np.diag(np.r_[0, np.ones(r-2), 0]) for r in self.run_sizes]
-            self.diag_template = tf.constant(scipy.sparse.block_diag(subdiags).toarray())
+            self.offdiag_template = tf.constant(scipy.sparse.
+                                                block_diag(sub_offdiags)
+                                                .toarray())
+            subdiags = [np.diag(np.r_[0, np.ones(r-2), 0])
+                        for r in self.run_sizes]
+            self.diag_template = tf.constant(scipy.sparse.
+                                             block_diag(subdiags)
+                                             .toarray())
 
         self.I = tf.constant(np.eye(size))
 
         if sigma is None:
-            self.log_sigma = tf.Variable(tf.random_normal([1], dtype=tf.float64),
-                                         name="sigma")
+            self.log_sigma = tf.Variable(tf.random_normal([1],
+                                         dtype=tf.float64), name="sigma")
         else:
             self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
 
@@ -170,7 +178,8 @@ class CovAR1(CovBase):
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         sigma = tf.exp(self.log_sigma)
 
-        return tf.reduce_sum(2 * tf.constant(self.run_sizes, dtype=tf.float64) *
+        return tf.reduce_sum(2 * tf.constant(self.run_sizes,
+                                             dtype=tf.float64) *
                              tf.log(sigma) - tf.log(1 - tf.square(rho)))
 
     def Sigma_inv_x(self, X):
@@ -199,8 +208,8 @@ class CovIsotropic(CovBase):
     def __init__(self, size, sigma=None):
         super(CovIsotropic, self).__init__(size)
         if sigma is None:
-            self.log_sigma = tf.Variable(tf.random_normal([1], dtype=tf.float64),
-                                         name="sigma")
+            self.log_sigma = tf.Variable(tf.random_normal([1],
+                                         dtype=tf.float64), name="sigma")
         else:
             self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
 
@@ -238,8 +247,8 @@ class CovDiagonal(CovBase):
     def __init__(self, size, sigma=None):
         super(CovDiagonal, self).__init__(size)
         if sigma is None:
-            self.logprec = tf.Variable(tf.random_normal([size], dtype=tf.float64),
-                                       name="precisions")
+            self.logprec = tf.Variable(tf.random_normal([size],
+                                       dtype=tf.float64), name="precisions")
         else:
             self.logprec = tf.Variable(np.log(1/sigma), name="log-precisions")
 
@@ -281,7 +290,8 @@ class CovDiagonalGammaPrior(CovDiagonal):
     def __init__(self, size, sigma=None, alpha=1.5, beta=1e-10):
         super(CovDiagonalGammaPrior, self).__init__(size, sigma)
 
-        self.ig = InverseGamma(concentration=tf.constant(alpha, dtype=tf.float64),
+        self.ig = InverseGamma(concentration=tf.constant(alpha,
+                                                         dtype=tf.float64),
                                rate=tf.constant(beta, dtype=tf.float64))
 
     @define_scope
@@ -301,7 +311,8 @@ class CovUnconstrainedCholesky(CovBase):
                                       name="L_full", dtype="float64")
         else:
             # in order to respect the Sigma we got passed in, we log the diag
-            # which we will later exp. a little ugly but this is a rare use case
+            # which we will later exp. a little ugly but this
+            # is a rare use case
             L = np.linalg.cholesky(Sigma)
             L[np.diag_indices_from(L)] = np.log(np.diag(L))
             self.L_full = tf.Variable(L, name="L_full",
@@ -348,14 +359,16 @@ class CovUnconstrainedCholesky(CovBase):
 
 
 class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
-    """Unconstrained noise covariance parameterized in terms of its cholesky factor.
+    """Unconstrained noise covariance parameterized in terms of its
+       cholesky factor.
        Regularized using the trick from Chung et al. 2015 such that as the
        covariance approaches singularity, the likelihood goes to 0.
     """
 
     def __init__(self, size, Sigma=None):
         super(CovUnconstrainedCholeskyWishartReg, self).__init__(size)
-        self.wishartReg = WishartCholesky(df=tf.constant(size+2, dtype=tf.float64),
+        self.wishartReg = WishartCholesky(df=tf.constant(size+2,
+                                                         dtype=tf.float64),
                                           scale=tf.constant(1e5 * np.eye(size),
                                           dtype=tf.float64))
 
@@ -370,7 +383,8 @@ class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
 
 
 class CovUnconstrainedInvCholesky(CovBase):
-    """Unconstrained noise covariance parameterized in terms of its precision cholesky
+    """Unconstrained noise covariance parameterized
+       in terms of its precision cholesky
     """
 
     def __init__(self, size, invSigma=None):
@@ -378,7 +392,8 @@ class CovUnconstrainedInvCholesky(CovBase):
             self.Linv_full = tf.Variable(tf.random_normal([size, size],
                                          dtype=tf.float64), name="Linv_full")
         else:
-            self.Linv_full = tf.Variable(np.linalg.cholesky(invSigma), name="Linv_full")
+            self.Linv_full = tf.Variable(np.linalg.cholesky(invSigma),
+                                         name="Linv_full")
 
         super(CovUnconstrainedInvCholesky, self).__init__(size)
 
@@ -465,7 +480,8 @@ class CovKroneckerFactored(CovBase):
                            for i in range(self.nfactors)]
         else:
             self.L_full = [tf.Variable(np.linalg.cholesky(Sigmas[i]),
-                           name="L"+str(i)+"_full") for i in range(self.nfactors)]
+                           name="L"+str(i)+"_full")
+                           for i in range(self.nfactors)]
         self.mask = mask
 
     @define_scope
@@ -494,10 +510,11 @@ class CovKroneckerFactored(CovBase):
         """ log|Sigma| using the diagonals of the cholesky factors.
         """
         if self.mask is None:
-            n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in self.L])
+            n_list = tf.stack([tf.to_double(tf.shape(mat)[0])
+                               for mat in self.L])
             n_prod = tf.reduce_prod(n_list)
             logdet = tf.stack([tf.reduce_sum(tf.log(tf.diag_part(mat)))
-                     for mat in self.L])
+                               for mat in self.L])
             logdetfinal = tf.reduce_sum((logdet*n_prod)/n_list)
         else:
             n_list = [tf.shape(mat)[0] for mat in self.L]
@@ -506,7 +523,8 @@ class CovKroneckerFactored(CovBase):
             for i in range(self.nfactors):
                 indices = list(range(self.nfactors))
                 indices.remove(i)
-                logdet += tf.log(tf.diag_part(self.L[i])) * tf.to_double(tf.reduce_sum(mask_reshaped, indices))
+                logdet += tf.log(tf.diag_part(self.L[i])) *\
+                    tf.to_double(tf.reduce_sum(mask_reshaped, indices))
             logdetfinal = tf.reduce_sum(logdet)
         return (2.0*logdetfinal)
 
