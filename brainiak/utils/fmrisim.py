@@ -1189,7 +1189,7 @@ def _calc_ARMA_noise(volume,
                      mask,
                      auto_reg_order=2,
                      ma_order=1,
-                     sample_num=10,
+                     sample_num=100,
                      ):
     """ Calculate the the ARMA noise of a volume
     This calculates the autoregressive and moving average noise of the volume
@@ -2347,17 +2347,22 @@ def generate_noise(dimensions,
 
         # If there are iterations left to perform then recalculate the
         # metrics and try again
-        alpha = 0.5
-        sfnr_threshold = 1
-        snr_threshold = 0.1
+        fit_delta = 0.95
+        fit_thresh = 0.05
+        target_sfnr = noise_dict['sfnr']
+        target_snr = noise_dict['snr']
         if iteration < iterations[0]:
 
             # Calculate the new metrics
             new_sfnr = _calc_sfnr(noise, mask)
             new_snr = _calc_snr(noise, mask)
 
+            # Calculate the difference between the real and simulated data
+            diff_sfnr = abs(new_sfnr - target_sfnr) / target_sfnr
+            diff_snr = abs(new_snr - target_snr) / target_snr
+
             # If the AR is sufficiently close then break the loop
-            if abs(new_sfnr) < sfnr_threshold and abs(new_snr) < snr_threshold:
+            if  diff_sfnr < fit_thresh and diff_snr < fit_thresh:
                 print('Terminated SNR and SFNR fit after ' + str(
                     iteration) + ' iterations.')
                 break
@@ -2367,10 +2372,11 @@ def generate_noise(dimensions,
             spat_sd_new = mean_signal / new_snr
 
             # Update the variables
-            temporal_sd_system -= ((temp_sd_new - temp_sd_orig) * alpha)
-            spatial_sd -= ((spat_sd_new - spat_sd_orig) * alpha)
+            temporal_sd_system -= ((temp_sd_new - temp_sd_orig) * fit_delta)
+            spatial_sd -= ((spat_sd_new - spat_sd_orig) * fit_delta)
 
     # Iterate through different MA parameters to fit AR
+    print('Target AR: %0.3f\n' % noise_dict['auto_reg_rho'][0])
     for iteration in list(range(iterations[1] + 1)):
 
         # Generate the noise
@@ -2397,27 +2403,30 @@ def generate_noise(dimensions,
 
         # If there are iterations left to perform then recalculate the
         # metrics and try again
-        alpha = 0.95
-        ar_threshold = 0.025
+        target_ar = noise_dict['auto_reg_rho']
         if iteration < iterations[1]:
 
             # Calculate the new metrics
-            auto_reg_rho, _ = _calc_ARMA_noise(noise,
-                                               mask,
-                                               len(noise_dict['auto_reg_rho']),
-                                               len(noise_dict['ma_rho']),
-                                               )
+            new_ar, _ = _calc_ARMA_noise(noise,
+                                         mask,
+                                         len(noise_dict['auto_reg_rho']),
+                                         len(noise_dict['ma_rho']),
+                                         )
 
             # Calculate the difference in the first AR component
-            AR_0_diff = auto_reg_rho[0] - noise_dict['auto_reg_rho'][0]
-            noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (AR_0_diff *
-                                                               alpha)]
+            ar_0_diff = abs(new_ar[0] - target_ar[0]) / target_ar[0]
+
+            print('New AR: %0.3f\n' % new_ar[0])
 
             # If the AR is sufficiently close then break the loop
-            if abs(AR_0_diff) < ar_threshold:
+            if ar_0_diff < fit_thresh:
                 print('Terminated AR fit after ' + str(iteration) +
                       ' iterations.')
                 break
+            else:
+                # Otherwise update the ma coefficient
+                noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (ar_0_diff *
+                                                                   fit_delta)]
 
 
     return noise
