@@ -1112,9 +1112,9 @@ def _calc_sfnr(volume,
 
 def _calc_snr(volume,
               mask,
-              dilation=0,
+              dilation=5,
               tr=None,
-              remove_baseline=False,
+              template_baseline=None,
               ):
     """ Calculate the the SNR of a volume
     Calculates the Signal to  Noise Ratio, the mean of brain voxels
@@ -1136,13 +1136,24 @@ def _calc_snr(volume,
 
     dilation : int
         How many binary dilations do you want to perform on the mask to
-        determine the non-brain voxels
+        determine the non-brain voxels. If you increase this the SNR
+        increases and the non-brain voxels (after baseline subtraction) more
+        closely resemble a gaussian
 
     tr : int
         Integer specifying TR to calculate the SNR for
 
-    remove_baseline : bool
-        Is the baseline (a.k.a. temporal mean activation) removed.
+    template_baseline : 3d array, float
+        Do you want to subtract the baseline (a.k.a. temporal mean
+        activation, the template), to observe the noise in addition to this
+        in peripherial regions? Using this procedure means that only noise
+        that is not average is modeled. It is particularly valuable for the
+        simulator because the machine noise is added to the template.
+        However, the noise profile is different when you subtract (it
+        becomes somewhat gaussian). Moreover, the amount of noise
+        perturbation reflects the baseline value (voxels that are high on
+        average across time have more noise than voxels that have low
+        averages), If this is 'None' then this subtraction won't occur.
 
     Returns
     -------
@@ -1164,22 +1175,22 @@ def _calc_snr(volume,
     else:
         mask_dilated = mask
 
-    # Make a matrix of brain and non_brain voxels by time
-    brain_voxels = volume[mask > 0]
-    nonbrain_voxels = volume[:, :, :, tr][mask_dilated == 0]
+    # Make a matrix of brain and non_brain voxels, selecting the timepoint
+    brain_voxels = volume[mask > 0][:, tr]
+    nonbrain_voxels = (volume[:, :, :, tr]).astype('float64')
 
-    # Find the mean of the non_brain voxels (deals with structure that may
+    # Do you want to remove the average of the periphery (removes
+    # structure, leaving only variability)
+    if template_baseline is not None:
+        nonbrain_voxels -= template_baseline
+
+    nonbrain_voxels = nonbrain_voxels[mask_dilated == 0]
 
     # Take the means of each voxel over time
     mean_voxels = np.nanmean(brain_voxels)
 
     # Find the standard deviation of the voxels
-    if remove_baseline == True:
-        # exist outside of the mask)
-        nonbrain_voxels_mean = np.mean(volume[mask_dilated == 0], 1)
-        std_voxels = np.nanstd(nonbrain_voxels - nonbrain_voxels_mean)
-    else:
-        std_voxels = np.nanstd(nonbrain_voxels)
+    std_voxels = np.nanstd(nonbrain_voxels)
 
     # Return the snr
     return mean_voxels / std_voxels
@@ -1267,7 +1278,8 @@ def _calc_ARMA_noise(volume,
     return auto_reg_rho, ma_rho
 
 def calc_noise(volume,
-               mask=None,
+               mask,
+               template,
                noise_dict=None,
                ):
     """ Calculates the noise properties of the volume supplied.
@@ -1285,7 +1297,13 @@ def calc_noise(volume,
 
     mask : 3d numpy array, binary
         A binary mask of the brain, the same size as the volume
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
 
+    noise_dict : dict
+        The initialized dictionary of the calculated noise parameters of the
+        provided dataset (usually it is only the voxel size)
     Returns
     -------
 
@@ -1347,6 +1365,7 @@ def calc_noise(volume,
     noise_dict['fwhm'] = np.mean(fwhm)
     noise_dict['snr'] = _calc_snr(volume,
                                   mask,
+                                  template_baseline=template,
                                   )
 
     # Return the noise dictionary
@@ -1356,15 +1375,28 @@ def calc_noise(volume,
 def _generate_noise_system(dimensions_tr,
                            spatial_sd,
                            temporal_sd,
-                           spatial_noise_type='exponential',
-                           temporal_noise_type='exponential',
+                           spatial_noise_type='gaussian',
+                           temporal_noise_type='gaussian',
                            ):
     """Generate the scanner noise
 
-    Generate system noise, either rician or exponential, for the scanner.
-    Low SNR scans tend to have rician noise whereas high SNR scans (>30) are
-    better modelled by exponential noise. Generates a distribution with a SD
-    of 1.
+    Generate system noise, either rician, gaussian or exponential, for the
+    scanner. Generates a distribution with a SD of 1. If you look at the
+    distribution of non-brain voxel intensity in modern scans you will see
+    it is rician. However, depending on how you have calculated the SNR and
+    whether the template is being used you want to use this function
+    differently: the voxels in the non-brain are stable over time and
+    usually reflect structure in the MR signal (e.g. the
+    baseline MR of the head coil or skull). Hence the template captures this
+    rician noise structure. If you are adding the machine noise to the
+    template, as is done in generate_noise, then you are likely doubling up
+    on the addition of machine noise. To correct for this you can instead
+    calculate the SNR with the baseline removed (give template_baseline the
+    template, which is the default) and then create machine noise as a
+    gaussian around this baseline. The residual noise is approximately
+    gaussian in regions far from the brain but becomes much more kurtotic
+    towards the brain centre, which is captured when you combine the
+    baseline with the gaussian.
 
     Parameters
     ----------
@@ -1374,8 +1406,11 @@ def _generate_noise_system(dimensions_tr,
         noise into. This can be a volume of any size
 
     noise_type : str
-        String specifying the noise type. Rician is appropriate when the SNR is
-        low but is insufficiently skewed to appropriately model high SNR data.
+        String specifying the noise type. If you aren't specifying the noise
+        template then Rician is the appropriate model of noise. However,
+        if you are subtracting the template, as is default, then you should
+        use gaussian. (If the dilation parameter of _calc_snr is <10 then
+        gaussian is only an approximation)
 
     Returns
     ----------
@@ -1384,9 +1419,9 @@ def _generate_noise_system(dimensions_tr,
         Create a volume with system noise
 
     """
-    def generate_noise_volume(dimensions,
-                              noise_type,
-                              ):
+    def noise_volume(dimensions,
+                     noise_type,
+                     ):
 
         if noise_type == 'rician':
             # Generate the Rician noise (has an SD of 1)
@@ -1407,8 +1442,8 @@ def _generate_noise_system(dimensions_tr,
                              1])
 
     # Generate noise
-    spatial_noise = generate_noise_volume(dimensions, spatial_noise_type)
-    temporal_noise = generate_noise_volume(dimensions_tr, temporal_noise_type)
+    spatial_noise = noise_volume(dimensions, spatial_noise_type)
+    temporal_noise = noise_volume(dimensions_tr, temporal_noise_type)
 
     # Since you are combining spatial and temporal noise, you need to
     # subtract the variance of the two to get the spatial sd
@@ -1418,14 +1453,8 @@ def _generate_noise_system(dimensions_tr,
         # If this is below zero then all the noise will be temporal
         spatial_sd = 0
 
-    # # Mean centre, while preserving the SD
-    # spatial_noise = spatial_noise - spatial_noise.mean()
-
     # Make the system noise have a specific spatial variability
     spatial_noise *= spatial_sd
-
-    # # Mean centre, while preserving the SD
-    # temporal_noise = temporal_noise - temporal_noise.mean()
 
     # Set the size of the noise
     temporal_noise *= temporal_sd
@@ -1438,7 +1467,7 @@ def _generate_noise_system(dimensions_tr,
                                                              1)
     temporal_noise = temporal_noise - (temporal_noise_mean - spatial_noise)
 
-    # Save the size of the noise
+    # Save the combination
     system_noise = spatial_noise + temporal_noise
 
     return system_noise
@@ -2197,21 +2226,21 @@ def _noise_dict_update(noise_dict):
     if 'task_sigma' not in noise_dict:
         noise_dict['task_sigma'] = 0
     if 'drift_sigma' not in noise_dict:
-        noise_dict['drift_sigma'] = 0.45
+        noise_dict['drift_sigma'] = 0
     if 'auto_reg_sigma' not in noise_dict:
-        noise_dict['auto_reg_sigma'] = 0.5
+        noise_dict['auto_reg_sigma'] = 1
     if 'auto_reg_rho' not in noise_dict:
-        noise_dict['auto_reg_rho'] = [0.5]
+        noise_dict['auto_reg_rho'] = [1.0, -0.5]
     if 'ma_rho' not in noise_dict:
         noise_dict['ma_rho'] = [0]
     if 'physiological_sigma' not in noise_dict:
-        noise_dict['physiological_sigma'] = 0.1
+        noise_dict['physiological_sigma'] = 0
     if 'sfnr' not in noise_dict:
-        noise_dict['sfnr'] = 80
+        noise_dict['sfnr'] = 90
     if 'snr' not in noise_dict:
-        noise_dict['snr'] = 7
+        noise_dict['snr'] = 25
     if 'max_activity' not in noise_dict:
-        noise_dict['max_activity'] = 1500
+        noise_dict['max_activity'] = 1000
     if 'voxel_size' not in noise_dict:
         noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
     if 'fwhm' not in noise_dict:
@@ -2219,6 +2248,167 @@ def _noise_dict_update(noise_dict):
 
     return noise_dict
 
+def _fit_snr_sfnr(noise,
+                  noise_temporal,
+                  mask,
+                  template,
+                  spatial_sd,
+                  temporal_sd,
+                  temporal_proportion,
+                  noise_dict,
+                  fit_thresh,
+                  fit_delta,
+                  iterations,
+                  ):
+    """
+        Fit the noise model to match the SNR and SFNR of the data
+
+        Parameters
+        ----------
+
+        noise_dict : dict
+            A dictionary specifying the types of noise in this experiment. The
+            noise types interact in important ways. First, all noise types
+            ending with sigma (e.g. motion sigma) are mixed together in
+            _generate_temporal_noise. These values describe the proportion of
+            mixing of these elements. However critically, SFNR is the
+            parameter that describes how much noise these components contribute
+            to the brain.
+
+        Returns
+        -------
+
+        noise : multidimensional array, float
+            Generates the noise volume given these parameters
+
+        """
+
+    # Pull out information that is needed
+    dim_tr = noise.shape
+    base = template * noise_dict['max_activity']
+    base = base.reshape(dim_tr[0], dim_tr[1], dim_tr[2], 1)
+    mean_signal = (base[mask > 0]).mean()
+    target_sfnr = noise_dict['sfnr']
+    target_snr = noise_dict['snr']
+
+    # Iterate through different parameters to fit SNR and SFNR
+    spat_sd_orig = np.copy(spatial_sd)
+    temp_sd_orig = np.copy(temporal_sd)
+    for iteration in list(range(iterations)):
+
+        # Calculate the new metrics
+        new_sfnr = _calc_sfnr(noise, mask)
+        new_snr = _calc_snr(noise, mask, template_baseline=template)
+
+        # Calculate the difference between the real and simulated data
+        diff_sfnr = abs(new_sfnr - target_sfnr) / target_sfnr
+        diff_snr = abs(new_snr - target_snr) / target_snr
+
+        # If the AR is sufficiently close then break the loop
+        if diff_sfnr < fit_thresh and diff_snr < fit_thresh:
+            print('Terminated SNR and SFNR fit after ' + str(
+                iteration) + ' iterations.')
+            break
+
+        # Convert the SFNR and SNR
+        temp_sd_new = np.sqrt(((mean_signal / new_sfnr) ** 2) *
+                              temporal_proportion)
+        spat_sd_new = mean_signal / new_snr
+
+        # Update the variables
+        temporal_sd -= ((temp_sd_new - temp_sd_orig) * fit_delta)
+        spatial_sd -= ((spat_sd_new - spat_sd_orig) * fit_delta)
+
+        # Prevent these going out of range
+        if temporal_sd < 0 or np.isnan(temporal_sd):
+            temporal_sd = 10e-3
+        if spatial_sd < 0 or np.isnan(spatial_sd):
+            spatial_sd = 10e-3
+
+        # Set up the machine noise
+        noise_system = _generate_noise_system(dimensions_tr=dim_tr,
+                                              spatial_sd=spatial_sd,
+                                              temporal_sd=temporal_sd,
+                                              )
+
+        # Sum up the noise of the brain
+        noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
+
+        # Reject negative values (only happens outside of the brain)
+        noise[noise < 0] = 0
+
+    # Return the updated noise
+    return noise, spatial_sd, temporal_sd
+
+def _fit_ar(noise,
+            mask,
+            template,
+            stimfunction_tr,
+            tr_duration,
+            spatial_sd,
+            temporal_sd,
+            noise_dict,
+            fit_thresh,
+            fit_delta,
+            iterations,
+            ):
+
+    # Pull out the
+    dim_tr = noise.shape
+    dim = dim_tr[0:3]
+    base = template * noise_dict['max_activity']
+    base = base.reshape(dim[0], dim[1], dim[2], 1)
+
+    # Iterate through different MA parameters to fit AR
+    for iteration in list(range(iterations)):
+
+        # If there are iterations left to perform then recalculate the
+        # metrics and try again
+        target_ar = noise_dict['auto_reg_rho']
+
+        # Calculate the new metrics
+        new_ar, _ = _calc_ARMA_noise(noise,
+                                     mask,
+                                     len(noise_dict['auto_reg_rho']),
+                                     len(noise_dict['ma_rho']),
+                                     )
+
+        # Calculate the difference in the first AR component
+        ar_0_diff = abs(new_ar[0] - target_ar[0]) / target_ar[0]
+
+        # If the AR is sufficiently close then break the loop
+        if ar_0_diff < fit_thresh:
+            print('Terminated AR fit after ' + str(iteration) +
+                  ' iterations.')
+            break
+        else:
+            # Otherwise update the ma coefficient
+            noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (ar_0_diff *
+                                                               fit_delta)]
+
+        # Generate the noise. The appropriate
+        noise_temporal = _generate_noise_temporal(stimfunction_tr,
+                                                  tr_duration,
+                                                  dim,
+                                                  template,
+                                                  mask,
+                                                  noise_dict,
+                                                  )
+
+        # Set up the machine noise
+        noise_system = _generate_noise_system(dimensions_tr=dim_tr,
+                                              spatial_sd=spatial_sd,
+                                              temporal_sd=temporal_sd,
+                                              )
+
+        # Sum up the noise of the brain
+        noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
+
+        # Reject negative values (only happens outside of the brain)
+        noise[noise < 0] = 0
+
+    # Return the updated noise
+    return noise
 
 def generate_noise(dimensions,
                    stimfunction_tr,
@@ -2227,7 +2417,9 @@ def generate_noise(dimensions,
                    mask=None,
                    noise_dict=None,
                    temporal_proportion=0.5,
-                   iterations=[20, 5],
+                   iterations=[5, 20],
+                   fit_thresh=0.05,
+                   fit_delta=0.5,
                    ):
     """ Generate the noise to be added to the signal.
     Default noise parameters will create a noise volume with a standard
@@ -2268,10 +2460,20 @@ def generate_noise(dimensions,
 
     iterations : list, int
         The first element is how many steps of fitting the SFNR and SNR values
-        will be performed. Usually converges after < 10. The second element
+        will be performed. Usually converges after < 5. The second element
         is the number of iterations for the AR fitting. This is much more
         time consuming (has to make a new timecourse on each iteration) so
         be careful about setting this appropriately.
+
+    fit_thresh : float
+        What proportion of the target parameter value is sufficient error to
+        warrant finishing fit search.
+
+    fit_delta : float
+        How much are the parameters attenuated during the fitting process,
+        in terms of the proportion of difference between the target
+        parameter and the actual parameter
+
 
     Returns
     ----------
@@ -2328,107 +2530,49 @@ def generate_noise(dimensions,
     # What is the standard deviation of the background activity
     spatial_sd = mean_signal / noise_dict['snr']
 
-    # Iterate through different parameters to fit SNR and SFNR
-    spat_sd_orig = np.copy(spatial_sd)
-    temp_sd_orig = np.copy(temporal_sd_system)
-    for iteration in list(range(iterations[0] + 1)):
-        # Set up the machine noise
-        noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
-                                              spatial_sd=spatial_sd,
-                                              temporal_sd=temporal_sd_system,
-                                              )
 
-        # Sum up the noise of the brain
-        noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
-                noise_system
+    # Set up the machine noise
+    noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
+                                          spatial_sd=spatial_sd,
+                                          temporal_sd=temporal_sd_system,
+                                          )
 
-        # Reject negative values (only happens outside of the brain)
-        noise[noise < 0] = 0
+    # Sum up the noise of the brain
+    noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
+            noise_system
 
-        # If there are iterations left to perform then recalculate the
-        # metrics and try again
-        fit_delta = 0.95
-        fit_thresh = 0.05
-        target_sfnr = noise_dict['sfnr']
-        target_snr = noise_dict['snr']
-        if iteration < iterations[0]:
+    # Reject negative values (only happens outside of the brain)
+    noise[noise < 0] = 0
 
-            # Calculate the new metrics
-            new_sfnr = _calc_sfnr(noise, mask)
-            new_snr = _calc_snr(noise, mask)
+    # Fit the SNR and SFNR
+    noise, spatial_sd, temporal_sd_system = _fit_snr_sfnr(noise,
+                                                          noise_temporal,
+                                                          mask,
+                                                          template,
+                                                          spatial_sd,
+                                                          temporal_sd_system,
+                                                          temporal_proportion,
+                                                          noise_dict,
+                                                          fit_thresh,
+                                                          fit_delta,
+                                                          iterations[0],
+                                                          )
 
-            # Calculate the difference between the real and simulated data
-            diff_sfnr = abs(new_sfnr - target_sfnr) / target_sfnr
-            diff_snr = abs(new_snr - target_snr) / target_snr
+    # Fit the AR
+    noise  = _fit_ar(noise,
+                     mask,
+                     template,
+                     stimfunction_tr,
+                     tr_duration,
+                     spatial_sd,
+                     temporal_sd,
+                     noise_dict,
+                     fit_thresh,
+                     fit_delta,
+                     iterations[1],
+                     )
 
-            # If the AR is sufficiently close then break the loop
-            if  diff_sfnr < fit_thresh and diff_snr < fit_thresh:
-                print('Terminated SNR and SFNR fit after ' + str(
-                    iteration) + ' iterations.')
-                break
-
-            temp_sd_new = np.sqrt(((mean_signal / new_sfnr) ** 2) *
-                                         temporal_proportion)
-            spat_sd_new = mean_signal / new_snr
-
-            # Update the variables
-            temporal_sd_system -= ((temp_sd_new - temp_sd_orig) * fit_delta)
-            spatial_sd -= ((spat_sd_new - spat_sd_orig) * fit_delta)
-
-    # Iterate through different MA parameters to fit AR
-    print('Target AR: %0.3f\n' % noise_dict['auto_reg_rho'][0])
-    for iteration in list(range(iterations[1] + 1)):
-
-        # Generate the noise
-        noise_temporal = _generate_noise_temporal(stimfunction_tr,
-                                                  tr_duration,
-                                                  dimensions,
-                                                  template,
-                                                  mask,
-                                                  noise_dict,
-                                                  )
-
-        # Set up the machine noise
-        noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
-                                              spatial_sd=spatial_sd,
-                                              temporal_sd=temporal_sd_system,
-                                              )
-
-        # Sum up the noise of the brain
-        noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
-                noise_system
-
-        # Reject negative values (only happens outside of the brain)
-        noise[noise < 0] = 0
-
-        # If there are iterations left to perform then recalculate the
-        # metrics and try again
-        target_ar = noise_dict['auto_reg_rho']
-        if iteration < iterations[1]:
-
-            # Calculate the new metrics
-            new_ar, _ = _calc_ARMA_noise(noise,
-                                         mask,
-                                         len(noise_dict['auto_reg_rho']),
-                                         len(noise_dict['ma_rho']),
-                                         )
-
-            # Calculate the difference in the first AR component
-            ar_0_diff = abs(new_ar[0] - target_ar[0]) / target_ar[0]
-
-            print('New AR: %0.3f\n' % new_ar[0])
-
-            # If the AR is sufficiently close then break the loop
-            if ar_0_diff < fit_thresh:
-                print('Terminated AR fit after ' + str(iteration) +
-                      ' iterations.')
-                break
-            else:
-                # Otherwise update the ma coefficient
-                noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (ar_0_diff *
-                                                                   fit_delta)]
-
-
+    # Return the noise
     return noise
 
 def compute_signal_change(signal_function,

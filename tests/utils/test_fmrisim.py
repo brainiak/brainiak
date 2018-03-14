@@ -194,8 +194,7 @@ def test_generate_noise():
 
     # Generate the mask of the signal
     mask, template = sim.mask_brain(signal,
-                                    mask_threshold=0.1,
-                                    mask_self=False)
+                                    mask_self=None)
 
     assert min(mask[mask > 0]) > 0.1, "Mask thresholding did not work"
     assert len(np.unique(template) > 2), "Template creation did not work"
@@ -207,19 +206,19 @@ def test_generate_noise():
                                tr_duration=tr_duration,
                                template=template,
                                mask=mask,
+                               iterations=[1, 0],
                                )
 
     assert signal.shape == noise.shape, "The dimensions of signal and noise " \
                                         "the same"
-
-    assert np.std(signal) < np.std(noise), "Noise was not created"
 
     noise_high = sim.generate_noise(dimensions=dimensions,
                                     stimfunction_tr=stimfunction_tr,
                                     tr_duration=tr_duration,
                                     template=template,
                                     mask=mask,
-                                    noise_dict={'sfnr': 100, 'snr': 7},
+                                    noise_dict={'sfnr': 50, 'snr': 25},
+                                    iterations=[1, 0],
                                     )
 
     noise_low = sim.generate_noise(dimensions=dimensions,
@@ -227,13 +226,14 @@ def test_generate_noise():
                                    tr_duration=tr_duration,
                                    template=template,
                                    mask=mask,
-                                   noise_dict={'sfnr': 200, 'snr': 10},
+                                   noise_dict={'sfnr': 100, 'snr': 25},
+                                   iterations=[1, 0],
                                    )
 
-    system_high = np.std(noise_high[mask > 0], 0).mean()
-    system_low = np.std(noise_low[mask > 0], 0).mean()
+    system_high = np.std(noise_high[mask > 0], 1).mean()
+    system_low = np.std(noise_low[mask > 0], 1).mean()
 
-    assert system_low < system_high, "Noise strength could not be manipulated"
+    assert system_low < system_high, "SFNR noise could not be manipulated"
 
 
 def test_mask_brain():
@@ -286,45 +286,39 @@ def test_calc_noise():
     event_durations = [6]
     tr_duration = 2
     duration = 200
+    temporal_res=100
     tr_number = int(np.floor(duration / tr_duration))
     dimensions_tr = np.array([10, 10, 10, tr_number])
 
     # Preset the noise dict
-    nd_orig = {'auto_reg_sigma': 1,
-               'drift_sigma': 0,
-               'auto_reg_rho': [1.0, -0.5],
-               'physiological_sigma': 0,
-               'task_sigma': 0,
-               'snr': 10,
-               'sfnr': 90,
-               'max_activity': 1000,
-               'fwhm': 4,
-               }
+    nd_orig = sim._noise_dict_update({})
 
     # Create the time course for the signal to be generated
     stimfunction = sim.generate_stimfunction(onsets=onsets,
                                              event_durations=event_durations,
                                              total_time=duration,
+                                             temporal_resolution=temporal_res,
                                              )
 
     # Mask the volume to be the same shape as a brain
     mask, template = sim.mask_brain(dimensions_tr, mask_self=None)
-    stimfunction_tr = stimfunction[::int(tr_duration * 100)]
+    stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                template=template,
                                mask=mask,
                                noise_dict=nd_orig,
+                               iterations=[10, 0],
                                )
 
     # Calculate the noise parameters from this newly generated volume
-    nd_new = sim.calc_noise(noise, mask)
+    nd_new = sim.calc_noise(noise, mask, template)
 
     snr_diff = abs(nd_orig['snr'] - nd_new['snr'])
-    assert snr_diff < 5, 'snr calculated incorrectly'
+    assert snr_diff < 10, 'snr calculated incorrectly'
     sfnr_diff = abs(nd_orig['sfnr'] - nd_new['sfnr'])
-    assert sfnr_diff < 5, 'sfnr calculated incorrectly'
+    assert sfnr_diff < 10, 'sfnr calculated incorrectly'
     ar1_diff = abs(nd_orig['auto_reg_rho'][0] - nd_new['auto_reg_rho'][0])
     assert  ar1_diff < 1, 'AR1 calculated incorrectly'
     ar2_diff = abs(nd_orig['auto_reg_rho'][1] - nd_new['auto_reg_rho'][1])
