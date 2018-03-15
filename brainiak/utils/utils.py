@@ -795,3 +795,55 @@ def p_from_null(X, two_sided=False):
         p = 1 - max_null_ecdf(X[..., 0])
 
     return p
+
+def p_from_null_mem_saving(X, two_sided=False, max_null=0, min_null=0): # add 2 parameters
+    """Compute p value of true result from null distribution
+    Given an array containing both a real result and a set of null results,
+    computes the fraction of null results larger than the real result (or,
+    if two_sided=True, the fraction of null results more extreme than the real
+    result in either the positive or negative direction).
+    Note that all real results are compared to a pooled null distribution,
+    which is the max/min over all null results, providing multiple
+    comparisons correction.
+    Parameters
+    ----------
+    X : ndarray with arbitrary number of dimensions
+        The last dimension of X should contain the real result in X[..., 0]
+        and the null results in X[..., 1:]
+    two_sided : bool, default:False
+        Whether the p value should be one-sided (testing only for being
+        above the null) or two-sided (testing for both significantly positive
+        and significantly negative values)
+	max_null : 1-d array. The maximum correlation value observed during each 
+		iteration of randomization. 
+		The empirical values to be used to construct the null distribution
+		(See the source code of isfc.ISFC() function to understand how
+		 max_null and min_null are created.)
+	min_null : 1-d array. The minimum correlation value observed during each 
+		iteration of randomization.
+		The empirical values to be used to construct the null distribution 
+		(used in addition to max_null if two_sided==True)
+		
+    Returns
+    -------
+    p : ndarray the same shape as X, without the last dimension
+        p values for each true X value under the null distribution
+    """
+    leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)]) # deleted
+
+    # Compute maximum/minimum in each null dataset
+    # max_null = np.max(X[..., 1:], axis=leading_dims) # deleted
+    # min_null = np.min(X[..., 1:], axis=leading_dims) # deleted
+
+    # Compute where the true values fall on the null distribution
+    max_null_ecdf = ecdf(max_null)
+    if two_sided:
+        min_null_ecdf = ecdf(min_null)
+        # p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]), min_null_ecdf(X[..., 0])) # deleted
+		p = 2 * np.minimum(1 - max_null_ecdf(X), min_null_ecdf(X)) # added
+        p = np.minimum(p, 1)
+    else:
+        # p = 1 - max_null_ecdf(X[..., 0]) # deleted
+		p = 1 - max_null_ecdf(X) # added
+
+    return p
