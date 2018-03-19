@@ -31,11 +31,61 @@ in mind:
 How to contribute
 =================
 
-We use GitHub pull requests (PRs) to make improvements to the repository.
-Please see the `GitHub help for collaborating on projects using issues and pull
-requests`_ for information about how to create your own fork of the project and
-generate pull requests to submit your code for inclusion in the project.
+We use GitHub pull requests (PRs) to make improvements to the repository. You
+should make a fork, create a new branch for each new feature you develop, and
+make a PR to merge your branch into the master branch of the official
+repository. There are several workflows you could follow. Here is a concise
+step-by-step description of our recommended workflow:
 
+1. Fork the official BrainIAK repository on GitHub.
+
+2. Clone your fork::
+
+     git clone https://github.com/yourgithubusername/brainiak
+
+3. Add the official BrainIAK repository as the ``upstream`` remote::
+
+     git remote add upstream https://github.com/brainiak/brainiak
+
+4. Set the ``master`` branch to track the ``upstream`` remote::
+
+     git fetch upstream
+     git branch -u upstream/master
+
+5. Whenever there are commits in the official repository, pull them to keep
+   your ``master`` branch up to date::
+
+     git pull --ff-only
+
+6. Always create a new branch when you start working on a new feature; we only
+   update the ``master`` branch via pull requests from feature branches; never
+   commit directly to the ``master`` branch::
+
+     git checkout -b new-feature
+
+7. Make changes and commit them. Include a news fragment for the release notes
+   in ``docs/newsfragments`` if your changes are visible to users (see `Pip's
+   documentation`_ and our news types in ``pyproject.toml``).
+
+8. Push your feature branch to your fork::
+
+     git push --set-upstream origin new-feature  # only for the first push
+     git push  # for all subsequent pushes
+
+9. When your feature is ready, make a pull request on GitHub. After your
+   feature is accepted, update your ``master`` branch and delete your feature
+   branch::
+
+     git checkout master
+     git pull --ff-only
+     git branch -d new-feature
+     git push --delete origin new-feature  # or use delete button in GitHub PR
+
+Please see the `GitHub help for collaborating on projects using issues and pull
+requests`_ for more information.
+
+.. _Pip's documentation:
+   https://pip.pypa.io/en/latest/development/#adding-a-news-entry
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
 
@@ -51,21 +101,18 @@ the virtual environment to be set up every time. You can run the individual
 checks from ``pr-check.sh`` using the steps bellow::
 
   # do not run this if using Anaconda, because Anaconda is not compatible with
-  # virtualenv; instead, look at pr-check.sh to see how to run the individual
+  # venv; instead, look at pr-check.sh to see how to run the individual
   # checks that are part of pr-check.sh using Anaconda
 
-  # optional, but highly recommended: create a virtualenv to isolate tests
-  virtualenv ../brainiak_pr_venv
+  # optional, but highly recommended: create a virtual environment
+  python3 -m venv ../brainiak_pr_venv
   source ../brainiak_pr_venv/bin/activate
 
-  # install developer dependencies
-  pip3 install -U -r requirements-dev.txt
+  # install brainiak in editable mode and developer dependencies
+  python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
-
-  # install brainiak in editable mode (required for testing)
-  pip3 install -U -e .
 
   # run tests
   ./run-tests.sh
@@ -75,13 +122,18 @@ checks from ``pr-check.sh`` using the steps bellow::
   make
   cd -
 
-  # optional: remove virtualenv, if you created one
+  # optional: remove the virtual environment, if you created one
   deactivate
   rm -r ../brainiak_pr_venv
 
 When you are ready to submit your PR, run ``pr-check.sh`` even if you were
 using the steps above to run the individual checks in ``pr-check.sh`` during
 development.
+
+If you want to obtain early feedback for your work, ask people to look at your
+fork. Alternatively, you can open a PR before your work is ready; in this case,
+you should start the PR title with ``WIP:``, to let people know your PR is work
+in progress.
 
 
 Tools
@@ -95,7 +147,7 @@ goes wrong.
 The development requirements are listed in ``requirements-dev.txt``. You can
 install them with::
 
-  pip3 install -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
 
 Standards
@@ -142,6 +194,12 @@ Standards
 .. _Scikit-learn pipeline documentation:
    http://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html
 
+* All code using random numbers should allow reproducible execution using the
+  `Scikit-learn random numbers guidelines`_.
+
+.. _Scikit-learn random numbers guidelines:
+   http://scikit-learn.org/stable/developers/contributing.html#random-numbers
+
 * Use ``logging`` to record debug messages with a logger obtained using::
 
     logging.getLogger(__name__)
@@ -151,6 +209,14 @@ Standards
 
 .. _Python Logging Tutorial:
    https://docs.python.org/3/howto/logging.html
+
+* Create usage examples for new modules in the examples directory. Add a
+  ``requirements.txt`` file to help users install the packages your examples
+  require. If your example requires software that is not available in PyPI,
+  document it in a ``README.rst`` and also update the BrainIAK Dockerfile.
+
+* Remove the output of example Jupyter notebooks before committing them, using
+  `nbstripout <https://pypi.python.org/pypi/nbstripout>`_.
 
 
 Testing
@@ -162,14 +228,18 @@ whenever you add code to BrainIAK. We use a tool called "pytest" to run tests;
 please read the `Pytest documentation`_.  You should put your tests in a
 ``test_*.py`` file in the test folder, following the structure of the
 ``brainiak`` folder. So for example, if you have your code in
-``brainiak/functional_alignment/srm.py`` you should have tests in
-``tests/functional_alignment/test_srm.py``.
+``brainiak/funcalign/srm.py`` you should have tests in
+``tests/funcalign/test_srm.py``. The unit tests for a subpackage should not
+take more than one minute in total on our testing service, `Travis CI`_.
 
 .. _Pytest documentation:
   http://pytest.org/latest/contents.html
+.. _Travis CI:
+  https://travis-ci.org
 
-You must install the package in editable mode using the ``-e`` flag of ``pip3
-install`` before running the tests.
+You must install the package in editable mode before running the tests::
+
+    python3 -m pip install -e .
 
 You can run ``./run-tests.sh`` to run all the unit tests, or you can use the
 ``py.test <your-test-file.py>`` command to run your tests only, at a more
@@ -203,3 +273,71 @@ Name subpackages and modules using short names describing their functionality,
 e.g., ``tda`` for the subpackage containing topological data analysis work and
 ``htfa.py`` for the module implementing hierarchical topographical factor
 analysis.
+
+
+Making a release
+================
+
+This information is only of interest to the core contributors who have the
+right to make releases.
+
+Before making a release, ensure that:
+
+1. The following environment variables are set::
+
+    export $CONDA_HOME=/path/to/miniconda3
+
+2. The following Conda channels are enabled::
+
+    conda config --add channels conda-forge --add channels defaults
+
+3. The following Conda packages are installed::
+
+    conda install conda-build anaconda-client
+
+To make a release:
+
+1. Choose a release number, ``v``. We follow `Semantic Versioning
+   <http://semver.org>`_, although we omit the patch number when it is 0.
+
+2. Prepare the release notes::
+
+       git checkout -b release-v<v>
+       towncrier --version <v>
+       ./pr-check.sh
+       git commit -a -m "Add release notes for v<v>"
+       git push --set-upstream origin release-v<v>
+       <Create a PR; merge the PR.>
+       git checkout master
+       git pull --ff-only
+       git branch -d release-v<v>
+
+3. Tag the release::
+
+       git tag v<v>
+
+4. Create and test the source distribution package::
+
+       python3 setup.py sdist
+       tar -xf dist/brainiak-<v>.tar.gz
+       cd brainiak-<v>
+       ./pr-check.sh
+       cd -
+       rm -r brainiak-<v>
+
+5. Push release::
+
+       git tag --push
+       twine upload dist/brainiak-<v>.tar.gz
+
+
+7. Create and test Conda packages (repeat command for all OSes and Python
+   versions); requires the ``conda-build`` Conda package::
+       
+       .conda/bin/build
+
+8. Upload the built Conda package (repeat command for all OSes and Python
+   versions); requires the ``anaconda-client`` Conda package::
+
+       anaconda upload -u brainiak \
+       $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2

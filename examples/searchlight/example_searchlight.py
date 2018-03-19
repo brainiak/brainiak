@@ -17,6 +17,7 @@ from mpi4py import MPI
 import sys
 
 from brainiak.searchlight.searchlight import Searchlight
+from brainiak.searchlight.searchlight import Diamond
 
 """Distributed Searchlight Example
 example usage: mpirun -n 4 python3 example_searchlight.py
@@ -66,7 +67,8 @@ if rank == 0:
       data[pt[0]:pt[0]+kernel_dim,pt[1]:pt[1]+kernel_dim,pt[2]:pt[2]+kernel_dim,idx] -= kernel * weight
 
 # Create searchlight object
-sl = Searchlight(sl_rad=1, max_blk_edge=5)
+sl = Searchlight(sl_rad=1, max_blk_edge=5, shape=Diamond,
+                 min_active_voxels_proportion=0)
 
 # Distribute data to processes
 sl.distribute([data], mask)

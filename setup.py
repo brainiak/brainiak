@@ -111,7 +111,6 @@ class BuildExt(build_ext):
         ])
 
 
-
 setup(
     name='brainiak',
     use_scm_version=True,
@@ -127,16 +126,17 @@ setup(
         'nitime',
         'numpy',
         'scikit-learn[alldeps]>=0.18',
-        'scipy',
+        'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
         'pymanopt',
         'theano',
         'pybind11>=1.7',
-        'pathos',
-        'nibabel'
+        'psutil',
+        'nibabel',
+        'typing'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
-    author_email='bryn.keller@intel.com',
-    url='https://github.com/IntelPNI/brainiak',
+    author_email='mihai.capota@intel.com',
+    url='http://brainiak.org',
     description='Brain Imaging Analysis Kit',
     license='Apache 2',
     keywords='neuroscience, algorithm, fMRI, distributed, scalable',

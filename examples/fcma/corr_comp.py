@@ -16,7 +16,8 @@ import sys
 import logging
 import numpy as np
 from brainiak.fcma.util import compute_correlation
-import brainiak.fcma.io as io
+from brainiak.fcma.preprocessing import generate_epochs_info
+from brainiak import image, io
 import scipy.io
 
 format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -25,23 +26,29 @@ format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(level=logging.INFO, format=format, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
-# python corr_comp.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
+# python3 corr_comp.py face_scene bet.nii.gz face_scene/prefrontal_top_mask.nii.gz face_scene/fs_epoch_labels.npy
 if __name__ == '__main__':
+    if len(sys.argv) != 5:
+        logger.error('the number of input argument is not correct')
+        sys.exit(1)
+
     data_dir = sys.argv[1]
     extension = sys.argv[2]
     mask_file = sys.argv[3]
     epoch_file = sys.argv[4]
 
-    raw_data = io.read_activity_data(data_dir, extension, mask_file)
-    epoch_list = np.load(epoch_file)
-    epoch_info = io.generate_epochs_info(epoch_list)
+    images = io.load_images_from_dir(data_dir, extension)
+    mask = io.load_boolean_mask(mask_file)
+    conditions = io.load_labels(epoch_file)
+    raw_data = list(image.multimask_images(images, (mask,)))
+    epoch_info = generate_epochs_info(conditions)
 
     for idx, epoch in enumerate(epoch_info):
         label = epoch[0]
         sid = epoch[1]
         start = epoch[2]
         end = epoch[3]
-        mat = raw_data[sid][:, start:end]
+        mat = raw_data[sid][0][:, start:end]
         mat = np.ascontiguousarray(mat, dtype=np.float32)
         logger.info(
             'start to compute correlation for subject %d epoch %d with label %d' %

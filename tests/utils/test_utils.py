@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 import pytest
 
 
@@ -30,52 +31,44 @@ def test_tri_sym_convert():
         "from_sym_2_tri returned wrong result!"
 
 
-def test_fast_inv():
-    from brainiak.utils.utils import fast_inv
-    import numpy as np
-
-    a = np.random.rand(6)
-    with pytest.raises(TypeError) as excinfo:
-        fast_inv(a)
-    assert "Input matrix should be 2D array" in str(excinfo.value)
-    a = np.random.rand(3, 2)
-    with pytest.raises(np.linalg.linalg.LinAlgError) as excinfo:
-        fast_inv(a)
-    assert "Last 2 dimensions of the array must be square" in str(excinfo.value)
-
-
 def test_sumexp():
     from brainiak.utils.utils import sumexp_stable
     import numpy as np
 
-    data = np.array([[1, 1],[0, 1]])
+    data = np.array([[1, 1], [0, 1]])
     sums, maxs, exps = sumexp_stable(data)
-    assert sums.size == data.shape[1], "Invalid sum(exp(v)) computation (wrong # samples in sums)"
-    assert exps.shape[0] == data.shape[0], "Invalid exp(v) computation (wrong # features)"
-    assert exps.shape[1] == data.shape[1], "Invalid exp(v) computation (wrong # samples)"
-    assert maxs.size == data.shape[1], "Invalid max computation (wrong # samples in maxs)"
+    assert sums.size == data.shape[1], (
+        "Invalid sum(exp(v)) computation (wrong # samples in sums)")
+    assert exps.shape[0] == data.shape[0], (
+        "Invalid exp(v) computation (wrong # features)")
+    assert exps.shape[1] == data.shape[1], (
+        "Invalid exp(v) computation (wrong # samples)")
+    assert maxs.size == data.shape[1], (
+        "Invalid max computation (wrong # samples in maxs)")
 
 
-def test_concatenate_list():
-    from brainiak.utils.utils import concatenate_list
+def test_concatenate_not_none():
+    from brainiak.utils.utils import concatenate_not_none
     import numpy as np
-    l = [None] * 5
+    arrays = [None] * 5
 
-    l[1] = np.array([0, 1, 2])
-    l[3] = np.array([3, 4])
+    arrays[1] = np.array([0, 1, 2])
+    arrays[3] = np.array([3, 4])
 
-    r = concatenate_list(l, axis=0)
+    r = concatenate_not_none(arrays, axis=0)
 
-    assert np.all(np.arange(5) == r), "Invalid concatenation of a list of arrays"
+    assert np.all(np.arange(5) == r), (
+        "Invalid concatenation of a list of arrays")
 
 
 def test_cov2corr():
     from brainiak.utils.utils import cov2corr
     import numpy as np
-    cov = np.array([[4,3,0],[3,9,0],[0,0,1]])
+    cov = np.array([[4, 3, 0], [3, 9, 0], [0, 0, 1]])
     corr = cov2corr(cov)
-    assert np.isclose(corr, np.array([[1,0.5,0],[0.5,1,0],[0,0,1]])).all(),\
-        "Converting from covariance matrix to correlation incorrect"
+    assert np.allclose(corr,
+                       np.array([[1, 0.5, 0], [0.5, 1, 0], [0, 0, 1]])), (
+        "Converting from covariance matrix to correlation incorrect")
 
 
 def test_ReadDesign():
@@ -83,7 +76,8 @@ def test_ReadDesign():
     import numpy as np
     import os.path
     file_path = os.path.join(os.path.dirname(__file__), "example_design.1D")
-    design = ReadDesign(fname=file_path, include_orth=False, include_pols=False)
+    design = ReadDesign(fname=file_path, include_orth=False,
+                        include_pols=False)
     assert design, 'Failed to read design matrix'
     assert design.reg_nuisance is None, \
         'Nuiance regressor is not None when include_orth and include_pols are'\
@@ -95,6 +89,146 @@ def test_ReadDesign():
         'Mistake in counting the number of nuiance regressors'
     assert np.size(design.cols_task) == 17, \
         'Mistake in counting the number of task conditions'
-    assert np.shape(design.reg_nuisance)[0] == np.shape(design.design_task)[0],\
-        'The number of time points in nuiance regressor does not match'\
-        ' that of task response'
+    assert (np.shape(design.reg_nuisance)[0]
+            == np.shape(design.design_task)[0]
+            ), 'The number of time points in nuiance regressor does not match'\
+               ' that of task response'
+
+
+def test_gen_design():
+    from brainiak.utils.utils import gen_design
+    import numpy as np
+    import os.path
+    files = {'FSL1': 'example_stimtime_1_FSL.txt',
+             'FSL2': 'example_stimtime_2_FSL.txt',
+             'AFNI1': 'example_stimtime_1_AFNI.txt'}
+    for key in files.keys():
+        files[key] = os.path.join(os.path.dirname(__file__), files[key])
+    design1 = gen_design(stimtime_files=files['FSL1'], scan_duration=[48, 20],
+                         TR=2, style='FSL')
+    assert design1.shape == (34, 1), 'Returned design matrix has wrong shape'
+    assert design1[24] == 0, (
+        "gen_design should generated design matrix for each run separately "
+        "and concatenate them.")
+    design2 = gen_design(stimtime_files=[files['FSL1'], files['FSL2']],
+                         scan_duration=[48, 20], TR=2, style='FSL')
+    assert design2.shape == (34, 2), 'Returned design matrix has wrong shape'
+    design3 = gen_design(stimtime_files=files['FSL1'], scan_duration=68, TR=2,
+                         style='FSL')
+    assert design3[24] != 0, (
+        'design matrix should be non-zero 8 seconds after an event onset.')
+    design4 = gen_design(stimtime_files=[files['FSL2']],
+                         scan_duration=[48, 20], TR=2, style='FSL')
+    assert np.all(np.isclose(design1 * 0.5, design4)), (
+        'gen_design does not treat missing values correctly')
+    design5 = gen_design(stimtime_files=[files['FSL2']],
+                         scan_duration=[48, 20], TR=1)
+    assert (np.abs(design4 - design5[::2])).mean() < 0.1, (
+        'design matrices sampled at different frequency do not match'
+        ' at corresponding time points')
+    design6 = gen_design(stimtime_files=[files['AFNI1']],
+                         scan_duration=[48, 20], TR=2, style='AFNI')
+    assert np.all(np.isclose(design1, design6)), (
+        'design matrices generated from AFNI style and FSL style do not match')
+
+
+def test_center_mass_exp():
+    from brainiak.utils.utils import center_mass_exp
+    import numpy as np
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp([1, 2])
+    assert ('interval must be a tuple'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2, 3))
+    assert ('interval must be length two'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, -1))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((-2, 3))
+    assert ('interval_left must be non-negative'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((3, 3))
+    assert ('interval_right must be bigger than interval_left'
+            in str(excinfo.value))
+
+    with pytest.raises(AssertionError) as excinfo:
+        result = center_mass_exp((1, 2), -1)
+    assert ('scale must be positive'
+            in str(excinfo.value))
+
+    result = center_mass_exp((0, np.inf), 2.0)
+    assert np.isclose(result, 2.0), 'center of mass '\
+        'incorrect for the whole distribution'
+    result = center_mass_exp((1.0, 1.0+2e-10))
+    assert np.isclose(result, 1.0+1e-10), 'for a small '\
+        'enough interval, the center of mass should be '\
+        'close to its mid-point'
+
+
+def test_phase_randomize():
+    from brainiak.utils.utils import phase_randomize
+    import numpy as np
+    from scipy.fftpack import fft
+    import math
+    from scipy.stats import pearsonr
+
+    # Generate auto-correlated signals
+    nv = 2
+    T = 100
+    ns = 3
+    D = np.zeros((nv, T, ns))
+    for v in range(nv):
+        for s in range(ns):
+            D[v, :, s] = np.sin(np.linspace(0, math.pi * 5 * (v + 1), T)) + \
+                         np.sin(np.linspace(0, math.pi * 6 * (s + 1), T))
+
+    freq = fft(D, axis=1)
+    D_pr = phase_randomize(D)
+    freq_pr = fft(D_pr, axis=1)
+    p_corr = pearsonr(np.angle(freq).flatten(), np.angle(freq_pr).flatten())[0]
+
+    assert np.isclose(abs(freq), abs(freq_pr)).all(), \
+        "Amplitude spectrum not preserved under phase randomization"
+
+    assert abs(p_corr) < 0.03, \
+        "Phases still correlated after randomization"
+
+
+def test_ecdf():
+    from brainiak.utils.utils import ecdf
+    import numpy as np
+
+    x = np.array([1, 4, 3])
+    cdf_fun = ecdf(x)
+
+    assert np.isclose(cdf_fun(0), [0]), "Left side of cdf should be 0"
+    assert np.isclose(cdf_fun(5), [1]), "Right side of cdf should be 1"
+    assert np.isclose(cdf_fun(1.5), [1 / 3]), "CDF value incorrect"
+    assert np.isclose(cdf_fun(1), [1 / 3]), "CDF should be right-continuous"
+
+
+def test_p_from_null():
+    from brainiak.utils.utils import p_from_null
+    import numpy as np
+
+    X = np.zeros((2, 5))  # One true value, 4 null values
+    X[0, 0] = 1
+    X[1, 0] = -2
+    X[0, 1:] = [-1.0, 0.00,  0.50, 2.00]
+    X[1, 1:] = [-1.5, 0.25, -0.25, 0.25]
+
+    p_1side = p_from_null(X, two_sided=False)
+    assert np.isclose(p_1side, [0.25, 1]).all(), "One-sided p value incorrect"
+
+    p_2side = p_from_null(X, two_sided=True)
+    assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"

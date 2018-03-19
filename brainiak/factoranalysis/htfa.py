@@ -13,7 +13,8 @@
 #  limitations under the License.
 """Hierarchical Topographical Factor Analysis (HTFA)
 
-This implementation is based on the following publications:
+This implementation is based on the work in [Manning2014-1]_, [Manning2014-2]_,
+[AndersonMJ2016]_, and [Manning2018]_.
 
 .. [Manning2014-1] "Topographic factor analysis: a bayesian model for
    inferring brain networks from neural data", J. R. Manning,
@@ -25,10 +26,19 @@ This implementation is based on the following publications:
    K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
    2014 International Workshop on, June 2014.
 
-.. [AndersonMJ2016] "Scaling Up Multi-Subject Neuroimaging Factor Analysis",
-   Michael J. Anderson, Mihai Capota, Javier S. Turek, Xia Zhu,
-   Theodore L. Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning,
-   Peter J. Ramadge, and Kenneth A. Norman. 2016
+.. [Manning2018] "A Probabilistic Approach to Discovering Dynamic Full-brain
+   Functional Connectivit Patterns", J. R. Manning, X. Zhu, T.L. Willke,
+   R. Ranganath, K. Stachenfeld, U. Hasson, D. M. Blei and K. A. Norman.
+   Neuroimage, 2018.
+   https://doi.org/10.1016/j.neuroimage.2018.01.071
+
+.. [AndersonMJ2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
+   Datasets",
+   Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
+   Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
+   Kenneth A. Norman,
+   IEEE International Conference on Big Data, 2016.
+   https://doi.org/10.1109/BigData.2016.7840719
 """
 
 # Authors: Xia Zhu (Intel Labs), Jeremy Manning (Dartmouth College) 2015~2016
@@ -40,7 +50,7 @@ from sklearn.metrics import mean_squared_error
 from scipy.spatial import distance
 import logging
 from .tfa import TFA
-from ..utils.utils import fast_inv, from_tri_2_sym, from_sym_2_tri
+from ..utils.utils import from_tri_2_sym, from_sym_2_tri
 
 __all__ = [
     "HTFA",
@@ -60,12 +70,11 @@ class HTFA(TFA):
     Parameters
     ----------
 
-    R : list of 2D arrays, element i has shape=[n_voxel, n_dim]
-        Each element in the list contains the scanner coordinate matrix
-        of fMRI data of one subject.
-
-    K : int, default: 50
+    K : int
         Number of factors to compute.
+
+    n_subj : int
+        Total number of subjects in dataset.
 
     max_global_iter : int, default: 10
         Number of global iterations to run the algorithm.
@@ -73,9 +82,6 @@ class HTFA(TFA):
     max_local_iter : int, default: 10
         Number of local iterations to run on each subject within each
         global interation.
-
-    n_subj : int, default: 2
-        Total number of subjects in dataset.
 
     threshold : float, default: 1.0
         Tolerance for terminate the parameter estimation
@@ -157,7 +163,7 @@ class HTFA(TFA):
 
     """
 
-    def __init__(self, K, n_subj=2, max_global_iter=10, max_local_iter=10,
+    def __init__(self, K, n_subj, max_global_iter=10, max_local_iter=10,
                  threshold=0.01, nlss_method='trf', nlss_loss='soft_l1',
                  jac='2-point', x_scale='jac', tr_solver=None,
                  weight_method='rr', upper_ratio=1.8, lower_ratio=0.02,
@@ -273,11 +279,7 @@ class HTFA(TFA):
             posterior covariance of multivariate parameter
 
         """
-        try:
-            common = fast_inv(prior_cov + global_cov_scaled)
-        except np.linalg.linalg.LinAlgError:
-            logging.exception('Error from fast_inv')
-            raise
+        common = np.linalg.inv(prior_cov + global_cov_scaled)
         observation_mean = np.mean(new_observation, axis=1)
         posterior_mean = prior_cov.dot(common.dot(observation_mean)) +\
             global_cov_scaled.dot(common.dot(prior_mean))

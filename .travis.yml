@@ -27,8 +27,10 @@ matrix:
       env: &macos_env
         - CC=/usr/local/opt/llvm/bin/clang
         - CXX=/usr/local/opt/llvm/bin/clang++
-        - LDFLAGS="-L/usr/local/opt/llvm/lib $LDFLAGS"
+        - LDFLAGS="-L/usr/local/opt/llvm/lib
+          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
         - CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+        - HOMEBREW_NO_AUTO_UPDATE=1
       before_install: &macos_before_install
         - brew install llvm mpich python3
 
@@ -38,8 +40,21 @@ matrix:
       env: *macos_env
       before_install: *macos_before_install
 
+    # Build and test conda packages
+    - os: linux
+      dist: trusty
+      install: ./.conda/bin/install-miniconda
+      script: ./.conda/bin/build
+
+    - os: osx
+      osx_image: xcode8
+      install: ./.conda/bin/install-miniconda
+      script: ./.conda/bin/build
+
 install:
-    - pip3 install -U pip virtualenv
+    - python3 -m pip install -U pip codecov
 
 script:
     - ./pr-check.sh
+after_success:
+    - codecov

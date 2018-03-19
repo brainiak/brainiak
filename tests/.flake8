@@ -1,0 +1,16 @@
+[flake8]
+max-complexity = 10
+ignore =
+    # Defaults
+    # https://gitlab.com/pycqa/flake8/blob/master/src/flake8/defaults.py
+    E121,
+    E123,
+    E126,
+    E226,
+    E24,
+    E704,
+    W503,
+    W504,
+    # Print restriction only applies to libraries
+    T001,
+    T003

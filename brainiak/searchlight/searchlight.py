@@ -12,16 +12,87 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
-import sys
+from scipy.spatial.distance import cityblock
+
+from ..utils.utils import usable_cpu_count
 
 """Distributed Searchlight
 """
 
 __all__ = [
-        "Searchlight",
+        "Searchlight", "Shape", "Cube", "Diamond"
 ]
+
+
+class Shape:
+    """Shape
+
+    Searchlight shape which is contained in a cube sized
+    (2*rad+1,2*rad+1,2*rad+1)
+
+    Attributes
+    ----------
+
+    mask_ : a 3D boolean numpy array of size (2*rad+1,2*rad+1,2*rad+1)
+            which is set to True within the boundaries of the desired shape
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
+
+    def __init__(self, rad):
+        self.rad = rad
+
+
+class Cube(Shape):
+    """Cube
+
+    Searchlight shape which is a cube of size (2*rad+1,2*rad+1,2*rad+1)
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
+    def __init__(self, rad):
+        super().__init__(rad)
+        self.rad = rad
+        self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+
+
+class Diamond(Shape):
+    """Diamond
+
+    Searchlight shape which is a diamond
+    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+    Any location in the cube which has a Manhattan distance of less than rad
+    from the center point is set to True.
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
+    def __init__(self, rad):
+        super().__init__(rad)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        for r1 in range(2*self.rad+1):
+            for r2 in range(2*self.rad+1):
+                for r3 in range(2*self.rad+1):
+                    if(cityblock((r1, r2, r3),
+                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                        self.mask_[r1, r2, r3] = True
 
 
 class Searchlight:
@@ -32,22 +103,34 @@ class Searchlight:
 
     Optionally, users can define a block function which runs over
     larger portions of the volume called blocks.
+
+    Parameters
+    ----------
+
+    sl_rad: radius, in voxels, of the sphere inscribed in the
+               searchlight cube, not counting the center voxel
+
+    max_blk_edge: max edge length, in voxels, of the 3D block
+
+    shape: brainiak.searchlight.searchlight.Shape indicating the
+    shape in voxels of the searchlight region
+
+    min_active_voxels_proportion: float
+        If a searchlight region does not have more than this minimum
+        proportion of active voxels in the mask, it is not processed by the
+        searchlight function. The mask used for the test is the
+        intersection of the global (brain) mask and the `Shape` mask. The
+        seed (central) voxel of the searchlight region is taken into
+        consideration.
     """
-    def __init__(self, sl_rad=1, max_blk_edge=10):
-        """Constructor
-
-        Parameters
-        ----------
-
-        sl_rad: radius, in voxels, of the sphere inscribed in the
-                   searchlight cube, not counting the center voxel
-
-        max_blk_edge: max edge length, in voxels, of the 3D block
-
-        """
+    def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
+                 min_active_voxels_proportion=0):
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
+        self.min_active_voxels_proportion = min_active_voxels_proportion
         self.comm = MPI.COMM_WORLD
+        self.shape = shape(sl_rad).mask_
+        self.bcast_var = None
 
     def _get_ownership(self, data):
         """Determine on which rank each subject currently resides
@@ -89,18 +172,21 @@ class Searchlight:
            - a triple containing the size in voxels of the block
 
         """
+        blocks = []
         outerblk = self.max_blk_edge + 2*self.sl_rad
-        return [((i, j, k),
-                mask[i:i+outerblk,
-                j:j+outerblk,
-                k:k+outerblk].shape)
-                for i in range(0, mask.shape[0], self.max_blk_edge)
-                for j in range(0, mask.shape[1], self.max_blk_edge)
-                for k in range(0, mask.shape[2], self.max_blk_edge)
-                if np.any(
-                mask[i+self.sl_rad:i+self.sl_rad+self.max_blk_edge,
-                     j+self.sl_rad:j+self.sl_rad+self.max_blk_edge,
-                     k+self.sl_rad:k+self.sl_rad+self.max_blk_edge])]
+        for i in range(0, mask.shape[0], self.max_blk_edge):
+            for j in range(0, mask.shape[1], self.max_blk_edge):
+                for k in range(0, mask.shape[2], self.max_blk_edge):
+                    block_shape = mask[i:i+outerblk,
+                                       j:j+outerblk,
+                                       k:k+outerblk
+                                       ].shape
+                    if np.any(
+                        mask[i+self.sl_rad:i+block_shape[0]-self.sl_rad,
+                             j+self.sl_rad:j+block_shape[1]-self.sl_rad,
+                             k+self.sl_rad:k+block_shape[2]-self.sl_rad]):
+                        blocks.append(((i, j, k), block_shape))
+        return blocks
 
     def _get_block_data(self, mat, block):
         """Retrieve a block from a 3D or 4D volume
@@ -132,8 +218,6 @@ class Searchlight:
                        pt[1]:pt[1]+sz[1],
                        pt[2]:pt[2]+sz[2],
                        :].copy()
-        else:
-            sys.exit(0)
 
     def _split_volume(self, mat, blocks):
         """Convert a volume into a list of block data
@@ -225,6 +309,14 @@ class Searchlight:
         mask: 3D array with "True" entries at active vertices
 
         """
+        if mask.ndim != 3:
+            raise ValueError('mask should be a 3D array')
+
+        for (idx, subj) in enumerate(subjects):
+            if subj is not None:
+                if subj.ndim != 4:
+                    raise ValueError('subjects[{}] must be 4D'.format(idx))
+
         self.mask = mask
         rank = self.comm.rank
 
@@ -257,7 +349,8 @@ class Searchlight:
 
         self.bcast_var = self.comm.bcast(bcast_var)
 
-    def run_block_function(self, block_fn):
+    def run_block_function(self, block_fn, extra_block_fn_params=None,
+                           pool_size=None):
         """Perform a function for each block in a volume.
 
         Parameters
@@ -277,21 +370,42 @@ class Searchlight:
 
                 bcast_var: shared data which is broadcast to all processes
 
+                extra_params: extra parameters
+
 
                 Returns
 
                 3D array which is the same size as the mask
                 input with padding removed
 
+        extra_block_fn_params: tuple
+            Extra parameters to pass to the block function
 
+        pool_size: int
+            Maximum number of processes running the block function in parallel.
+            If None, number of available hardware threads, considering cpusets
+            restrictions.
         """
         rank = self.comm.rank
 
-        # Apply searchlight
-        local_outputs = [(mypt[0],
-                          block_fn([d[idx] for d in self.subproblems],
-                          self.submasks[idx], self.sl_rad, self.bcast_var))
-                         for (idx, mypt) in enumerate(self.blocks)]
+        results = []
+        usable_cpus = usable_cpu_count()
+        if pool_size is None:
+            processes = usable_cpus
+        else:
+            processes = min(pool_size, usable_cpus)
+        with Pool(processes) as pool:
+            for idx, block in enumerate(self.blocks):
+                result = pool.apply_async(
+                    block_fn,
+                    ([subproblem[idx] for subproblem in self.subproblems],
+                     self.submasks[idx],
+                     self.sl_rad,
+                     self.bcast_var,
+                     extra_block_fn_params))
+                results.append((block[0], result))
+            local_outputs = [(result[0], result[1].get())
+                             for result in results]
 
         # Collect results
         global_outputs = self.comm.gather(local_outputs)
@@ -301,22 +415,26 @@ class Searchlight:
         if rank == 0:
             for go_rank in global_outputs:
                 for (pt, mat) in go_rank:
-                    for i in range(0, mat.shape[0]):
-                        for j in range(0, mat.shape[1]):
-                            for k in range(0, mat.shape[2]):
-                                outmat[pt[0]+self.sl_rad+i,
-                                       pt[1]+self.sl_rad+j,
-                                       pt[2]+self.sl_rad+k] = mat[i, j, k]
-
+                    coords = np.s_[
+                        pt[0]+self.sl_rad:pt[0]+self.sl_rad+mat.shape[0],
+                        pt[1]+self.sl_rad:pt[1]+self.sl_rad+mat.shape[1],
+                        pt[2]+self.sl_rad:pt[2]+self.sl_rad+mat.shape[2]
+                    ]
+                    outmat[coords] = mat
         return outmat
 
     def run_searchlight(self, voxel_fn, pool_size=None):
-        """Perform a function at each active voxel
+        """Perform a function at each voxel which is set to True in the
+        user-provided mask. The mask passed to the searchlight function will be
+        further masked by the user-provided searchlight shape.
 
         Parameters
         ----------
 
         voxel_fn: function to apply at each voxel
+
+            Must be `serializeable using pickle
+            <https://docs.python.org/3/library/pickle.html#what-can-be-pickled-and-unpickled>`_.
 
                 Parameters
 
@@ -334,45 +452,57 @@ class Searchlight:
 
                 Value of any pickle-able type
 
-        pool_size:    Number of parallel processes in shared memory
-                      process pool
+        Returns
+        -------
+
+        A volume which is the same size as the mask, however a number of voxels
+        equal to the searchlight radius has been removed from each border of
+        the volume. This volume contains the values returned from the
+        searchlight function at each voxel which was set to True in the mask,
+        and None elsewhere.
 
         """
 
-        def _singlenode_searchlight(l, msk, mysl_rad, bcast_var):
+        extra_block_fn_params = (voxel_fn, self.shape,
+                                 self.min_active_voxels_proportion)
+        block_fn_result = self.run_block_function(_singlenode_searchlight,
+                                                  extra_block_fn_params,
+                                                  pool_size)
+        return block_fn_result
 
-            outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
-                                                          mysl_rad:-mysl_rad,
-                                                          mysl_rad:-mysl_rad]
 
-            import pathos.multiprocessing
-            inlist = [([ll[i:i+2*mysl_rad+1,
-                           j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1,
-                           :]
-                        for ll in l],
-                       msk[i:i+2*mysl_rad+1,
-                           j:j+2*mysl_rad+1,
-                           k:k+2*mysl_rad+1],
-                       mysl_rad,
-                       bcast_var)
-                      if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad] else None
-                      for i in range(0, outmat.shape[0])
-                      for j in range(0, outmat.shape[1])
-                      for k in range(0, outmat.shape[2])]
-            outlist = list(pathos.multiprocessing.ProcessingPool(pool_size)
-                           .map(lambda x:
-                                voxel_fn(x[0], x[1], x[2], x[3])
-                                if x is not None else None, inlist))
+def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
+    """Run searchlight function on block data in parallel.
 
-            cnt = 0
-            for i in range(0, outmat.shape[0]):
-                for j in range(0, outmat.shape[1]):
-                    for k in range(0, outmat.shape[2]):
-                        if outlist[cnt] is not None:
-                            outmat[i, j, k] = outlist[cnt]
-                        cnt = cnt + 1
+    `extra_params` contains:
 
-            return outmat
+    - Searchlight function.
+    - `Shape` mask.
+    - Minimum active voxels proportion required to run the searchlight
+      function.
+    """
 
-        return self.run_block_function(_singlenode_searchlight)
+    voxel_fn = extra_params[0]
+    shape_mask = extra_params[1]
+    min_active_voxels_proportion = extra_params[2]
+    outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
+                                                  mysl_rad:-mysl_rad,
+                                                  mysl_rad:-mysl_rad]
+    for i in range(0, outmat.shape[0]):
+        for j in range(0, outmat.shape[1]):
+            for k in range(0, outmat.shape[2]):
+                if msk[i+mysl_rad, j+mysl_rad, k+mysl_rad]:
+                    searchlight_slice = np.s_[
+                        i:i+2*mysl_rad+1,
+                        j:j+2*mysl_rad+1,
+                        k:k+2*mysl_rad+1]
+                    voxel_fn_mask = msk[searchlight_slice] * shape_mask
+                    if (min_active_voxels_proportion == 0
+                        or np.count_nonzero(voxel_fn_mask) / voxel_fn_mask.size
+                            > min_active_voxels_proportion):
+                        outmat[i, j, k] = voxel_fn(
+                            [ll[searchlight_slice] for ll in l],
+                            msk[searchlight_slice] * shape_mask,
+                            mysl_rad,
+                            bcast_var)
+    return outmat

@@ -22,7 +22,8 @@ Full details are available in the bioRxiv preprint:
 Christopher Baldassano, Janice Chen, Asieh Zadbood,
 Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
-http://biorxiv.org/content/early/2016/10/14/081018
+Neuron, Volume 95, Issue 3, 709 - 721.e5
+http://www.cell.com/neuron/abstract/S0896-6273(17)30593-7
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -33,8 +34,9 @@ import logging
 import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
+from sklearn.exceptions import NotFittedError
 
-from . import _utils as utils
+from . import _utils as utils  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +120,7 @@ class EventSegment(BaseEstimator):
         for i in range(n_train):
             X[i] = X[i].T
 
+        self.classes_ = np.arange(self.n_events)
         n_dim = X[0].shape[0]
         for i in range(n_train):
             assert (X[i].shape[0] == n_dim)
@@ -125,22 +128,6 @@ class EventSegment(BaseEstimator):
         # Double-check that data is z-scored in time
         for i in range(n_train):
             X[i] = stats.zscore(X[i], axis=1, ddof=1)
-
-        # Set up transition matrix, with final sink state
-        # For transition matrix of this form, the transition probability has
-        # no impact on the final solution, since all valid paths must take
-        # the same number of transitions
-        self.p_start = np.zeros((1, self.n_events + 1))
-        self.p_start[0, 0] = 1
-        self.P = np.vstack((np.hstack((
-            0.5 * np.diag(np.ones(self.n_events))
-            + 0.5 * np.diag(np.ones(self.n_events - 1), 1),
-            np.append(np.zeros((self.n_events - 1, 1)), [[0.5]], axis=0))),
-            np.append(np.zeros((1, self.n_events)), [[1]], axis=1)))
-        self.p_end = np.zeros((1, self.n_events + 1))
-        self.p_end[0, -2] = 1
-
-        self.classes_ = np.arange(self.n_events)
 
         # Initialize variables for fitting
         log_gamma = []
@@ -264,31 +251,47 @@ class EventSegment(BaseEstimator):
         log_alpha = np.zeros((t, self.n_events + 1))
         log_beta = np.zeros((t, self.n_events + 1))
 
-        # Forward pass
-        for t in range(t):
-            if t == 0:
-                log_alpha[0, :] = self._log(self.p_start) + logprob[0, :]
-            else:
-                log_alpha[t, :] = self._log(np.exp(log_alpha[t - 1, :])
-                                            .dot(self.P)) + logprob[t, :]
+        # Set up transition matrix, with final sink state
+        # For transition matrix of this form, the transition probability has
+        # no impact on the final solution, since all valid paths must take
+        # the same number of transitions
+        p_start = np.zeros((1, self.n_events + 1))
+        p_start[0, 0] = 1
+        p_trans = (self.n_events-1)/t
+        P = np.vstack((np.hstack((
+            (1 - p_trans) * np.diag(np.ones(self.n_events))
+            + p_trans * np.diag(np.ones(self.n_events - 1), 1),
+            np.append(np.zeros((self.n_events - 1, 1)), [[p_trans]], axis=0))),
+                            np.append(np.zeros((1, self.n_events)), [[1]],
+                                      axis=1)))
+        p_end = np.zeros((1, self.n_events + 1))
+        p_end[0, -2] = 1
 
-            log_scale[t] = np.logaddexp.reduce(log_alpha[t, :])
-            log_alpha[t] -= log_scale[t]
+        # Forward pass
+        for i in range(t):
+            if i == 0:
+                log_alpha[0, :] = self._log(p_start) + logprob[0, :]
+            else:
+                log_alpha[i, :] = self._log(np.exp(log_alpha[i - 1, :])
+                                            .dot(P)) + logprob[i, :]
+
+            log_scale[i] = np.logaddexp.reduce(log_alpha[i, :])
+            log_alpha[i] -= log_scale[i]
 
         # Backward pass
-        log_beta[-1, :] = self._log(self.p_end) - log_scale[-1]
-        for t in reversed(range(t - 1)):
-            obs_weighted = log_beta[t + 1, :] + logprob[t + 1, :]
+        log_beta[-1, :] = self._log(p_end) - log_scale[-1]
+        for i in reversed(range(t - 1)):
+            obs_weighted = log_beta[i + 1, :] + logprob[i + 1, :]
             offset = np.max(obs_weighted)
-            log_beta[t, :] = offset + self._log(
-                np.exp(obs_weighted - offset).dot(self.P.T)) - log_scale[t]
+            log_beta[i, :] = offset + self._log(
+                np.exp(obs_weighted - offset).dot(P.T)) - log_scale[i]
 
         # Combine and normalize
         log_gamma = log_alpha + log_beta
         log_gamma -= np.logaddexp.reduce(log_gamma, axis=1, keepdims=True)
 
         ll = np.sum(log_scale[:(t - 1)]) + np.logaddexp.reduce(
-            log_alpha[-1, :] + log_scale[-1] + self._log(self.p_end), axis=1)
+            log_alpha[-1, :] + log_scale[-1] + self._log(p_end), axis=1)
 
         log_gamma = log_gamma[:, :-1]
 
@@ -313,12 +316,28 @@ class EventSegment(BaseEstimator):
         y = utils.masked_log(_x)
         return y.reshape(xshape)
 
+    def set_event_patterns(self, event_pat):
+        """Set HMM event patterns manually
+
+        Rather than fitting the event patterns automatically using fit(), this
+        function allows them to be set explicitly. They can then be used to
+        find corresponding events in a new dataset, using find_events().
+
+        Parameters
+        ----------
+        event_pat: voxel by event ndarray
+        """
+        if event_pat.shape[1] != self.n_events:
+            raise ValueError(("Number of columns of event_pat must match "
+                              "number of events"))
+        self.event_pat_ = event_pat.copy()
+
     def find_events(self, testing_data, var=None, scramble=False):
         """Applies learned event segmentation to new testing dataset
 
-        After fitting an event segmentation using fit(),
-        this function finds the same sequence of event patterns in a new
-        testing dataset.
+        After fitting an event segmentation using fit() or setting event
+        patterns directly using set_event_patterns(), this function finds the
+        same sequence of event patterns in a new testing dataset.
 
         Parameters
         ----------
@@ -328,7 +347,8 @@ class EventSegment(BaseEstimator):
         var: float or 1D ndarray of length equal to the number of events
             default: uses variance that maximized training log-likelihood
             Variance of the event Gaussians. If scalar, all events are
-            assumed to have the same variance.
+            assumed to have the same variance. If fit() has not previously
+            been run, this must be specifed (cannot be None).
 
         scramble: bool : default False
             If true, the order of the learned events are shuffled before
@@ -345,7 +365,11 @@ class EventSegment(BaseEstimator):
         """
 
         if var is None:
-            var = self.event_var_
+            if not hasattr(self, 'event_var_'):
+                raise NotFittedError(("The event patterns must first be set "
+                                      "by fit() or set_event_patterns()"))
+            else:
+                var = self.event_var_
 
         if scramble:
             mean_pat = self.event_pat_[:, np.random.permutation(self.n_events)]
@@ -378,3 +402,41 @@ class EventSegment(BaseEstimator):
         X = check_array(X)
         segments, test_ll = self.find_events(X)
         return np.argmax(segments, axis=1)
+
+    def calc_weighted_event_var(self, D, weights, event_pat):
+        """Computes normalized weighted variance around event pattern
+
+        Utility function for computing variance in a training set of weighted
+        event examples. For each event, the sum of squared differences for all
+        timepoints from the event pattern is computed, and then the weights
+        specify how much each of these differences contributes to the
+        variance (normalized by the number of voxels).
+
+        Parameters
+        ----------
+        D : timepoint by voxel ndarray
+            fMRI data for which to compute event variances
+
+        weights : timepoint by event ndarray
+            specifies relative weights of timepoints for each event
+
+        event_pat : voxel by event ndarray
+            mean event patterns to compute variance around
+
+        Returns
+        -------
+        ev_var : ndarray of variances for each event
+        """
+        Dz = stats.zscore(D, axis=1, ddof=1)
+        ev_var = np.empty(event_pat.shape[1])
+        for e in range(event_pat.shape[1]):
+            # Only compute variances for weights > 0.1% of max weight
+            nz = weights[:, e] > np.max(weights[:, e])/1000
+            sumsq = np.dot(weights[nz, e],
+                           np.sum(np.square(Dz[nz, :] -
+                                  event_pat[:, e]), axis=1))
+            ev_var[e] = sumsq/(np.sum(weights[nz, e]) -
+                               np.sum(np.square(weights[nz, e])) /
+                               np.sum(weights[nz, e]))
+        ev_var = ev_var / D.shape[1]
+        return ev_var

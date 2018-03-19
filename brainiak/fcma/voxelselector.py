@@ -25,9 +25,11 @@ from mpi4py import MPI
 from scipy.stats.mstats import zscore
 from sklearn import model_selection
 import sklearn
-from . import fcma_extension
-from . import cython_blas as blas
+from . import fcma_extension  # type: ignore
+from . import cython_blas as blas  # type: ignore
+from ..utils.utils import usable_cpu_count
 import logging
+import multiprocessing
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +38,36 @@ __all__ = [
 ]
 
 
+def _cross_validation_for_one_voxel(clf, vid, num_folds, subject_data, labels):
+    """Score classifier on data using cross validation."""
+    # no shuffling in cv
+    skf = model_selection.StratifiedKFold(n_splits=num_folds,
+                                          shuffle=False)
+    scores = model_selection.cross_val_score(clf, subject_data,
+                                             y=labels,
+                                             cv=skf, n_jobs=1)
+    logger.debug(
+        'cross validation for voxel %d is done' %
+        vid
+    )
+    return (vid, scores.mean())
+
+
 class VoxelSelector:
-    """Correlation-based voxel selection component of FCMA
+    """Correlation-based voxel selection component of FCMA.
 
     Parameters
     ----------
+
+    labels: list of 1D array
+        the condition labels of the epochs
+        len(labels) labels equals the number of epochs
+
+    epochs_per_subj: int
+        The number of epochs of each subject
+
+    num_folds: int
+        The number of folds to be conducted in the cross validation
 
     raw_data: list of 2D array in shape [epoch length, nVoxels]
         Assumption: 1. all activity data contains the same number of voxels
@@ -49,42 +76,63 @@ class VoxelSelector:
                     3. all subjects have the same number of epochs
                     4. epochs belonging to the same subject are adjacent
                        in the list
-                    5. voxel selection is always done in the auto-correlation,
-                       i.e. raw_data correlate with themselves
-                    6. if MPI jobs are running on multiple nodes, the user
-                       home directory is shared by all nodes
+                    5. if MPI jobs are running on multiple nodes, the path
+                       used must be on a filesystem shared by all nodes
 
-    epochs_per_subj: int
-        The number of epochs of each subject
+    raw_data2: Optional, list of 2D array in shape [epoch length, nVoxels]
+        raw_data2 shares the data structure of the assumptions of raw_data
+        If raw_data2 is None, the correlation will be computed as
+        raw_data by raw_data.
+        If raw_data2 is specified, len(raw_data) MUST equal len(raw_data2),
+        the correlation will be computed as raw_data by raw_data2.
 
-    labels: list of 1D array
-        the condition labels of the epochs
-        len(labels) labels equals the number of epochs
-
-    num_folds: int
-        The number of folds to be conducted in the cross validation
-
-    voxel_unit: int, default 100
+    voxel_unit: int, default 64
         The number of voxels assigned to a worker each time
+
+    process_num: Optional[int]
+        The maximum number of processes used in cross validation.
+        If None, the number of processes will equal
+        the number of available hardware threads, considering cpusets
+        restrictions.
+        If 0, cross validation will not use python multiprocessing.
 
     master_rank: int, default 0
         The process which serves as the master
     """
     def __init__(self,
-                 raw_data,
-                 epochs_per_subj,
                  labels,
+                 epochs_per_subj,
                  num_folds,
-                 voxel_unit=100,
+                 raw_data,
+                 raw_data2=None,
+                 voxel_unit=64,
+                 process_num=4,
                  master_rank=0):
-        self.raw_data = raw_data
-        self.epochs_per_subj = epochs_per_subj
-        self.num_voxels = raw_data[0].shape[1]
         self.labels = labels
+        self.epochs_per_subj = epochs_per_subj
         self.num_folds = num_folds
+        self.raw_data = raw_data
+        self.num_voxels = raw_data[0].shape[1]
+        self.raw_data2 = raw_data2
+        self.num_voxels2 = raw_data2[0].shape[1] \
+            if raw_data2 is not None else self.num_voxels
         self.voxel_unit = voxel_unit
+        usable_cpus = usable_cpu_count()
+        if process_num is None:
+            self.process_num = usable_cpus
+        else:
+            self.process_num = np.min((process_num, usable_cpus))
+        if self.process_num == 0:
+            self.use_multiprocessing = False
+        else:
+            self.use_multiprocessing = True
         self.master_rank = master_rank
-        if self.num_voxels == 0:
+        if self.raw_data2 is not None \
+                and len(self.raw_data) != len(self.raw_data2):
+            raise ValueError('The raw data lists must have the same number '
+                             'of elements for computing the correlations '
+                             'element by element')
+        if self.num_voxels == 0 or self.num_voxels2 == 0:
             raise ValueError('Zero processed voxels')
         if MPI.COMM_WORLD.Get_size() == 1:
             raise RuntimeError('one process cannot run the '
@@ -99,7 +147,7 @@ class VoxelSelector:
     _TERMINATETAG = 1
 
     def run(self, clf):
-        """ run correlation-based voxel selection in master-worker model
+        """Run correlation-based voxel selection in master-worker model.
 
         Sort the voxels based on the cross-validation accuracy
         of their correlation vectors
@@ -126,7 +174,7 @@ class VoxelSelector:
         return results
 
     def _master(self):
-        """ master node's operation
+        """Master node's operation.
 
         Assigning tasks to workers and collecting results from them
 
@@ -141,7 +189,8 @@ class VoxelSelector:
             the length of array equals the number of voxels
         """
         logger.info(
-            'Master starts to allocate tasks'
+            'Master at rank %d starts to allocate tasks',
+            MPI.COMM_WORLD.Get_rank()
         )
         results = []
         comm = MPI.COMM_WORLD
@@ -159,6 +208,10 @@ class VoxelSelector:
             if current_task[1] == 0:
                 using_size = i
                 break
+            logger.debug(
+                'master starts to send a task to worker %d' %
+                i
+            )
             comm.send(current_task,
                       dest=i,
                       tag=self._WORKTAG)
@@ -200,7 +253,7 @@ class VoxelSelector:
         return results
 
     def _worker(self, clf):
-        """ worker node's operation
+        """Worker node's operation.
 
         Receiving tasks from the master to process and sending the result back
 
@@ -213,6 +266,10 @@ class VoxelSelector:
         -------
         None
         """
+        logger.debug(
+            'worker %d is running, waiting for tasks from master at rank %d' %
+            (MPI.COMM_WORLD.Get_rank(), self.master_rank)
+        )
         comm = MPI.COMM_WORLD
         status = MPI.Status()
         while 1:
@@ -221,20 +278,20 @@ class VoxelSelector:
                              status=status)
             if status.Get_tag():
                 break
-            comm.send(self._voxelScoring(task, clf),
+            comm.send(self._voxel_scoring(task, clf),
                       dest=self.master_rank)
 
-    def _correlationComputation(self, task):
-        """ use BLAS API to do correlation computation (matrix multiplication)
+    def _correlation_computation(self, task):
+        """Use BLAS API to do correlation computation (matrix multiplication).
 
         Parameters
         ----------
-        task: tuple (start_voxel_id, num_assigned_voxels)
+        task: tuple (start_voxel_id, num_processed_voxels)
             depicting the voxels assigned to compute
 
         Returns
         -------
-        corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the correlation values of all subjects in all epochs
             for the assigned values, in row-major
             corr[i, e, s + j] = corr[j, e, s + i]
@@ -242,19 +299,26 @@ class VoxelSelector:
         time1 = time.time()
         s = task[0]
         nEpochs = len(self.raw_data)
-        corr = np.zeros((task[1], nEpochs, self.num_voxels),
+        logger.debug(
+            'start to compute the correlation: #epochs: %d, '
+            '#processed voxels: %d, #total voxels to compute against: %d' %
+            (nEpochs, task[1], self.num_voxels2)
+        )
+        corr = np.zeros((task[1], nEpochs, self.num_voxels2),
                         np.float32, order='C')
         count = 0
-        for mat in self.raw_data:
+        for i in range(len(self.raw_data)):
+            mat = self.raw_data[i]
+            mat2 = self.raw_data2[i] if self.raw_data2 is not None else mat
             no_trans = 'N'
             trans = 'T'
             blas.compute_self_corr_for_voxel_sel(no_trans, trans,
-                                                 self.num_voxels, task[1],
+                                                 self.num_voxels2, task[1],
                                                  mat.shape[0], 1.0,
-                                                 mat, self.num_voxels,
-                                                 s, self.num_voxels,
+                                                 mat2, self.num_voxels2,
+                                                 s, mat, self.num_voxels,
                                                  0.0, corr,
-                                                 self.num_voxels * nEpochs,
+                                                 self.num_voxels2 * nEpochs,
                                                  count)
             count += 1
         time2 = time.time()
@@ -264,22 +328,22 @@ class VoxelSelector:
         )
         return corr
 
-    def _correlationNormalization(self, corr):
-        """ within-subject normalization
+    def _correlation_normalization(self, corr):
+        """Do within-subject normalization.
 
         This method uses scipy.zscore to normalize the data,
-        but is much slower than its C++ counterpart。
+        but is much slower than its C++ counterpart.
         It is doing in-place z-score.
 
         Parameters
         ----------
-        corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the correlation values of all subjects in all epochs
             for the assigned values, in row-major
 
         Returns
         -------
-        corr: 3D array in  shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the normalized correlation values of all subjects in all epochs
             for the assigned values, in row-major
         """
@@ -289,7 +353,7 @@ class VoxelSelector:
             start = 0
             while start < e:
                 cur_val = corr[i, start: start + self.epochs_per_subj, :]
-                cur_val = .5 * np.log(cur_val + 1) / (1 - cur_val)
+                cur_val = .5 * np.log((cur_val + 1) / (1 - cur_val))
                 corr[i, start: start + self.epochs_per_subj, :] = \
                     zscore(cur_val, axis=0, ddof=0)
                 start += self.epochs_per_subj
@@ -304,16 +368,70 @@ class VoxelSelector:
         )
         return corr
 
-    def _crossValidation(self, task, corr, clf):
-        """ voxelwise cross validation based on correlation vectors
+    def _prepare_for_cross_validation(self, corr, clf):
+        """Prepare data for voxelwise cross validation.
+
+        If the classifier is sklearn.svm.SVC with precomputed kernel,
+        the kernel matrix of each voxel is computed, otherwise do nothing.
 
         Parameters
         ----------
-        task: tuple (start_voxel_id, num_assigned_voxels)
-            depicting the voxels assigned to compute
-        corr: 3D array in shape [num_selected_voxels, num_epochs, num_voxels]
+        corr: 3D array in shape [num_processed_voxels, num_epochs, num_voxels]
             the normalized correlation values of all subjects in all epochs
             for the assigned values, in row-major
+        clf: classification function
+            the classifier to be used in cross validation
+
+        Returns
+        -------
+        data: 3D numpy array
+            If using sklearn.svm.SVC with precomputed kernel,
+            it is in shape [num_processed_voxels, num_epochs, num_epochs];
+            otherwise it is the input argument corr,
+            in shape [num_processed_voxels, num_epochs, num_voxels]
+        """
+        time1 = time.time()
+        (num_processed_voxels, num_epochs, _) = corr.shape
+        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
+            # kernel matrices should be computed
+            kernel_matrices = np.zeros((num_processed_voxels, num_epochs,
+                                        num_epochs),
+                                       np.float32, order='C')
+            for i in range(num_processed_voxels):
+                blas.compute_kernel_matrix('L', 'T',
+                                           num_epochs, self.num_voxels2,
+                                           1.0, corr,
+                                           i, self.num_voxels2,
+                                           0.0, kernel_matrices[i, :, :],
+                                           num_epochs)
+                # shrink the values for getting more stable alpha values
+                # in SVM training iteration
+                num_digits = len(str(int(kernel_matrices[i, 0, 0])))
+                if num_digits > 2:
+                    proportion = 10**(2-num_digits)
+                    kernel_matrices[i, :, :] *= proportion
+            data = kernel_matrices
+        else:
+            data = corr
+        time2 = time.time()
+        logger.debug(
+            'cross validation data preparation takes %.2f s' %
+            (time2 - time1)
+        )
+        return data
+
+    def _do_cross_validation(self, clf, data, task):
+        """Run voxelwise cross validation based on correlation vectors.
+
+        clf: classification function
+            the classifier to be used in cross validation
+        data: 3D numpy array
+            If using sklearn.svm.SVC with precomputed kernel,
+            it is in shape [num_processed_voxels, num_epochs, num_epochs];
+            otherwise it is the input argument corr,
+            in shape [num_processed_voxels, num_epochs, num_voxels]
+        task: tuple (start_voxel_id, num_processed_voxels)
+            depicting the voxels assigned to compute
 
         Returns
         -------
@@ -322,33 +440,23 @@ class VoxelSelector:
             the length of array equals the number of assigned voxels
         """
         time1 = time.time()
-        (sv, e, av) = corr.shape
-        kernel_matrix = np.zeros((e, e), np.float32, order='C')
-        results = []
-        for i in range(sv):
-            if isinstance(clf, sklearn.svm.SVC) \
-                    and clf.kernel == 'precomputed':
-                blas.compute_kernel_matrix('L', 'T',
-                                           e, self.num_voxels,
-                                           1.0, corr,
-                                           i, self.num_voxels,
-                                           0.0, kernel_matrix, e)
-                # shrink the values for getting more stable alpha values
-                # in SVM training iteration
-                num_digits = len(str(int(kernel_matrix[0, 0])))
-                if num_digits > 2:
-                    proportion = 10**(2-num_digits)
-                    kernel_matrix *= proportion
-                data = kernel_matrix
-            else:
-                data = corr[i, :, :]
-            # no shuffling in cv
-            skf = model_selection.StratifiedKFold(n_splits=self.num_folds,
-                                                  shuffle=False)
-            scores = model_selection.cross_val_score(clf, data,
-                                                     y=self.labels,
-                                                     cv=skf, n_jobs=1)
-            results.append((i + task[0], scores.mean()))
+
+        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed'\
+                and self.use_multiprocessing:
+            inlist = [(clf, i + task[0], self.num_folds, data[i, :, :],
+                       self.labels) for i in range(task[1])]
+
+            with multiprocessing.Pool(self.process_num) as pool:
+                results = list(pool.starmap(_cross_validation_for_one_voxel,
+                                            inlist))
+        else:
+            results = []
+            for i in range(task[1]):
+                result = _cross_validation_for_one_voxel(clf, i + task[0],
+                                                         self.num_folds,
+                                                         data[i, :, :],
+                                                         self.labels)
+                results.append(result)
         time2 = time.time()
         logger.debug(
             'cross validation for %d voxels, takes %.2f s' %
@@ -356,19 +464,19 @@ class VoxelSelector:
         )
         return results
 
-    def _voxelScoring(self, task, clf):
-        """ voxel selection processing done in the worker node
+    def _voxel_scoring(self, task, clf):
+        """The voxel selection process done in the worker node.
 
         Take the task in,
         do analysis on voxels specified by the task (voxel id, num_voxels)
         It is a three-stage pipeline consisting of:
         1. correlation computation
         2. within-subject normalization
-        3. voxelwise cross validaion
+        3. voxelwise cross validation
 
         Parameters
         ----------
-        task: tuple (start_voxel_id, num_assigned_voxels),
+        task: tuple (start_voxel_id, num_processed_voxels),
             depicting the voxels assigned to compute
         clf: classification function
             the classifier to be used in cross validation
@@ -381,9 +489,9 @@ class VoxelSelector:
         """
         time1 = time.time()
         # correlation computation
-        corr = self._correlationComputation(task)
+        corr = self._correlation_computation(task)
         # normalization
-        # corr = self._correlationNormalization(corr)
+        # corr = self._correlation_normalization(corr)
         time3 = time.time()
         fcma_extension.normalization(corr, self.epochs_per_subj)
         time4 = time.time()
@@ -394,7 +502,11 @@ class VoxelSelector:
         )
 
         # cross validation
-        results = self._crossValidation(task, corr, clf)
+        data = self._prepare_for_cross_validation(corr, clf)
+        if isinstance(clf, sklearn.svm.SVC) and clf.kernel == 'precomputed':
+            # to save memory so that the process can be forked
+            del corr
+        results = self._do_cross_validation(clf, data, task)
         time2 = time.time()
         logger.info(
             'in rank %d, task %d takes %.2f s' %
