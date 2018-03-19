@@ -12,5 +12,5 @@ ignore =
     W503,
     W504,
     # Print restriction only applies to libraries
-    T001
+    T001,
     T003
