@@ -268,23 +268,23 @@ class EventSegment(BaseEstimator):
         p_end[0, -2] = 1
 
         # Forward pass
-        for t in range(t):
-            if t == 0:
+        for i in range(t):
+            if i == 0:
                 log_alpha[0, :] = self._log(p_start) + logprob[0, :]
             else:
-                log_alpha[t, :] = self._log(np.exp(log_alpha[t - 1, :])
-                                            .dot(P)) + logprob[t, :]
+                log_alpha[i, :] = self._log(np.exp(log_alpha[i - 1, :])
+                                            .dot(P)) + logprob[i, :]
 
-            log_scale[t] = np.logaddexp.reduce(log_alpha[t, :])
-            log_alpha[t] -= log_scale[t]
+            log_scale[i] = np.logaddexp.reduce(log_alpha[i, :])
+            log_alpha[i] -= log_scale[i]
 
         # Backward pass
         log_beta[-1, :] = self._log(p_end) - log_scale[-1]
-        for t in reversed(range(t - 1)):
-            obs_weighted = log_beta[t + 1, :] + logprob[t + 1, :]
+        for i in reversed(range(t - 1)):
+            obs_weighted = log_beta[i + 1, :] + logprob[i + 1, :]
             offset = np.max(obs_weighted)
-            log_beta[t, :] = offset + self._log(
-                np.exp(obs_weighted - offset).dot(P.T)) - log_scale[t]
+            log_beta[i, :] = offset + self._log(
+                np.exp(obs_weighted - offset).dot(P.T)) - log_scale[i]
 
         # Combine and normalize
         log_gamma = log_alpha + log_beta

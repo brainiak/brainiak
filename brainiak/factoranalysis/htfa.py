@@ -14,7 +14,7 @@
 """Hierarchical Topographical Factor Analysis (HTFA)
 
 This implementation is based on the work in [Manning2014-1]_, [Manning2014-2]_,
-and [AndersonMJ2016]_.
+[AndersonMJ2016]_, and [Manning2018]_.
 
 .. [Manning2014-1] "Topographic factor analysis: a bayesian model for
    inferring brain networks from neural data", J. R. Manning,
@@ -25,6 +25,12 @@ and [AndersonMJ2016]_.
    Manning, R. Ranganath, W. Keung, N. B. Turk-Browne, J. D.Cohen,
    K. A. Norman, and D. M. Blei. Pattern Recognition in Neuroimaging,
    2014 International Workshop on, June 2014.
+
+.. [Manning2018] "A Probabilistic Approach to Discovering Dynamic Full-brain
+   Functional Connectivit Patterns", J. R. Manning, X. Zhu, T.L. Willke,
+   R. Ranganath, K. Stachenfeld, U. Hasson, D. M. Blei and K. A. Norman.
+   Neuroimage, 2018.
+   https://doi.org/10.1016/j.neuroimage.2018.01.071
 
 .. [AndersonMJ2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
    Datasets",

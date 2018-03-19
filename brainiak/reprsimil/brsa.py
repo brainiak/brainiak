@@ -166,7 +166,7 @@ def Ncomp_SVHT_MG_DLD_approx(X, zscore=True):
     X: 2-D numpy array of size [n_T, n_V]
         The data to estimate the optimal rank for selecting principal
         components.
-    zscore: Boolean, default: True
+    zscore: Boolean
         Whether to z-score the data before calculating number of components.
 
     Returns
@@ -238,9 +238,25 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         \\epsilon_i \\sim AR(1)
 
+    Please note that the model assumes that the covariance matrix U which
+    all \\beta_i follow is zero-meaned. This assumption does not imply
+    there must be both positive and negative responses across voxels.
+    However, it means that Bayesian RSA treats the task-evoked activity
+    against baseline BOLD level as signal, while in other RSA tools
+    the deviation of task-evoked activity in each voxel from the average
+    task-evoked activity level across voxels may be considered as signal
+    of interest. Due to this assumption in BRSA, relatively high degree
+    of similarity may be expected when the activity patterns of two
+    task conditions both include strong sensory driven signals regardless
+    of their specific stimuli. When two task conditions elicit exactly
+    the same activity patterns but only differ in their global magnitudes,
+    under the assumption in BRSA, their similarity is 1; under the assumption
+    that only deviation of pattern from average patterns is signal of interest,
+    their similarity should be -1.
+
     Parameters
     ----------
-    n_iter : int. Default: 50
+    n_iter : int.
         Number of maximum iterations to run the algorithm.
     rank : int. Default: None
         The rank of the covariance matrix.
@@ -248,7 +264,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         to be full rank. When you have many conditions
         (e.g., calculating the similarity matrix of responses to each event),
         you might try specifying a lower rank.
-    auto_nuisance: boolean. Default: True
+    auto_nuisance: boolean.
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
         we assume that a set of time courses not related to the task
@@ -270,7 +286,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: Optional[int]. Default: None
+    n_nureg: Optional[int].
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
@@ -280,7 +296,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         and D Donoho's approximate estimation of optimal hard
         threshold for singular values.
         This only takes effect if auto_nuisance is True.
-    nureg_zscore: boolean, default: True
+    nureg_zscore: boolean.
         A flag to tell the algorithm whether data is z-scored before
         estimating the number of nuisance regressor components necessary to
         account for spatial noise correlation. It also determinie whether
@@ -288,10 +304,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         regressors from residual.
         This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
-        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'PCA'
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported.
         The method to estimate the shared component in noise across voxels.
         This only takes effect if auto_nuisance is True.
-    baseline_single: boolean, default: False
+    baseline_single: boolean.
         A time course of constant 1 will be included to the nuisance
         regressor regardless of whether the user requests.
         If baseline_single is set to False, one such regressor is included
@@ -310,7 +326,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         run and when the design matrix in each run sums together close to
         a flat line, this option can cause the estimated similarity to be
         extremely high between conditions occuring in the same run.
-    GP_space: boolean. Default: False
+    GP_space: boolean.
         Whether to impose a Gaussion Process (GP) prior on the log(pseudo-SNR).
         If true, the GP has a kernel defined over spatial coordinate
         of each voxel. The idea behind this option is that
@@ -319,7 +335,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         is generally low, smoothness can be overestimated.
         But such regularization may reduce variance in the estimated
         SNR map and similarity matrix.
-    GP_inten: boolean. Defualt: False
+    GP_inten: boolean.
         Whether to include a kernel defined over the intensity of image.
         GP_space should be True as well if you want to use this,
         because the smoothness should be primarily in space.
@@ -330,23 +346,23 @@ class BRSA(BaseEstimator, TransformerMixin):
         are close). If you accept the second assumption, then
         you can set GP_inten as True and provide an array to the `inten`
         variable, expressing the intensities (brightness) for each voxel.
-    space_smooth_range: float. Default: None
+    space_smooth_range: float.
         The distance (in unit the same as what
         you would use when supplying the spatial coordiates of
         each voxel, typically millimeter) which you believe is
         the maximum range of the length scale parameter of
         Gaussian Process defined over voxel location. This is
         used to impose a half-Cauchy prior on the length scale.
-        If not provided, the program will set it to half of the
+        If set to None, the program will default to half of the
         maximum distance between all voxels.
-    inten_smooth_range: float. Default: None
+    inten_smooth_range: float.
         The difference in image intensity which
         you believe is the maximum range of plausible length
         scale for the Gaussian Process defined over image
         intensity. Length scales larger than this are allowed,
-        but will be penalized. If not supplied, this parameter
-        will be set to half of the maximal intensity difference.
-    tau_range: float. Default: 5.0
+        but will be penalized. If set to None, this parameter
+        will default to half of the maximal intensity difference.
+    tau_range: float.
         The reasonable range of the standard deviation
         of log(SNR). This range should not be too
         large. 5 is a loose range.
@@ -378,32 +394,32 @@ class BRSA(BaseEstimator, TransformerMixin):
             from brainiak.reprsimil.brsa import BRSA, prior_GP_var_half_cauchy
             brsa = BRSA(tau2_prior=prior_GP_var_half_cauchy)
 
-    eta: float. Default: 0.0001
+    eta: float.
         A small number added to the diagonal element of the
         covariance matrix in the Gaussian Process prior. This is
         to ensure that the matrix is invertible.
-    init_iter: int. Default: 20
+    init_iter: int.
         How many initial iterations to fit the model
         without introducing the GP prior before fitting with it,
         if GP_space or GP_inten is requested. This initial
         fitting is to give the parameters a good starting point.
-    optimizer: str or callable. Default: 'BFGS'
+    optimizer: str or callable.
         The optimizer to use for minimizing cost function which
         scipy.optimize.minimize can accept.
         We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
+        or a custom optimizer, such as 'BFGS' or 'CG'.
         Note that BRSA fits a lot of parameters. So a chosen optimizer
         should accept gradient (Jacobian) of the cost function. Otherwise
         the fitting is likely to be unbarely slow. We do not calculate
         Hessian of the objective function. So an optimizer which requires
         Hessian cannot be used.
-    random_state : RandomState or an int seed. Default: None
+    random_state : RandomState or an int seed.
         A random number generator instance to define the state of
         the random permutations generator whenever the module
         needs to generate random number (e.g., initial parameter
         of the Cholesky factor).
-    anneal_speed: float. Default: 20
+    anneal_speed: float.
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -423,7 +439,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         have to be very large. In other words, scipy.optimize.minize does
         not need to converge within each step of the alternating fitting
         procedure.
-    tol: float. Default: 1e-4.
+    tol: float.
         Tolerance parameter passed to scipy.optimize.minimize. It is also
         used for determining convergence of the alternating fitting
         procedure.
@@ -499,14 +515,14 @@ class BRSA(BaseEstimator, TransformerMixin):
     """
 
     def __init__(
-            self, n_iter=50, rank=None,
+            self, n_iter=100, rank=None,
             auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA', baseline_single=False,
             GP_space=False, GP_inten=False,
             space_smooth_range=None, inten_smooth_range=None,
             tau_range=5.0,
             tau2_prior=prior_GP_var_inv_gamma,
-            eta=0.0001, init_iter=20, optimizer='BFGS',
+            eta=0.0001, init_iter=20, optimizer='L-BFGS-B',
             random_state=None, anneal_speed=10, tol=1e-4,
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 6}):
@@ -799,7 +815,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             (recommended) when fitting the model, data should be z-scored
             as well when calling transform()
         y : not used (as it is unsupervised learning)
-        scan_onsets : numpy array, shape=[number of runs]. Default: None.
+        scan_onsets : numpy array, shape=[number of runs].
             A list of indices corresponding to the onsets of
             scans in the data X. If not provided, data will be assumed
             to be acquired in a continuous scan.
@@ -873,16 +889,16 @@ class BRSA(BaseEstimator, TransformerMixin):
         design : numpy array, shape=[time_points, conditions]
             Design matrix expressing the hypothetical response of
             the task conditions in data X.
-        scan_onsets : numpy array, shape=[number of runs]. Default: None.
+        scan_onsets : numpy array, shape=[number of runs].
             A list of indices corresponding to the onsets of
             scans in the data X. If not provided, data will be assumed
             to be acquired in a continuous scan.
         Returns
         -------
-        ll: float,
+        ll: float.
             The log likelihood of the new data based on the model and its
             parameters fit to the training data.
-        ll_null: float,
+        ll_null: float.
             The log likelihood of the new data based on a null model
             which assumes the same as the full model for everything
             except for that there is no response to any of the
@@ -2711,11 +2727,15 @@ class GBRSA(BRSA):
 
     See also `.BRSA`.
 
+    Please note that the model assumes that the covariance matrix U which
+    all \\beta_i follow is zero-meaned. For more details of its implication,
+    see documentation of `.BRSA`
+
     Parameters
     ----------
-    n_iter : int. Default: 50
+    n_iter : int.
         Number of maximum iterations to run the algorithm.
-    rank : int. Default: None
+    rank : int.
         The rank of the covariance matrix.
         If not provided, the covariance matrix will be assumed
         to be full rank. When you have many conditions
@@ -2727,7 +2747,7 @@ class GBRSA(BRSA):
         here for selecting hyperparameters such as rank. For any formal
         model comparison, we recommend using score() function on left-out
         data.
-    auto_nuisance: boolean. Default: True
+    auto_nuisance: Boolean.
         In order to model spatial correlation between voxels that cannot
         be accounted for by common response captured in the design matrix,
         we assume that a set of time courses not related to the task
@@ -2749,7 +2769,7 @@ class GBRSA(BRSA):
         Note that nuisance regressor is not required from user. If it is
         not provided, DC components for each run will be included as nuisance
         regressor regardless of the auto_nuisance parameter.
-    n_nureg: Optional[int]. Default: None
+    n_nureg: Optional[int].
         Number of nuisance regressors to use in order to model signals
         shared across voxels not captured by the design matrix.
         This number is in addition to any nuisance regressor that the user
@@ -2760,7 +2780,7 @@ class GBRSA(BRSA):
         threshold for singular values. (Gavish & Donoho,
         IEEE Transactions on Information Theory 60.8 (2014): 5040-5053.)
         This only takes effect if auto_nuisance is True.
-    nureg_zscore: boolean, default: True
+    nureg_zscore: Boolean.
         A flag to tell the algorithm whether data is z-scored before
         estimating the number of nuisance regressor components necessary to
         account for spatial noise correlation. It also determinie whether
@@ -2768,10 +2788,10 @@ class GBRSA(BRSA):
         regressors from residual.
         This only takes effect if auto_nuisance is True.
     nureg_method: string, naming a method from sklearn.decomposition.
-        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported. Default: 'PCA'
+        'PCA', 'ICA', 'FA' or 'SPCA' are currently supported.
         The method to estimate the shared component in noise across voxels.
         This only takes effect if auto_nuisance is True.
-    baseline_single: boolean. Default: False
+    baseline_single: Boolean.
         A time course of constant 1 will be included to the nuisance
         regressor for each participant. If baseline_single is set to False,
         one such regressor is included for each fMRI run, but at the end of
@@ -2790,7 +2810,7 @@ class GBRSA(BRSA):
         run and when the design matrix in each run sums together close to
         a flat line, this option can cause the estimated similarity to be
         extremely high between conditions occuring in the same run.
-    SNR_prior: string. Default: 'exp'
+    SNR_prior: string.
         The type of prior for pseudo-SNR.
         If set to 'exp', truncated exponential distribution with scale
         parameter of 1 is imposed on pseudo-SNR.
@@ -2806,7 +2826,7 @@ class GBRSA(BRSA):
         In all the cases, the grids used for pseudo-SNR do not really
         set an upper bound for SNR, because the real SNR is determined
         by both pseudo-SNR and U, the shared covariance structure.
-    logS_range: float. Default: 1.0
+    logS_range: float.
         The reasonable range of the spread of SNR in log scale.
         This parameter only takes effect if SNR_prior is set to 'lognorm'.
         It is effectively the `s` parameter of `scipy.stats.lognorm`,
@@ -2822,7 +2842,7 @@ class GBRSA(BRSA):
         SNR_bins accordingly, otherwise the pseudo-SNR values evaluated might
         be too sparse, causing the posterior pseudo-SNR estimations
         to be clustered around the bins.
-    SNR_bins: integer. Default: 21
+    SNR_bins: integer.
         The number of bins used to numerically marginalize the pseudo-SNR
         parameter. In general, you should try to choose a large number
         to the degree that decreasing SNR_bins does not change the result
@@ -2832,25 +2852,23 @@ class GBRSA(BRSA):
         the default value of logS_range=1.0 and bin width of 0.3 on log scale.
         But it is also a reasonable choice for the other two options
         for SNR_prior.
-    rho_bins: integer. Default: 20
+    rho_bins: integer.
         The number of bins to divide the region of (-1, 1) for rho.
         This only takes effect for fitting the marginalized version.
         If set to 20, discrete numbers of {-0.95, -0.85, ..., 0.95} will
         be used to numerically integrate rho from -1 to 1.
-    optimizer: str or callable. Default: 'BFGS'
+    optimizer: str or callable.
         The optimizer to use for minimizing cost function which
         scipy.optimize.minimize can accept.
         We use 'L-BFGS-B' as a default. Users can try other strings
         corresponding to optimizer provided by scipy.optimize.minimize,
-        or a custom optimizer, such as 'L-BFGS-B' or 'CG'.
+        or a custom optimizer, such as 'BFGS' or 'CG'.
         Note that BRSA fits a lot of parameters. So a chosen optimizer
         should accept gradient (Jacobian) of the cost function. Otherwise
         the fitting is likely to be unbarely slow. We do not calculate
         Hessian of the objective function. So an optimizer which requires
         Hessian cannot be used.
     minimize_options: dictionary.
-        Default: {'gtol': 1e-4, 'disp': False,
-        'maxiter': 20}
         This is the dictionary passed as the options argument to
         scipy.optimize.minize which minimizes the cost function during
         fitting. Notice that the minimization is performed for up to
@@ -2860,16 +2878,16 @@ class GBRSA(BRSA):
         'maxiter' in this dictionary determines the maximum number of
         iteration done by scipy.optimize.minimize within each of the n_iter
         steps of fitting.
-    tol: float. Default: 1e-4.
+    tol: float.
         Tolerance parameter passed to scipy.optimize.minimize. It is also
         used for determining convergence of the alternating fitting
         procedure.
-    random_state : RandomState or an int seed. Default: None
+    random_state : RandomState or an int seed.
         A random number generator instance to define the state of
         the random permutations generator whenever the module
         needs to generate random number (e.g., initial parameter
         of the Cholesky factor).
-    anneal_speed: float. Default: 10
+    anneal_speed: float.
         Annealing is introduced in fitting of the Cholesky
         decomposition of the shared covariance matrix. The amount
         of perturbation decays exponentially. This parameter sets
@@ -2945,11 +2963,11 @@ class GBRSA(BRSA):
     """
 
     def __init__(
-            self, n_iter=50, rank=None,
+            self, n_iter=100, rank=None,
             auto_nuisance=True, n_nureg=None, nureg_zscore=True,
             nureg_method='PCA',
             baseline_single=False, logS_range=1.0, SNR_prior='exp',
-            SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='BFGS',
+            SNR_bins=21, rho_bins=20, tol=1e-4, optimizer='L-BFGS-B',
             minimize_options={'gtol': 1e-4, 'disp': False,
                               'maxiter': 20}, random_state=None,
             anneal_speed=10):
@@ -4063,7 +4081,7 @@ class GBRSA(BRSA):
         -----------
         n_bin: int
             The number of bins to approximate the exponential distribution
-        scale: float, default: 1.0
+        scale: float.
             The scale parameter of the exponential distribution, defined in
             the same way as scipy.stats. It does not influence the ratios
             between the bins, but just controls the spacing between the bins.

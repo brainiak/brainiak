@@ -2,6 +2,31 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.7.1 (2018-02-20)
+===========================
+
+Features
+--------
+
+- reprsimil: Changed the default optimizer of (G)BRSA to L-BFGD-B. (`#337
+  <https://github.com/brainiak/brainiak/pull/337>`_)
+
+
+Bugfixes
+--------
+
+- eventseg: Fixed bug that was causing fits to be asymmetric (`#339
+  <https://github.com/brainiak/brainiak/issues/339>`_)
+
+
+Documentation improvements
+--------------------------
+
+- reprsimil: Added explanation that both BRSA and GBRSA assume zero-mean in the
+  distribution of beta patterns. (`#337
+  <https://github.com/brainiak/brainiak/pull/337>`_)
+
+
 BrainIAK 0.7 (2018-02-12)
 =========================
 

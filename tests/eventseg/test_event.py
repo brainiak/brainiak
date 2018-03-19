@@ -74,3 +74,17 @@ def test_weighted_var():
     assert np.allclose(
         es.calc_weighted_event_var(D, weights, mean_pat), true_var),\
         "Failed to compute variance with fractional weights"
+
+
+def test_sym():
+    es = brainiak.eventseg.event.EventSegment(4)
+
+    evpat = np.repeat(np.arange(10).reshape(-1, 1), 4, axis=1)
+    es.set_event_patterns(evpat)
+
+    D = np.repeat(np.arange(10).reshape(1, -1), 20, axis=0)
+    ev = es.find_events(D, var=1)[0]
+
+    # Check that events 1-4 and 2-3 are symmetric
+    assert np.all(np.isclose(ev[:, :2], np.fliplr(np.flipud(ev[:, 2:])))),\
+        "Fit with constant data is not symmetric"
