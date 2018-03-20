@@ -67,12 +67,12 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
         random permutations generator.
-        
-    float_type : either float16, float32, or float64, 
-        depending on the required precision 
+
+    float_type : either float16, float32, or float64,
+        depending on the required precision
         and available memory in the system.
-        cast all the arrays generated during the execution to 
-        specified float type, in order to save memory
+        cast all the arrays generated during the execution to
+        specified float type, in order to save memor
 
     Returns
     -------
@@ -88,11 +88,11 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty(n_subj, num_perm).astype(float_type) 
-        min_null = np.empty(n_subj, num_perm).astype(float_type) 
+        max_null = np.empty(n_subj, num_perm).astype(float_type)
+        min_null = np.empty(n_subj, num_perm).astype(float_type)
     else:
         n_perm = 0
-        
+
     ISC = np.zeros((n_vox, n_subj)).astype(float_type)
 
     for p in range(n_perm + 1):
@@ -103,10 +103,10 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             subj = D[:, :, loo_subj]
             for v in range(n_vox):
                 tmp_ISC[v] = stats.pearsonr(group[v, :], subj[v, :])[0]
-            
-            if p==0:
-                ISC[:,loo_subj]=tmp_ISC
-            else: 
+
+            if p == 0:
+                ISC[:, loo_subj] = tmp_ISC
+            else:
                 max_null[loo_subj, p-1] = np.max(tmp_ISC)
                 min_null[loo_subj, p-1] = np.min(tmp_ISC)
 
@@ -153,12 +153,12 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
         random permutations generator.
-    float_type : either float16, float32, or float64, 
-        depending on the required precision 
+    float_type : either float16, float32, or float64,
+        depending on the required precision
         and available memory in the system.
-        cast all the arrays generated during the execution to 
+        cast all the arrays generated during the execution to
         specified float type, in order to save memory
-        
+
     Returns
     -------
     ISFC : voxel by voxel ndarray
@@ -173,12 +173,12 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty(n_subj, num_perm).astype(float_type) 
-        min_null = np.empty(n_subj, num_perm).astype(float_type) 
+        max_null = np.empty(n_subj, num_perm).astype(float_type)
+        min_null = np.empty(n_subj, num_perm).astype(float_type)
     else:
         n_perm = 0
-    
-    ISFC = np.zeros((n_vox, n_vox, n_subj)).astype(float_type) 
+
+    ISFC = np.zeros((n_vox, n_vox, n_subj)).astype(float_type)
 
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
@@ -187,15 +187,17 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
             subj = D[:, :, loo_subj]
             tmp_ISFC = compute_correlation(group, subj).astype(float_type)
             # Symmetrize matrix
-            tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2 
+            tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
 
-            if p==0:
-                ISFC[:, :, loo_subj] = tmp_ISFC 
+            if p == 0:
+                ISFC[:, :, loo_subj] = tmp_ISFC
             else:
                 leading_dims = tuple(np.arange(tmp_ISFC.ndim))
-                max_null[loo_subj, p-1]=np.max(tmp_ISFC, axis=leading_dims) 
-                min_null[loo_subj, p-1]=np.min(tmp_ISFC, axis=leading_dims)
-        
+                max_null[loo_subj, p-1] = np.max(tmp_ISFC,
+                                        axis=leading_dims)
+                min_null[loo_subj, p-1] = np.min(tmp_ISFC,
+                                        axis=leading_dims)
+
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
 
@@ -205,8 +207,8 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     if return_p:
         max_null = np.max(max_null, axis=0)
         min_null = np.min(min_null, axis=0)
-        p = p_from_null(ISFC, two_sided, memory_saving=True, 
+        p = p_from_null(ISFC, two_sided, memory_saving=True,
             max_null_input=max_null, min_null_input=min_null)
         return ISFC, p
     else:
-        return ISFC 
+        return ISFC
