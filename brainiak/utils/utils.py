@@ -750,7 +750,7 @@ def ecdf(x):
     return ecdf_fun
 
 
-def p_from_null(X, two_sided=False, memory_saving=False, 
+def p_from_null(X, two_sided=False, memory_saving=False,
                 max_null_input=None, min_null_input=None):
     """Compute p value of true result from null distribution
 
