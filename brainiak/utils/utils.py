@@ -772,6 +772,19 @@ def p_from_null(X, two_sided=False, memory_saving=False, max_null_input=None, mi
         Whether the p value should be one-sided (testing only for being
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
+		
+	memory_saving: bool, default:False
+		set this value to true to save memory.
+		
+	max_null_input
+	min_null_input
+		ndarray with num_perm (see isfc.py) entries.
+		if memory_saving==False, these arrays are derived from the X input array,
+		which can be very large and takes up huge memory space.
+		if memory_saving==True, these arrays should be provided by the process 
+		which calls p_from_null
+		
+		
 
     Returns
     -------
