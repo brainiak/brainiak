@@ -750,7 +750,8 @@ def ecdf(x):
     return ecdf_fun
 
 
-def p_from_null(X, two_sided=False, memory_saving=False, max_null_input=None, min_null_input=None):
+def p_from_null(X, two_sided=False, memory_saving=False, 
+                max_null_input=None, min_null_input=None):
     """Compute p value of true result from null distribution
 
     Given an array containing both a real result and a set of null results,
@@ -779,8 +780,9 @@ def p_from_null(X, two_sided=False, memory_saving=False, max_null_input=None, mi
     max_null_input
     min_null_input
         ndarray with num_perm (see isfc.py) entries.
-        if memory_saving==False, these arrays are derived from the X input array,
-        which can be very large and takes up huge memory space.
+        if memory_saving==False, these arrays are derived from 
+        the X input array, which can be very large 
+        and takes up huge memory space.
         if memory_saving==True, these arrays should be provided by the process 
         which calls p_from_null
         
