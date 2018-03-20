@@ -120,13 +120,14 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
         max_null = np.max(max_null, axis=0)
         min_null = np.min(min_null, axis=0)
         p = p_from_null(ISC, two_sided, memory_saving=True,
-                max_null_input=max_null, min_null_input=min_null)
+                        max_null_input=max_null,
+                        min_null_input=min_null)
         return ISC, p
     else:
         return ISC
 
 
-def isfc(D, collapse_subj=True, return_p=False, num_perm=1000, 
+def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
          two_sided=False, random_state=0, float_type=np.float64):
     """Intersubject functional correlation
     Computes the correlation between the timecoure of each voxel in each
@@ -208,7 +209,8 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         max_null = np.max(max_null, axis=0)
         min_null = np.min(min_null, axis=0)
         p = p_from_null(ISFC, two_sided, memory_saving=True,
-            max_null_input=max_null, min_null_input=min_null)
+                        max_null_input=max_null,
+                        min_null_input=min_null)
         return ISFC, p
     else:
         return ISFC
