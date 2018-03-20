@@ -194,9 +194,9 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
             else:
                 leading_dims = tuple(np.arange(tmp_ISFC.ndim))
                 max_null[loo_subj, p-1] = np.max(tmp_ISFC,
-										axis=leading_dims)
+                                        axis=leading_dims)
                 min_null[loo_subj, p-1] = np.min(tmp_ISFC,
-										axis=leading_dims)
+                                        axis=leading_dims)
 
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)

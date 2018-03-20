@@ -784,7 +784,7 @@ def p_from_null(X, two_sided=False, memory_saving=False,
         the X input array, which can be very large
         and takes up huge memory space.
         if memory_saving==True, these arrays should be provided
-		by the process which calls p_from_null
+        by the process which calls p_from_null
 
     Returns
     -------
