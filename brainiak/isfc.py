@@ -178,7 +178,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000, two_sided=False, 
         ISFC = np.mean(ISFC, axis=2)
 
     if return_p:
-		p = p_from_null(ISFC, two_sided, memory_saving=True max_null_input=max_null, min_null_input=min_null)
+		p = p_from_null(ISFC, two_sided, memory_saving=True, max_null_input=max_null, min_null_input=min_null)
 		return ISFC, p
     else:
 		return ISFC 
