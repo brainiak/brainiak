@@ -101,7 +101,8 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             # tmp_ISC = np.zeros(n_vox, dtype=float_type)
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
-            ISC[:, loo_subj, p] = stats.pearsonr(group[v, :], subj[v, :])[0]
+            for v in range(n_vox):
+                ISC[v, loo_subj, p] = stats.pearsonr(group[v, :], subj[v, :])[0]
 
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
