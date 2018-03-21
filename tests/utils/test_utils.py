@@ -227,8 +227,17 @@ def test_p_from_null():
     X[0, 1:] = [-1.0, 0.00,  0.50, 2.00]
     X[1, 1:] = [-1.5, 0.25, -0.25, 0.25]
 
+    Y = X[:, 0]
+    Y_max = np.max(X[:, 1:], axis=0)
+    Y_min = np.min(X[:, 1:], axis=0)
+
     p_1side = p_from_null(X, two_sided=False)
     assert np.isclose(p_1side, [0.25, 1]).all(), "One-sided p value incorrect"
 
     p_2side = p_from_null(X, two_sided=True)
     assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"
+
+    p_2side_m = p_from_null(Y, two_sided=True, memory_saving=True,
+                            max_null_input=Y_max,
+                            min_null_input=Y_min)
+    assert np.isclose(p_2side, p_2side_m).all(), "new p_null differs!"
