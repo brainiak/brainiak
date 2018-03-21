@@ -93,7 +93,7 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     else:
         n_perm = 0
 
-    ISC = np.zeros((n_vox, n_subj, n_perm), dtype=float_type)
+    ISC = np.zeros((n_vox, n_subj, n_perm+1), dtype=float_type)
 
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
