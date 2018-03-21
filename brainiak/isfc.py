@@ -88,17 +88,17 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty(n_subj, num_perm).astype(float_type)
-        min_null = np.empty(n_subj, num_perm).astype(float_type)
+        max_null = np.empty((n_subj, n_perm), dtype=float_type)
+        min_null = np.empty((n_subj, n_perm), dtype=float_type)
     else:
         n_perm = 0
 
-    ISC = np.zeros((n_vox, n_subj)).astype(float_type)
+    ISC = np.zeros((n_vox, n_subj), dtype=float_type)
 
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
         for loo_subj in range(n_subj):
-            tmp_ISC = np.zeros(n_vox).astype(float_type)
+            tmp_ISC = np.zeros(n_vox, dtype=float_type)
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
             for v in range(n_vox):
@@ -174,12 +174,12 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty(n_subj, num_perm).astype(float_type)
-        min_null = np.empty(n_subj, num_perm).astype(float_type)
+        max_null = np.empty((n_subj, n_perm), dtype=float_type)
+        min_null = np.empty((n_subj, n_perm), dtype=float_type)
     else:
         n_perm = 0
 
-    ISFC = np.zeros((n_vox, n_vox, n_subj)).astype(float_type)
+    ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
 
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
