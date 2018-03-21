@@ -88,8 +88,8 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty((n_subj, n_perm), dtype=float_type)
-        min_null = np.empty((n_subj, n_perm), dtype=float_type)
+        max_null = np.empty(n_perm, dtype=float_type)
+        min_null = np.empty(n_perm, dtype=float_type)
     else:
         n_perm = 0
 
@@ -98,17 +98,17 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
         for loo_subj in range(n_subj):
-            tmp_ISC = np.zeros(n_vox, dtype=float_type)
+            tmp_ISC = np.zeros((n_vox, n_subj), dtype=float_type)
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
             for v in range(n_vox):
-                tmp_ISC[v] = stats.pearsonr(group[v, :], subj[v, :])[0]
-
-            if p == 0:
-                ISC[:, loo_subj] = tmp_ISC
-            else:
-                max_null[loo_subj, p-1] = np.max(tmp_ISC)
-                min_null[loo_subj, p-1] = np.min(tmp_ISC)
+                tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
+                                                      subj[v, :])[0]
+        if p == 0:
+            ISC = tmp_ISC
+        else:
+            max_null[p-1] = np.max(tmp_ISC)
+            min_null[p-1] = np.min(tmp_ISC)
 
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
@@ -117,8 +117,6 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
         ISC = np.mean(ISC, axis=1)
 
     if return_p:
-        max_null = np.max(max_null, axis=0)
-        min_null = np.min(min_null, axis=0)
         p = p_from_null(ISC, two_sided, memory_saving=True,
                         max_null_input=max_null,
                         min_null_input=min_null)
