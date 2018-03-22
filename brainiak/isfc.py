@@ -32,7 +32,7 @@ comprehension. Nat Commun 7.
 from brainiak.fcma.util import compute_correlation
 import numpy as np
 from scipy import stats
-from .utils.utils import phase_randomize, p_from_null
+from .utils.utils import phase_randomize, p_from_null, gen_null_array
 
 
 def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
@@ -88,12 +88,8 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        if collapse_subj:
-            max_null = np.empty(n_perm, dtype=float_type)
-            min_null = np.empty(n_perm, dtype=float_type)
-        else:
-            max_null = np.empty((n_subj, n_perm), dtype=float_type)
-            min_null = np.empty((n_subj, n_perm), dtype=float_type)
+        max_null, min_null = gen_null_array(n_subj, n_perm,
+                                            collapse_subj, float_type)
     else:
         n_perm = 0
 
@@ -184,12 +180,8 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        if collapse_subj:
-            max_null = np.empty(n_perm, dtype=float_type)
-            min_null = np.empty(n_perm, dtype=float_type)
-        else:
-            max_null = np.empty((n_subj, n_perm), dtype=float_type)
-            min_null = np.empty((n_subj, n_perm), dtype=float_type)
+        max_null, min_null = gen_null_array(n_subj, n_perm,
+                                            collapse_subj, float_type)
     else:
         n_perm = 0
 
@@ -206,8 +198,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         ISFC = np.mean(ISFC, axis=2)
 
     for p in range(n_perm):
-        if collapse_subj:
-            ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
+        ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
         # Loop across choice of leave-one-out subject
         for loo_subj in range(D.shape[2]):
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
@@ -219,8 +210,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
             if not collapse_subj:
                 max_null[loo_subj, p] = np.max(tmp_ISFC)
                 min_null[loo_subj, p] = np.min(tmp_ISFC)
-            if collapse_subj:
-                ISFC_mean = ISFC_mean + tmp_ISFC/n_subj
+            ISFC_mean = ISFC_mean + tmp_ISFC/n_subj
 
         if collapse_subj:
             max_null[p] = np.max(ISFC_mean)
