@@ -819,6 +819,7 @@ def p_from_null(X, two_sided=False,
 
     return p
 
+
 def gen_null_array(n_subj, n_perm, collapse_subj, float_type):
 
     if collapse_subj:
