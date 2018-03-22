@@ -88,27 +88,27 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-		if collapse_subj:
-			max_null = np.empty(n_perm, dtype=float_type)
-			min_null = np.empty(n_perm, dtype=float_type)
-		else:
-			max_null = np.empty((n_subj, n_perm), dtype=float_type)
-			min_null = np.empty((n_subj, n_perm), dtype=float_type)
+        if collapse_subj:
+            max_null = np.empty(n_perm, dtype=float_type)
+            min_null = np.empty(n_perm, dtype=float_type)
+        else:
+            max_null = np.empty((n_subj, n_perm), dtype=float_type)
+            min_null = np.empty((n_subj, n_perm), dtype=float_type)
     else:
         n_perm = 0
 
     ISC = np.zeros((n_vox, n_subj), dtype=float_type)
 
-	for loo_subj in range(n_subj):
-		tmp_ISC = np.zeros(n_vox, dtype=float_type)
-		group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-		subj = D[:, :, loo_subj]
-		for v in range(n_vox):
-			tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
-												  subj[v, :])[0]
-		if not collapse_subj:
-			ISC[:, loo_subj] = tmp_ISC[:, loo_subj]
-	if collapse_subj:
+    for loo_subj in range(n_subj):
+        tmp_ISC = np.zeros(n_vox, dtype=float_type)
+        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
+        subj = D[:, :, loo_subj]
+        for v in range(n_vox):
+            tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
+                                                  subj[v, :])[0]
+        if not collapse_subj:
+            ISC[:, loo_subj] = tmp_ISC[:, loo_subj]
+    if collapse_subj:
         ISC = np.mean(tmp_ISC, axis=1)
     for p in range(n_perm):
         # Loop across choice of leave-one-out subject
@@ -196,20 +196,20 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
 
-	if collapse_subj:
+    if collapse_subj:
         ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
-	for loo_subj in range(D.shape[2]):
-		group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-		subj = D[:, :, loo_subj]
-		tmp_ISFC = compute_correlation(group, subj).astype(float_type)
-		# Symmetrize matrix
-		tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
-		if not collapse_subj:
-			ISFC[:, :, loo_subj] = tmp_ISFC
-		else:
-			ISFC_mean = ISFC_mean + tmp_ISFC/n_subj
-	if collapse_subj:
-		ISFC = ISFC_mean.copy()
+    for loo_subj in range(D.shape[2]):
+        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
+        subj = D[:, :, loo_subj]
+        tmp_ISFC = compute_correlation(group, subj).astype(float_type)
+        # Symmetrize matrix
+        tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
+        if not collapse_subj:
+            ISFC[:, :, loo_subj] = tmp_ISFC
+        else:
+            ISFC_mean = ISFC_mean + tmp_ISFC/n_subj
+    if collapse_subj:
+        ISFC = ISFC_mean.copy()
 
     for p in range(n_perm):
         if collapse_subj:
