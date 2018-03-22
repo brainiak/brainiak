@@ -750,7 +750,8 @@ def ecdf(x):
     return ecdf_fun
 
 
-def p_from_null(X, two_sided=False):
+def p_from_null(X, two_sided=False,
+                max_null_input=None, min_null_input=None):
     """Compute p value of true result from null distribution
 
     Given an array containing both a real result and a set of null results,
@@ -773,25 +774,47 @@ def p_from_null(X, two_sided=False):
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
 
+    max_null_input
+    min_null_input
+        ndarray with num_perm (see isfc.py) entries.
+        by default these arrays are derived from
+        the X input array, which can be very large
+        and takes up huge memory space.
+
     Returns
     -------
     p : ndarray the same shape as X, without the last dimension
         p values for each true X value under the null distribution
     """
-    leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
+    if (min_null_input is None) or (max_null_input is None):
+        leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
 
-    # Compute maximum/minimum in each null dataset
-    max_null = np.max(X[..., 1:], axis=leading_dims)
-    min_null = np.min(X[..., 1:], axis=leading_dims)
+        # Compute maximum/minimum in each null dataset
+        max_null = np.max(X[..., 1:], axis=leading_dims)
+        min_null = np.min(X[..., 1:], axis=leading_dims)
 
-    # Compute where the true values fall on the null distribution
-    max_null_ecdf = ecdf(max_null)
-    if two_sided:
-        min_null_ecdf = ecdf(min_null)
-        p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
-                           min_null_ecdf(X[..., 0]))
-        p = np.minimum(p, 1)
+        # Compute where the true values fall on the null distribution
+        max_null_ecdf = ecdf(max_null)
+        if two_sided:
+            min_null_ecdf = ecdf(min_null)
+            p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
+                               min_null_ecdf(X[..., 0]))
+            p = np.minimum(p, 1)
+        else:
+            p = 1 - max_null_ecdf(X[..., 0])
+
     else:
-        p = 1 - max_null_ecdf(X[..., 0])
+        # maximum & minimum in each null dataset should be provided as input
+        max_null = max_null_input
+        min_null = min_null_input
+
+        max_null_ecdf = ecdf(max_null)
+        if two_sided:
+            min_null_ecdf = ecdf(min_null)
+            p = 2 * np.minimum(1 - max_null_ecdf(X),
+                               min_null_ecdf(X))
+            p = np.minimum(p, 1)
+        else:
+            p = 1 - max_null_ecdf(X)
 
     return p
