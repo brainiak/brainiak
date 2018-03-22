@@ -96,7 +96,7 @@ class Diamond(Shape):
 
 
 class Ball(Shape):
-    """Diamond
+    """Ball
 
     Searchlight shape which is a ball
     inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
