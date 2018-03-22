@@ -69,7 +69,7 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
         random permutations generator.
 
     float_type : either float16, float32, or float64,
-        depending on the required precision
+        depending on the required precision,
         and available memory in the system.
         cast all the arrays generated during the execution to
         specified float type, in order to save memor
@@ -101,8 +101,8 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     for p in range(n_perm + 1):
         # Loop across choice of leave-one-out subject
-        tmp_ISC = np.zeros((n_vox, n_subj), dtype=float_type)
         for loo_subj in range(n_subj):
+            tmp_ISC = np.zeros(n_vox, dtype=float_type)
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
             for v in range(n_vox):
