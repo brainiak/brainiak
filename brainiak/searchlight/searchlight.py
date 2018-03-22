@@ -74,8 +74,8 @@ class Diamond(Shape):
 
     Searchlight shape which is a diamond
     inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
-    Any location in the cube which has a Manhattan distance of less than rad
-    from the center point is set to True.
+    Any location in the cube which has a Manhattan distance of equal to or
+    less than rad from the center point is set to True.
 
     Parameters
     ----------
@@ -100,8 +100,8 @@ class Ball(Shape):
 
     Searchlight shape which is a ball
     inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
-    Any location in the cube which has a Euclidean distance of equal or less
-    than rad from the center point is set to True.
+    Any location in the cube which has a Euclidean distance of equal to or
+    less than rad from the center point is set to True.
 
     Parameters
     ----------
