@@ -88,12 +88,12 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-	if return_p and collapse_subj:
-		max_null = np.empty(n_perm, dtype=float_type)
-		min_null = np.empty(n_perm, dtype=float_type)
-	if return_p and (not collapse_subj):
-		max_null = np.empty((n_subj, n_perm), dtype=float_type)
-		min_null = np.empty((n_subj, n_perm), dtype=float_type)
+    if return_p and collapse_subj:
+        max_null = np.empty(n_perm, dtype=float_type)
+        min_null = np.empty(n_perm, dtype=float_type)
+    if return_p and (not collapse_subj):
+        max_null = np.empty((n_subj, n_perm), dtype=float_type)
+        min_null = np.empty((n_subj, n_perm), dtype=float_type)
     if not return_p:
         n_perm = 0
 
