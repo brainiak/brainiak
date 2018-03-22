@@ -18,7 +18,7 @@ import numpy as np
 from mpi4py import MPI
 
 from brainiak.searchlight.searchlight import Searchlight
-from brainiak.searchlight.searchlight import Diamond
+from brainiak.searchlight.searchlight import Diamond, Ball
 
 """Distributed Searchlight Test
 """
@@ -86,6 +86,45 @@ def test_searchlight_with_diamond():
 
     sl.distribute(data, mask)
     global_outputs = sl.run_searchlight(diamond_sfn)
+
+    if rank == 0:
+        assert global_outputs[13, 13, 13] == 1.0
+        global_outputs[13, 13, 13] = None
+
+        for i in range(global_outputs.shape[0]):
+            for j in range(global_outputs.shape[1]):
+                for k in range(global_outputs.shape[2]):
+                    assert global_outputs[i, j, k] is None
+
+
+def ball_sfn(l, msk, myrad, bcast_var):
+    x, y, z = np.mgrid[-myrad:myrad+1, -myrad:myrad+1, -myrad:myrad+1]
+    correct_mask = np.square(x) + np.square(y) + np.square(z) <= myrad ** 2
+    assert not np.any(msk[~Ball(3).mask_])
+    if np.all(correct_mask == msk):
+        return 1.0
+    return None
+
+
+def test_searchlight_with_ball():
+    sl = Searchlight(sl_rad=3, shape=Ball)
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    size = comm.size
+    dim0, dim1, dim2 = (50, 50, 50)
+    ntr = 30
+    nsubj = 3
+    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+            if i % size == rank
+            else None
+            for i in range(0, nsubj)]
+
+    # Put a spot in the mask
+    mask[10:17, 10:17, 10:17] = Ball(3).mask_
+
+    sl.distribute(data, mask)
+    global_outputs = sl.run_searchlight(ball_sfn)
 
     if rank == 0:
         assert global_outputs[13, 13, 13] == 1.0
