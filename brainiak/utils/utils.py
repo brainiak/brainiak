@@ -750,7 +750,7 @@ def ecdf(x):
     return ecdf_fun
 
 
-def p_from_null(X, two_sided=False, memory_saving=False,
+def p_from_null(X, two_sided=False,
                 max_null_input=None, min_null_input=None):
     """Compute p value of true result from null distribution
 
@@ -774,24 +774,19 @@ def p_from_null(X, two_sided=False, memory_saving=False,
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
 
-    memory_saving: bool, default:False
-        set this value to true to save memory.
-
     max_null_input
     min_null_input
         ndarray with num_perm (see isfc.py) entries.
-        if memory_saving==False, these arrays are derived from
+        by default these arrays are derived from
         the X input array, which can be very large
         and takes up huge memory space.
-        if memory_saving==True, these arrays should be provided
-        by the process which calls p_from_null
 
     Returns
     -------
     p : ndarray the same shape as X, without the last dimension
         p values for each true X value under the null distribution
     """
-    if not memory_saving:
+    if (min_null_input is None) or (max_null_input is None):
         leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
 
         # Compute maximum/minimum in each null dataset
@@ -809,7 +804,7 @@ def p_from_null(X, two_sided=False, memory_saving=False,
             p = 1 - max_null_ecdf(X[..., 0])
 
     else:
-        # maximum/minimum in each null dataset should be provided as input
+        # maximum & minimum in each null dataset should be provided as input
         max_null = max_null_input
         min_null = min_null_input
 

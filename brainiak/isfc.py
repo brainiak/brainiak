@@ -88,8 +88,12 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty(n_perm, dtype=float_type)
-        min_null = np.empty(n_perm, dtype=float_type)
+        if collapse_subj:
+            max_null = np.empty(n_perm, dtype=float_type)
+            min_null = np.empty(n_perm, dtype=float_type)
+        else:
+            max_null = np.empty((n_subj, n_perm), dtype=float_type)
+            min_null = np.empty((n_subj, n_perm), dtype=float_type)
     else:
         n_perm = 0
 
@@ -104,20 +108,25 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             for v in range(n_vox):
                 tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
                                                       subj[v, :])[0]
-        if p == 0:
-            ISC = tmp_ISC
-        else:
-            max_null[p-1] = np.max(tmp_ISC)
-            min_null[p-1] = np.min(tmp_ISC)
+            if not collapse_subj:
+                if p == 0:
+                    ISC[:, loo_subj] = tmp_ISC[:, loo_subj]
+                else:
+                    max_null[loo_subj, p-1] = np.max(tmp_ISC[:, loo_subj])
+                    min_null[loo_subj, p-1] = np.min(tmp_ISC[:, loo_subj])
+        if collapse_subj:
+            tmp_ISC = np.mean(tmp_ISC, axis=1)
+            if p == 0:
+                ISC = tmp_ISC.copy()
+            else:
+                max_null[p-1] = np.max(tmp_ISC)
+                min_null[p-1] = np.min(tmp_ISC)
 
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
 
-    if collapse_subj:
-        ISC = np.mean(ISC, axis=1)
-
     if return_p:
-        p = p_from_null(ISC, two_sided, memory_saving=True,
+        p = p_from_null(ISC, two_sided,
                         max_null_input=max_null,
                         min_null_input=min_null)
         return ISC, p
@@ -172,14 +181,20 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
 
     if return_p:
         n_perm = num_perm
-        max_null = np.empty((n_subj, n_perm), dtype=float_type)
-        min_null = np.empty((n_subj, n_perm), dtype=float_type)
+        if collapse_subj:
+            max_null = np.empty(n_perm, dtype=float_type)
+            min_null = np.empty(n_perm, dtype=float_type)
+        else:
+            max_null = np.empty((n_subj, n_perm), dtype=float_type)
+            min_null = np.empty((n_subj, n_perm), dtype=float_type)
     else:
         n_perm = 0
 
     ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
 
     for p in range(n_perm + 1):
+        if collapse_subj:
+            ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
         # Loop across choice of leave-one-out subject
         for loo_subj in range(D.shape[2]):
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
@@ -187,26 +202,28 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
             tmp_ISFC = compute_correlation(group, subj).astype(float_type)
             # Symmetrize matrix
             tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
-
-            if p == 0:
-                ISFC[:, :, loo_subj] = tmp_ISFC
+            
+            if not collapse_subj:
+                if p == 0:
+                    ISFC[:, :, loo_subj] = tmp_ISFC
+                else:
+                    max_null[loo_subj, p-1] = np.max(tmp_ISFC)
+                    min_null[loo_subj, p-1] = np.min(tmp_ISFC)
             else:
-                leading_dims = tuple(np.arange(tmp_ISFC.ndim))
-                max_null[loo_subj, p-1] = np.max(tmp_ISFC,
-                                                 axis=leading_dims)
-                min_null[loo_subj, p-1] = np.min(tmp_ISFC,
-                                                 axis=leading_dims)
-
+                ISFC_mean = ISFC_mean + tmp_ISFC/n_subj
+            
+        if collapse_subj:
+            if p == 0:
+                ISFC = ISFC_mean.copy()
+            else:
+                max_null[p-1] = np.max(ISFC_mean)
+                min_null[p-1] = np.min(ISFC_mean)
+                
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
 
-    if collapse_subj:
-        ISFC = np.mean(ISFC, axis=2)
-
     if return_p:
-        max_null = np.max(max_null, axis=0)
-        min_null = np.min(min_null, axis=0)
-        p = p_from_null(ISFC, two_sided, memory_saving=True,
+        p = p_from_null(ISFC, two_sided,
                         max_null_input=max_null,
                         min_null_input=min_null)
         return ISFC, p
