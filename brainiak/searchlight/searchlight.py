@@ -15,7 +15,7 @@
 from multiprocessing import Pool
 import numpy as np
 from mpi4py import MPI
-from scipy.spatial.distance import cityblock
+from scipy.spatial.distance import cityblock, euclidean
 
 from ..utils.utils import usable_cpu_count
 
@@ -23,7 +23,7 @@ from ..utils.utils import usable_cpu_count
 """
 
 __all__ = [
-        "Searchlight", "Shape", "Cube", "Diamond"
+        "Searchlight", "Shape", "Cube", "Diamond", "Ball"
 ]
 
 
@@ -91,6 +91,32 @@ class Diamond(Shape):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
                     if(cityblock((r1, r2, r3),
+                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                        self.mask_[r1, r2, r3] = True
+
+
+class Ball(Shape):
+    """Diamond
+
+    Searchlight shape which is a ball
+    inscribed in a cube of size (2*rad+1,2*rad+1,2*rad+1).
+    Any location in the cube which has a Euclidean distance of equal or less
+    than rad from the center point is set to True.
+
+    Parameters
+    ----------
+
+    rad: radius, in voxels, of the sphere inscribed in the
+         searchlight cube, not counting the center voxel
+
+    """
+    def __init__(self, rad):
+        super().__init__(rad)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        for r1 in range(2*self.rad+1):
+            for r2 in range(2*self.rad+1):
+                for r3 in range(2*self.rad+1):
+                    if(euclidean((r1, r2, r3),
                                  (self.rad, self.rad, self.rad)) <= self.rad):
                         self.mask_[r1, r2, r3] = True
 
