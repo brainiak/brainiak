@@ -86,12 +86,10 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     n_vox = D.shape[0]
     n_subj = D.shape[2]
 
-    if return_p:
-        n_perm = num_perm
-        max_null, min_null = gen_null_array(n_subj, n_perm,
-                                            collapse_subj, float_type)
-    else:
-        n_perm = 0
+    n_perm = num_perm*int(return_p)
+    max_null, min_null = gen_null_array(n_subj, n_perm,
+                                        collapse_subj, float_type)
+
 
     ISC = np.zeros((n_vox, n_subj), dtype=float_type)
 
