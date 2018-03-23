@@ -118,7 +118,7 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             tmp_ISC = np.mean(tmp_ISC, axis=1)
             max_null[p] = np.max(tmp_ISC)
             min_null[p] = np.min(tmp_ISC)
-            
+
     if return_p:
         p = p_from_null(ISC, two_sided,
                         max_null_input=max_null,
