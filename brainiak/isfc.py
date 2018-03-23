@@ -196,7 +196,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         # Randomize phases of D to create next null dataset
         D = phase_randomize(D, random_state)
         # Loop across choice of leave-one-out subject
-        ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
+        ISFC_mean = np.zeros((n_vox, n_vox), dtype=float_type)
         for loo_subj in range(D.shape[2]):
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
