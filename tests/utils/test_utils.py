@@ -237,7 +237,7 @@ def test_p_from_null():
     p_2side = p_from_null(X, two_sided=True)
     assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"
 
-    p_2side_m = p_from_null(Y, two_sided=True, memory_saving=True,
+    p_2side_m = p_from_null(Y, two_sided=True,
                             max_null_input=Y_max,
                             min_null_input=Y_min)
     assert np.isclose(p_2side, p_2side_m).all(), "new p_null differs!"
