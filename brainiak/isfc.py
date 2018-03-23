@@ -194,8 +194,10 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         ISFC = np.mean(ISFC, axis=2)
 
     for p in range(n_perm):
-        ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
+        # Randomize phases of D to create next null dataset
+        D = phase_randomize(D, random_state)
         # Loop across choice of leave-one-out subject
+        ISFC_mean = np.empty((n_vox, n_vox), dtype=float_type)
         for loo_subj in range(D.shape[2]):
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
@@ -211,9 +213,6 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         if collapse_subj:
             max_null[p] = np.max(ISFC_mean)
             min_null[p] = np.min(ISFC_mean)
-
-        # Randomize phases of D to create next null dataset
-        D = phase_randomize(D, random_state)
 
     if return_p:
         p = p_from_null(ISFC, two_sided,
