@@ -155,7 +155,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
         random permutations generator.
-    float_type : either float16, float32, or float64,
+    float_type : either float16, float32, or float64
         depending on the required precision
         and available memory in the system.
         cast all the arrays generated during the execution to
