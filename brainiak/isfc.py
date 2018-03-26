@@ -145,25 +145,25 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     ----------
     D : voxel by time by subject ndarray
         fMRI data for which to compute ISFC
-    
+
     collapse_subj : bool, default:True
         Whether to average across subjects before returning result
-    
+
     return_p : bool, default:False
         Whether to use phase randomization to compute a p value for each voxel
-    
+
     num_perm : int, default:1000
         Number of null samples to use for computing p values
-    
+
     two_sided : bool, default:False
         Whether the p value should be one-sided (testing only for being
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
-    
+
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
         random permutations generator.
-    
+
     float_type : either float16, float32, or float64
         depending on the required precision
         and available memory in the system.
@@ -175,7 +175,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     ISFC : voxel by voxel ndarray
         (or voxel by voxel by subject ndarray, if collapse_subj=False)
         pearson correlation between all pairs of voxels, across subjects
-    
+
     p : ndarray the same shape as ISC (if return_p = True)
         p values for each ISC value under the null distribution
     """
