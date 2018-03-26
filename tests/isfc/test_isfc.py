@@ -30,7 +30,7 @@ def test_ISC():
     (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
                                  two_sided=True, collapse_subj=False,
                                  random_state=0)
-    true_ISC = [[ 0.98221543, 0.76747914, 0.92307833],
+    true_ISC = [[0.98221543, 0.76747914, 0.92307833],
                 [-0.26377767, 0.01490501, 0.32925896]]
     true_p = [[0, 0.6, 0.08], [1, 1, 1]]
 
@@ -39,7 +39,6 @@ def test_ISC():
 
     assert np.isclose(p, true_p).all(), \
         "Calculated p values (non collapse) do not match ground truth"
-
 
 
 def test_ISFC():
