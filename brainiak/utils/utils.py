@@ -795,6 +795,7 @@ def p_from_null(X, two_sided=False,
         max_null = np.max(X[..., 1:], axis=leading_dims)
         min_null = np.min(X[..., 1:], axis=leading_dims)
     else:
+        real_data = X
         # maximum & minimum in each null dataset should be provided as input
         max_null = max_null_input
         min_null = min_null_input
@@ -810,7 +811,6 @@ def p_from_null(X, two_sided=False,
 
     return p
 
-
 def gen_null_array(n_subj, n_perm, collapse_subj, float_type):
     """Generate empty arrays to contain null distribution
 
@@ -820,7 +820,8 @@ def gen_null_array(n_subj, n_perm, collapse_subj, float_type):
     iteration.
     If collapse_subj == True, the empty arrays will contain
     the max and min of the null values averaged across subjects.
-    
+
+    Parameters
     ----------
     n_subj : int
         number of subjects
