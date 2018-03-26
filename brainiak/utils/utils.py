@@ -768,6 +768,8 @@ def p_from_null(X, two_sided=False,
     X : ndarray with arbitrary number of dimensions
         The last dimension of X should contain the real result in X[..., 0]
         and the null results in X[..., 1:]
+        If max_null_input and min_null_input are provided,
+        X should contain only the real result
 
     two_sided : bool, default:False
         Whether the p value should be one-sided (testing only for being
@@ -787,35 +789,24 @@ def p_from_null(X, two_sided=False,
         p values for each true X value under the null distribution
     """
     if (min_null_input is None) or (max_null_input is None):
+        real_data = X[..., 0]
         leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
-
         # Compute maximum/minimum in each null dataset
         max_null = np.max(X[..., 1:], axis=leading_dims)
         min_null = np.min(X[..., 1:], axis=leading_dims)
-
-        # Compute where the true values fall on the null distribution
-        max_null_ecdf = ecdf(max_null)
-        if two_sided:
-            min_null_ecdf = ecdf(min_null)
-            p = 2 * np.minimum(1 - max_null_ecdf(X[..., 0]),
-                               min_null_ecdf(X[..., 0]))
-            p = np.minimum(p, 1)
-        else:
-            p = 1 - max_null_ecdf(X[..., 0])
-
     else:
         # maximum & minimum in each null dataset should be provided as input
         max_null = max_null_input
         min_null = min_null_input
-
-        max_null_ecdf = ecdf(max_null)
-        if two_sided:
-            min_null_ecdf = ecdf(min_null)
-            p = 2 * np.minimum(1 - max_null_ecdf(X),
-                               min_null_ecdf(X))
-            p = np.minimum(p, 1)
-        else:
-            p = 1 - max_null_ecdf(X)
+        # Compute where the true values fall on the null distribution
+    max_null_ecdf = ecdf(max_null)
+    if two_sided:
+        min_null_ecdf = ecdf(min_null)
+        p = 2 * np.minimum(1 - max_null_ecdf(real_data),
+                           min_null_ecdf(real_data))
+        p = np.minimum(p, 1)
+    else:
+        p = 1 - max_null_ecdf(real_data)
 
     return p
 
