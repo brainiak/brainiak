@@ -87,8 +87,8 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     n_subj = D.shape[2]
 
     n_perm = num_perm*int(return_p)
-    max_null, min_null = gen_null_array(n_subj, n_perm,
-                                        collapse_subj, float_type)
+    max_null = np.zeros(n_perm, dtype=float_type)
+    min_null = np.zeros(n_perm, dtype=float_type)
     ISC = np.zeros((n_vox, n_subj), dtype=float_type)
 
     for loo_subj in range(n_subj):
@@ -111,9 +111,9 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             for v in range(n_vox):
                 tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
                                                       subj[v, :])[0]
-            if not collapse_subj:
-                max_null[loo_subj, p] = np.max(tmp_ISC[:, loo_subj])
-                min_null[loo_subj, p] = np.min(tmp_ISC[:, loo_subj])
+        if not collapse_subj:
+            max_null[p] = np.max(tmp_ISC)
+            min_null[p] = np.min(tmp_ISC)
         if collapse_subj:
             tmp_ISC = np.mean(tmp_ISC, axis=1)
             max_null[p] = np.max(tmp_ISC)
@@ -183,12 +183,9 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     n_vox = D.shape[0]
     n_subj = D.shape[2]
 
-    if return_p:
-        n_perm = num_perm
-        max_null, min_null = gen_null_array(n_subj, n_perm,
-                                            collapse_subj, float_type)
-    else:
-        n_perm = 0
+    n_perm = num_perm*int(return_p)
+    max_null = np.zeros(n_perm, dtype=float_type)
+    min_null = np.ones(n_perm, dtype=float_type)
 
     ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
 
@@ -215,8 +212,8 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
             tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
 
             if not collapse_subj:
-                max_null[loo_subj, p] = np.max(tmp_ISFC)
-                min_null[loo_subj, p] = np.min(tmp_ISFC)
+                max_null[p] = max(np.max(tmp_ISFC), max_null[p])
+                min_null[p] = min(np.min(tmp_ISFC), min_null[p])
             ISFC_null = ISFC_null + tmp_ISFC/n_subj
 
         if collapse_subj:
