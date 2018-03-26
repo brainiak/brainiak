@@ -240,4 +240,4 @@ def test_p_from_null():
     p_2side_m = p_from_null(Y, two_sided=True, memory_saving=True,
                             max_null_input=Y_max,
                             min_null_input=Y_min)
-    assert np.isclose(p_2side, p_2side_m).all(), "new p_null differs!"
+    assert np.isclose(p_2side, p_2side_m).all(), "p_null differs with max/min"
