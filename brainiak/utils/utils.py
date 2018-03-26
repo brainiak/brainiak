@@ -768,6 +768,8 @@ def p_from_null(X, two_sided=False,
     X : ndarray with arbitrary number of dimensions
         The last dimension of X should contain the real result in X[..., 0]
         and the null results in X[..., 1:]
+        If max_null_input and min_null_input are provided,
+        X should contain only the real result
 
     two_sided : bool, default:False
         Whether the p value should be one-sided (testing only for being
