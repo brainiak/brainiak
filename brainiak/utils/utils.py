@@ -812,7 +812,38 @@ def p_from_null(X, two_sided=False,
 
 
 def gen_null_array(n_subj, n_perm, collapse_subj, float_type):
+    """Generate empty arrays to contain null distribution
 
+    Primarily used in isfc.py generate 2 empty arrays,
+    max_null and min_null to contain the max and min of the
+    null values of each subject in each phase-randomized
+    iteration.
+    If collapse_subj == True, the empty arrays will contain
+    the max and min of the null values averaged across subjects.
+    
+    ----------
+    n_subj : int
+        number of subjects
+
+    n_perm : int
+        number of phase-randomization iterations
+
+    collapse_subj : bool
+        whether to average across subjects or not
+
+    float_type : np.float16, np.float32, or np.float64
+        depending on the required precision,
+        and available memory in the system.
+        cast all the arrays generated during the execution to
+        specified float type, in order to save memory
+
+    Returns
+    -------
+    max_null, min_null : ndarrays
+        if collapse_subj==True, 1-D array with n_perm entries
+        if collapse_subj==False, 2-D array with dimensions
+        (n_subj, n_perm)
+    """
     if collapse_subj:
         max_null = np.empty(n_perm, dtype=float_type)
         min_null = np.empty(n_perm, dtype=float_type)
