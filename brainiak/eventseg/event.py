@@ -18,12 +18,12 @@ segment the timeseries into events with stable activity patterns. After
 learning the signature activity pattern of each event, the model can then be
 applied to other datasets to identify a corresponding sequence of events.
 
-Full details are available in the bioRxiv preprint:
+Full details are available in:
 Christopher Baldassano, Janice Chen, Asieh Zadbood,
 Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
 Neuron, Volume 95, Issue 3, 709 - 721.e5
-http://www.cell.com/neuron/abstract/S0896-6273(17)30593-7
+https://doi.org/10.1016/j.neuron.2017.06.041
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -60,14 +60,12 @@ class EventSegment(BaseEstimator):
     n_iter: int : default 500
         Maximum number of steps to run during fitting
 
+    event_chains: ndarray with length = n_events
+        Array with unique value for each separate chain of events, each linked
+        in the order they appear in the array
+
     Attributes
     ----------
-    p_start, p_end: length n_events+1 ndarray
-        initial and final prior distributions over events
-
-    P: n_events+1 by n_events+1 ndarray
-        HMM transition matrix
-
     ll_ : ndarray with length = number of training datasets
         Log-likelihood for training datasets over the course of training
 
@@ -86,10 +84,14 @@ class EventSegment(BaseEstimator):
 
     def __init__(self, n_events=2,
                  step_var=_default_var_schedule,
-                 n_iter=500):
+                 n_iter=500, event_chains=None):
         self.n_events = n_events
         self.step_var = step_var
         self.n_iter = n_iter
+        if event_chains is None:
+            self.event_chains = np.zeros(n_events)
+        else:
+            self.event_chains = event_chains
 
     def fit(self, X, y=None):
         """Learn a segmentation on training data
@@ -252,20 +254,28 @@ class EventSegment(BaseEstimator):
         log_beta = np.zeros((t, self.n_events + 1))
 
         # Set up transition matrix, with final sink state
-        # For transition matrix of this form, the transition probability has
-        # no impact on the final solution, since all valid paths must take
-        # the same number of transitions
-        p_start = np.zeros((1, self.n_events + 1))
-        p_start[0, 0] = 1
-        p_trans = (self.n_events-1)/t
-        P = np.vstack((np.hstack((
-            (1 - p_trans) * np.diag(np.ones(self.n_events))
-            + p_trans * np.diag(np.ones(self.n_events - 1), 1),
-            np.append(np.zeros((self.n_events - 1, 1)), [[p_trans]], axis=0))),
-                            np.append(np.zeros((1, self.n_events)), [[1]],
-                                      axis=1)))
-        p_end = np.zeros((1, self.n_events + 1))
-        p_end[0, -2] = 1
+        p_start = np.zeros(self.n_events + 1)
+        p_end = np.zeros(self.n_events + 1)
+        P = np.zeros((self.n_events + 1, self.n_events + 1))
+        label_ind = np.unique(self.event_chains, return_inverse=True)[1]
+        n_chains = np.max(label_ind) + 1
+
+        # For each chain of events, link them together and then to sink state
+        for c in range(n_chains):
+            chain_ind = np.nonzero(label_ind == c)[0]
+            p_start[chain_ind[0]] = 1 / n_chains
+            p_end[chain_ind[-1]] = 1 / n_chains
+
+            p_trans = (len(chain_ind) - 1) / t
+            if p_trans >= 1:
+                raise ValueError('Too few timepoints')
+            for i in range(len(chain_ind)):
+                P[chain_ind[i], chain_ind[i]] = 1 - p_trans
+                if i < len(chain_ind) - 1:
+                    P[chain_ind[i], chain_ind[i+1]] = p_trans
+                else:
+                    P[chain_ind[i], -1] = p_trans
+        P[-1, -1] = 1
 
         # Forward pass
         for i in range(t):
@@ -291,7 +301,7 @@ class EventSegment(BaseEstimator):
         log_gamma -= np.logaddexp.reduce(log_gamma, axis=1, keepdims=True)
 
         ll = np.sum(log_scale[:(t - 1)]) + np.logaddexp.reduce(
-            log_alpha[-1, :] + log_scale[-1] + self._log(p_end), axis=1)
+            log_alpha[-1, :] + log_scale[-1] + self._log(p_end))
 
         log_gamma = log_gamma[:, :-1]
 
@@ -366,11 +376,14 @@ class EventSegment(BaseEstimator):
 
         if var is None:
             if not hasattr(self, 'event_var_'):
-                raise NotFittedError(("The event patterns must first be set "
-                                      "by fit() or set_event_patterns()"))
+                raise NotFittedError(("Event variance must be provided, if "
+                                      "not previously set by fit()"))
             else:
                 var = self.event_var_
 
+        if not hasattr(self, 'event_pat_'):
+            raise NotFittedError(("The event patterns must first be set "
+                                  "by fit() or set_event_patterns()"))
         if scramble:
             mean_pat = self.event_pat_[:, np.random.permutation(self.n_events)]
         else:
@@ -440,3 +453,27 @@ class EventSegment(BaseEstimator):
                                np.sum(weights[nz, e]))
         ev_var = ev_var / D.shape[1]
         return ev_var
+
+    def model_prior(self, t):
+        """Returns the prior probability of the HMM
+
+        Runs forward-backward without any data, showing the prior distribution
+        of the model (for comparison with a posterior).
+
+        Parameters
+        ----------
+        t: int
+            Number of timepoints
+
+        Returns
+        -------
+        segments : time by event ndarray
+            segments[t,e] = prior probability that timepoint t is in event e
+
+        test_ll : float
+            Log-likelihood of model (data-independent term)"""
+
+        lg, test_ll = self._forward_backward(np.zeros((t, self.n_events)))
+        segments = np.exp(lg)
+
+        return segments, test_ll
