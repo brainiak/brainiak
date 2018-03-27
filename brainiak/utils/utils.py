@@ -776,12 +776,14 @@ def p_from_null(X, two_sided=False,
         above the null) or two-sided (testing for both significantly positive
         and significantly negative values)
 
-    max_null_input
-    min_null_input
-        ndarray with num_perm (see isfc.py) entries.
-        by default these arrays are derived from
-        the X input array, which can be very large
-        and takes up huge memory space.
+    max_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
+        By default this array is derived from the X input array,
+        which can be very large and takes up huge memory space.
+        To save memory, the function which calls p_from_null
+        should provide this array as input.
+
+    min_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
+        See max_null_input
 
     Returns
     -------
