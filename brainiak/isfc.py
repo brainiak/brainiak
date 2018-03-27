@@ -32,7 +32,7 @@ comprehension. Nat Commun 7.
 from brainiak.fcma.util import compute_correlation
 import numpy as np
 from scipy import stats
-from .utils.utils import phase_randomize, p_from_null, gen_null_array
+from .utils.utils import phase_randomize, p_from_null
 
 
 def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
@@ -184,7 +184,7 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     n_subj = D.shape[2]
 
     n_perm = num_perm*int(return_p)
-    max_null = np.zeros(n_perm, dtype=float_type)
+    max_null = -np.ones(n_perm, dtype=float_type)
     min_null = np.ones(n_perm, dtype=float_type)
 
     ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
