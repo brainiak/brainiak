@@ -24,6 +24,12 @@ Jonathan W Pillow, Uri Hasson, Kenneth A Norman
 Discovering event structure in continuous narrative perception and memory
 Neuron, Volume 95, Issue 3, 709 - 721.e5
 https://doi.org/10.1016/j.neuron.2017.06.041
+
+This class also extends the model described in the Neuron paper, by allowing
+transition matrices that are composed of multiple separate chains of events
+rather than a single linear path. This allows a model to contain patterns for
+multiple event sequences (e.g. narratives), and fit probabilities along each of
+these chains on a new, unlabeled timeseries.
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -66,6 +72,12 @@ class EventSegment(BaseEstimator):
 
     Attributes
     ----------
+    p_start, p_end: length n_events+1 ndarray
+        initial and final prior distributions over events
+
+    P: n_events+1 by n_events+1 ndarray
+        HMM transition matrix
+
     ll_ : ndarray with length = number of training datasets
         Log-likelihood for training datasets over the course of training
 
@@ -254,54 +266,54 @@ class EventSegment(BaseEstimator):
         log_beta = np.zeros((t, self.n_events + 1))
 
         # Set up transition matrix, with final sink state
-        p_start = np.zeros(self.n_events + 1)
-        p_end = np.zeros(self.n_events + 1)
-        P = np.zeros((self.n_events + 1, self.n_events + 1))
+        self.p_start = np.zeros(self.n_events + 1)
+        self.p_end = np.zeros(self.n_events + 1)
+        self.P = np.zeros((self.n_events + 1, self.n_events + 1))
         label_ind = np.unique(self.event_chains, return_inverse=True)[1]
         n_chains = np.max(label_ind) + 1
 
         # For each chain of events, link them together and then to sink state
         for c in range(n_chains):
             chain_ind = np.nonzero(label_ind == c)[0]
-            p_start[chain_ind[0]] = 1 / n_chains
-            p_end[chain_ind[-1]] = 1 / n_chains
+            self.p_start[chain_ind[0]] = 1 / n_chains
+            self.p_end[chain_ind[-1]] = 1 / n_chains
 
             p_trans = (len(chain_ind) - 1) / t
             if p_trans >= 1:
                 raise ValueError('Too few timepoints')
             for i in range(len(chain_ind)):
-                P[chain_ind[i], chain_ind[i]] = 1 - p_trans
+                self.P[chain_ind[i], chain_ind[i]] = 1 - p_trans
                 if i < len(chain_ind) - 1:
-                    P[chain_ind[i], chain_ind[i+1]] = p_trans
+                    self.P[chain_ind[i], chain_ind[i+1]] = p_trans
                 else:
-                    P[chain_ind[i], -1] = p_trans
-        P[-1, -1] = 1
+                    self.P[chain_ind[i], -1] = p_trans
+        self.P[-1, -1] = 1
 
         # Forward pass
         for i in range(t):
             if i == 0:
-                log_alpha[0, :] = self._log(p_start) + logprob[0, :]
+                log_alpha[0, :] = self._log(self.p_start) + logprob[0, :]
             else:
                 log_alpha[i, :] = self._log(np.exp(log_alpha[i - 1, :])
-                                            .dot(P)) + logprob[i, :]
+                                            .dot(self.P)) + logprob[i, :]
 
             log_scale[i] = np.logaddexp.reduce(log_alpha[i, :])
             log_alpha[i] -= log_scale[i]
 
         # Backward pass
-        log_beta[-1, :] = self._log(p_end) - log_scale[-1]
+        log_beta[-1, :] = self._log(self.p_end) - log_scale[-1]
         for i in reversed(range(t - 1)):
             obs_weighted = log_beta[i + 1, :] + logprob[i + 1, :]
             offset = np.max(obs_weighted)
             log_beta[i, :] = offset + self._log(
-                np.exp(obs_weighted - offset).dot(P.T)) - log_scale[i]
+                np.exp(obs_weighted - offset).dot(self.P.T)) - log_scale[i]
 
         # Combine and normalize
         log_gamma = log_alpha + log_beta
         log_gamma -= np.logaddexp.reduce(log_gamma, axis=1, keepdims=True)
 
         ll = np.sum(log_scale[:(t - 1)]) + np.logaddexp.reduce(
-            log_alpha[-1, :] + log_scale[-1] + self._log(p_end))
+            log_alpha[-1, :] + log_scale[-1] + self._log(self.p_end))
 
         log_gamma = log_gamma[:, :-1]
 
