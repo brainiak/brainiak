@@ -69,10 +69,10 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
         random permutations generator.
 
     float_type : either float16, float32, or float64,
-        depending on the required precision,
+        Depends on the required precision
         and available memory in the system.
-        cast all the arrays generated during the execution to
-        specified float type, in order to save memor
+        All the arrays generated during the execution will be cast
+        to specified float type in order to save memory.
 
     Returns
     -------
@@ -111,13 +111,10 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
             for v in range(n_vox):
                 tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
                                                       subj[v, :])[0]
-        if not collapse_subj:
-            max_null[p] = np.max(tmp_ISC)
-            min_null[p] = np.min(tmp_ISC)
         if collapse_subj:
             tmp_ISC = np.mean(tmp_ISC, axis=1)
-            max_null[p] = np.max(tmp_ISC)
-            min_null[p] = np.min(tmp_ISC)
+        max_null[p] = np.max(tmp_ISC)
+        min_null[p] = np.min(tmp_ISC)
 
     if return_p:
         p = p_from_null(ISC, two_sided,
@@ -165,10 +162,10 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
         random permutations generator.
 
     float_type : either float16, float32, or float64
-        depending on the required precision
+        Depends on the required precision
         and available memory in the system.
-        cast all the arrays generated during the execution to
-        specified float type, in order to save memory
+        All the arrays generated during the execution will be cast
+        to specified float type in order to save memory.
 
     Returns
     -------
