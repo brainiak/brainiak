@@ -648,46 +648,56 @@ def export_epoch_file(stimfunction,
         # What is the time course for the participant (binarized)
         stimfunction_ppt = np.abs(stimfunction[participant_counter]) > 0
 
-        # Cycle through conditions
+        # Down sample the stim function
+        stride = tr_duration * temporal_resolution
+        stimfunction_downsampled = stimfunction_ppt[::int(stride), :]
+
+        # Calculates the number of event onsets. This uses changes in value to reflect
+        # different epochs. This might be false in some cases (the
+        # weight is non-uniform over an epoch or there is no
+        # break between identically weighted epochs).
+        epochs = 0  # Preset
         conditions = stimfunction_ppt.shape[1]
         for condition_counter in range(conditions):
 
-            # Down sample the stim function
-            stride = tr_duration * temporal_resolution
-            stimfunction_temp = stimfunction_ppt[:, condition_counter]
-            stimfunction_temp = stimfunction_temp[::int(stride)]
+            weight_change = (
+            np.diff(stimfunction_downsampled[:, condition_counter], 1, 0) != 0)
 
-            if condition_counter == 0:
-                # Calculates the number of event onsets (max of all
-                # conditions). This uses changes in value to reflect
-                # different epochs. This might be false in some cases (the
-                # weight is supposed to unfold over an epoch or there is no
-                # break between identically weighted epochs). In such cases
-                # this will not work
-                weight_change = (np.diff(stimfunction_temp, 1, 0) != 0)
-                epochs = int(np.max(np.sum(weight_change, 0)) / 2)
+            # If the first or last events are 'on' then make these
+            # represent a epoch change
+            if stimfunction_downsampled[0, condition_counter] == 1:
+                weight_change[0] = True
+            if stimfunction_downsampled[-1, condition_counter] == 1:
+                weight_change[-1] = True
 
-                # Get other information
-                trs = stimfunction_temp.shape[0]
+            epochs += int(np.max(np.sum(weight_change, 0)) / 2)
 
-                # Make a timing file for this participant
-                epoch_file[participant_counter] = np.zeros((conditions,
-                                                            epochs, trs))
+        # Get other information
+        trs = stimfunction_downsampled.shape[0]
 
-            epoch_counter = 0
-            tr_counter = 0
-            while tr_counter < stimfunction_temp.shape[0]:
+        # Make a timing file for this participant
+        epoch_file[participant_counter] = np.zeros((conditions,
+                                                    epochs, trs))
+
+        # Cycle through conditions
+        epoch_counter = 0  # Reset and count across conditions
+        tr_counter = 0
+        while tr_counter < stimfunction_downsampled.shape[0]:
+
+            for condition_counter in range(conditions):
 
                 # Is it an event?
-                if stimfunction_temp[tr_counter] == 1:
-
+                if tr_counter < stimfunction_downsampled.shape[0] and \
+                                stimfunction_downsampled[
+                                    tr_counter, condition_counter] == 1:
                     # Add a one for this TR
                     epoch_file[participant_counter][condition_counter,
                                                     epoch_counter,
                                                     tr_counter] = 1
 
                     # Find the next non event value
-                    end_idx = np.where(stimfunction_temp[tr_counter:] == 0)[
+                    end_idx = np.where(stimfunction_downsampled[tr_counter:,
+                                       condition_counter] == 0)[
                         0][0]
                     tr_idxs = list(range(tr_counter, tr_counter + end_idx))
 
@@ -704,6 +714,10 @@ def export_epoch_file(stimfunction,
 
                 # Increment the counter
                 tr_counter += 1
+
+
+    # Convert to boolean
+    epoch_file = epoch_file.astype('bool')
 
     # Save the file
     np.save(filename, epoch_file)
@@ -1163,9 +1177,9 @@ def _calc_snr(volume,
 
     """
 
-    # If no TR is specified then take the middle one
+    # If no TR is specified then take all of them
     if tr is None:
-        tr = int(np.ceil(volume.shape[3] / 2))
+        tr = list(range(volume.shape[3]))
 
     # Dilate the mask in order to ensure that non-brain voxels are far from
     # the brain
@@ -1175,14 +1189,19 @@ def _calc_snr(volume,
     else:
         mask_dilated = mask
 
-    # Make a matrix of brain and non_brain voxels, selecting the timepoint
+    # Make a matrix of brain and non_brain voxels, selecting the timepoint/s
     brain_voxels = volume[mask > 0][:, tr]
     nonbrain_voxels = (volume[:, :, :, tr]).astype('float64')
 
-    # Do you want to remove the average of the periphery (removes
-    # structure, leaving only variability)
-    if template_baseline is not None:
-        nonbrain_voxels -= template_baseline
+    # If you have multiple TRs
+    if len(brain_voxels.shape) > 1:
+        brain_voxels = np.mean(brain_voxels, 1)
+        nonbrain_voxels = np.mean(nonbrain_voxels, 3)
+
+    # # Do you want to remove the average of the periphery (removes
+    # # structure, leaving only variability)
+    # if template_baseline is not None:
+    #     nonbrain_voxels -= template_baseline
 
     nonbrain_voxels = nonbrain_voxels[mask_dilated == 0]
 
