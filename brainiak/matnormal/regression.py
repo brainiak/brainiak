@@ -4,6 +4,8 @@ from sklearn.base import BaseEstimator
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 
+__all__ = ['MatnormRegression']
+
 
 class MatnormRegression(BaseEstimator):
     """ This analysis allows maximum likelihood estimation of regression models
@@ -140,7 +142,8 @@ class MatnormRegression(BaseEstimator):
                                 cannot decode.")
 
         # Sigma_s^{-1} B'
-        Sigma_s_btrp = self.space_noise_cov.Sigma_inv_x(tf.transpose(self.beta))
+        Sigma_s_btrp = self.space_noise_cov.Sigma_inv_x(tf.transpose(
+                                                        self.beta))
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
         # (B Sigma_s^{-1} B')^{-1}

@@ -8,6 +8,8 @@ from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 import logging
 
+__all__ = ['MNRSA']
+
 
 class MNRSA(BaseEstimator):
     """ Matrix normal version of RSA.

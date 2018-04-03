@@ -1,6 +1,3 @@
-from .mnrsa import MNRSA
-from .regression import MatnormRegression
-
 """The matrix variate normal distribution,
  with conditional and marginal identities
 ==========================================================================================
