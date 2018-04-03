@@ -149,7 +149,7 @@ class CovAR1(CovBase):
                                              block_diag(subdiags)
                                              .toarray())
 
-        self.I = tf.constant(np.eye(size))
+        self._identity_mat = tf.constant(np.eye(size))
 
         if sigma is None:
             self.log_sigma = tf.Variable(tf.random_normal([1],
@@ -197,7 +197,7 @@ class CovAR1(CovBase):
         """
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         sigma = tf.exp(self.log_sigma)
-        return (self.I - rho * self.offdiag_template + rho**2 *
+        return (self._identity_mat - rho * self.offdiag_template + rho**2 *
                 self.diag_template) / tf.square(sigma)
 
 
