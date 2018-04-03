@@ -327,7 +327,7 @@ To make a release:
 
 5. Push release::
 
-       git tag --push
+       git push --tags
        twine upload dist/brainiak-<v>.tar.gz
 
 
@@ -341,3 +341,20 @@ To make a release:
 
        anaconda upload -u brainiak \
        $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
+
+9. Build and push the Docker image::
+
+       docker build --no-cache -t brainiak/brainiak .
+       docker push brainiak/brainiak
+
+10. Build and publish the documentation::
+
+       cd docs
+       make
+       cd -
+       cd ../brainiak.github.io
+       rm -r docs
+       cp -ir ../brainiak/docs/_build/html docs
+       git commit -a -m "Update docs to v<v>"
+       git push
+       cd -
