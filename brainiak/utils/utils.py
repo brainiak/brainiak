@@ -850,11 +850,12 @@ def tf_solve_lower_triangular_kron(L, y):
             xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
             t = xinb / L[0][i, i]
             xinb = tf_solve_lower_triangular_kron(L[1:], t)
-            xina = xina - tf.reshape(tf.tile
-                           (tf.slice(L[0], [i+1, i], [na-i-1, 1]),
-                           [1, nb*col]), [(na-i-1)*nb, col]) * \
-                           tf.reshape(tf.tile(tf.reshape
-                           (t, [-1, 1]), [na-i-1, 1]), [(na-i-1)*nb, col])
+            xina = xina - tf.reshape(
+                tf.tile(tf.slice(L[0], [i+1, i], [na-i-1, 1]), [1, nb*col]),
+                [(na-i-1)*nb, col]) * \
+                tf.reshape(
+                  tf.tile(tf.reshape(t, [-1, 1]), [na-i-1, 1]),
+                  [(na-i-1)*nb, col])
             x = tf.concat(axis=0, values=[xt, xinb, xina])
 
         return x
@@ -895,11 +896,13 @@ def tf_solve_upper_triangular_kron(L, y):
             xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
             t = xinb / L[0][i, i]
             xinb = tf_solve_upper_triangular_kron(L[1:], t)
-            xt = xt - tf.reshape(tf.tile(tf.transpose
-                                 (tf.slice(L[0], [i, 0], [1, i])),
-                                 [1, nb*col]), [i*nb, col]) * \
-                                 tf.reshape(tf.tile(tf.reshape
-                                 (t, [-1, 1]), [i, 1]), [i*nb, col])
+            xt = (xt
+                  - tf.reshape(
+                      tf.tile(tf.transpose(tf.slice(L[0], [i, 0], [1, i])),
+                              [1, nb*col]),
+                      [i*nb, col])
+                  * tf.reshape(
+                      tf.tile(tf.reshape(t, [-1, 1]), [i, 1]), [i*nb, col]))
             x = tf.concat(axis=0, values=[xt, xinb, xina])
 
         return x
@@ -932,11 +935,15 @@ def tf_kron_mult(L, x):
         n_prod = tf.to_int32(tf.reduce_prod(n_list))
         nb = tf.to_int32(n_prod/na)
         col = tf.shape(x)[1]
-        xt = tf_kron_mult(L[1:], tf.transpose(tf.reshape(tf.transpose(x), [-1, nb])))
+        xt = tf_kron_mult(
+           L[1:],
+           tf.transpose(tf.reshape(tf.transpose(x), [-1, nb])))
         y = tf.zeros_like(x)
         for i in range(na):
             ya, yb, yc = tf.split(y, [i*nb, nb, (na-i-1)*nb], 0)
-            yb = tf.reshape(tf.matmul(tf.reshape(xt, [nb*col, na]), tf.transpose(tf.slice(L[0], [i,0], [1, na]))), [nb, col])
+            yb = tf.reshape(tf.matmul(tf.reshape(xt, [nb*col, na]),
+                            tf.transpose(tf.slice(L[0], [i, 0], [1, na]))),
+                            [nb, col])
             y = tf.concat(axis=0, values=[ya, yb, yc])
         return y
 
@@ -947,7 +954,7 @@ def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
 
     Arguments
     ---------
-    L : 2-D tensor 
+    L : 2-D tensor
         Must be a tensorflow tensor and
         must be a triangular matrix of dimension n x n
 
@@ -971,14 +978,16 @@ def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
     """
 
     zero = tf.constant(0, dtype=tf.int32)
-    mask_mat = tf.where(tf.not_equal(tf.matmul(tf.reshape(mask, [-1,1]), tf.reshape(mask, [1, -1])), zero))
+    mask_mat = tf.where(tf.not_equal(tf.matmul(tf.reshape(mask, [-1, 1]),
+                        tf.reshape(mask, [1, -1])), zero))
     q = tf.to_int32(tf.sqrt(tf.to_double(tf.shape(mask_mat)[0])))
-    L_masked = tf.reshape(tf.gather_nd(L, mask_mat), [q,q])
+    L_masked = tf.reshape(tf.gather_nd(L, mask_mat), [q, q])
 
     maskindex = tf.where(tf.not_equal(mask, zero))
     y_masked = tf.gather_nd(y, maskindex)
 
-    x_s1 = tf.matrix_triangular_solve(L_masked, y_masked, lower=lower, adjoint=adjoint)
+    x_s1 = tf.matrix_triangular_solve(L_masked, y_masked,
+                                      lower=lower, adjoint=adjoint)
     x = tf.scatter_nd(maskindex, x_s1, tf.to_int64(tf.shape(y)))
     return x
 
@@ -998,17 +1007,20 @@ def tf_solve_lower_triangular_masked_kron(L, y, mask):
         Dimension [n_0*n_1*..n_(m-1)), p]
 
     mask: 1-D tensor
-        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows and 0 for don't care
+        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows and 0
+        for don't care
 
     Returns
     -------
     x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows for which mask == 0 are set to zero
+        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows
+        for which mask == 0 are set to zero
 
     """
     n = len(L)
     if n == 1:
-        return tf_masked_triangular_solve(L[0], y, mask, lower=True, adjoint=False)
+        return tf_masked_triangular_solve(L[0], y, mask,
+                                          lower=True, adjoint=False)
     else:
         x = y
         na = L[0].get_shape().as_list()[0]
@@ -1016,25 +1028,28 @@ def tf_solve_lower_triangular_masked_kron(L, y, mask):
         n_prod = tf.to_int32(tf.reduce_prod(n_list))
         nb = tf.to_int32(n_prod/na)
         col = tf.shape(x)[1]
-        zero = tf.constant(0, dtype=tf.int32)
 
         for i in range(na):
             mask_b = tf.slice(mask, [i*nb], [nb])
             xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
             t = xinb / L[0][i, i]
 
-            if tf.reduce_sum(mask_b) != nb: 
+            if tf.reduce_sum(mask_b) != nb:
                 xinb = tf_solve_lower_triangular_masked_kron(L[1:], t, mask_b)
                 t_masked = tf_kron_mult(L[1:], xinb)
 
-            else: #all valid - same as no mask
+            else:
+                # all valid - same as no mask
                 xinb = tf_solve_lower_triangular_kron(L[1:], t)
                 t_masked = t
-            xina = xina - tf.reshape(tf.tile
-                           (tf.slice(L[0], [i+1, i], [na-i-1, 1]),
-                           [1, nb*col]), [(na-i-1)*nb, col]) * \
-                           tf.reshape(tf.tile(tf.reshape
-                           (t_masked, [-1, 1]), [na-i-1, 1]), [(na-i-1)*nb, col])
+            xina = (xina
+                    - tf.reshape(
+                        tf.tile(tf.slice(L[0], [i+1, i], [na-i-1, 1]),
+                                [1, nb*col]),
+                        [(na-i-1)*nb, col])
+                    * tf.reshape(
+                        tf.tile(tf.reshape(t_masked, [-1, 1]), [na-i-1, 1]),
+                        [(na-i-1)*nb, col]))
 
             x = tf.concat(axis=0, values=[xt, xinb, xina])
 
@@ -1056,17 +1071,20 @@ def tf_solve_upper_triangular_masked_kron(L, y, mask):
         Dimension [n_0*n_1*..n_(m-1)), p]
 
     mask: 1-D tensor
-        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows and 0 for don't care
+        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows
+        and 0 for don't care
 
     Returns
     -------
     x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows for which mask == 0 are set to zero
+        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows
+        for which mask == 0 are set to zero
 
     """
     n = len(L)
     if n == 1:
-        return tf_masked_triangular_solve(L[0], y, mask, lower=True, adjoint=True)
+        return tf_masked_triangular_solve(L[0], y, mask,
+                                          lower=True, adjoint=True)
     else:
         x = y
         na = L[0].get_shape().as_list()[0]
@@ -1074,7 +1092,6 @@ def tf_solve_upper_triangular_masked_kron(L, y, mask):
         n_prod = tf.to_int32(tf.reduce_prod(n_list))
         nb = tf.to_int32(n_prod/na)
         col = tf.shape(x)[1]
-        zero = tf.constant(0, dtype=tf.int32)
         L1_end_tr = [tf.transpose(x) for x in L[1:]]
 
         for i in range(na-1, -1, -1):
@@ -1089,12 +1106,14 @@ def tf_solve_upper_triangular_masked_kron(L, y, mask):
                 xinb = tf_solve_upper_triangular_kron(L[1:], t)
                 t_masked = t
 
-            xt = xt - tf.reshape(tf.tile(tf.transpose
-                                 (tf.slice(L[0], [i, 0], [1, i])),
-                                 [1, nb*col]), [i*nb, col]) * \
-                                 tf.reshape(tf.tile(tf.reshape
-                                 (t_masked, [-1, 1]), [i, 1]), [i*nb, col])
+            xt = (xt
+                  - tf.reshape(
+                      tf.tile(tf.transpose(tf.slice(L[0], [i, 0], [1, i])),
+                              [1, nb*col]),
+                      [i*nb, col])
+                  * tf.reshape(
+                      tf.tile(tf.reshape(t_masked, [-1, 1]), [i, 1]),
+                      [i*nb, col]))
             x = tf.concat(axis=0, values=[xt, xinb, xina])
 
         return x
-
