@@ -16,7 +16,7 @@ def gen_U_nips2016_example():
     U = np.eye(n_C) * 0.6
     U[8:12, 8:12] = 0.8
     for cond in range(8, 12):
-        U[cond,cond] = 1
+        U[cond, cond] = 1
 
     return U
 

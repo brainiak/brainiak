@@ -3,7 +3,8 @@ from numpy.testing import assert_allclose
 from scipy.stats import wishart, multivariate_normal
 import tensorflow as tf
 from brainiak.utils.brsa_gendata import rmn
-from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_conditional_col, matnorm_logp_conditional_row
+from matnormal_likelihoods import (matnorm_logp_conditional_col,
+                                   matnorm_logp_conditional_row)
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
 import logging
 
