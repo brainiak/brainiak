@@ -1,4 +1,4 @@
-from brainiak.matnormal import MNRSA
+from brainiak.matnormal.mnrsa import MNRSA
 from brainiak.utils.utils import cov2corr
 from brainiak.matnormal.covs import CovIdentity, CovDiagonal
 from scipy.stats import norm
