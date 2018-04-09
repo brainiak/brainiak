@@ -14,14 +14,14 @@ def solve_det_marginal(x, sigma, A, Q):
     """
     Use matrix inversion lemma for the solve:
     .. math::
-        (\Sigma + AQA')^{-1} X =\\
-         \Sigma^{-1} - \Sigma^{-1} A (Q^{-1} +
-          A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1}
+    (\Sigma + AQA')^{-1} X =\\
+    \Sigma^{-1} - \Sigma^{-1} A (Q^{-1} +
+    A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1}
 
     Use matrix determinant lemma for determinant:
-    ..math::
-        \log|(\Sigma + AQA')| = \log|Q^{-1} + A' \Sigma^{-1} A|
-         + \log|Q| + \log|\Sigma|
+    .. math::
+    \log|(\Sigma + AQA')| = \log|Q^{-1} + A' \Sigma^{-1} A|
+    + \log|Q| + \log|\Sigma|
     """
 
     # we care about condition number of i_qf
@@ -64,14 +64,14 @@ def solve_det_conditional(x, sigma, A, Q):
     """
     Use matrix inversion lemma for the solve:
     .. math::
-        (\Sigma - AQ^{-1}A')^{-1} X =\\
-         \Sigma^{-1} + \Sigma^{-1} A (Q -
-          A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1} X
+    (\Sigma - AQ^{-1}A')^{-1} X =\\
+    \Sigma^{-1} + \Sigma^{-1} A (Q -
+    A' \Sigma^{-1} A)^{-1} A' \Sigma^{-1} X
 
     Use matrix determinant lemma for determinant:
-    ..math::
-        \log|(\Sigma - AQ^{-1}A')| =
-         \log|Q - A' \Sigma^{-1} A| - \log|Q| + \log|\Sigma|
+    .. math::
+    \log|(\Sigma - AQ^{-1}A')| =
+    \log|Q - A' \Sigma^{-1} A| - \log|Q| + \log|\Sigma|
     """
 
     # (Q - A' Sigma^{-1} A)

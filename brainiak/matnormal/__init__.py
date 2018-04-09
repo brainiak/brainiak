@@ -1,5 +1,5 @@
 """The matrix variate normal distribution,
- with conditional and marginal identities
+with conditional and marginal identities
 ==========================================================================================
 
 .. math::
@@ -143,7 +143,7 @@ and transform it back into a matrix normal:
 
 We can do it in the other direction as well, because if
 :math:`\\X \\sim \\mathcal{MN}(M, U, V)` then :math:`\\X\\trp \\sim
- \\mathcal{MN}(M\\trp, V, U)`:
+\\mathcal{MN}(M\\trp, V, U)`:
 
 .. math::
     \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
@@ -249,6 +249,6 @@ of the matrix normal under transposition:
 
 These conditional likelihoods are implemented relatively efficiently
 in `MatnormModelBase.matnorm_logp_conditional_row` and
- `MatnormModelBase.matnorm_logp_conditional_col`.
+`MatnormModelBase.matnorm_logp_conditional_col`.
 
 """
