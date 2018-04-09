@@ -5,7 +5,7 @@ from brainiak.matnormal.covs import (CovIdentity,
                                      CovUnconstrainedInvCholesky,
                                      CovDiagonal)
 from brainiak.matnormal.regression import MatnormRegression
-from brainiak.utils.brsa_gendata import rmn
+from brainiak.matnormal.utils import rmn
 import logging
 
 logging.basicConfig(level=logging.DEBUG)

@@ -3,6 +3,7 @@ from brainiak.utils.utils import cov2corr
 from brainiak.matnormal.covs import CovIdentity, CovDiagonal
 from scipy.stats import norm
 from numpy.linalg import cholesky
+from brainiak.matnormal.utils import rmn
 import numpy as np
 import logging
 
@@ -21,10 +22,6 @@ def gen_U_nips2016_example():
     return U
 
 
-def rmn(rowcov, colcov):
-    # generate random draws from a zero-mean matrix-normal distribution
-    Z = norm.rvs(norm.rvs(size=(rowcov.shape[0], colcov.shape[0])))
-    return(cholesky(rowcov).dot(Z).dot(cholesky(colcov)))
 
 
 def gen_brsa_data_matnorm_model(U, n_T, n_V, space_cov, time_cov, n_nureg):
