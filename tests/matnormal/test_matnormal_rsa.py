@@ -2,7 +2,6 @@ from brainiak.matnormal.mnrsa import MNRSA
 from brainiak.utils.utils import cov2corr
 from brainiak.matnormal.covs import CovIdentity, CovDiagonal
 from scipy.stats import norm
-from numpy.linalg import cholesky
 from brainiak.matnormal.utils import rmn
 import numpy as np
 import logging
@@ -20,8 +19,6 @@ def gen_U_nips2016_example():
         U[cond, cond] = 1
 
     return U
-
-
 
 
 def gen_brsa_data_matnorm_model(U, n_T, n_V, space_cov, time_cov, n_nureg):
