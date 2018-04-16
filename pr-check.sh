@@ -113,6 +113,23 @@ $activate_venv $venv || {
 python3 -m pip install $ignore_installed -U -e . || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
+# Allow installation on OSes we do not formally support by installing packages
+# with unmet non-PyPI dependencies with Conda. This option is not supported and
+# should not be documented in user docs. In particular we use it on our CentOS
+# 6 Jenkins server for Tensorflow, which requires glibc >= 2.17.
+conda_override=$1
+if [ ${conda_override:-default} = "--conda-override" ]
+then
+    conda_override_packages=$2
+    if [ ${conda_override_packages:-default} = "default" ]
+    then
+        exit_with_error_and_venv "Missing Conda override package list"
+    else
+        echo $conda_override_packages | tr , " " | xargs conda install --yes
+    fi
+fi
+
+
 # install developer dependencies
 python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
