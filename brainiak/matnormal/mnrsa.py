@@ -8,6 +8,8 @@ from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 import logging
 
+__all__ = ['MNRSA']
+
 
 class MNRSA(BaseEstimator):
     """ Matrix normal version of RSA.
@@ -31,16 +33,18 @@ class MNRSA(BaseEstimator):
 
     2. MNRSA does not estimate the nuisance timecourse X_0. Instead,
     we expect the temporal noise covariance to capture the same property
-    (because when marginalizing over B_0 gives a low-rank component to the noise
-    covariance, something we hope to have available soon.
+    (because when marginalizing over B_0 gives a low-rank component
+    to the noise covariance, something we hope to have available soon.
 
     For users: in general, if you are worried about voxels each having
-    different temporal noise structure,you should use `brainiak.reprsimil.BRSA`.
-    If you are worried about between-voxel correlations or temporal covaraince
-    structures that BRSA does not support, you should use MNRSA.
+    different temporal noise structure,you should use
+    `brainiak.reprsimil.BRSA`. If you are worried about between-voxel
+    correlations or temporal covaraince structures that BRSA does not
+    support, you should use MNRSA.
 
     .. math::
-        Y \\sim \\mathcal{MN}(0, \\Sigma_t + XLL^{\\top}X^{\\top}+ X_0X_0^{\\top}, \\Sigma_s)
+        Y \\sim \\mathcal{MN}(0, \\Sigma_t + XLL^{\\top}X^{\\top}+
+         X_0X_0^{\\top}, \\Sigma_s)
         U = LL^{\\top}
 
     Parameters
@@ -121,7 +125,8 @@ class MNRSA(BaseEstimator):
 
         L_indeterminate = tf.matrix_band_part(self.L_full, -1, 0)
         self.L = tf.matrix_set_diag(L_indeterminate,
-                                    tf.exp(tf.matrix_diag_part(L_indeterminate)))
+                                    tf.exp(tf.matrix_diag_part(
+                                           L_indeterminate)))
 
         self.train_variables.extend([self.L_full])
 
@@ -134,12 +139,16 @@ class MNRSA(BaseEstimator):
                                             options=self.optCtrl)
 
         if logging.getLogger().isEnabledFor(logging.INFO):
-            optimizer._packed_loss_grad = tf.Print(optimizer._packed_loss_grad,
-                                                   [tf.reduce_min(optimizer._packed_loss_grad)],
-                                                   'mingrad')
-            optimizer._packed_loss_grad = tf.Print(optimizer._packed_loss_grad,
-                                                   [tf.reduce_max(optimizer._packed_loss_grad)],
-                                                   'maxgrad')
+            optimizer._packed_loss_grad = tf.Print(
+                                                optimizer._packed_loss_grad,
+                                                [tf.reduce_min(
+                                                 optimizer._packed_loss_grad)],
+                                                'mingrad')
+            optimizer._packed_loss_grad = tf.Print(
+                                                optimizer._packed_loss_grad,
+                                                [tf.reduce_max(
+                                                 optimizer._packed_loss_grad)],
+                                                'maxgrad')
             optimizer._packed_loss_grad = tf.Print(optimizer._packed_loss_grad,
                                                    [self.logp()], 'logp')
 

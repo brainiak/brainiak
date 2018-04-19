@@ -1,10 +1,11 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-from brainiak.matnormal.covs import\
-    CovIdentity, CovUnconstrainedCholesky, CovUnconstrainedInvCholesky, CovDiagonal
-from brainiak.matnormal import MatnormRegression
-from brainiak.utils.brsa_gendata import rmn
-import pytest
+from brainiak.matnormal.covs import (CovIdentity,
+                                     CovUnconstrainedCholesky,
+                                     CovUnconstrainedInvCholesky,
+                                     CovDiagonal)
+from brainiak.matnormal.regression import MatnormRegression
+from brainiak.matnormal.utils import rmn
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -59,6 +60,7 @@ def test_matnorm_regression_unconstrainedprec():
 
     assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
 
+
 def test_matnorm_regression_optimizerChoice():
 
     # Y = XB + eps
@@ -74,11 +76,13 @@ def test_matnorm_regression_optimizerChoice():
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov, optimizer="CG")
+    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov,
+                              optimizer="CG")
 
     model.fit(X, Y)
 
     assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+
 
 def test_matnorm_regression_scaledDiag():
 
@@ -101,5 +105,3 @@ def test_matnorm_regression_scaledDiag():
     model.fit(X, Y)
 
     assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
-
-

@@ -2,8 +2,10 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import multivariate_normal
 import tensorflow as tf
-from brainiak.utils.brsa_gendata import rmn
-from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_col, matnorm_logp_marginal_row
+from brainiak.matnormal.utils import rmn
+from brainiak.matnormal.matnormal_likelihoods import (
+                                matnorm_logp_marginal_col,
+                                matnorm_logp_marginal_row)
 
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
 import logging
@@ -43,7 +45,7 @@ def test_against_scipy_mvn_row_marginal():
                               rowcov_np))
 
         tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov,
-                                                        A_tf, Q)
+                                              A_tf, Q)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
 
 
@@ -71,5 +73,5 @@ def test_against_scipy_mvn_col_marginal():
                                                          colcov_np))
 
         tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov,
-                                                        A_tf, Q)
+                                              A_tf, Q)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)

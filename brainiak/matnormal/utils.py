@@ -1,5 +1,13 @@
 import functools  # https://danijar.com/structuring-your-tensorflow-models/
 import tensorflow as tf
+from scipy.stats import norm
+from numpy.linalg import cholesky
+
+
+def rmn(rowcov, colcov):
+    # generate random draws from a zero-mean matrix-normal distribution
+    Z = norm.rvs(norm.rvs(size=(rowcov.shape[0], colcov.shape[0])))
+    return(cholesky(rowcov).dot(Z).dot(cholesky(colcov)))
 
 
 def doublewrap(function):
