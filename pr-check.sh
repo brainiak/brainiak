@@ -116,26 +116,24 @@ python3 -m pip install -U "pip<10" || \
 python3 -m pip install $ignore_installed -U -e . || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
-# Allow installation on OSes we do not formally support by installing packages
-# with unmet non-PyPI dependencies with Conda. This option is not supported and
-# should not be documented in user docs. In particular we use it on our CentOS
-# 6 Jenkins server for Tensorflow, which requires glibc >= 2.17.
-conda_override=$1
-if [ ${conda_override:-default} = "--conda-override" ]
-then
-    conda_override_packages=$2
-    if [ ${conda_override_packages:-default} = "default" ]
-    then
-        exit_with_error_and_venv "Missing Conda override package list"
-    else
-        echo $conda_override_packages | tr , " " | xargs conda install --yes
-    fi
-fi
-
-
 # install developer dependencies
 python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
+
+# Source a user-specified Bash script to customize the installation.
+# This option is not supported and should not be documented in user docs.
+# In particular we use it on our CentOS 6 Jenkins server with .conda/bin/
+customization_script_flag=$1
+if [ ${customization_script_flag:-default} = "--customization-script" ]
+then
+    customization_script=$2
+    if [ ${customization_script:-default} = "default" ]
+    then
+        exit_with_error_and_venv "Must specify customization script"
+    else
+        source $customization_script
+    fi
+fi
 
 # static analysis
 ./run-checks.sh || \
