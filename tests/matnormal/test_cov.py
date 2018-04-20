@@ -9,7 +9,8 @@ from brainiak.matnormal.covs import (CovIdentity,
                                      CovUnconstrainedCholesky,
                                      CovUnconstrainedCholeskyWishartReg,
                                      CovUnconstrainedInvCholesky,
-                                     CovKroneckerFactored)
+                                     CovKroneckerFactored,
+                                     CovScaleMixin)
 import tensorflow as tf
 import pytest
 import logging
@@ -328,3 +329,24 @@ def test_CovAR1_scan_onsets():
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
                         rtol=rtol)
+
+def test_CovScaleMixin():
+
+    base_cov = CovUnconstrainedCholesky(size=m)
+    sc_np = np.abs(np.random.normal(size=5))
+    scales = tf.constant(sc_np)*5
+    covs = [CovScaleMixin(base_cov, scales[j]) for j in range(5)]
+
+
+    with tf.Session() as sess:
+        # initialize the random covariance
+        sess.run(tf.variables_initializer(base_cov.get_optimize_vars()))
+        # verify that it is truly that cov scaled
+        for j in range(5):
+
+            # compute the naive version
+            cov_np = base_cov.Sigma.eval(session=sess) * scales[j].eval(session=sess)
+
+            logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
+            assert_allclose(logdet_np, covs[j].logdet.eval(session=sess), rtol=rtol, atol=atol)
+            assert_allclose(sinvx_np, covs[j].Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol, atol=atol)
