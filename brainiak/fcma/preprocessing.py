@@ -39,7 +39,7 @@ __all__ = [
 
 
 def _separate_epochs(activity_data, epoch_list):
-    """ create data epoch by epoch
+    """ create image data epoch by epoch
 
     Separate data into epochs of interest specified in epoch_list
     and z-score them for computing correlation
@@ -101,7 +101,7 @@ def _randomize_single_subject(data, seed=None):
     Parameters
     ----------
     data: 2D array in shape [nVoxels, nTRs]
-        Activity data to be shuffled.
+        Activity image data to be shuffled.
     seed: Optional[int]
         Seed for random state used implicitly for shuffling.
 
@@ -123,7 +123,7 @@ def _randomize_subject_list(data_list, random):
     Parameters
     ----------
     data_list: list of 2D array in shape [nVxels, nTRs]
-        Activity data list to be shuffled.
+        Activity image data list to be shuffled.
     random: RandomType
         Randomization type.
 
@@ -142,11 +142,11 @@ def _randomize_subject_list(data_list, random):
 class RandomType(Enum):
     """Define the random types as enumeration
 
-    NORANDOM means do not randomize the data;
-    REPRODUCIBLE means randomize the data with a fixed seed so that the
+    NORANDOM means do not randomize the image data;
+    REPRODUCIBLE means randomize the image data with a fixed seed so that the
     permutation holds between different runs;
-    UNREPRODUCIBLE means truly randomize the data which returns different
-    results in different runs.
+    UNREPRODUCIBLE means truly randomize the image data which returns 
+    different results in different runs.
     """
     NORANDOM = 0
     REPRODUCIBLE = 1
