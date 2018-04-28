@@ -39,7 +39,7 @@ __all__ = [
 
 
 def _separate_epochs(activity_data, epoch_list):
-    """ create image data epoch by epoch
+    """ create data epoch by epoch
 
     Separate data into epochs of interest specified in epoch_list
     and z-score them for computing correlation
@@ -145,7 +145,7 @@ class RandomType(Enum):
     NORANDOM means do not randomize the image data;
     REPRODUCIBLE means randomize the image data with a fixed seed so that the
     permutation holds between different runs;
-    UNREPRODUCIBLE means truly randomize the image data which returns 
+    UNREPRODUCIBLE means truly randomize the image data which returns
     different results in different runs.
     """
     NORANDOM = 0
