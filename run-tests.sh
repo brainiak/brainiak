@@ -32,10 +32,10 @@ python3 -m pip freeze | grep -qi /brainiak \
 # If removing, also remove from .conda/*
 export MKL_THREADING_LAYER=GNU
 
-mpi_command=mpiexec
-if [ ! -z $SLURM_NODELIST ]
+mpi_command=$BRAINIAKDEV_MPI_COMMAND
+if [ -z $mpi_command ]
 then
-    mpi_command=srun
+    mpi_command=mpiexec
 fi
 $mpi_command -n 2 coverage run -m pytest
 
