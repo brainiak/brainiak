@@ -173,8 +173,7 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
         variable raw_data2 and the self-correlation on raw_data1 will be
         computed
     random: Optional[RandomType]
-        Randomize the data within subject or not.
-        Default NORANDOM
+        Randomize the image data within subject or not.
     comm: MPI.Comm
         MPI communicator to use for MPI operations.
 
@@ -344,7 +343,7 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
     data_type
         Type to cast image to.
     random: Optional[RandomType]
-        Randomize the data within subject or not.
+        Randomize the image data within subject or not.
 
     Returns
     -------
