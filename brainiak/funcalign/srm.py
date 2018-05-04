@@ -382,7 +382,8 @@ class SRM(BaseEstimator, TransformerMixin):
         return U.dot(V)
 
     def transform_subject(self, X):
-        """Transform a new subject using the existing model
+        """Transform a new subject using the existing model. 
+        The subject is assumed to have recieved equivalent stimulation
 
         Parameters
         ----------
@@ -406,8 +407,7 @@ class SRM(BaseEstimator, TransformerMixin):
             raise ValueError("The number of timepoints(TRs) does not match the"
                              "one in the model.")
 
-        for i in range(self.n_iter):
-            w = self._update_transform_subject(X, self.s_)
+        w = self._update_transform_subject(X, self.s_)
 
         return w
 
@@ -757,7 +757,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return U.dot(V)
 
     def transform_subject(self, X):
-        """Transform a new subject using the existing model
+        """Transform a new subject using the existing model.
+        The subject is assumed to have recieved equivalent stimulation
 
         Parameters
         ----------
@@ -780,8 +781,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
             raise ValueError("The number of timepoints(TRs) does not match the"
                              "one in the model.")
 
-        for i in range(self.n_iter):
-            w = self._update_transform_subject(X, self.s_)
+        w = self._update_transform_subject(X, self.s_)
 
         return w
 
