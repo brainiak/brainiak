@@ -357,6 +357,60 @@ class SRM(BaseEstimator, TransformerMixin):
 
         return loglikehood
 
+    @staticmethod
+    def _update_transform_subject(Xi, S):
+        """Updates the mappings `W_i` for one subject.
+
+        Parameters
+        ----------
+
+        Xi : array, shape=[voxels, timepoints]
+            The fMRI data :math:`X_i` for aligning the subject.
+
+        S : array, shape=[features, timepoints]
+            The shared response.
+
+        Returns
+        -------
+
+        Wi : array, shape=[voxels, features]
+            The orthogonal transform (mapping) :math:`W_i` for the subject.
+        """
+        A = Xi.dot(S.T)
+        # Solve the Procrustes problem
+        U, _, V = np.linalg.svd(A, full_matrices=False)
+        return U.dot(V)
+
+    def transform_subject(self, X):
+        """Transform a new subject using the existing model
+
+        Parameters
+        ----------
+
+        X : 2D array, shape=[voxels, timepoints]
+            The fMRI data of the new subject.
+
+        Returns
+        -------
+
+        w : 2D array, shape=[voxels, features]
+            Orthogonal mapping `W_{new}` for new subject
+
+        """
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of TRs in the subject
+        if X.shape[1] != self.s_.shape[1]:
+            raise ValueError("The number of timepoints(TRs) does not match the"
+                             "one in the model.")
+
+        for i in range(self.n_iter):
+            w = self._update_transform_subject(X, self.s_)
+
+        return w
+
     def _srm(self, data):
         """Expectation-Maximization algorithm for fitting the probabilistic SRM.
 
@@ -393,7 +447,7 @@ class SRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2**32))
+            np.random.RandomState(self.random_state_.randint(2 ** 32))
             for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
@@ -453,7 +507,7 @@ class SRM(BaseEstimator, TransformerMixin):
                 # Update the shared response
                 shared_response = sigma_s.dot(
                     np.identity(self.features) - rho0 * inv_sigma_s_rhos).dot(
-                        wt_invpsi_x)
+                    wt_invpsi_x)
 
                 # M-step
 
@@ -649,7 +703,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
         objective = 0.0
         for m in range(subjects):
             objective += \
-                np.linalg.norm(data[m] - w[m].dot(s), 'fro')**2
+                np.linalg.norm(data[m] - w[m].dot(s), 'fro') ** 2
 
         return objective * 0.5 / data[0].shape[1]
 
@@ -678,6 +732,59 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         return s
 
+    @staticmethod
+    def _update_transform_subject(Xi, S):
+        """Updates the mappings `W_i` for one subject.
+
+        Parameters
+        ----------
+
+        Xi : array, shape=[voxels, timepoints]
+            The fMRI data :math:`X_i` for aligning the subject.
+
+        S : array, shape=[features, timepoints]
+            The shared response.
+
+        Returns
+        -------
+
+        Wi : array, shape=[voxels, features]
+            The orthogonal transform (mapping) :math:`W_i` for the subject.
+        """
+        A = Xi.dot(S.T)
+        # Solve the Procrustes problem
+        U, _, V = np.linalg.svd(A, full_matrices=False)
+        return U.dot(V)
+
+    def transform_subject(self, X):
+        """Transform a new subject using the existing model
+
+        Parameters
+        ----------
+
+        X : 2D array, shape=[voxels, timepoints]
+            The fMRI data of the new subject.
+
+        Returns
+        -------
+
+        w : 2D array, shape=[voxels, features]
+            Orthogonal mapping `W_{new}` for new subject
+        """
+        # Check if the model exist
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        # Check the number of TRs in the subject
+        if X.shape[1] != self.s_.shape[1]:
+            raise ValueError("The number of timepoints(TRs) does not match the"
+                             "one in the model.")
+
+        for i in range(self.n_iter):
+            w = self._update_transform_subject(X, self.s_)
+
+        return w
+
     def _srm(self, data):
         """Expectation-Maximization algorithm for fitting the probabilistic SRM.
 
@@ -702,7 +809,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2**32))
+            np.random.RandomState(self.random_state_.randint(2 ** 32))
             for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
