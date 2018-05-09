@@ -152,6 +152,11 @@ def test_new_subject():
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
         X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+        
+    # Check that transform does NOT run before fitting the model
+    with pytest.raises(NotFittedError):
+        s.transform(X)
+    print("Test: transforming before fitting the model")
 
     # Check that runs with 2 subject
     s.fit(X)
