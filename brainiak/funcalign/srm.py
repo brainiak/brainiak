@@ -382,7 +382,7 @@ class SRM(BaseEstimator, TransformerMixin):
         return U.dot(V)
 
     def transform_subject(self, X):
-        """Transform a new subject using the existing model. 
+        """Transform a new subject using the existing model.
         The subject is assumed to have recieved equivalent stimulation
 
         Parameters
