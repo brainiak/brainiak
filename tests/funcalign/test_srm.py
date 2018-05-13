@@ -98,7 +98,7 @@ def test_can_instantiate():
             "Invalid computation of SRM! (wrong # features after transform)")
         assert new_s[subject].shape[1] == samples, (
             "Invalid computation of SRM! (wrong # samples after transform)")
-    
+
     # Check that it does NOT run with non-matching number of subjects
     with pytest.raises(ValueError):
         s.transform(X[1])
@@ -117,6 +117,7 @@ def test_can_instantiate():
         s.fit(X)
     print("Test: different number of samples per subject")
 
+    
 def test_new_subject():
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
@@ -152,7 +153,7 @@ def test_new_subject():
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
         X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
-        
+
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
         s.transform(X)
@@ -160,15 +161,15 @@ def test_new_subject():
 
     # Check that runs with 2 subject
     s.fit(X)
-    
+
     # Check that it does run to compute a new subject
     new_w = s.transform_subject(X[0])
     assert new_w.shape[1] == features, (
             "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
             "Invalid computation of SRM! (wrong # voxels for new subject)")
-    
-    
+
+
 def test_det_srm():
     import brainiak.funcalign.srm
     model = brainiak.funcalign.srm.DetSRM()
@@ -250,14 +251,14 @@ def test_det_srm():
             "transform)")
         assert new_s[subject].shape[1] == samples, (
             "Invalid computation of DetSRM! (wrong # samples after transform)")
-    
+
     # Check that it does run to compute a new subject
     new_w = model.transform_subject(X[0])
     assert new_w.shape[1] == features, (
             "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
             "Invalid computation of SRM! (wrong # voxels for new subject)")
-    
+
     # Check that it does NOT run with non-matching number of subjects
     with pytest.raises(ValueError):
         model.transform(X[1])
