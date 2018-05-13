@@ -117,7 +117,7 @@ def test_can_instantiate():
         s.fit(X)
     print("Test: different number of samples per subject")
 
-    
+
 def test_new_subject():
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
