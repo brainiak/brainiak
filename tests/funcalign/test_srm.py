@@ -162,8 +162,26 @@ def test_new_subject():
     # Check that runs with 2 subject
     s.fit(X)
 
+    # Check that you get an error when the data is the wrong shape
+    with pytest.raises(ValueError):
+        s.transform_subject(X[0].T)
+
     # Check that it does run to compute a new subject
     new_w = s.transform_subject(X[0])
+    assert new_w.shape[1] == features, (
+            "Invalid computation of SRM! (wrong # features for new subject)")
+    assert new_w.shape[0] == voxels, (
+            "Invalid computation of SRM! (wrong # voxels for new subject)")
+
+    # Check that these analyses work with the deterministic SRM too
+    ds = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
+    ds.fit(X)
+    # Check that you get an error when the data is the wrong shape
+    with pytest.raises(ValueError):
+        ds.transform_subject(X[0].T)
+
+    # Check that it does run to compute a new subject
+    new_w = ds.transform_subject(X[0])
     assert new_w.shape[1] == features, (
             "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
