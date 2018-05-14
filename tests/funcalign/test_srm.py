@@ -128,7 +128,7 @@ def test_new_subject():
 
     voxels = 100
     samples = 500
-    subjects = 2
+    subjects = 3
     features = 3
 
     s = brainiak.funcalign.srm.SRM(n_iter=5, features=features)
@@ -159,7 +159,7 @@ def test_new_subject():
         s.transform(X)
     print("Test: transforming before fitting the model")
 
-    # Check that runs with 2 subject
+    # Check that runs with 3 subject
     s.fit(X)
 
     # Check that you get an error when the data is the wrong shape
@@ -176,6 +176,7 @@ def test_new_subject():
     # Check that these analyses work with the deterministic SRM too
     ds = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
     ds.fit(X)
+
     # Check that you get an error when the data is the wrong shape
     with pytest.raises(ValueError):
         ds.transform_subject(X[0].T)
