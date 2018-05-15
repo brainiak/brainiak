@@ -156,7 +156,7 @@ def test_new_subject():
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
-        s.transform(X)
+        s.transform_subject(X)
     print("Test: transforming before fitting the model")
 
     # Check that runs with 3 subject
@@ -178,7 +178,7 @@ def test_new_subject():
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
-        ds.transform(X)
+        ds.transform_subject(X)
     print("Test: transforming before fitting the model")
 
     # Check that runs with 3 subject
