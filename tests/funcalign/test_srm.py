@@ -175,6 +175,13 @@ def test_new_subject():
 
     # Check that these analyses work with the deterministic SRM too
     ds = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
+
+    # Check that transform does NOT run before fitting the model
+    with pytest.raises(NotFittedError):
+        ds.transform(X)
+    print("Test: transforming before fitting the model")
+
+    # Check that runs with 3 subject
     ds.fit(X)
 
     # Check that you get an error when the data is the wrong shape
