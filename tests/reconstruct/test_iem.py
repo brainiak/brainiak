@@ -13,12 +13,16 @@
 #  limitations under the License.
 
 import pytest
+import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def test_can_instantiate():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding()
-    assert s, "Invalid InvertedEncoding instance!"
+    assert s, "Invalid InvertedEncoding instance"
 
 
 def test_cannot_instantiate_channels():
@@ -28,3 +32,192 @@ def test_cannot_instantiate_channels():
         X = 0
         y = 0
         s.fit(X, y)
+
+
+def test_can_fit_data():
+    import brainiak.reconstruct.iem
+
+    n, dim = 300, 9
+    n_ = int(n / 3)
+    np.random.seed(0)
+    C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+    centers_0 = np.linspace(-1, 1, dim)
+    centers_60 = np.roll(centers_0, 5)
+    centers_120 = centers_0[::-1]
+    X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                   np.dot(np.random.randn(n_, dim), C) + centers_60,
+                   np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+    y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+    '''Create iem object'''
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+    Invt_model.fit(X, y)
+
+
+def test_cannot_fit_data():
+    import brainiak.reconstruct.iem
+    with pytest.raises(ValueError):
+        n, dim = 300, 9
+        n_ = int(n / 3)
+        np.random.seed(0)
+        C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+        centers_0 = np.linspace(-1, 1, dim)
+        centers_60 = np.roll(centers_0, 5)
+        centers_120 = centers_0[::-1]
+        X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                       np.dot(np.random.randn(n_, dim), C) + centers_60,
+                       np.dot(np.random.randn(n_, dim), C) + centers_120))
+        X = X.transpose()  # the offending line - data not correct dim.
+
+        y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+        '''Create iem object'''
+        Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+        Invt_model.fit(X, y)
+
+
+def test_can_predict_from_data():
+    import brainiak.reconstruct.iem
+    n, dim = 300, 9
+    n_ = int(n / 3)
+    np.random.seed(0)
+    C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+    centers_0 = np.linspace(-1, 1, dim)
+    centers_60 = np.roll(centers_0, 5)
+    centers_120 = centers_0[::-1]
+    X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                   np.dot(np.random.randn(n_, dim), C) + centers_60,
+                   np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+    y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+    '''Create iem object'''
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    r_hat_0 = Invt_model.predict(X2_0)
+    r_hat_60 = Invt_model.predict(X2_60)
+    r_hat_120 = Invt_model.predict(X2_120)
+    m_reconstruct = [np.mean(r_hat_0), np.mean(r_hat_60), np.mean(r_hat_120)]
+    logger.info('Reconstructed angles: ' + str(m_reconstruct))
+
+
+def test_cannot_predict_from_data():
+    import brainiak.reconstruct.iem
+    with pytest.raises(ValueError):
+        n, dim = 300, 9
+        n_ = int(n / 3)
+        np.random.seed(0)
+        C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+        centers_0 = np.linspace(-1, 1, dim)
+        centers_60 = np.roll(centers_0, 5)
+        centers_120 = centers_0[::-1]
+        X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                       np.dot(np.random.randn(n_, dim), C) + centers_60,
+                       np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+        y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+        '''Create iem object'''
+        Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+        Invt_model.fit(X, y)
+
+        X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+        X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+        X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+        X2_0 = X2_0.transpose()  # offending lines - data wrong dimensions.
+        X2_60 = X2_60.transpose()
+        X2_120 = X2_120.transpose()
+
+        r_hat_0 = Invt_model.predict(X2_0)
+        r_hat_60 = Invt_model.predict(X2_60)
+        r_hat_120 = Invt_model.predict(X2_120)
+        m_reconstruct = [np.mean(r_hat_0),
+                         np.mean(r_hat_60),
+                         np.mean(r_hat_120)]
+        logger.info('Reconstructed angles: ' + str(m_reconstruct))
+
+
+def test_can_score():
+    import brainiak.reconstruct.iem
+
+    n, dim = 300, 9
+    n_ = int(n / 3)
+    np.random.seed(0)
+    C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+    centers_0 = np.linspace(-1, 1, dim)
+    centers_60 = np.roll(centers_0, 5)
+    centers_120 = centers_0[::-1]
+    X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                   np.dot(np.random.randn(n_, dim), C) + centers_60,
+                   np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+    y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+    '''Create iem object'''
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    X2_0 = X2_0
+    X2_60 = X2_60
+    X2_120 = X2_120
+
+    y2_0 = np.zeros(n_)
+    y2_60 = 60 * np.ones(n_)
+    y2_120 = 120 * np.ones(n_)
+
+    X2_ = np.vstack((X2_0, X2_60, X2_120))
+    y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+    score = Invt_model.score(X2_, y2_)
+    logger.info('Scores: ' + str(score))
+
+
+def test_cannot_score():
+    import brainiak.reconstruct.iem
+    with pytest.raises(ValueError):
+        n, dim = 300, 9
+        n_ = int(n / 3)
+        np.random.seed(0)
+        C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+        centers_0 = np.linspace(-1, 1, dim)
+        centers_60 = np.roll(centers_0, 5)
+        centers_120 = centers_0[::-1]
+        X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                       np.dot(np.random.randn(n_, dim), C) + centers_60,
+                       np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+        y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+        '''Create iem object'''
+        Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+        Invt_model.fit(X, y)
+
+        # create data intentionally insufficient
+        X2_0 = np.dot(np.random.randn(2, dim), C) + centers_0
+        X2_60 = np.dot(np.random.randn(2, dim), C) + centers_60
+        X2_120 = np.dot(np.random.randn(2, dim), C) + centers_120
+
+        X2_0 = X2_0
+        X2_60 = X2_60
+        X2_120 = X2_120
+
+        y2_0 = np.zeros(n_)
+        y2_60 = 60 * np.ones(n_)
+        y2_120 = 120 * np.ones(n_)
+
+        X2_ = np.vstack((X2_0, X2_60, X2_120))
+        y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+        score = Invt_model.score(X2_, y2_)
+        logger.info('Scores: ' + str(score))

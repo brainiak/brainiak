@@ -13,7 +13,7 @@
 #  limitations under the License.
 """Inverted Encoding Model (IEM)
 
-The implementations are based on the following publications:
+The implementation is roughly based on the following publications:
 
 .. [Kok2013] "1.Kok, P., Brouwer, G. J., Gerven, M. A. J. van &
 Lange, F. P. de. Prior Expectations Bias Sensory Representations
@@ -25,15 +25,14 @@ Cortex. J. Neurosci. 29, 13992–14003 (2009).
 
 """
 
-# Authors: David Huberdeau (Yale University), 2018;
-# Peter Kok (Yale University)
+# Authors: David Huberdeau (Yale University) &
+# Peter Kok (Yale University), 2018
 
 import logging
 import numpy as np
 from sklearn import linear_model
 from sklearn.base import BaseEstimator
 import math
-from scipy.ndimage.interpolation import shift
 
 __all__ = [
     "InvertedEncoding"
@@ -45,66 +44,100 @@ logger = logging.getLogger(__name__)
 class InvertedEncoding(BaseEstimator):
 
     def __init__(self, n_channels=5, range_start=0, range_stop=180):
-        self.n_channels = n_channels
-        self.range_start = range_start
-        self.range_stop = range_stop
+        self.n_channels = n_channels  # default = 5
+        self.range_start = range_start  # in degrees, 0 - 360, def=0
+        self.range_stop = range_stop  # in degrees, 0 - 360, def=180
 
     def fit(self, X, y):
         # Check that there are channels specified
-        if self.n_channels < 1:
+        if self.n_channels < 2:
             raise ValueError("Insufficient channels.")
+        # Check that there is enough data.. should be more
+        # samples than voxels (i.e. X should be tall)
+        shape_data = np.shape(X)
+        shape_labels = np.shape(y)
+        if len(shape_data) < 2:
+            raise ValueError("Not enough data")
+        else:
+            if np.size(X, 0) <= np.size(X, 1):
+                raise ValueError("Data Matrix ill-conditioned")
+            if shape_data[0] != shape_labels[0]:
+                raise ValueError(
+                    "Mismatched data samples and label samples")
 
-        self.range_ = np.linspace(self.range_start,
-                                  self.range_stop,
-                                  self.n_channels)
-        self.C_ = self._define_channels()
-
+        self.C_, self.C_D_ = self._define_channels()
         n_train = len(y)
-        train_labels = np.round(y).astype(int)
         F = np.empty((n_train, self.n_channels))
         for i_tr in range(n_train):
             # Find channel activation for this orientation
-            F[i_tr, :] = self.C_[:, train_labels[i_tr]]
-
+            k_min = np.argmin((y[i_tr] - self.C_D_)**2)
+            F[i_tr, :] = self.C_[:, k_min]
         clf = linear_model.LinearRegression(fit_intercept=False,
                                             normalize=False)
         clf.fit(F, X)
-        self.W_ = clf.coef_
+        self.W_ = clf
         return self
 
     def predict(self, X):
-        clf = linear_model.LinearRegression(fit_intercept=False,
-                                            normalize=False)
-        clf.fit(self.W_, X)
-        channel_response = clf.coef_
-        return channel_response
+        # Check that there is enough data.. should be more
+        # samples than voxels (i.e. X should be tall)
+        shape_data = np.shape(X)
+        if len(shape_data) < 2:
+            raise ValueError("Not enough data")
+        else:
+            if np.size(X, 0) <= np.size(X, 1):
+                raise ValueError("Data Matrix ill-conditioned")
+        pred_response = self._predict_directions(X)
+        pred_indx = np.argmax(pred_response, axis=1)
+        pred_dir = self.C_D_[pred_indx]
+        return pred_dir
 
     def score(self, X, y):
-        pred_channel_resp = self.predict(X)
-
-        # from the channel responses, we can reconstruct the
-        # represented orientation
-        orientation = pred_channel_resp.dot(self.C)
-        u = ((y - orientation)**2).sum()
+        pred_dir = self.predict(X)
+        u = ((y - pred_dir)**2).sum()
         v = ((y - np.mean(y))**2).sum()
         rss = (1 - u/v)
         return rss
 
+    def get_params(self, deep=True):
+        return{"n_channels": self.n_channels,
+               "range_start": self.range_start,
+               "range_stop": self.range_stop}
+
+    def set_params(self, **parameters):
+        for parameter, value in parameters.items():
+            setattr(self, parameter, value)
+        return self
+
     def _define_channels(self):
-        # avoid non-integers
-        channel_peaks = np.round(self.range_[0]).astype(int)
-        channel_shifts = channel_peaks - int(self.range_stop / 2)
+        channel_exp = 6
+        channel_density = 180
+        shifts = np.linspace(0,
+                             math.pi - math.pi/self.n_channels,
+                             self.n_channels)
 
-        idealized_channel = np.sin(np.linspace(self.range_[0],
-                                               math.pi,
-                                               self.range_[-1]))
-        idealized_channel = idealized_channel ** (self.n_channels - 1)
+        channel_domain = np.linspace(self.range_start,
+                                     self.range_stop,
+                                     channel_density)
 
-        channels = np.zeros(self.n_channels, self.range_)
+        channels = np.zeros((self.n_channels, channel_density))
         for i in range(self.n_channels):
-            channels[i, :] = shift(idealized_channel,
-                                   channel_shifts[i],
-                                   cval=0)
-            channels[i, :] = np.roll(idealized_channel,
-                                     channel_shifts[i])
-        return channels
+            channels[i, :] = np.cos(np.linspace(0, math.pi, channel_density)
+                                    - shifts[i]) ** channel_exp
+        # Check that channels provide sufficient coverage
+        ch_sum_range = np.max(np.sum(channels, 0)) - min(np.sum(channels, 0))
+        if ch_sum_range > np.deg2rad(self.range_stop - self.range_start)*0.1:
+            # if range of channel sum > 10% channel domain size
+            raise ValueError("Insufficient channel coverage.")
+        return channels, channel_domain
+
+    def _predict_channel_responses(self, X):
+        clf = linear_model.LinearRegression(fit_intercept=False,
+                                            normalize=False)
+        clf.fit(self.W_.coef_, X.transpose())
+        channel_response = clf.coef_
+        return channel_response
+
+    def _predict_directions(self, X):
+        pred_response = self._predict_channel_responses(X).dot(self.C_)
+        return pred_response
