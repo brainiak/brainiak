@@ -12,9 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-"""Inverted Encoding Model (IEM) Test with fabricated data
+"""
 
-author: David Huberdeau
+    Inverted Encoding Model (IEM) Test with fabricated data
+
+    author: David Huberdeau
+
 """
 
 import numpy as np
@@ -23,11 +26,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-'''Generate synthetic data with dimension 9 and linearly separable'''
+# Generate synthetic data with dimension 9 and linearly separable
+
 n, dim = 300, 9
 n_ = int(n/3)
 np.random.seed(0)
-C = -.25 + .5*np.random.rand(dim, dim) #covariance matrix
+C = -.25 + .5*np.random.rand(dim, dim)  # covariance matrix
 centers_0 = np.linspace(-1, 1, dim)
 centers_60 = np.roll(centers_0,5)
 centers_120 = centers_0[::-1]
@@ -37,9 +41,10 @@ X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
 
 y = np.hstack((np.zeros(n_), 60*np.ones(n_), 120*np.ones(n_)))
 
-'''Create iem object'''
+# Create iem object
+
 Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
-Invt_model.fit(X,y)
+Invt_model.fit(X, y)
 
 X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
 X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
@@ -59,7 +64,6 @@ y_hat_120 = Invt_model._predict_directions(X2_120)
 
 m_reconstruct = [np.mean(r_hat_0), np.mean(r_hat_60), np.mean(r_hat_120)]
 logger.info('Reconstructed angles: ' + str(m_reconstruct))
-# print("Reconstructed angles: " + str(m_reconstruct))
 
 m0 = np.mean(y_hat_0, axis=0)
 m60 = np.mean(y_hat_60, axis=0)
@@ -73,8 +77,5 @@ X2_ = np.vstack((X2_0, X2_60, X2_120))
 y2_ = np.hstack((y2_0, y2_60, y2_120))
 
 score_ = Invt_model.score(X2_, y2_)
-# score60 = Invt_model.score(X2_60, y2_60)
-# score120 = Invt_model.score(X2_120, y2_120)
-# print("Scores: " + str([score0, score60, score120]))
-# print("scores:" + str(score_))
+
 logger.info('Scores: ' + str(score_))

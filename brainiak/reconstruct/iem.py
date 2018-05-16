@@ -13,15 +13,15 @@
 #  limitations under the License.
 """Inverted Encoding Model (IEM)
 
-The implementation is roughly based on the following publications:
+    The implementation is roughly based on the following publications:
 
-.. [Kok2013] "1.Kok, P., Brouwer, G. J., Gerven, M. A. J. van &
-Lange, F. P. de. Prior Expectations Bias Sensory Representations
-in Visual Cortex. J. Neurosci. 33, 16275–16284 (2013).
+    .. [Kok2013] "1.Kok, P., Brouwer, G. J., Gerven, M. A. J. van &
+    Lange, F. P. de. Prior Expectations Bias Sensory Representations
+    in Visual Cortex. J. Neurosci. 33, 16275–16284 (2013).
 
-.. [Bouwer2009] "1.Brouwer, G. J. & Heeger, D. J.
-Decoding and Reconstructing Color from Responses in Human Visual
-Cortex. J. Neurosci. 29, 13992–14003 (2009).
+    .. [Bouwer2009] "1.Brouwer, G. J. & Heeger, D. J.
+    Decoding and Reconstructing Color from Responses in Human Visual
+    Cortex. J. Neurosci. 29, 13992–14003 (2009).
 
 """
 
