@@ -321,5 +321,3 @@ def test_calc_noise():
     assert sfnr_diff < 10, 'sfnr calculated incorrectly'
     ar1_diff = abs(nd_orig['auto_reg_rho'][0] - nd_new['auto_reg_rho'][0])
     assert  ar1_diff < 1, 'AR1 calculated incorrectly'
-    ar2_diff = abs(nd_orig['auto_reg_rho'][1] - nd_new['auto_reg_rho'][1])
-    assert  ar2_diff < 1, 'AR2 calculated incorrectly'

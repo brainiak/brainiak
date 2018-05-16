@@ -2789,15 +2789,15 @@ def generate_noise(dimensions,
     if template.max() > 1.1:
         raise ValueError('Template out of range')
 
-    if abs(noise_dict['auto_reg_rho'][0]) - abs(noise_dict['ma_rho'][0]) < 0.1:
-        logger.warning('ARMA coefs are close, may have troule fitting')
-
     # Change to be an empty dictionary if it is None
     if noise_dict is None:
         noise_dict = {}
 
     # Take in the noise dictionary and add any missing information
     noise_dict = _noise_dict_update(noise_dict)
+
+    if abs(noise_dict['auto_reg_rho'][0]) - abs(noise_dict['ma_rho'][0]) < 0.1:
+        logger.warning('ARMA coefs are close, may have troule fitting')
 
     # What are the dimensions of the volume, including time
     dimensions_tr = (dimensions[0],
