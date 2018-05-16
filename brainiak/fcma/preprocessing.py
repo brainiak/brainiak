@@ -101,7 +101,7 @@ def _randomize_single_subject(data, seed=None):
     Parameters
     ----------
     data: 2D array in shape [nVoxels, nTRs]
-        Activity data to be shuffled.
+        Activity image data to be shuffled.
     seed: Optional[int]
         Seed for random state used implicitly for shuffling.
 
@@ -123,7 +123,7 @@ def _randomize_subject_list(data_list, random):
     Parameters
     ----------
     data_list: list of 2D array in shape [nVxels, nTRs]
-        Activity data list to be shuffled.
+        Activity image data list to be shuffled.
     random: RandomType
         Randomization type.
 
@@ -142,11 +142,11 @@ def _randomize_subject_list(data_list, random):
 class RandomType(Enum):
     """Define the random types as enumeration
 
-    NORANDOM means do not randomize the data;
-    REPRODUCIBLE means randomize the data with a fixed seed so that the
+    NORANDOM means do not randomize the image data;
+    REPRODUCIBLE means randomize the image data with a fixed seed so that the
     permutation holds between different runs;
-    UNREPRODUCIBLE means truly randomize the data which returns different
-    results in different runs.
+    UNREPRODUCIBLE means truly randomize the image data which returns
+    different results in different runs.
     """
     NORANDOM = 0
     REPRODUCIBLE = 1
@@ -173,8 +173,7 @@ def prepare_fcma_data(images, conditions, mask1, mask2=None,
         variable raw_data2 and the self-correlation on raw_data1 will be
         computed
     random: Optional[RandomType]
-        Randomize the data within subject or not.
-        Default NORANDOM
+        Randomize the image data within subject or not.
     comm: MPI.Comm
         MPI communicator to use for MPI operations.
 
@@ -344,7 +343,7 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
     data_type
         Type to cast image to.
     random: Optional[RandomType]
-        Randomize the data within subject or not.
+        Randomize the image data within subject or not.
 
     Returns
     -------
