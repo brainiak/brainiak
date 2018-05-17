@@ -221,3 +221,21 @@ def test_cannot_score():
 
         score = Invt_model.score(X2_, y2_)
         logger.info('Scores: ' + str(score))
+
+
+def test_can_get_params():
+    import brainiak.reconstruct.iem
+    s = brainiak.reconstruct.iem.InvertedEncoding(6, 0, 180)
+    param_out = s.get_params()
+    logger.info('Returned Parameters: ' +
+                str(param_out.get('n_channels')) +
+                ', ' + str(param_out.get('range_start')) +
+                ', ' + str(param_out.get('range_stop')))
+
+
+def test_can_set_params():
+    import brainiak.reconstruct.iem
+    s = brainiak.reconstruct.iem.InvertedEncoding(6, 0, 180)
+    s.set_params(n_channels=10,
+                 range_start=-90,
+                 range_stop=270)
