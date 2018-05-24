@@ -1239,7 +1239,11 @@ def _calc_ARMA_noise(volume,
         What order of the autoregression do you want to estimate
 
     sample_num : int
-        How many voxels would you like to sample to calculate the AR values
+        How many voxels would you like to sample to calculate the AR values.
+        The AR distribution of real data is approximately exponential maxing
+        at 1. From analyses across a number of participants, to get less 
+        than 1% standard deviation of error from the true mean it is
+        necessary to sample at least 1000 voxels.
 
     Returns
     -------
