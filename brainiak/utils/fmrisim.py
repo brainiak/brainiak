@@ -1218,7 +1218,7 @@ def _calc_ARMA_noise(volume,
                      mask,
                      auto_reg_order=1,
                      ma_order=1,
-                     sample_num=100,
+                     sample_num=1000,
                      ):
     """ Calculate the the ARMA noise of a volume
     This calculates the autoregressive and moving average noise of the volume
@@ -1653,7 +1653,8 @@ def _generate_noise_temporal_autoregression(timepoints,
         _generate_temporal_noise. The sigma values describe the proportion of
         mixing of these elements. However critically, SFNR is the
         parameter that describes how much noise these components contribute
-        to the brain.
+        to the brain. If you set the noise dict to matched then it will fit
+        the parameters to match the participant as best as possible.
 
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
@@ -2005,7 +2006,8 @@ def _generate_noise_temporal(stimfunction_tr,
         _generate_temporal_noise. The sigma values describe the proportion of
         mixing of these elements. However critically, SFNR is the
         parameter that describes how much noise these components contribute
-        to the brain.
+        to the brain. If you set the noise dict to matched then it will fit
+        the parameters to match the participant as best as possible.
 
     Returns
     ----------
@@ -2244,7 +2246,8 @@ def _noise_dict_update(noise_dict):
         _generate_temporal_noise. These values describe the proportion of
         mixing of these elements. However critically, SFNR is the
         parameter that describes how much noise these components contribute
-        to the brain.
+        to the brain. If you set the noise dict to matched then it will fit
+        the parameters to match the participant as best as possible.
 
     Returns
     -------
@@ -2279,6 +2282,8 @@ def _noise_dict_update(noise_dict):
         noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
     if 'fwhm' not in noise_dict:
         noise_dict['fwhm'] = 4
+    if 'matched' not in noise_dict:
+        noise_dict['matched'] = 0
 
     return noise_dict
 
@@ -2331,7 +2336,8 @@ def _fit_snr(noise,
             _generate_temporal_noise. These values describe the proportion of
             mixing of these elements. However critically, SFNR is the
             parameter that describes how much noise these components contribute
-            to the brain.
+            to the brain. If you set the noise dict to matched then it will
+            fit the parameters to match the participant as best as possible.
 
         fit_thresh : float
             What proportion of the target parameter value is sufficient error to
@@ -2469,7 +2475,8 @@ def _fit_sfnr(noise,
             _generate_temporal_noise. These values describe the proportion of
             mixing of these elements. However critically, SFNR is the
             parameter that describes how much noise these components contribute
-            to the brain.
+            to the brain. If you set the noise dict to matched then it will
+            fit the parameters to match the participant as best as possible.
 
         fit_thresh : float
             What proportion of the target parameter value is sufficient error to
@@ -2601,7 +2608,8 @@ def _fit_ar(noise,
             _generate_temporal_noise. These values describe the proportion of
             mixing of these elements. However critically, SFNR is the
             parameter that describes how much noise these components contribute
-            to the brain.
+            to the brain. If you set the noise dict to matched then it will
+            fit the parameters to match the participant as best as possible.
 
         fit_thresh : float
             What proportion of the target parameter value is sufficient error to
@@ -2719,7 +2727,7 @@ def generate_noise(dimensions,
                    mask=None,
                    noise_dict=None,
                    temporal_proportion=0.5,
-                   iterations=[20, 20],
+                   iterations=None,
                    fit_thresh=0.05,
                    fit_delta=0.5,
                    ):
@@ -2795,6 +2803,15 @@ def generate_noise(dimensions,
 
     # Take in the noise dictionary and add any missing information
     noise_dict = _noise_dict_update(noise_dict)
+
+    # How many iterations will you perform? If unspecified it will set
+    # values based on whether you are trying to match noise specifically to
+    # this participant or just get in the ball park
+    if iterations is None:
+        if noise_dict['matched'] == 1:
+            iterations = [20, 20]
+        else:
+            iterations = [0, 0]
 
     if abs(noise_dict['auto_reg_rho'][0]) - abs(noise_dict['ma_rho'][0]) < 0.1:
         logger.warning('ARMA coefs are close, may have troule fitting')
@@ -2932,7 +2949,8 @@ def compute_signal_change(signal_function,
             _generate_temporal_noise. The sigma values describe the proportion of
             mixing of these elements. However critically, SFNR is the
             parameter that describes how much noise these components contribute
-            to the brain.
+            to the brain. If you set the noise dict to matched then it will
+            fit the parameters to match the participant as best as possible.
 
         magnitude : list of floats
             This specifies the size, in terms of the metric choosen below,
