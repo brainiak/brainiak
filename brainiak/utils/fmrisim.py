@@ -89,6 +89,7 @@ from pkg_resources import resource_stream
 from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage
+import copy
 
 __all__ = [
     "generate_signal",
@@ -1218,7 +1219,7 @@ def _calc_ARMA_noise(volume,
                      mask,
                      auto_reg_order=1,
                      ma_order=1,
-                     sample_num=1000,
+                     sample_num=100,
                      ):
     """ Calculate the the ARMA noise of a volume
     This calculates the autoregressive and moving average noise of the volume
@@ -1702,7 +1703,6 @@ def _generate_noise_temporal_autoregression(timepoints,
 
         # Create a brain shaped volume with appropriate smoothing properties
         noise = _generate_noise_spatial(dimensions=dimensions,
-                                         template=template,
                                          mask=mask,
                                          fwhm=noise_dict['fwhm'],
                                          )
@@ -1797,7 +1797,6 @@ def _generate_noise_temporal_phys(timepoints,
 
 
 def _generate_noise_spatial(dimensions,
-                            template=None,
                             mask=None,
                             fwhm=4.0,
                             ):
@@ -1958,10 +1957,10 @@ def _generate_noise_spatial(dimensions,
     noise_spatial = np.fft.ifftn(noise * amplitude)
 
     # Mask or not, then z score
-    if mask is not None and template is not None:
+    if mask is not None:
 
         # Mask the output
-        noise_spatial = noise_spatial.real * template
+        noise_spatial = noise_spatial.real * mask
 
         # Z score the specific to the brain
         noise_spatial[mask > 0] = stats.zscore(noise_spatial[mask > 0])
@@ -2053,7 +2052,6 @@ def _generate_noise_temporal(stimfunction_tr,
 
         # Create a brain shaped volume with similar smoothing properties
         volume = _generate_noise_spatial(dimensions=dimensions,
-                                         template=template,
                                          mask=mask,
                                          fwhm=noise_dict['fwhm'],
                                          )
@@ -2085,7 +2083,6 @@ def _generate_noise_temporal(stimfunction_tr,
 
         # Create a brain shaped volume with similar smoothing properties
         volume = _generate_noise_spatial(dimensions=dimensions,
-                                         template=template,
                                          mask=mask,
                                          fwhm=noise_dict['fwhm'],
                                          )
@@ -2576,7 +2573,7 @@ def _fit_ar(noise,
             iterations,
             ):
     """
-        Fit the noise model to match the SNR and SFNR of the data
+        Fit the noise model to match the AR of the data by changing the MA
 
         Parameters
         ----------
@@ -2644,18 +2641,18 @@ def _fit_ar(noise,
     dim = dim_tr[0:3]
     base = template * noise_dict['max_activity']
     base = base.reshape(dim[0], dim[1], dim[2], 1)
-    mean_signal = (base[mask > 0]).mean()
-    target_sfnr = noise_dict['sfnr']
+
+    # Make a copy of the dictionary so it can be modified
+    new_nd = copy.deepcopy(noise_dict)
+
+    # What AR do you want?
+    target_ar = noise_dict['auto_reg_rho'][0]
 
     # Iterate through different MA parameters to fit AR
-    temp_sd_orig = np.copy(temporal_sd)
-    temporal_proportion = 0.5
-    iteration = 0
     for iteration in list(range(iterations)):
 
         # If there are iterations left to perform then recalculate the
         # metrics and try again
-        target_ar = noise_dict['auto_reg_rho']
 
         # Calculate the new metrics
         new_ar, _ = _calc_ARMA_noise(noise,
@@ -2665,34 +2662,20 @@ def _fit_ar(noise,
                                      )
 
         # Calculate the difference in the first AR component
-        ar_0_diff = abs(new_ar[0] - target_ar[0]) / target_ar[0]
-
-        # Calculate the new metrics
-        new_sfnr = _calc_sfnr(noise, mask)
-
-        # Calculate the difference between the real and simulated data
-        diff_sfnr = abs(new_sfnr - target_sfnr) / target_sfnr
+        ar_0_diff = new_ar[0] - target_ar
 
         # If the AR is sufficiently close then break the loop
-        if ar_0_diff < fit_thresh and diff_sfnr < fit_thresh:
+        if (abs(ar_0_diff) / target_ar) < fit_thresh:
             logger.info('Terminated AR fit after ' + str(iteration) +
-                  ' iterations.')
+                  ' iterations. Fit value: ' + str(new_nd['auto_reg_rho'][0]))
             break
         else:
-            # Otherwise update the ma coefficient
-            noise_dict['ma_rho'] = [noise_dict['ma_rho'][0] - (ar_0_diff *
-                                                               fit_delta)]
+            # Otherwise update the AR coefficient according to what is needed
+            new_nd['auto_reg_rho'][0] -= (ar_0_diff * fit_delta)
 
-            # Convert the SFNR and SNR
-            temp_sd_new = np.sqrt(((mean_signal / new_sfnr) ** 2) *
-                                  temporal_proportion)
-
-            # Update the variables
-            temporal_sd -= ((temp_sd_new - temp_sd_orig) * fit_delta)
-
-            # Prevent these going out of range
-            if temporal_sd < 0 or np.isnan(temporal_sd):
-                temporal_sd = 10e-3
+            # Don't let the AR coefficient exceed 1
+            if new_nd['auto_reg_rho'][0] >= 1:
+                new_nd['auto_reg_rho'][0] = 0.99
 
         # Generate the noise. The appropriate
         noise_temporal = _generate_noise_temporal(stimfunction_tr,
@@ -2700,7 +2683,7 @@ def _fit_ar(noise,
                                                   dim,
                                                   template,
                                                   mask,
-                                                  noise_dict,
+                                                  new_nd,
                                                   )
 
         # Set up the machine noise
