@@ -303,21 +303,59 @@ def test_calc_noise():
     # Mask the volume to be the same shape as a brain
     mask, template = sim.mask_brain(dimensions_tr, mask_self=None)
     stimfunction_tr = stimfunction[::int(tr_duration * temporal_res)]
+
+    nd_orig['matched'] = 0
     noise = sim.generate_noise(dimensions=dimensions_tr[0:3],
                                stimfunction_tr=stimfunction_tr,
                                tr_duration=tr_duration,
                                template=template,
                                mask=mask,
                                noise_dict=nd_orig,
-                               iterations=[10, 0],
                                )
+
+    # Check the spatial noise match
+    nd_orig['matched'] = 1
+    noise_matched = sim.generate_noise(dimensions=dimensions_tr[0:3],
+                                       stimfunction_tr=stimfunction_tr,
+                                       tr_duration=tr_duration,
+                                       template=template,
+                                       mask=mask,
+                                       noise_dict=nd_orig,
+                                       iterations=[50, 0]
+                                       )
 
     # Calculate the noise parameters from this newly generated volume
     nd_new = sim.calc_noise(noise, mask, template)
+    nd_matched = sim.calc_noise(noise_matched, mask, template)
 
+    # Check the values are reasonable"
+    assert nd_new['snr'] > 0, 'snr out of range'
+    assert nd_new['sfnr'] > 0, 'sfnr out of range'
+    assert nd_new['auto_reg_rho'][0] > 0, 'ar out of range'
+
+    # Check that the fitting worked
     snr_diff = abs(nd_orig['snr'] - nd_new['snr'])
-    assert snr_diff < 10, 'snr calculated incorrectly'
+    snr_diff_match = abs(nd_orig['snr'] - nd_matched['snr'])
+    assert snr_diff > snr_diff_match, 'snr fit incorrectly'
+
+    # Check the temporal noise match
+    nd_orig['matched'] = 1
+    noise_matched = sim.generate_noise(dimensions=dimensions_tr[0:3],
+                                       stimfunction_tr=stimfunction_tr,
+                                       tr_duration=tr_duration,
+                                       template=template,
+                                       mask=mask,
+                                       noise_dict=nd_orig,
+                                       iterations=[0, 50]
+                                       )
+
+    nd_matched = sim.calc_noise(noise_matched, mask, template)
+
     sfnr_diff = abs(nd_orig['sfnr'] - nd_new['sfnr'])
-    assert sfnr_diff < 10, 'sfnr calculated incorrectly'
+    sfnr_diff_match = abs(nd_orig['sfnr'] - nd_matched['sfnr'])
+    assert sfnr_diff > sfnr_diff_match, 'sfnr fit incorrectly'
+
     ar1_diff = abs(nd_orig['auto_reg_rho'][0] - nd_new['auto_reg_rho'][0])
-    assert  ar1_diff < 1, 'AR1 calculated incorrectly'
+    ar1_diff_match = abs(nd_orig['auto_reg_rho'][0] - nd_matched[
+        'auto_reg_rho'][0])
+    assert ar1_diff > ar1_diff_match, 'AR1 fit incorrectly'
