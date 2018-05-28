@@ -2735,7 +2735,8 @@ def generate_noise(dimensions,
     temporal_sd_system = np.sqrt((temporal_sd ** 2) * temporal_proportion)
 
     # What is the standard deviation of the background activity
-    spatial_sd = mean_signal / noise_dict['snr']
+    spat_sd = mean_signal / noise_dict['snr']
+    spatial_sd = np.sqrt((spat_sd ** 2) * (1 - temporal_proportion))
 
 
     # Set up the machine noise
@@ -2745,7 +2746,7 @@ def generate_noise(dimensions,
                                           )
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * (1 - temporal_sd_system)) + \
+    noise = base + (noise_temporal * (1 - temporal_sd)) + \
             noise_system
 
     # Reject negative values (only happens outside of the brain)
@@ -2794,61 +2795,61 @@ def compute_signal_change(signal_function,
     timecourse. Importantly, all values within the signal_function are
     scaled to have a min of -1 or max of 1
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
 
-        signal_function : timepoint by voxel array
-            The signal time course to be altered. This can have
-            multiple time courses specified as different columns in this
-            array. Conceivably you could use the output of
-            generate_stimfunction as the input but the temporal variance
-            will be incorrect
+    signal_function : timepoint by voxel array
+        The signal time course to be altered. This can have
+        multiple time courses specified as different columns in this
+        array. Conceivably you could use the output of
+        generate_stimfunction as the input but the temporal variance
+        will be incorrect
 
-        noise_function : timepoint by voxel numpy array
-            The time course of noise (a voxel created from generate_noise)
-            for each voxel specified in signal_function. This is necessary
-            for computing the mean evoked activity and the noise variability
+    noise_function : timepoint by voxel numpy array
+        The time course of noise (a voxel created from generate_noise)
+        for each voxel specified in signal_function. This is necessary
+        for computing the mean evoked activity and the noise variability
 
-        noise_dict : dict
-             A dictionary specifying the types of noise in this experiment. The
-            noise types interact in important ways. First, all noise types
-            ending with sigma (e.g. motion sigma) are mixed together in
-            _generate_temporal_noise. The sigma values describe the proportion of
-            mixing of these elements. However critically, SFNR is the
-            parameter that describes how much noise these components contribute
-            to the brain. If you set the noise dict to matched then it will
-            fit the parameters to match the participant as best as possible.
+    noise_dict : dict
+         A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, all noise types
+        ending with sigma (e.g. motion sigma) are mixed together in
+        _generate_temporal_noise. The sigma values describe the proportion of
+        mixing of these elements. However critically, SFNR is the
+        parameter that describes how much noise these components contribute
+        to the brain. If you set the noise dict to matched then it will
+        fit the parameters to match the participant as best as possible.
 
-        magnitude : list of floats
-            This specifies the size, in terms of the metric choosen below,
-            of the signal being generated. This can be a single number,
-            and thus apply to all signal timecourses, or it can be array and
-            thus different for each voxel.
+    magnitude : list of floats
+        This specifies the size, in terms of the metric choosen below,
+        of the signal being generated. This can be a single number,
+        and thus apply to all signal timecourses, or it can be array and
+        thus different for each voxel.
 
-        method : str
-            Select the procedure used to calculate the signal magnitude,
-            some of which are based on the definitions outlined in Welvaert &
-            Rosseel (2013):
-            - 'SFNR': Change proportional to the temporal variability,
-            as represented by the (desired) SFNR
-            - 'CNR_Amp/Noise-SD': Signal magnitude relative to the temporal
-            noise
-            - 'CNR_Amp2/Noise-Var_dB': Same as above but converted to decibels
-            - 'CNR_Signal-SD/Noise-SD': Standard deviation in signal
-            relative to standard deviation in noise
-            - 'CNR_Signal-Var/Noise-Var_dB': Same as above but converted to
-            decibels
-            - 'PSC': Calculate the percent signal change based on the
-            average activity of the noise (mean / 100 * magnitude)
+    method : str
+        Select the procedure used to calculate the signal magnitude,
+        some of which are based on the definitions outlined in Welvaert &
+        Rosseel (2013):
+        - 'SFNR': Change proportional to the temporal variability,
+        as represented by the (desired) SFNR
+        - 'CNR_Amp/Noise-SD': Signal magnitude relative to the temporal
+        noise
+        - 'CNR_Amp2/Noise-Var_dB': Same as above but converted to decibels
+        - 'CNR_Signal-SD/Noise-SD': Standard deviation in signal
+        relative to standard deviation in noise
+        - 'CNR_Signal-Var/Noise-Var_dB': Same as above but converted to
+        decibels
+        - 'PSC': Calculate the percent signal change based on the
+        average activity of the noise (mean / 100 * magnitude)
 
 
-        Returns
-        ----------
-        signal_function_scaled : 4d numpy array
-            The new signal volume with the appropriately set signal change
+    Returns
+    ----------
+    signal_function_scaled : 4d numpy array
+        The new signal volume with the appropriately set signal change
 
-        """
+    """
 
     # If you have only one magnitude value, duplicate the magnitude for each
     #  timecourse you have
