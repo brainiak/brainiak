@@ -1411,19 +1411,14 @@ def _generate_noise_system(dimensions_tr,
     scanner. Generates a distribution with a SD of 1. If you look at the
     distribution of non-brain voxel intensity in modern scans you will see
     it is rician. However, depending on how you have calculated the SNR and
-    whether the template is being used you want to use this function
-    differently: the voxels in the non-brain are stable over time and
+    whether the template is being used you will want to use this function
+    differently: the voxels outside the brain tend to be stable over time and
     usually reflect structure in the MR signal (e.g. the
     baseline MR of the head coil or skull). Hence the template captures this
     rician noise structure. If you are adding the machine noise to the
     template, as is done in generate_noise, then you are likely doubling up
-    on the addition of machine noise. To correct for this you can instead
-    calculate the SNR with the baseline removed (give template_baseline the
-    template, which is the default) and then create machine noise as a
-    gaussian around this baseline. The residual noise is approximately
-    gaussian in regions far from the brain but becomes much more kurtotic
-    towards the brain centre, which is captured when you combine the
-    baseline with the gaussian.
+    on the addition of machine noise. In such cases, machine noise seems to
+    be better modelled by gaussian noise on top of this rician structure.
 
     Parameters
     ----------
@@ -2276,7 +2271,7 @@ def _noise_dict_update(noise_dict):
     if 'sfnr' not in noise_dict:
         noise_dict['sfnr'] = 90
     if 'snr' not in noise_dict:
-        noise_dict['snr'] = 25
+        noise_dict['snr'] = 50
     if 'max_activity' not in noise_dict:
         noise_dict['max_activity'] = 1000
     if 'voxel_size' not in noise_dict:
@@ -2695,7 +2690,7 @@ def generate_noise(dimensions,
             iterations = [0, 0]
 
     if abs(noise_dict['auto_reg_rho'][0]) - abs(noise_dict['ma_rho'][0]) < 0.1:
-        logger.warning('ARMA coefs are close, may have troule fitting')
+        logger.warning('ARMA coefs are close, may have trouble fitting')
 
     # What are the dimensions of the volume, including time
     dimensions_tr = (dimensions[0],
