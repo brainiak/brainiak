@@ -19,12 +19,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+# Simple test: can an instance be instantiated?
 def test_can_instantiate():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding()
     assert s, "Invalid InvertedEncoding instance"
 
 
+# Provide invalid data so that channels cannot be created.
 def test_cannot_instantiate_channels():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding(n_channels=0)
@@ -34,6 +36,7 @@ def test_cannot_instantiate_channels():
         s.fit(X, y)
 
 
+# Test is valid (though fabricated) data can be fit.
 def test_can_fit_data():
     import brainiak.reconstruct.iem
 
@@ -44,17 +47,19 @@ def test_can_fit_data():
     centers_0 = np.linspace(-1, 1, dim)
     centers_60 = np.roll(centers_0, 5)
     centers_120 = centers_0[::-1]
+    # create fabricated data that is valid for the method
     X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
                    np.dot(np.random.randn(n_, dim), C) + centers_60,
                    np.dot(np.random.randn(n_, dim), C) + centers_120))
 
     y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-    '''Create iem object'''
+    # Create iem object and fit data to it.
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
     Invt_model.fit(X, y)
 
 
+# Show that a data matrix with improper format (dimensions) breaks alg.
 def test_cannot_fit_data():
     import brainiak.reconstruct.iem
     with pytest.raises(ValueError):
@@ -65,6 +70,7 @@ def test_cannot_fit_data():
         centers_0 = np.linspace(-1, 1, dim)
         centers_60 = np.roll(centers_0, 5)
         centers_120 = centers_0[::-1]
+        # create fabricated data that is NOT valid for the method
         X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
                        np.dot(np.random.randn(n_, dim), C) + centers_60,
                        np.dot(np.random.randn(n_, dim), C) + centers_120))
@@ -72,11 +78,12 @@ def test_cannot_fit_data():
 
         y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-        '''Create iem object'''
+        # Create iem object
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
         Invt_model.fit(X, y)
 
 
+# Test prediction capability from valid (fabricated) data
 def test_can_predict_from_data():
     import brainiak.reconstruct.iem
     n, dim = 300, 9
@@ -86,13 +93,14 @@ def test_can_predict_from_data():
     centers_0 = np.linspace(-1, 1, dim)
     centers_60 = np.roll(centers_0, 5)
     centers_120 = centers_0[::-1]
+    # create fabricated data that is valid for the method
     X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
                    np.dot(np.random.randn(n_, dim), C) + centers_60,
                    np.dot(np.random.randn(n_, dim), C) + centers_120))
 
     y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-    '''Create iem object'''
+    # Create iem object
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
     Invt_model.fit(X, y)
 
@@ -107,6 +115,7 @@ def test_can_predict_from_data():
     logger.info('Reconstructed angles: ' + str(m_reconstruct))
 
 
+# Show that prediction is invalid when input data is improperly formated
 def test_cannot_predict_from_data():
     import brainiak.reconstruct.iem
     with pytest.raises(ValueError):
@@ -123,7 +132,7 @@ def test_cannot_predict_from_data():
 
         y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-        '''Create iem object'''
+        # Create iem object
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
         Invt_model.fit(X, y)
 
@@ -144,6 +153,7 @@ def test_cannot_predict_from_data():
         logger.info('Reconstructed angles: ' + str(m_reconstruct))
 
 
+# Show proper scoring function with valid (fabricated) test data
 def test_can_score():
     import brainiak.reconstruct.iem
 
@@ -160,7 +170,7 @@ def test_can_score():
 
     y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-    '''Create iem object'''
+    # Create iem object
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
     Invt_model.fit(X, y)
 
@@ -183,6 +193,7 @@ def test_can_score():
     logger.info('Scores: ' + str(score))
 
 
+# Test scoring with invalid data formatting
 def test_cannot_score():
     import brainiak.reconstruct.iem
     with pytest.raises(ValueError):
@@ -199,7 +210,7 @@ def test_cannot_score():
 
         y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
 
-        '''Create iem object'''
+        # Create iem object
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
         Invt_model.fit(X, y)
 
@@ -222,7 +233,7 @@ def test_cannot_score():
         score = Invt_model.score(X2_, y2_)
         logger.info('Scores: ' + str(score))
 
-
+# Test ability to get model parameters from object
 def test_can_get_params():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding(6, 0, 180)
@@ -233,6 +244,7 @@ def test_can_get_params():
                 ', ' + str(param_out.get('range_stop')))
 
 
+# Test ability to set model parameters of an object instance
 def test_can_set_params():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding(6, 0, 180)
