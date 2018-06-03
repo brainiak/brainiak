@@ -233,6 +233,7 @@ def test_cannot_score():
         score = Invt_model.score(X2_, y2_)
         logger.info('Scores: ' + str(score))
 
+
 # Test ability to get model parameters from object
 def test_can_get_params():
     import brainiak.reconstruct.iem
