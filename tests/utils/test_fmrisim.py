@@ -286,7 +286,7 @@ def test_calc_noise():
     event_durations = [6]
     tr_duration = 2
     duration = 200
-    temporal_res=100
+    temporal_res = 100
     tr_number = int(np.floor(duration / tr_duration))
     dimensions_tr = np.array([10, 10, 10, tr_number])
 
