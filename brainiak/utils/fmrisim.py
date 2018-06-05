@@ -828,7 +828,7 @@ def convolve_hrf(stimfunction,
     Parameters
     ----------
 
-    stimfunction : timepoint by timecourse array
+    stimfunction : timepoint by feature array
         What is the time course of events to be modelled in this
         experiment. This can specify one or more timecourses of events.
         The events can be weighted or binary
@@ -856,6 +856,11 @@ def convolve_hrf(stimfunction,
         columns in this array.
 
     """
+
+    # Check if it is timepoint by feature
+    if stimfunction.shape[0] < stimfunction.shape[1]:
+        logger.warning('Stimfunction may be the wrong shape')
+
     # How will stimfunction be resized
     stride = int(temporal_resolution * tr_duration)
     duration = int(stimfunction.shape[0] / stride)
