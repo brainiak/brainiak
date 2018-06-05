@@ -21,9 +21,16 @@
     Lange, F. P. de. Prior Expectations Bias Sensory Representations
     in Visual Cortex. J. Neurosci. 33, 16275–16284 (2013).
 
-    [Bouwer2009] "1.Brouwer, G. J. & Heeger, D. J.
+    [Brouwer2009] "1.Brouwer, G. J. & Heeger, D. J.
     Decoding and Reconstructing Color from Responses in Human Visual
     Cortex. J. Neurosci. 29, 13992–14003 (2009).
+
+    For instance, this implementation uses a set of sinusoidal
+    basis functions to represent the set of possible feature values.
+    This code was written to give some flexibility compared to
+    the specific instances in Kok, 2013 & in Brouwer, 2009. For
+    instance, users can set the number of basis functions, or
+    channels, and the range of possible feature values.
 """
 
 # Authors: David Huberdeau (Yale University) &
@@ -33,7 +40,6 @@ import logging
 import numpy as np
 from sklearn import linear_model
 from sklearn.base import BaseEstimator
-import math
 
 __all__ = [
     "InvertedEncoding"
@@ -82,7 +88,6 @@ class InvertedEncoding(BaseEstimator):
     range_stop: double, default 180, end of range of
         independent variable (usually degrees)
 
-
     Attributes
     ----------
     C_: [n_channels, channel density] NumPy 2D array
@@ -98,9 +103,12 @@ class InvertedEncoding(BaseEstimator):
     """
     def __init__(self, n_channels=5, range_start=0, range_stop=180):
 
+        # Check that range_start is less than range_stop
+        if range_start >= range_stop:
+            raise ValueError("range_start must be less than range_stop.")
         self.n_channels = n_channels  # default = 5
-        self.range_start = range_start  # in degrees, 0 - 360, def=0
-        self.range_stop = range_stop  # in degrees, 0 - 360, def=180
+        self.range_start = range_start  # in degrees, def=0
+        self.range_stop = range_stop  # in degrees, def=180
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -112,37 +120,48 @@ class InvertedEncoding(BaseEstimator):
             trial and each voxel of training data.
         y: numpy array of response variable. [observations]
             Should contain the feature for each observation in X.
-
-        Returns
-        -------
-        iem: self.
         """
         # Check that there are channels specified
         if self.n_channels < 2:
             raise ValueError("Insufficient channels.")
+
+        # Check that data matrix is well conditioned:
+        if np.linalg.cond(X) > 1000:
+            logger.error("Data is singular.")
+            raise ValueError("Data matrix is nearly singular.")
+
         # Check that there is enough data.. should be more
         # samples than voxels (i.e. X should be tall)
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
-        if len(shape_data) < 2:
-            raise ValueError("Not enough data")
+        if len(shape_data) != 2:
+            raise ValueError("Data matrix has too many or too few "
+                             "dimensions.")
         else:
             if np.size(X, 0) <= np.size(X, 1):
-                raise ValueError("Data Matrix ill-conditioned")
+                raise ValueError("The number of observations should"
+                                 " be larger than the number of"
+                                 " voxels.")
             if shape_data[0] != shape_labels[0]:
                 raise ValueError(
                     "Mismatched data samples and label samples")
 
         self.C_, self.C_D_ = self._define_channels()
         n_train = len(y)
+        # Create a matrix of channel activations for every observation.
+        # This is the C1 matrix in Brouwer, 2009.
         F = np.empty((n_train, self.n_channels))
         for i_tr in range(n_train):
-            # Find channel activation for this orientation
+            # Find channel activation for this feature value
             k_min = np.argmin((y[i_tr] - self.C_D_)**2)
             F[i_tr, :] = self.C_[:, k_min]
+
         clf = linear_model.LinearRegression(fit_intercept=False,
                                             normalize=False)
+
+        # Do regression
         clf.fit(F, X)
+
         self.W_ = clf
         return self
 
@@ -159,14 +178,22 @@ class InvertedEncoding(BaseEstimator):
         -------
             pred_dir: numpy array of estimated feature values.
         """
+        # Check that data matrix is well conditioned:
+        if np.linalg.cond(X) > 1000:
+            logger.error("Data is singular.")
+            raise ValueError("Data matrix is nearly singular.")
+
         # Check that there is enough data.. should be more
         # samples than voxels (i.e. X should be tall)
         shape_data = np.shape(X)
-        if len(shape_data) < 2:
-            raise ValueError("Not enough data")
+        if len(shape_data) != 2:
+            raise ValueError("Data matrix has too many or too few "
+                             "dimensions.")
         else:
             if np.size(X, 0) <= np.size(X, 1):
-                raise ValueError("Data Matrix ill-conditioned")
+                raise ValueError("The number of observations should"
+                                 " be larger than the number of"
+                                 " voxels.")
         pred_response = self._predict_directions(X)
         pred_indx = np.argmax(pred_response, axis=1)
         pred_dir = self.C_D_[pred_indx]
@@ -214,10 +241,6 @@ class InvertedEncoding(BaseEstimator):
         Parameters
         ----------
             params: structure with parameters and change values
-
-        Returns
-        -------
-            self.
         """
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
@@ -225,10 +248,6 @@ class InvertedEncoding(BaseEstimator):
 
     def _define_channels(self):
         """Define basis functions (aka channels).
-
-        Parameters
-        ----------
-            self.
 
         Returns
         -------
@@ -239,7 +258,7 @@ class InvertedEncoding(BaseEstimator):
         channel_exp = 6
         channel_density = 180
         shifts = np.linspace(0,
-                             math.pi - math.pi/self.n_channels,
+                             np.pi - np.pi/self.n_channels,
                              self.n_channels)
 
         channel_domain = np.linspace(self.range_start,
@@ -248,7 +267,7 @@ class InvertedEncoding(BaseEstimator):
 
         channels = np.zeros((self.n_channels, channel_density))
         for i in range(self.n_channels):
-            channels[i, :] = np.cos(np.linspace(0, math.pi, channel_density)
+            channels[i, :] = np.cos(np.linspace(0, np.pi, channel_density)
                                     - shifts[i]) ** channel_exp
         # Check that channels provide sufficient coverage
         ch_sum_range = np.max(np.sum(channels, 0)) - min(np.sum(channels, 0))
