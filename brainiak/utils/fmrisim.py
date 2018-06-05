@@ -643,25 +643,25 @@ def export_epoch_file(stimfunction,
 
     # Cycle through the participants, different entries in the list
     epoch_file = [0] * len(stimfunction)
-    for participant_counter in range(len(stimfunction)):
+    for ppt_counter in range(len(stimfunction)):
 
         # What is the time course for the participant (binarized)
-        stimfunction_ppt = np.abs(stimfunction[participant_counter]) > 0
+        stimfunction_ppt = np.abs(stimfunction[ppt_counter]) > 0
 
         # Down sample the stim function
         stride = tr_duration * temporal_resolution
         stimfunction_downsampled = stimfunction_ppt[::int(stride), :]
 
-        # Calculates the number of event onsets. This uses changes in value to reflect
-        # different epochs. This might be false in some cases (the
-        # weight is non-uniform over an epoch or there is no
-        # break between identically weighted epochs).
+        # Calculates the number of event onsets. This uses changes in value
+        # to reflect different epochs. This might be false in some cases (the
+        # weight is non-uniform over an epoch or there is no break between
+        # identically weighted epochs).
         epochs = 0  # Preset
         conditions = stimfunction_ppt.shape[1]
         for condition_counter in range(conditions):
 
-            weight_change = (
-            np.diff(stimfunction_downsampled[:, condition_counter], 1, 0) != 0)
+            weight_change = (np.diff(stimfunction_downsampled[:,
+                                     condition_counter], 1, 0) != 0)
 
             # If the first or last events are 'on' then make these
             # represent a epoch change
@@ -676,8 +676,7 @@ def export_epoch_file(stimfunction,
         trs = stimfunction_downsampled.shape[0]
 
         # Make a timing file for this participant
-        epoch_file[participant_counter] = np.zeros((conditions,
-                                                    epochs, trs))
+        epoch_file[ppt_counter] = np.zeros((conditions, epochs, trs))
 
         # Cycle through conditions
         epoch_counter = 0  # Reset and count across conditions
@@ -691,9 +690,8 @@ def export_epoch_file(stimfunction,
                                 stimfunction_downsampled[
                                     tr_counter, condition_counter] == 1:
                     # Add a one for this TR
-                    epoch_file[participant_counter][condition_counter,
-                                                    epoch_counter,
-                                                    tr_counter] = 1
+                    epoch_file[ppt_counter][condition_counter,
+                                            epoch_counter, tr_counter] = 1
 
                     # Find the next non event value
                     end_idx = np.where(stimfunction_downsampled[tr_counter:,
@@ -702,9 +700,8 @@ def export_epoch_file(stimfunction,
                     tr_idxs = list(range(tr_counter, tr_counter + end_idx))
 
                     # Add ones to all the trs within this event time frame
-                    epoch_file[participant_counter][condition_counter,
-                                                    epoch_counter,
-                                                    tr_idxs] = 1
+                    epoch_file[ppt_counter][condition_counter,
+                                            epoch_counter, tr_idxs] = 1
 
                     # Start from this index
                     tr_counter += end_idx
@@ -716,7 +713,7 @@ def export_epoch_file(stimfunction,
                 tr_counter += 1
 
         # Convert to boolean
-        epoch_file[participant_counter] = epoch_file[participant_counter].astype('bool')
+        epoch_file[ppt_counter] = epoch_file[ppt_counter].astype('bool')
 
     # Save the file
     np.save(filename, epoch_file)
@@ -1246,7 +1243,7 @@ def _calc_ARMA_noise(volume,
     sample_num : int
         How many voxels would you like to sample to calculate the AR values.
         The AR distribution of real data is approximately exponential maxing
-        at 1. From analyses across a number of participants, to get less 
+        at 1. From analyses across a number of participants, to get less
         than 1% standard deviation of error from the true mean it is
         necessary to sample at least 1000 voxels.
 
@@ -1290,7 +1287,7 @@ def _calc_ARMA_noise(volume,
             model = ARMA(demeaned_timecourse, [auto_reg_order, ma_order])
             model_fit = model.fit(disp=False)
             params = model_fit.params
-        except:
+        except ValueError:
             params = np.ones(auto_reg_order + ma_order + 1) * np.nan
 
         # Add to the list
@@ -1298,11 +1295,12 @@ def _calc_ARMA_noise(volume,
         ma_all[voxel_counter, :] = params[auto_reg_order + 1:]
 
     # Average all of the values and then convert them to a list
-    auto_reg_rho =np.nanmean(auto_reg_rho_all, 0).tolist()
+    auto_reg_rho = np.nanmean(auto_reg_rho_all, 0).tolist()
     ma_rho = np.nanmean(ma_all, 0).tolist()
 
     # Return the coefficients
     return auto_reg_rho, ma_rho
+
 
 def calc_noise(volume,
                mask,
@@ -1687,10 +1685,9 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     # This code assumes that the AR order is higher than the MA order
     if ma_order > auto_reg_order:
-        err_str = 'MA order (' + str(ma_order) +') is greater than AR order ' \
-                                                '('+ str(auto_reg_order) + \
-                  '). Cannot run.'
-        raise ValueError(err_str)
+        msg = 'MA order (%d) is greater than AR order (%d). Cannot run.' % (
+            ma_order, auto_reg_order)
+        raise ValueError(msg)
 
     # Generate a random variable at each time point that is a decayed value
     # of the previous time points
@@ -1702,9 +1699,9 @@ def _generate_noise_temporal_autoregression(timepoints,
 
         # Create a brain shaped volume with appropriate smoothing properties
         noise = _generate_noise_spatial(dimensions=dimensions,
-                                         mask=mask,
-                                         fwhm=noise_dict['fwhm'],
-                                         )
+                                        mask=mask,
+                                        fwhm=noise_dict['fwhm'],
+                                        )
 
         if tr_counter == 0:
             noise_autoregression[:, :, :, tr_counter] = noise
@@ -1920,8 +1917,8 @@ def _generate_noise_spatial(dimensions,
             amplitude of the fft coefficients
         """
 
-        # The first set of idxs ought to be zero so make the first value zero to
-        # avoid a divide by zero error
+        # The first set of idxs ought to be zero so make the first value
+        # zero to avoid a divide by zero error
         amp_start = np.array((0))
 
         # Compute the amplitude of the function for a series of indices
@@ -2047,7 +2044,7 @@ def _generate_noise_temporal(stimfunction_tr,
 
         # Calculate the physiological time course
         noise = _generate_noise_temporal_phys(timepoints,
-                                               )
+                                              )
 
         # Create a brain shaped volume with similar smoothing properties
         volume = _generate_noise_spatial(dimensions=dimensions,
@@ -2256,34 +2253,22 @@ def _noise_dict_update(noise_dict):
         Updated dictionary
 
     """
+    # Create the default dictionary
+    default_dict = {'task_sigma': 0, 'drift_sigma':0,'auto_reg_sigma': 1,
+                    'auto_reg_rho' : [0.5], 'ma_rho': [0.0],
+                    'physiological_sigma': 0, 'sfnr': 90, 'snr': 50,
+                    'max_activity': 1000, 'voxel_size': [1.0, 1.0, 1.0],
+                    'fwhm': 4, 'matched': 1}
+
+    # Get the default keys
+    default_keys = default_dict.keys()
 
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
 
-    if 'task_sigma' not in noise_dict:
-        noise_dict['task_sigma'] = 0
-    if 'drift_sigma' not in noise_dict:
-        noise_dict['drift_sigma'] = 0
-    if 'auto_reg_sigma' not in noise_dict:
-        noise_dict['auto_reg_sigma'] = 1
-    if 'auto_reg_rho' not in noise_dict:
-        noise_dict['auto_reg_rho'] = [0.5]
-    if 'ma_rho' not in noise_dict:
-        noise_dict['ma_rho'] = [0.0]
-    if 'physiological_sigma' not in noise_dict:
-        noise_dict['physiological_sigma'] = 0
-    if 'sfnr' not in noise_dict:
-        noise_dict['sfnr'] = 90
-    if 'snr' not in noise_dict:
-        noise_dict['snr'] = 50
-    if 'max_activity' not in noise_dict:
-        noise_dict['max_activity'] = 1000
-    if 'voxel_size' not in noise_dict:
-        noise_dict['voxel_size'] = [1.0, 1.0, 1.0]
-    if 'fwhm' not in noise_dict:
-        noise_dict['fwhm'] = 4
-    if 'matched' not in noise_dict:
-        noise_dict['matched'] = 0
+    for default_key in default_dict:
+        if default_key not in noise_dict:
+            noise_dict[default_key] = default_dict[default_key]
 
     return noise_dict
 
@@ -2315,8 +2300,9 @@ def _fit_spatial(noise,
             What is the duration, in seconds, of each TR?
 
         template : 3d array, float
-            A continuous (0 -> 1) volume describing the likelihood a voxel is in
-            the brain. This can be used to contrast the brain and non brain.
+            A continuous (0 -> 1) volume describing the likelihood a voxel
+            is in the brain. This can be used to contrast the brain and non
+            brain.
 
         mask : 3d array, binary
             The mask of the brain volume, distinguishing brain from non-brain
@@ -2340,8 +2326,8 @@ def _fit_spatial(noise,
             fit the parameters to match the participant as best as possible.
 
         fit_thresh : float
-            What proportion of the target parameter value is sufficient error to
-            warrant finishing fit search.
+            What proportion of the target parameter value is sufficient
+            error to warrant finishing fit search.
 
         fit_delta : float
             How much are the parameters attenuated during the fitting process,
@@ -2349,11 +2335,11 @@ def _fit_spatial(noise,
             parameter and the actual parameter
 
         iterations : int
-            The first element is how many steps of fitting the SFNR and SNR values
-            will be performed. Usually converges after < 5. The second element
-            is the number of iterations for the AR fitting. This is much more
-            time consuming (has to make a new timecourse on each iteration) so
-            be careful about setting this appropriately.
+            The first element is how many steps of fitting the SFNR and SNR
+            values will be performed. Usually converges after < 5. The
+            second element is the number of iterations for the AR fitting.
+            This is much more time consuming (has to make a new timecourse
+            on each iteration) so be careful about setting this appropriately.
 
         Returns
         -------
@@ -2445,8 +2431,9 @@ def _fit_temporal(noise,
             The mask of the brain volume, distinguishing brain from non-brain
 
         template : 3d array, float
-            A continuous (0 -> 1) volume describing the likelihood a voxel is in
-            the brain. This can be used to contrast the brain and non brain.
+            A continuous (0 -> 1) volume describing the likelihood a voxel
+            is in the brain. This can be used to contrast the brain and non
+            brain.
 
         stimfunction_tr :  Iterable, list
             When do the stimuli events occur. Each element is a TR
@@ -2459,11 +2446,11 @@ def _fit_temporal(noise,
             generated
 
         temporal_proportion, float
-            What is the proportion of the temporal variance (as specified by the
-            SFNR noise parameter) that is accounted for by the system noise. If
-            this number is high then all of the temporal variability is due to
-            system noise, if it is low then all of the temporal variability is
-            due to brain variability.
+            What is the proportion of the temporal variance (as specified by
+            the SFNR noise parameter) that is accounted for by the system
+            noise. If this number is high then all of the temporal
+            variability is due to system noise, if it is low then all of the
+            temporal variability is due to brain variability.
 
         temporal_sd : float
             What is the standard deviation in time of the noise volume to be
@@ -2480,8 +2467,8 @@ def _fit_temporal(noise,
             fit the parameters to match the participant as best as possible.
 
         fit_thresh : float
-            What proportion of the target parameter value is sufficient error to
-            warrant finishing fit search.
+            What proportion of the target parameter value is sufficient
+            error to warrant finishing fit search.
 
         fit_delta : float
             How much are the parameters attenuated during the fitting process,
@@ -2546,12 +2533,11 @@ def _fit_temporal(noise,
 
         # If the SFNR and AR is sufficiently close then break the loop
         if (abs(ar_diff) / target_ar) < fit_thresh and sfnr_diff < fit_thresh:
-            logger.info('Terminated AR fit after ' + str(iteration) +
-                  ' iterations.')
+            msg = 'Terminated AR fit after ' + str(iteration) + ' iterations.'
+            logger.info(msg)
             break
 
         ## Otherwise update the noise metrics
-
         # Get the new temporal noise value
         temp_sd_new = mean_signal / new_sfnr
         temporal_sd -= ((temp_sd_new - temp_sd_orig) * fit_delta)
@@ -2599,6 +2585,7 @@ def _fit_temporal(noise,
 
     # Return the updated noise
     return noise
+
 
 def generate_noise(dimensions,
                    stimfunction_tr,
@@ -2737,7 +2724,6 @@ def generate_noise(dimensions,
     spat_sd = mean_signal / noise_dict['snr']
     spatial_sd = np.sqrt((spat_sd ** 2) * (1 - temporal_proportion))
 
-
     # Set up the machine noise
     noise_system = _generate_noise_system(dimensions_tr=dimensions_tr,
                                           spatial_sd=spatial_sd,
@@ -2745,8 +2731,7 @@ def generate_noise(dimensions,
                                           )
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * (1 - temporal_sd)) + \
-            noise_system
+    noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
 
     # Reject negative values (only happens outside of the brain)
     noise[noise < 0] = 0
@@ -2781,6 +2766,7 @@ def generate_noise(dimensions,
 
     # Return the noise
     return noise
+
 
 def compute_signal_change(signal_function,
                           noise_function,
@@ -2933,6 +2919,7 @@ def compute_signal_change(signal_function,
 
     # Return the scaled time course
     return signal_function_scaled
+
 
 def plot_brain(fig,
                brain,
