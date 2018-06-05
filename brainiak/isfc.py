@@ -36,7 +36,7 @@ from .utils.utils import phase_randomize, p_from_null
 
 
 def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
-        two_sided=False, random_state=0):
+        two_sided=False, random_state=0, float_type=np.float64):
     """Intersubject correlation
 
     For each voxel, computes the correlation of each subject's timecourse with
@@ -68,6 +68,12 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
         A random number generator instance to define the state of the
         random permutations generator.
 
+    float_type : either float16, float32, or float64,
+        Depends on the required precision
+        and available memory in the system.
+        All the arrays generated during the execution will be cast
+        to specified float type in order to save memory.
+
     Returns
     -------
     ISC : voxel ndarray (or voxel by subject ndarray, if collapse_subj=False)
@@ -80,37 +86,47 @@ def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
     n_vox = D.shape[0]
     n_subj = D.shape[2]
 
-    if return_p:
-        n_perm = num_perm
-    else:
-        n_perm = 0
+    n_perm = num_perm*int(return_p)
+    max_null = np.zeros(n_perm, dtype=float_type)
+    min_null = np.zeros(n_perm, dtype=float_type)
+    ISC = np.zeros((n_vox, n_subj), dtype=float_type)
 
-    ISC = np.zeros((n_vox, n_subj, n_perm + 1))
+    for loo_subj in range(n_subj):
+        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
+        subj = D[:, :, loo_subj]
+        for v in range(n_vox):
+            ISC[v, loo_subj] = stats.pearsonr(group[v, :],
+                                              subj[v, :])[0]
+    if collapse_subj:
+        ISC = np.mean(ISC, axis=1)
 
-    for p in range(n_perm + 1):
+    for p in range(n_perm):
+        # Randomize phases of D to create next null dataset
+        D = phase_randomize(D, random_state)
         # Loop across choice of leave-one-out subject
+        tmp_ISC = np.zeros((n_vox, n_subj), dtype=float_type)
         for loo_subj in range(n_subj):
             group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
             subj = D[:, :, loo_subj]
             for v in range(n_vox):
-                ISC[v, loo_subj, p] = stats.pearsonr(group[v, :],
-                                                     subj[v, :])[0]
-
-        # Randomize phases of D to create next null dataset
-        D = phase_randomize(D, random_state)
-
-    if collapse_subj:
-        ISC = np.mean(ISC, axis=1)
+                tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
+                                                      subj[v, :])[0]
+        if collapse_subj:
+            tmp_ISC = np.mean(tmp_ISC, axis=1)
+        max_null[p] = np.max(tmp_ISC)
+        min_null[p] = np.min(tmp_ISC)
 
     if return_p:
-        p = p_from_null(ISC, two_sided)
-        return ISC[..., 0], p
+        p = p_from_null(ISC, two_sided,
+                        max_null_input=max_null,
+                        min_null_input=min_null)
+        return ISC, p
     else:
-        return ISC[..., 0]
+        return ISC
 
 
-def isfc(D, collapse_subj=True, return_p=False,
-         num_perm=1000, two_sided=False, random_state=0):
+def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
+         two_sided=False, random_state=0, float_type=np.float64):
     """Intersubject functional correlation
 
     Computes the correlation between the timecoure of each voxel in each
@@ -145,6 +161,12 @@ def isfc(D, collapse_subj=True, return_p=False,
         A random number generator instance to define the state of the
         random permutations generator.
 
+    float_type : either float16, float32, or float64
+        Depends on the required precision
+        and available memory in the system.
+        All the arrays generated during the execution will be cast
+        to specified float type in order to save memory.
+
     Returns
     -------
     ISFC : voxel by voxel ndarray
@@ -158,32 +180,47 @@ def isfc(D, collapse_subj=True, return_p=False,
     n_vox = D.shape[0]
     n_subj = D.shape[2]
 
-    if return_p:
-        n_perm = num_perm
-    else:
-        n_perm = 0
+    n_perm = num_perm*int(return_p)
+    max_null = -np.ones(n_perm, dtype=float_type)
+    min_null = np.ones(n_perm, dtype=float_type)
 
-    ISFC = np.zeros((n_vox, n_vox, n_subj, n_perm + 1))
+    ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
 
-    for p in range(n_perm + 1):
-        # Loop across choice of leave-one-out subject
-        for loo_subj in range(D.shape[2]):
-            group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-            subj = D[:, :, loo_subj]
-            ISFC[:, :, loo_subj, p] = compute_correlation(group, subj)
-
-            # Symmetrize matrix
-            ISFC[:, :, loo_subj, p] = (ISFC[:, :, loo_subj, p] +
-                                       ISFC[:, :, loo_subj, p].T) / 2
-
-        # Randomize phases of D to create next null dataset
-        D = phase_randomize(D, random_state)
-
+    for loo_subj in range(D.shape[2]):
+        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
+        subj = D[:, :, loo_subj]
+        tmp_ISFC = compute_correlation(group, subj).astype(float_type)
+        # Symmetrize matrix
+        tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
+        ISFC[:, :, loo_subj] = tmp_ISFC
     if collapse_subj:
         ISFC = np.mean(ISFC, axis=2)
 
+    for p in range(n_perm):
+        # Randomize phases of D to create next null dataset
+        D = phase_randomize(D, random_state)
+        # Loop across choice of leave-one-out subject
+        ISFC_null = np.zeros((n_vox, n_vox), dtype=float_type)
+        for loo_subj in range(D.shape[2]):
+            group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
+            subj = D[:, :, loo_subj]
+            tmp_ISFC = compute_correlation(group, subj).astype(float_type)
+            # Symmetrize matrix
+            tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
+
+            if not collapse_subj:
+                max_null[p] = max(np.max(tmp_ISFC), max_null[p])
+                min_null[p] = min(np.min(tmp_ISFC), min_null[p])
+            ISFC_null = ISFC_null + tmp_ISFC/n_subj
+
+        if collapse_subj:
+            max_null[p] = np.max(ISFC_null)
+            min_null[p] = np.min(ISFC_null)
+
     if return_p:
-        p = p_from_null(ISFC, two_sided)
-        return ISFC[..., 0], p
+        p = p_from_null(ISFC, two_sided,
+                        max_null_input=max_null,
+                        min_null_input=min_null)
+        return ISFC, p
     else:
-        return ISFC[..., 0]
+        return ISFC

@@ -178,7 +178,7 @@ def test_fit():
     rank = n_C - 1
     n_nureg = 1
     brsa = BRSA(rank=rank, n_nureg=n_nureg, tol=2e-3,
-                n_iter=4, init_iter=4, auto_nuisance=True)
+                n_iter=8, init_iter=4, auto_nuisance=True)
     brsa.fit(X=Y, design=design.design_task, scan_onsets=scan_onsets)
     # u_b = brsa.U_
     u_i = ideal_cov

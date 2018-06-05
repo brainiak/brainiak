@@ -281,6 +281,22 @@ Making a release
 This information is only of interest to the core contributors who have the
 right to make releases.
 
+Before making a release, ensure that:
+
+1. The following environment variables are set::
+
+    export $CONDA_HOME=/path/to/miniconda3
+
+2. The following Conda channels are enabled::
+
+    conda config --add channels conda-forge --add channels defaults
+
+3. The following Conda packages are installed::
+
+    conda install conda-build anaconda-client
+
+To make a release:
+
 1. Choose a release number, ``v``. We follow `Semantic Versioning
    <http://semver.org>`_, although we omit the patch number when it is 0.
 
@@ -300,7 +316,7 @@ right to make releases.
 
        git tag v<v>
 
-4. Create and test the distribution package::
+4. Create and test the source distribution package::
 
        python3 setup.py sdist
        tar -xf dist/brainiak-<v>.tar.gz
@@ -311,5 +327,34 @@ right to make releases.
 
 5. Push release::
 
-       git tag --push
+       git push --tags
        twine upload dist/brainiak-<v>.tar.gz
+
+
+7. Create and test Conda packages (repeat command for all OSes and Python
+   versions); requires the ``conda-build`` Conda package::
+       
+       .conda/bin/build
+
+8. Upload the built Conda package (repeat command for all OSes and Python
+   versions); requires the ``anaconda-client`` Conda package::
+
+       anaconda upload -u brainiak \
+       $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
+
+9. Build and push the Docker image::
+
+       docker build --no-cache -t brainiak/brainiak .
+       docker push brainiak/brainiak
+
+10. Build and publish the documentation::
+
+       cd docs
+       make
+       cd -
+       cd ../brainiak.github.io
+       rm -r docs
+       cp -ir ../brainiak/docs/_build/html docs
+       git commit -a -m "Update docs to v<v>"
+       git push
+       cd -

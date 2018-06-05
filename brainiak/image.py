@@ -17,6 +17,7 @@ __all__ = [
     "ConditionSpec",
     "SingleConditionSpec",
     "mask_image",
+    "MaskedMultiSubjectData",
     "multimask_images",
 ]
 

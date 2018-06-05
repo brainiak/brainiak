@@ -27,6 +27,19 @@ def test_ISC():
     assert np.isclose(p, [0.02, 1]).all(), \
         "Calculated p values do not match ground truth"
 
+    (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
+                                 two_sided=True, collapse_subj=False,
+                                 random_state=0)
+    true_ISC = [[0.98221543, 0.76747914, 0.92307833],
+                [-0.26377767, 0.01490501, 0.32925896]]
+    true_p = [[0, 0.6, 0.08], [1, 1, 1]]
+
+    assert np.isclose(ISC, true_ISC).all(), \
+        "Calculated ISC (non collapse) does not match ground truth"
+
+    assert np.isclose(p, true_p).all(), \
+        "Calculated p values (non collapse) do not match ground truth"
+
 
 def test_ISFC():
     curr_dir = os.path.dirname(__file__)
@@ -58,3 +71,20 @@ def test_ISFC():
 
     assert np.isclose(p, ground_truth_p).all(), \
         "Calculated p values do not match ground truth"
+
+    (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
+                                   two_sided=True, collapse_subj=False,
+                                   random_state=0)
+    array1 = np.array([[1, 1], [1, 1], [0, 0], [-1, -1]])
+    array2 = -array1
+    array3 = np.absolute(array1)
+    array4 = 1 - array3
+
+    true_ISFC = np.array([array1, array1, array4, array2])
+    true_p = np.array([array4, array4, array3, array4])
+
+    assert np.isclose(ISFC, true_ISFC).all(), \
+        "Calculated ISFC (non collapse) does not match ground truth"
+
+    assert np.isclose(p, true_p).all(), \
+        "Calculated p values (non collapse) do not match ground truth"

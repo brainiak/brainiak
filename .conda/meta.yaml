@@ -1,0 +1,67 @@
+{% set conda_package_nonexistent = (
+    "pymanopt",
+) %}
+{% set data = load_setup_py_data() %}
+
+package:
+  # Repeating name because of the following issue:
+  # https://github.com/conda/conda-build/issues/2475
+  name: brainiak
+  version: {{ GIT_DESCRIBE_TAG[1:] }}
+
+about:
+  home: {{ data.get('url') }}
+  license: {{ data.get('license') }}
+  summary: {{ data.get('description') }}
+
+source:
+  path: ../
+
+build:
+  number: {{ GIT_DESCRIBE_NUMBER }}
+  script_env:
+
+    # We need the source directory because conda removes source / working
+    # directories by the time we reach the test phase. We can optionally pass in
+    # the --keep-old-work flag later on to use the $PREFIX/work directory
+    - BRAINIAK_HOME
+    - MKL_THREADING_LAYER
+
+requirements:
+  build:
+    - {{ compiler('cxx') }}
+
+  host:
+    - python
+    - setuptools
+    - pip
+    - openmp
+    {% for req in data.get('setup_requires', [])
+        if req not in conda_package_nonexistent -%}
+    - {{req}}
+    {% endfor %}
+    {% for req in data.get('install_requires', [])
+        if req not in conda_package_nonexistent -%}
+    - {{req}}
+    {% endfor %}
+
+  run:
+    - python
+    - openmp
+    {% for req in data.get('install_requires', [])
+        if req not in conda_package_nonexistent -%}
+    - {{req}}
+    {% endfor %}
+
+test:
+  commands:
+    - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf
+    - mpiexec -n 2 pytest $BRAINIAK_HOME
+
+      # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
+    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
+    - conda inspect linkages -p $PREFIX brainiak  # [not win]
+    - conda inspect objects -p $PREFIX brainiak  # [osx]
+  requires:
+    - pytest
+    - numdifftools

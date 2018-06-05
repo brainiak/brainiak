@@ -2,6 +2,54 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.7.1 (2018-02-20)
+===========================
+
+Features
+--------
+
+- reprsimil: Changed the default optimizer of (G)BRSA to L-BFGD-B. (`#337
+  <https://github.com/brainiak/brainiak/pull/337>`_)
+
+
+Bugfixes
+--------
+
+- eventseg: Fixed bug that was causing fits to be asymmetric (`#339
+  <https://github.com/brainiak/brainiak/issues/339>`_)
+
+
+Documentation improvements
+--------------------------
+
+- reprsimil: Added explanation that both BRSA and GBRSA assume zero-mean in the
+  distribution of beta patterns. (`#337
+  <https://github.com/brainiak/brainiak/pull/337>`_)
+
+
+BrainIAK 0.7 (2018-02-12)
+=========================
+
+Features
+--------
+
+- funcalign: Added the Robust Shared Response Model method. (`#302
+  <https://github.com/brainiak/brainiak/issues/302>`_)
+- fmrisim: Update convolution and drift. (`#309
+  <https://github.com/brainiak/brainiak/pull/309>`_)
+- eventseg: Added option to compute p values for ISC and ISFC (`#310
+  <https://github.com/brainiak/brainiak/issues/310>`_)
+- Added Conda packages. (`#328
+  <https://github.com/brainiak/brainiak/issues/328>`_)
+
+
+Documentation improvements
+--------------------------
+
+- Updated the searchlight API docs. (`#324
+  <https://github.com/brainiak/brainiak/issues/324>`_)
+
+
 BrainIAK 0.6 (2017-11-10)
 =========================
 

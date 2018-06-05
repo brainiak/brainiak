@@ -106,6 +106,9 @@ $activate_venv $venv || {
     exit_with_error "Virtual environment activation failed."
 }
 
+python3 -m pip install -U "pip<10" || \
+    exit_with_error_and_venv "Failed to update Pip."
+
 # install brainiak in editable mode (required for testing)
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
@@ -116,6 +119,21 @@ python3 -m pip install $ignore_installed -U -e . || \
 # install developer dependencies
 python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
+
+# Source a user-specified Bash script to customize the installation.
+# This option is not supported and should not be documented in user docs.
+# In particular we use it on our CentOS 6 Jenkins server with .conda/bin/
+customization_script_flag=$1
+if [ ${customization_script_flag:-default} = "--customization-script" ]
+then
+    customization_script=$2
+    if [ ${customization_script:-default} = "default" ]
+    then
+        exit_with_error_and_venv "Must specify customization script"
+    else
+        source $customization_script
+    fi
+fi
 
 # static analysis
 ./run-checks.sh || \

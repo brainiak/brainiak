@@ -3,10 +3,13 @@ coverage
 flake8
 flake8-print
 mypy
-numdifftools
-pytest
 restructuredtext-lint
 setuptools_scm
 sphinx
 sphinx_rtd_theme
 towncrier
+
+# testing
+# Also add to .conda/meta.yaml
+pytest
+numdifftools

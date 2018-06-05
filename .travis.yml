@@ -34,11 +34,16 @@ matrix:
       before_install: &macos_before_install
         - brew install llvm mpich python3
 
+    # Build and test conda packages
+    - os: linux
+      dist: trusty
+      install: ./.conda/bin/install-miniconda
+      script: ./.conda/bin/build
+
     - os: osx
       osx_image: xcode8
-      language: generic
-      env: *macos_env
-      before_install: *macos_before_install
+      install: ./.conda/bin/install-miniconda
+      script: ./.conda/bin/build
 
 install:
     - python3 -m pip install -U pip codecov
