@@ -2254,18 +2254,14 @@ def _noise_dict_update(noise_dict):
 
     """
     # Create the default dictionary
-    default_dict = {'task_sigma': 0, 'drift_sigma':0,'auto_reg_sigma': 1,
-                    'auto_reg_rho' : [0.5], 'ma_rho': [0.0],
+    default_dict = {'task_sigma': 0, 'drift_sigma': 0, 'auto_reg_sigma': 1,
+                    'auto_reg_rho': [0.5], 'ma_rho': [0.0],
                     'physiological_sigma': 0, 'sfnr': 90, 'snr': 50,
                     'max_activity': 1000, 'voxel_size': [1.0, 1.0, 1.0],
                     'fwhm': 4, 'matched': 1}
 
-    # Get the default keys
-    default_keys = default_dict.keys()
-
     # Check what noise is in the dictionary and add if necessary. Numbers
     # determine relative proportion of noise
-
     for default_key in default_dict:
         if default_key not in noise_dict:
             noise_dict[default_key] = default_dict[default_key]
@@ -2537,8 +2533,7 @@ def _fit_temporal(noise,
             logger.info(msg)
             break
 
-        ## Otherwise update the noise metrics
-        # Get the new temporal noise value
+        # Otherwise update the noise metrics. Get the new temporal noise value
         temp_sd_new = mean_signal / new_sfnr
         temporal_sd -= ((temp_sd_new - temp_sd_orig) * fit_delta)
 
