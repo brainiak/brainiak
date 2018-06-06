@@ -21,7 +21,7 @@ Test script for generating a run of a participant's data.
 import numpy as np
 import math
 from brainiak.utils import fmrisim as sim
-
+import pytest
 
 def test_generate_signal():
 
@@ -29,8 +29,7 @@ def test_generate_signal():
     dimensions = np.array([10, 10, 10])  # What is the size of the brain
     feature_size = [3]
     feature_type = ['cube']
-    feature_coordinates = np.array(
-        [[5, 5, 5]])
+    feature_coordinates = np.array([[5, 5, 5]])
     signal_magnitude = [30]
 
     # Generate a volume representing the location and quality of the signal
@@ -51,6 +50,7 @@ def test_generate_signal():
     feature_coordinates = np.array(
         [[5, 5, 5], [3, 3, 3], [7, 7, 7]])
 
+    # Check feature size is correct
     volume = sim.generate_signal(dimensions=dimensions,
                                  feature_coordinates=feature_coordinates,
                                  feature_type=['loop', 'cavity', 'sphere'],
@@ -59,6 +59,35 @@ def test_generate_signal():
     assert volume[5, 5, 5] == 0, "Loop is empty"
     assert volume[3, 3, 3] == 0, "Cavity is empty"
     assert volume[7, 7, 7] != 0, "Sphere is not empty"
+
+    # Check feature size manipulation
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=['loop', 'cavity', 'sphere'],
+                                 feature_size=[1],
+                                 signal_magnitude=signal_magnitude)
+    assert volume[5, 6, 6] == 0, "Loop is too big"
+    assert volume[3, 5, 5] == 0, "Cavity is too big"
+    assert volume[7, 9, 9] == 0, "Sphere is too big"
+
+    # Check that out of bounds feature coordinates are corrected
+    feature_coordinates = np.array([0, 2, dimensions[2]])
+    x, y, z = sim._insert_idxs(feature_coordinates, feature_size[0],
+                               dimensions)
+    assert x[1] - x[0] == 2, "x min not corrected"
+    assert y[1] - y[0] == 3, "y was corrected when it shouldn't be"
+    assert z[1] - z[0] == 1, "z max not corrected"
+
+    # Check that signal patterns are created
+    feature_coordinates = np.array([[5, 5, 5]])
+    volume = sim.generate_signal(dimensions=dimensions,
+                                 feature_coordinates=feature_coordinates,
+                                 feature_type=feature_type,
+                                 feature_size=feature_size,
+                                 signal_magnitude=signal_magnitude,
+                                 signal_constant=0,
+                                 )
+    assert volume[4:7, 4:7, 4:7].std() > 0, "Signal is constant"
 
 
 def test_generate_stimfunction():
@@ -104,6 +133,68 @@ def test_generate_stimfunction():
     assert 25 < max_response <= 30, "HRF has the incorrect length"
     assert np.sum(signal_function < 0) > 0, "No values below zero"
 
+    # Export a stimfunction
+    sim.export_3_column(stimfunction,
+                        'temp.txt',
+                        )
+
+    # Load in the stimfunction
+    stimfunc_new = sim.generate_stimfunction(onsets=None,
+                                             event_durations=None,
+                                             total_time=duration,
+                                             timing_file='temp.txt',
+                                             )
+
+    assert np.all(stimfunc_new == stimfunction), "Export/import failed"
+
+    # Break the timing precision of the generation
+    stimfunc_new = sim.generate_stimfunction(onsets=None,
+                                             event_durations=None,
+                                             total_time=duration,
+                                             timing_file='temp.txt',
+                                             temporal_resolution=0.5,
+                                             )
+
+    assert stimfunc_new.sum() == 0, "Temporal resolution not working right"
+
+    # Set the duration to be too short so you should get an error
+    onsets = [10, 30, 50, 70, 90]
+    event_durations = [5]
+    with pytest.raises(ValueError):
+        sim.generate_stimfunction(onsets=onsets,
+                                  event_durations=event_durations,
+                                  total_time=89,
+                                  )
+
+    # Clip the event offset
+    stimfunc_new = sim.generate_stimfunction(onsets=onsets,
+                                             event_durations=event_durations,
+                                             total_time=95,
+                                             )
+    assert stimfunc_new[-1] == 1, 'Event offset was not clipped'
+
+    # Test exporting a group of participants to an epoch file
+    cond_a = sim.generate_stimfunction(onsets=onsets,
+                                       event_durations=event_durations,
+                                       total_time=110,
+                                       )
+
+    cond_b = sim.generate_stimfunction(onsets=[x + 5 for x in onsets],
+                                       event_durations=event_durations,
+                                       total_time=110,
+                                       )
+
+    stimfunction_group = [np.hstack((cond_a, cond_b))] * 2
+    sim.export_epoch_file(stimfunction_group,
+                          'temp.txt',
+                          tr_duration,
+                          )
+
+    # Check that convolve throws a warning when the shape is wrong
+    _ = sim.convolve_hrf(stimfunction=np.hstack((cond_a, cond_b)).T,
+                         tr_duration=tr_duration,
+                         temporal_resolution=1,
+                         )
 
 def test_apply_signal():
 
@@ -138,6 +229,74 @@ def test_apply_signal():
                                        tr_duration=tr_duration,
                                        )
 
+    # Check that you can compute signal change appropriately
+    # Preset a bunch of things
+    stimfunction_tr = stimfunction[::int(tr_duration * 100)]
+    mask, template = sim.mask_brain(dimensions, mask_self=False)
+    noise_dict = sim._noise_dict_update({})
+    noise = sim.generate_noise(dimensions=dimensions,
+                               stimfunction_tr=stimfunction_tr,
+                               tr_duration=tr_duration,
+                               template=template,
+                               mask=mask,
+                               noise_dict=noise_dict,
+                               iterations=[0, 0]
+                               )
+    coords = feature_coordinates[0]
+    noise_function = noise[coords[0], coords[1], coords[2], :]
+    noise_function = noise_function.reshape(duration // tr_duration, 1)
+
+
+    # Create the calibrated signal with PSC
+    magnitude = [0.5]
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function,
+                                      noise_dict,
+                                      magnitude,
+                                      'PSC',
+                                      )
+    magnitude = [1]
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function,
+                                      noise_dict,
+                                      magnitude,
+                                      'PSC',
+                                      )
+
+    assert (abs(sig_b) - abs(sig_a)).min() >= 0, 'Magnitude modulation failed'
+
+    # Check the other signal change metrics
+    _ = sim.compute_signal_change(signal_function,
+                                  noise_function,
+                                  noise_dict,
+                                  magnitude,
+                                  'SFNR',
+                                  )
+    _ = sim.compute_signal_change(signal_function,
+                                  noise_function,
+                                  noise_dict,
+                                  magnitude,
+                                  'CNR_Amp/Noise-SD',
+                                  )
+    _ = sim.compute_signal_change(signal_function,
+                                  noise_function,
+                                  noise_dict,
+                                  magnitude,
+                                  'CNR_Amp2/Noise-Var_dB',
+                                  )
+    _ = sim.compute_signal_change(signal_function,
+                                  noise_function,
+                                  noise_dict,
+                                  magnitude,
+                                  'CNR_Signal-SD/Noise-SD',
+                                  )
+    _ = sim.compute_signal_change(signal_function,
+                                  noise_function,
+                                  noise_dict,
+                                  magnitude,
+                                  'CNR_Signal-Var/Noise-Var_dB',
+                                  )
+
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
                               volume_signal=volume,
@@ -152,6 +311,15 @@ def test_apply_signal():
                               )
 
     assert np.any(signal == signal_magnitude), "The stimfunction is not binary"
+
+    # Check that there is an error if the number of signal voxels doesn't
+    # match the number of non zero brain voxels
+    with pytest.raises(IndexError):
+        sig_vox = (volume > 0).sum()
+        vox_pattern = np.tile(stimfunction, (1, sig_vox - 1))
+        sim.apply_signal(signal_function=vox_pattern,
+                         volume_signal=volume,
+                         )
 
 
 def test_generate_noise():
@@ -235,6 +403,124 @@ def test_generate_noise():
 
     assert system_low < system_high, "SFNR noise could not be manipulated"
 
+    # Check that you check for the appropriate template values
+    with pytest.raises(ValueError):
+        sim.generate_noise(dimensions=dimensions,
+                           stimfunction_tr=stimfunction_tr,
+                           tr_duration=tr_duration,
+                           template=template * 2,
+                           mask=mask,
+                           noise_dict={},
+                           )
+
+    # Check that iterations does what it should
+    noise = sim.generate_noise(dimensions=dimensions,
+                               stimfunction_tr=stimfunction_tr,
+                               tr_duration=tr_duration,
+                               template=template,
+                               mask=mask,
+                               noise_dict={},
+                               iterations=[0, 0],
+                               )
+
+    noise = sim.generate_noise(dimensions=dimensions,
+                               stimfunction_tr=stimfunction_tr,
+                               tr_duration=tr_duration,
+                               template=template,
+                               mask=mask,
+                               noise_dict={},
+                               iterations=None,
+                               )
+
+    # Test drift noise
+    trs = 1000
+    period = 100
+    drift = sim._generate_noise_temporal_drift(trs,
+                                               tr_duration,
+                                               'sine',
+                                               period,
+                                               )
+
+    # Check that the max frequency is the appropriate frequency
+    power = abs(np.fft.fft(drift))[1:trs // 2]
+    freq = np.linspace(1, trs // 2 - 1, trs // 2 - 1) / trs
+    period_freq = np.where(freq == 1 / (period // tr_duration))
+    max_freq = np.argmax(power)
+
+    assert period_freq == max_freq, 'Max frequency is not where it should be'
+
+    # Do the same but now with cosine basis functions, answer should be close
+    drift = sim._generate_noise_temporal_drift(trs,
+                                               tr_duration,
+                                               'discrete_cos',
+                                               period,
+                                               )
+
+    # Check that the appropriate frequency is peaky (may not be the max)
+    power = abs(np.fft.fft(drift))[1:trs // 2]
+    freq = np.linspace(1, trs // 2 - 1, trs // 2 - 1) / trs
+    period_freq = np.where(freq == 1 / (period // tr_duration))[0][0]
+
+    assert power[period_freq] > power[period_freq + 1], 'Power is low'
+    assert power[period_freq] > power[period_freq - 1], 'Power is low'
+
+    # Check it gives a warning if the duration is too short
+    drift = sim._generate_noise_temporal_drift(50,
+                                               tr_duration,
+                                               'discrete_cos',
+                                               period,
+                                               )
+
+    # Test physiological noise (using unrealistic parameters so that it's easy)
+    timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
+    resp_freq = 0.2
+    heart_freq = 1.17
+    phys = sim._generate_noise_temporal_phys(timepoints,
+                                             resp_freq,
+                                             heart_freq,
+                                             )
+
+    # Check that the max frequency is the appropriate frequency
+    power = abs(np.fft.fft(phys))[1:trs // 2]
+    freq = np.linspace(1, trs // 2 - 1, trs // 2 - 1) / (trs * tr_duration)
+    peaks = (power>(power.mean()+power.std()))  # Where are the peaks
+    peak_freqs = freq[peaks]
+
+    assert np.any(resp_freq == peak_freqs), 'Resp frequency not where it ' \
+                                          'should be'
+    assert len(peak_freqs) == 2, 'Two peaks not found'
+
+    # Test task noise
+    task = sim._generate_noise_temporal_task(stimfunction_tr,
+                                             motion_noise='gaussian',
+                                             )
+    task = sim._generate_noise_temporal_task(stimfunction_tr,
+                                             motion_noise='rician',
+                                             )
+
+    # Test ARMA noise
+    with pytest.raises(ValueError):
+        noise_dict={'fwhm': 4, 'auto_reg_rho': [1], 'ma_rho': [1, 1]}
+        sim._generate_noise_temporal_autoregression(stimfunction_tr,
+                                                    noise_dict,
+                                                    dimensions,
+                                                    mask,
+                                                    )
+
+    # Generate spatial noise
+    with pytest.raises(IndexError):
+        sim._generate_noise_spatial(np.array([10, 10, 10, trs]))
+
+    # Turn all of the noise types on
+    noise_dict = {'physiological_sigma': 1, 'drift_sigma': 1, 'task_sigma': 1,}
+    sim.generate_noise(dimensions=dimensions,
+                       stimfunction_tr=stimfunction_tr,
+                       tr_duration=tr_duration,
+                       template=template,
+                       mask=mask,
+                       noise_dict=noise_dict,
+                       )
+
 
 def test_mask_brain():
 
@@ -277,6 +563,20 @@ def test_mask_brain():
     brain = volume * mask
 
     assert np.sum(brain != 0) < np.sum(volume != 0), "Masking did not work"
+
+    # Test that you can load the default
+    dimensions = np.array([100, 100, 100])
+    mask, template = sim.mask_brain(dimensions, mask_self=False)
+
+    assert mask[20, 80, 50] == 0, 'Masking didn''t work'
+    assert mask[25, 80, 50] == 1, 'Masking didn''t work'
+    assert int(template[25, 80, 50] * 100) == 57, 'Template not correct'
+
+    # Check that you can mask self
+    mask_self, template_self = sim.mask_brain(template, mask_self=True)
+
+    assert (template_self - template).sum() < 1e2, 'Mask self error'
+    assert (mask_self - mask).sum() == 0, 'Mask self error'
 
 
 def test_calc_noise():
@@ -333,10 +633,42 @@ def test_calc_noise():
     assert nd_new['sfnr'] > 0, 'sfnr out of range'
     assert nd_new['auto_reg_rho'][0] > 0, 'ar out of range'
 
+    # Check that the dilation increases SNR
+    no_dilation_snr = sim._calc_snr(noise_matched,
+                                    mask,
+                                    dilation=0,
+                                    tr=tr_duration,
+                                    )
+
+    assert nd_new['snr'] > no_dilation_snr, "Dilation did not increase SNR"
+
+    # Check that template size is in bounds
+    with pytest.raises(ValueError):
+        sim.calc_noise(noise, mask, template * 2)
+
+    # Check that Mask is set is checked
+    with pytest.raises(ValueError):
+        sim.calc_noise(noise, None, template)
+
+    # Check that it can deal with missing noise parameters
+    temp_nd = sim.calc_noise(noise, mask, template, noise_dict={})
+    assert temp_nd['voxel_size'][0] == 1, 'Default voxel size not set'
+
+    temp_nd = sim.calc_noise(noise, mask, template, noise_dict=None)
+    assert temp_nd['voxel_size'][0] == 1, 'Default voxel size not set'
+
     # Check that the fitting worked
     snr_diff = abs(nd_orig['snr'] - nd_new['snr'])
     snr_diff_match = abs(nd_orig['snr'] - nd_matched['snr'])
     assert snr_diff > snr_diff_match, 'snr fit incorrectly'
+
+    # Test that you can generate rician and exponential noise
+    sim._generate_noise_system(dimensions_tr,
+                               1,
+                               1,
+                               spatial_noise_type = 'exponential',
+                               temporal_noise_type = 'rician',
+                               )
 
     # Check the temporal noise match
     nd_orig['matched'] = 1
@@ -359,3 +691,11 @@ def test_calc_noise():
     ar1_diff_match = abs(nd_orig['auto_reg_rho'][0] - nd_matched[
         'auto_reg_rho'][0])
     assert ar1_diff > ar1_diff_match, 'AR1 fit incorrectly'
+
+    # Check that you can calculate ARMA for a single voxel
+    vox = noise[5, 5, 5, :]
+    arma = sim._calc_ARMA_noise(vox,
+                                None,
+                                sample_num=2,
+                                )
+    assert len(arma) == 2, "Two outputs not given by ARMA"
