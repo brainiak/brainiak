@@ -70,11 +70,6 @@ compute_signal_change
 Convert the signal function into useful metric units according to metrics
 used by others (Welvaert & Rosseel, 2013)
 
-plot_brain
-Display the brain, timepoint by timepoint, with above threshold voxels
-highlighted against the outline of the brain.
-
-
  Authors:
  Cameron Ellis (Princeton) 2016-2017
  Chris Baldassano (Princeton) 2016-2017
@@ -1129,7 +1124,6 @@ def _calc_snr(volume,
               mask,
               dilation=5,
               tr=None,
-              template_baseline=None,
               ):
     """ Calculate the the SNR of a volume
     Calculates the Signal to  Noise Ratio, the mean of brain voxels
@@ -1157,18 +1151,6 @@ def _calc_snr(volume,
 
     tr : int
         Integer specifying TR to calculate the SNR for
-
-    template_baseline : 3d array, float
-        Do you want to subtract the baseline (a.k.a. temporal mean
-        activation, the template), to observe the noise in addition to this
-        in peripherial regions? Using this procedure means that only noise
-        that is not average is modeled. It is particularly valuable for the
-        simulator because the machine noise is added to the template.
-        However, the noise profile is different when you subtract (it
-        becomes somewhat gaussian). Moreover, the amount of noise
-        perturbation reflects the baseline value (voxels that are high on
-        average across time have more noise than voxels that have low
-        averages), If this is 'None' then this subtraction won't occur.
 
     Returns
     -------
@@ -1198,11 +1180,6 @@ def _calc_snr(volume,
     if len(brain_voxels.shape) > 1:
         brain_voxels = np.mean(brain_voxels, 1)
         nonbrain_voxels = np.mean(nonbrain_voxels, 3)
-
-    # # Do you want to remove the average of the periphery (removes
-    # # structure, leaving only variability)
-    # if template_baseline is not None:
-    #     nonbrain_voxels -= template_baseline
 
     nonbrain_voxels = nonbrain_voxels[mask_dilated == 0]
 
@@ -1344,7 +1321,7 @@ def calc_noise(volume,
 
     # Create the mask if not supplied and set the mask size
     if mask is None:
-        mask = np.ones(volume.shape[:-1])
+        raise ValueError('Mask not supplied')
 
     # Update noise dict if it is not yet created
     if noise_dict is None:
@@ -1394,7 +1371,6 @@ def calc_noise(volume,
     noise_dict['fwhm'] = np.mean(fwhm)
     noise_dict['snr'] = _calc_snr(volume,
                                   mask,
-                                  template_baseline=template,
                                   )
 
     # Return the noise dictionary
@@ -1543,7 +1519,7 @@ def _generate_noise_temporal_task(stimfunction_tr,
     noise_task = stimfunction_tr + noise
 
     # Normalize
-    noise_task = stats.zscore(noise_task)
+    noise_task = stats.zscore(noise_task).flatten()
 
     return noise_task
 
@@ -1634,7 +1610,6 @@ def _generate_noise_temporal_drift(trs,
 def _generate_noise_temporal_autoregression(timepoints,
                                             noise_dict,
                                             dimensions,
-                                            template,
                                             mask,
                                             ):
 
@@ -1660,10 +1635,6 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
-
-    template : 3d array, float
-        A continuous (0 -> 1) volume describing the likelihood a voxel is in
-        the brain. This can be used to contrast the brain and non brain.
 
     mask : 3 dimensional array, binary
         The masked brain, thresholded to distinguish brain and non-brain
@@ -1761,10 +1732,10 @@ def _generate_noise_temporal_phys(timepoints,
         What time points, in seconds, are sampled by a TR
 
     resp_freq : float
-        What is the frequency of respiration
+        What is the frequency of respiration (in s)
 
     heart_freq : float
-        What is the frequency of heart beat
+        What is the frequency of heart beat (in s)
 
     Returns
     ----------
@@ -1773,18 +1744,20 @@ def _generate_noise_temporal_phys(timepoints,
 
     """
 
-    noise_phys = []  # Preset
     resp_phase = (np.random.rand(1) * 2 * np.pi)[0]
     heart_phase = (np.random.rand(1) * 2 * np.pi)[0]
-    for tr_counter in timepoints:
 
-        # Calculate the radians for each variable at this
-        # given TR
-        resp_radians = resp_freq * tr_counter * 2 * np.pi + resp_phase
-        heart_radians = heart_freq * tr_counter * 2 * np.pi + heart_phase
+    # Find the rate for each timepoint
+    resp_rate = (resp_freq * 2 * np.pi)
+    heart_rate = (heart_freq * 2 * np.pi)
 
-        # Combine the two types of noise and append
-        noise_phys.append(np.cos(resp_radians) + np.sin(heart_radians))
+    # Calculate the radians for each variable at this
+    # given TR
+    resp_radians = np.multiply(timepoints, resp_rate) + resp_phase
+    heart_radians = np.multiply(timepoints, heart_rate) + heart_phase
+
+    # Combine the two types of noise and append
+    noise_phys = np.cos(resp_radians) + np.sin(heart_radians)
 
     # Normalize
     noise_phys = stats.zscore(noise_phys)
@@ -2063,7 +2036,6 @@ def _generate_noise_temporal(stimfunction_tr,
         noise = _generate_noise_temporal_autoregression(timepoints,
                                                         noise_dict,
                                                         dimensions,
-                                                        template,
                                                         mask,
                                                         )
 
@@ -2358,7 +2330,7 @@ def _fit_spatial(noise,
     for iteration in list(range(iterations)):
 
         # Calculate the new metrics
-        new_snr = _calc_snr(noise, mask, template_baseline=template)
+        new_snr = _calc_snr(noise, mask)
 
         # Calculate the difference between the real and simulated data
         diff_snr = abs(new_snr - target_snr) / target_snr
@@ -2915,73 +2887,3 @@ def compute_signal_change(signal_function,
     # Return the scaled time course
     return signal_function_scaled
 
-
-def plot_brain(fig,
-               brain,
-               mask=None,
-               percentile=99,
-               ):
-    """ Display the brain that has been generated with a given threshold
-    Will display the voxels above the given percentile and then a shadow of
-    all voxels in the mask
-
-    Parameters
-    ----------
-
-    fig : matplotlib object
-        The figure to be displayed, generated from matplotlib. import
-        matplotlib.pyplot as plt; fig = plt.figure()
-
-    brain : 3d array
-        This is a 3d array with the neural data
-
-    mask : 3d array
-        A binary mask describing the location that you want to specify as
-
-    percentile : float
-        What percentage of voxels will be included? Based on the values
-        supplied
-
-    Returns
-    ----------
-    ax : matplotlib object
-        Object with the information to be plotted
-
-    """
-
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Threshold the data
-    threshold = np.percentile(brain.reshape(np.prod(brain.shape[0:3])),
-                              percentile)
-
-    # How many voxels exceed a threshold
-    brain_threshold = np.where(np.abs(brain) > threshold)
-
-    # Clear the way
-    ax.clear()
-
-    ax.set_xlim(0, brain.shape[0])
-    ax.set_ylim(0, brain.shape[1])
-    ax.set_zlim(0, brain.shape[2])
-
-    # If a mask is provided then plot this
-    if mask is not None:
-        mask_threshold = np.where(np.abs(mask) > 0)
-        ax.scatter(mask_threshold[0],
-                   mask_threshold[1],
-                   mask_threshold[2],
-                   zdir='z',
-                   c='black',
-                   s=10,
-                   alpha=0.01)
-
-    # Plot the volume
-    ax.scatter(brain_threshold[0],
-               brain_threshold[1],
-               brain_threshold[2],
-               zdir='z',
-               c='red',
-               s=20)
-
-    return ax
