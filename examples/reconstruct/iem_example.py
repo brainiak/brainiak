@@ -35,15 +35,17 @@ C = -.25 + .5*np.random.rand(dim, dim)  # covariance matrix
 centers_0 = np.linspace(-1, 1, dim)
 centers_60 = np.roll(centers_0,5)
 centers_120 = centers_0[::-1]
-X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+X_ = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
           np.dot(np.random.randn(n_, dim), C) + centers_60,
           np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+X = X_/np.max((np.max(X_), np.min(X_)))
 
 y = np.hstack((np.zeros(n_), 60*np.ones(n_), 120*np.ones(n_)))
 
 # Create iem object
 
-Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, -30, 210)
+Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, 6, -30, 210)
 Invt_model.fit(X, y)
 
 X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0

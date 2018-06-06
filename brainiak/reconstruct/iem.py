@@ -82,6 +82,10 @@ class InvertedEncoding(BaseEstimator):
         The number of channels, or basis functions, to be used
         in the inverted encoding model
 
+    channel_exp: int, default 6, exponent to raise the
+    sinusoidal basis functions. Establishes the width of
+    basis functions.
+
     range_start: double, default 0, beginning of range of
         independent variable (usually degrees)
 
@@ -101,12 +105,13 @@ class InvertedEncoding(BaseEstimator):
         relates estimated channel responses to response amplitude
         data
     """
-    def __init__(self, n_channels=5, range_start=0, range_stop=180):
+    def __init__(self, n_channels=5, channel_exp=6, range_start=0, range_stop=180):
 
         # Check that range_start is less than range_stop
         if range_start >= range_stop:
             raise ValueError("range_start must be less than range_stop.")
         self.n_channels = n_channels  # default = 5
+        self.channel_exp = channel_exp # default = 6
         self.range_start = range_start  # in degrees, def=0
         self.range_stop = range_stop  # in degrees, def=180
 
@@ -161,6 +166,8 @@ class InvertedEncoding(BaseEstimator):
 
         # Do regression
         clf.fit(F, X)
+        # Normalize regression coefficients
+        clf.coef_ = clf.coef_/np.max((np.abs(np.min(clf.coef_)), np.max(clf.coef_)))
 
         self.W_ = clf
         return self
@@ -232,6 +239,7 @@ class InvertedEncoding(BaseEstimator):
         params: parameter of this object
         """
         return{"n_channels": self.n_channels,
+               "channel_exp": self.channel_exp,
                "range_start": self.range_start,
                "range_stop": self.range_stop}
 
@@ -255,22 +263,24 @@ class InvertedEncoding(BaseEstimator):
                     [n_channels, function resolution].
             channel_domain: numpy array of domain values.
         """
-        channel_exp = 6
         channel_density = 180
-        shifts = np.linspace(0,
-                             np.pi - np.pi/self.n_channels,
-                             self.n_channels)
-
+        shifts_ = np.linspace(0,
+                              channel_density -
+                              channel_density/self.n_channels,
+                              self.n_channels)
+        shifts = [int(i) for i in shifts_]
         channel_domain = np.linspace(self.range_start,
                                      self.range_stop,
                                      channel_density)
-
+        channel_0 = np.sin(np.linspace(0, np.pi, channel_density)
+                           ) ** self.channel_exp
         channels = np.zeros((self.n_channels, channel_density))
         for i in range(self.n_channels):
-            channels[i, :] = np.cos(np.linspace(0, np.pi, channel_density)
-                                    - shifts[i]) ** channel_exp
+            this_ch = np.roll(channel_0, shifts[i])
+            channels[i, :] = np.maximum(np.zeros(channel_density), this_ch)
+
         # Check that channels provide sufficient coverage
-        ch_sum_range = np.max(np.sum(channels, 0)) - min(np.sum(channels, 0))
+        ch_sum_range = np.max(np.sum(channels, 0)) - np.min(np.sum(channels, 0))
         if ch_sum_range > np.deg2rad(self.range_stop - self.range_start)*0.1:
             # if range of channel sum > 10% channel domain size
             raise ValueError("Insufficient channel coverage.")
@@ -290,7 +300,9 @@ class InvertedEncoding(BaseEstimator):
         clf = linear_model.LinearRegression(fit_intercept=False,
                                             normalize=False)
         clf.fit(self.W_.coef_, X.transpose())
-        channel_response = clf.coef_
+        # channel_response = clf.coef_
+        channel_response = clf.coef_/np.max((np.abs(np.min(clf.coef_)),
+                                             np.max(clf.coef_)))
         return channel_response
 
     def _predict_directions(self, X):
