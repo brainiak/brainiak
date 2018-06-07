@@ -1242,6 +1242,10 @@ def _calc_ARMA_noise(volume,
         # timecourse
         brain_timecourse = volume.reshape(1, len(volume))
 
+    # Create for later use
+    class LinAlgError(Exception):
+        pass
+
     # Identify some brain voxels to assess
     voxel_idxs = list(range(brain_timecourse.shape[0]))
     np.random.shuffle(voxel_idxs)
