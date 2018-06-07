@@ -512,8 +512,8 @@ def test_generate_noise():
         sim._generate_noise_spatial(np.array([10, 10, 10, trs]))
 
     # Switch some of the noise types on
-    noise_dict = {'physiological_sigma': 1, 'drift_sigma': 1, 'task_sigma':
-        1, 'auto_reg_sigma': 0}
+    noise_dict = dict(physiological_sigma=1, drift_sigma=1, task_sigma=1, 
+                      auto_reg_sigma=0)
     sim.generate_noise(dimensions=dimensions,
                        stimfunction_tr=stimfunction_tr,
                        tr_duration=tr_duration,
