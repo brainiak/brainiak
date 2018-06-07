@@ -80,6 +80,7 @@ from itertools import product
 from statsmodels.tsa.arima_model import ARMA
 import math
 import numpy as np
+from numpy.linalg import LinAlgError
 from pkg_resources import resource_stream
 from scipy import stats
 from scipy import signal
@@ -1241,10 +1242,6 @@ def _calc_ARMA_noise(volume,
         # If a 1 dimensional input is supplied then reshape it to make the
         # timecourse
         brain_timecourse = volume.reshape(1, len(volume))
-
-    # Create for later use
-    class LinAlgError(Exception):
-        pass
 
     # Identify some brain voxels to assess
     voxel_idxs = list(range(brain_timecourse.shape[0]))
