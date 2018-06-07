@@ -97,7 +97,6 @@ __all__ = [
     "generate_noise",
     "mask_brain",
     "compute_signal_change",
-    "plot_brain",
 ]
 
 logger = logging.getLogger(__name__)
