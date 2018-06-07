@@ -2885,4 +2885,3 @@ def compute_signal_change(signal_function,
 
     # Return the scaled time course
     return signal_function_scaled
-
