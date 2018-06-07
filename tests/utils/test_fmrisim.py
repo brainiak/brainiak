@@ -23,6 +23,7 @@ import math
 from brainiak.utils import fmrisim as sim
 import pytest
 
+
 def test_generate_signal():
 
     # Inputs for generate_signal
@@ -191,10 +192,11 @@ def test_generate_stimfunction():
                           )
 
     # Check that convolve throws a warning when the shape is wrong
-    _ = sim.convolve_hrf(stimfunction=np.hstack((cond_a, cond_b)).T,
-                         tr_duration=tr_duration,
-                         temporal_resolution=1,
-                         )
+    sim.convolve_hrf(stimfunction=np.hstack((cond_a, cond_b)).T,
+                     tr_duration=tr_duration,
+                     temporal_resolution=1,
+                     )
+
 
 def test_apply_signal():
 
@@ -246,7 +248,6 @@ def test_apply_signal():
     noise_function = noise[coords[0], coords[1], coords[2], :]
     noise_function = noise_function.reshape(duration // tr_duration, 1)
 
-
     # Create the calibrated signal with PSC
     magnitude = [0.5]
     sig_a = sim.compute_signal_change(signal_function,
@@ -266,36 +267,36 @@ def test_apply_signal():
     assert (abs(sig_b) - abs(sig_a)).min() >= 0, 'Magnitude modulation failed'
 
     # Check the other signal change metrics
-    _ = sim.compute_signal_change(signal_function,
-                                  noise_function,
-                                  noise_dict,
-                                  magnitude,
-                                  'SFNR',
-                                  )
-    _ = sim.compute_signal_change(signal_function,
-                                  noise_function,
-                                  noise_dict,
-                                  magnitude,
-                                  'CNR_Amp/Noise-SD',
-                                  )
-    _ = sim.compute_signal_change(signal_function,
-                                  noise_function,
-                                  noise_dict,
-                                  magnitude,
-                                  'CNR_Amp2/Noise-Var_dB',
-                                  )
-    _ = sim.compute_signal_change(signal_function,
-                                  noise_function,
-                                  noise_dict,
-                                  magnitude,
-                                  'CNR_Signal-SD/Noise-SD',
-                                  )
-    _ = sim.compute_signal_change(signal_function,
-                                  noise_function,
-                                  noise_dict,
-                                  magnitude,
-                                  'CNR_Signal-Var/Noise-Var_dB',
-                                  )
+    sim.compute_signal_change(signal_function,
+                              noise_function,
+                              noise_dict,
+                              magnitude,
+                              'SFNR',
+                              )
+    sim.compute_signal_change(signal_function,
+                              noise_function,
+                              noise_dict,
+                              magnitude,
+                              'CNR_Amp/Noise-SD',
+                              )
+    sim.compute_signal_change(signal_function,
+                              noise_function,
+                              noise_dict,
+                              magnitude,
+                              'CNR_Amp2/Noise-Var_dB',
+                              )
+    sim.compute_signal_change(signal_function,
+                              noise_function,
+                              noise_dict,
+                              magnitude,
+                              'CNR_Signal-SD/Noise-SD',
+                              )
+    sim.compute_signal_change(signal_function,
+                              noise_function,
+                              noise_dict,
+                              magnitude,
+                              'CNR_Signal-Var/Noise-Var_dB',
+                              )
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
@@ -414,23 +415,23 @@ def test_generate_noise():
                            )
 
     # Check that iterations does what it should
-    noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction_tr=stimfunction_tr,
-                               tr_duration=tr_duration,
-                               template=template,
-                               mask=mask,
-                               noise_dict={},
-                               iterations=[0, 0],
-                               )
+    sim.generate_noise(dimensions=dimensions,
+                       stimfunction_tr=stimfunction_tr,
+                       tr_duration=tr_duration,
+                       template=template,
+                       mask=mask,
+                       noise_dict={},
+                       iterations=[0, 0],
+                       )
 
-    noise = sim.generate_noise(dimensions=dimensions,
-                               stimfunction_tr=stimfunction_tr,
-                               tr_duration=tr_duration,
-                               template=template,
-                               mask=mask,
-                               noise_dict={},
-                               iterations=None,
-                               )
+    sim.generate_noise(dimensions=dimensions,
+                       stimfunction_tr=stimfunction_tr,
+                       tr_duration=tr_duration,
+                       template=template,
+                       mask=mask,
+                       noise_dict={},
+                       iterations=None,
+                       )
 
     # Test drift noise
     trs = 1000
@@ -483,24 +484,23 @@ def test_generate_noise():
     # Check that the max frequency is the appropriate frequency
     power = abs(np.fft.fft(phys))[1:trs // 2]
     freq = np.linspace(1, trs // 2 - 1, trs // 2 - 1) / (trs * tr_duration)
-    peaks = (power>(power.mean()+power.std()))  # Where are the peaks
+    peaks = (power > (power.mean() + power.std()))  # Where are the peaks
     peak_freqs = freq[peaks]
 
-    assert np.any(resp_freq == peak_freqs), 'Resp frequency not where it ' \
-                                          'should be'
+    assert np.any(resp_freq == peak_freqs), 'Resp frequency not found'
     assert len(peak_freqs) == 2, 'Two peaks not found'
 
     # Test task noise
-    task = sim._generate_noise_temporal_task(stimfunction_tr,
-                                             motion_noise='gaussian',
-                                             )
-    task = sim._generate_noise_temporal_task(stimfunction_tr,
-                                             motion_noise='rician',
-                                             )
+    sim._generate_noise_temporal_task(stimfunction_tr,
+                                      motion_noise='gaussian',
+                                      )
+    sim._generate_noise_temporal_task(stimfunction_tr,
+                                      motion_noise='rician',
+                                      )
 
     # Test ARMA noise
     with pytest.raises(ValueError):
-        noise_dict={'fwhm': 4, 'auto_reg_rho': [1], 'ma_rho': [1, 1]}
+        noise_dict = {'fwhm': 4, 'auto_reg_rho': [1], 'ma_rho': [1, 1]}
         sim._generate_noise_temporal_autoregression(stimfunction_tr,
                                                     noise_dict,
                                                     dimensions,
@@ -512,7 +512,7 @@ def test_generate_noise():
         sim._generate_noise_spatial(np.array([10, 10, 10, trs]))
 
     # Turn all of the noise types on
-    noise_dict = {'physiological_sigma': 1, 'drift_sigma': 1, 'task_sigma': 1,}
+    noise_dict = {'physiological_sigma': 1, 'drift_sigma': 1, 'task_sigma': 1}
     sim.generate_noise(dimensions=dimensions,
                        stimfunction_tr=stimfunction_tr,
                        tr_duration=tr_duration,
@@ -666,8 +666,8 @@ def test_calc_noise():
     sim._generate_noise_system(dimensions_tr,
                                1,
                                1,
-                               spatial_noise_type = 'exponential',
-                               temporal_noise_type = 'rician',
+                               spatial_noise_type='exponential',
+                               temporal_noise_type='rician',
                                )
 
     # Check the temporal noise match
