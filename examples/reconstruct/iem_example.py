@@ -26,9 +26,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Generate synthetic data with dimension 9 and linearly separable
+# Generate synthetic data with dimension 9 and is linearly separable
 
-n, dim = 300, 9
+n, dim = 900, 9
 n_ = int(n/3)
 np.random.seed(0)
 C = -.25 + .5*np.random.rand(dim, dim)  # covariance matrix
@@ -45,7 +45,7 @@ y = np.hstack((np.zeros(n_), 60*np.ones(n_), 120*np.ones(n_)))
 
 # Create iem object
 
-Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6, 6, -30, 210)
+Invt_model = brainiak.reconstruct.iem.InvertedEncoding(4, 6, -30, 210)
 Invt_model.fit(X, y)
 
 X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
