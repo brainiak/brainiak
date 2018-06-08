@@ -1264,7 +1264,7 @@ def _calc_ARMA_noise(volume,
             model = ARMA(demeaned_timecourse, [auto_reg_order, ma_order])
             model_fit = model.fit(disp=False)
             params = model_fit.params
-        except LinAlgError:
+        except (ValueError, LinAlgError):
             params = np.ones(auto_reg_order + ma_order + 1) * np.nan
 
         # Add to the list
