@@ -21,7 +21,11 @@
     Lange, F. P. de. Prior Expectations Bias Sensory Representations
     in Visual Cortex. J. Neurosci. 33, 16275–16284 (2013).
 
-    [Brouwer2009] "1.Brouwer, G. J. & Heeger, D. J.
+    [Brouwer2011] "2.Brouwer, G. J. & Heeger, D. J. Cross-orientation
+    suppression in human visual cortex. J. Neurophysiol. 106(5):
+    2108-2119 (2011).
+
+    [Brouwer2009] "3.Brouwer, G. J. & Heeger, D. J.
     Decoding and Reconstructing Color from Responses in Human Visual
     Cortex. J. Neurosci. 29, 13992–14003 (2009).
 
@@ -138,18 +142,13 @@ class InvertedEncoding(BaseEstimator):
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
 
-        # Check that there is enough data.. should be more
-        # samples than voxels (i.e. X should be tall)
+        # Check that the data matrix is the right size
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
         if len(shape_data) != 2:
             raise ValueError("Data matrix has too many or too few "
                              "dimensions.")
         else:
-            if np.size(X, 0) <= np.size(X, 1):
-                raise ValueError("The number of observations should"
-                                 " be larger than the number of"
-                                 " voxels.")
             if shape_data[0] != shape_labels[0]:
                 raise ValueError(
                     "Mismatched data samples and label samples")
@@ -193,17 +192,12 @@ class InvertedEncoding(BaseEstimator):
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
 
-        # Check that there is enough data.. should be more
-        # samples than voxels (i.e. X should be tall)
+        # Check that the data matrix is the right size
         shape_data = np.shape(X)
         if len(shape_data) != 2:
             raise ValueError("Data matrix has too many or too few "
                              "dimensions.")
-        else:
-            if np.size(X, 0) <= np.size(X, 1):
-                raise ValueError("The number of observations should"
-                                 " be larger than the number of"
-                                 " voxels.")
+
         pred_response = self._predict_directions(X)
         pred_indx = np.argmax(pred_response, axis=1)
         pred_dir = self.C_D_[pred_indx]

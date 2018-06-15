@@ -47,7 +47,7 @@ def test_cannot_instantiate_channels():
         s.fit(X, y)
 
 
-# Test is valid (though fabricated) data can be fit.
+# Test if valid data can be fit.
 def test_can_fit_data():
     import brainiak.reconstruct.iem
 

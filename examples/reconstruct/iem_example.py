@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Generate synthetic data with dimension 9 and is linearly separable
 
-n, dim = 900, 9
+n, dim = 90, 60
 n_ = int(n/3)
 np.random.seed(0)
 C = -.25 + .5*np.random.rand(dim, dim)  # covariance matrix
