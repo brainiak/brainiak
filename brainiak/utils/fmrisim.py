@@ -609,7 +609,9 @@ def export_epoch_file(stimfunction,
     file used in Brainiak. The epoch file is a way to structure the timing
     information in fMRI that allows you to flexibly input different stimulus
     sequences. This is a list with each entry a 3d matrix corresponding to a
-    participant. The dimensions of the 3d matrix are condition by epoch by time
+    participant. The dimensions of the 3d matrix are condition by epoch by
+    time. For the i-th condition, if its k-th epoch spans time points t_m to
+    t_n-1, then [i, k, t_m:t_n] are 1 in the epoch file.
 
     Parameters
     ----------
@@ -1221,8 +1223,8 @@ def _calc_ARMA_noise(volume,
         How many voxels would you like to sample to calculate the AR values.
         The AR distribution of real data is approximately exponential maxing
         at 1. From analyses across a number of participants, to get less
-        than 1% standard deviation of error from the true mean it is
-        necessary to sample at least 1000 voxels.
+        than 3% standard deviation of error from the true mean it is
+        necessary to sample at least 100 voxels.
 
     Returns
     -------
@@ -1674,6 +1676,9 @@ def _generate_noise_temporal_autoregression(timepoints,
                                         fwhm=noise_dict['fwhm'],
                                         )
 
+        # Store all of the noise volumes
+        err_vols[:, :, :, tr_counter] = noise
+
         if tr_counter == 0:
             noise_autoregression[:, :, :, tr_counter] = noise
 
@@ -1697,9 +1702,6 @@ def _generate_noise_temporal_autoregression(timepoints,
                     # If the MA order has at least this many coefficients
                     # then consider the error terms
                     if ma_order >= pCounter:
-
-                        # Collect the noise from the previous TRs
-                        err_vols[:, :, :, tr_counter] = noise
 
                         # Pull out a previous TR
                         past_noise = err_vols[:, :, :, past_TR]
@@ -1732,10 +1734,10 @@ def _generate_noise_temporal_phys(timepoints,
         What time points, in seconds, are sampled by a TR
 
     resp_freq : float
-        What is the frequency of respiration (in s)
+        What is the frequency of respiration (in Hz)
 
     heart_freq : float
-        What is the frequency of heart beat (in s)
+        What is the frequency of heart beat (in Hz)
 
     Returns
     ----------
@@ -1819,7 +1821,7 @@ def _generate_noise_spatial(dimensions,
 
     # Check the input is correct
     if len(dimensions) == 4:
-        raise IndexError('4 dimensions have been supplied, only using 3')
+        logger.warning('4 dimensions have been supplied, only using 3')
         dimensions = dimensions[0:3]
 
     def _logfunc(x, a, b, c):
@@ -2217,6 +2219,25 @@ def _noise_dict_update(noise_dict):
         parameter that describes how much noise these components contribute
         to the brain. If you set the noise dict to matched then it will fit
         the parameters to match the participant as best as possible.
+        The noise variables are as follows:
+        snr [float]: Size of the spatial noise
+        sfnr [float]: Size of the temporal noise. This is the total variability
+        that the following sigmas 'sum' to:
+            task_sigma [float]: Size of the variance of task specific noise
+            drift_sigma [float]: Size of the variance of drift noise
+            auto_reg_sigma [float]: Size of the variance of autoregressive
+            noise
+            physiological_sigma [float]: Size of the variance of
+            physiological noise
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
 
     Returns
     -------
@@ -2593,7 +2614,25 @@ def generate_noise(dimensions,
     noise_dict : dictionary, float
         This is a dictionary which describes the noise parameters of the
         data. If there are no other variables provided then it will use
-        default values
+        default values. The noise variables are as follows:
+        snr [float]: Size of the spatial noise
+        sfnr [float]: Size of the temporal noise. This is the total variability
+        that the following sigmas 'sum' to:
+            task_sigma [float]: Size of the variance of task specific noise
+            drift_sigma [float]: Size of the variance of drift noise
+            auto_reg_sigma [float]: Size of the variance of autoregressive
+            noise
+            physiological_sigma [float]: Size of the variance of
+            physiological noise
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
 
     temporal_proportion, float
         What is the proportion of the temporal variance (as specified by the
