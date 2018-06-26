@@ -2223,12 +2223,13 @@ def _noise_dict_update(noise_dict):
         snr [float]: Size of the spatial noise
         sfnr [float]: Size of the temporal noise. This is the total variability
         that the following sigmas 'sum' to:
-            task_sigma [float]: Size of the variance of task specific noise
-            drift_sigma [float]: Size of the variance of drift noise
-            auto_reg_sigma [float]: Size of the variance of autoregressive
-            noise
-            physiological_sigma [float]: Size of the variance of
-            physiological noise
+
+        task_sigma [float]: Size of the variance of task specific noise
+        drift_sigma [float]: Size of the variance of drift noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive noise
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
+
         auto_reg_rho [list]: The coefficients of the autoregressive
         components you are modeling
         ma_rho [list]:The coefficients of the moving average components you
@@ -2618,12 +2619,13 @@ def generate_noise(dimensions,
         snr [float]: Size of the spatial noise
         sfnr [float]: Size of the temporal noise. This is the total variability
         that the following sigmas 'sum' to:
-            task_sigma [float]: Size of the variance of task specific noise
-            drift_sigma [float]: Size of the variance of drift noise
-            auto_reg_sigma [float]: Size of the variance of autoregressive
-            noise
-            physiological_sigma [float]: Size of the variance of
-            physiological noise
+
+        task_sigma [float]: Size of the variance of task specific noise
+        drift_sigma [float]: Size of the variance of drift noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive noise
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
+
         auto_reg_rho [list]: The coefficients of the autoregressive
         components you are modeling
         ma_rho [list]:The coefficients of the moving average components you
