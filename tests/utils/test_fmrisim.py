@@ -369,6 +369,7 @@ def test_generate_noise():
     assert len(np.unique(template) > 2), "Template creation did not work"
 
     stimfunction_tr = stimfunction[::int(tr_duration * 100)]
+
     # Create the noise volumes (using the default parameters)
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=stimfunction_tr,
@@ -508,8 +509,8 @@ def test_generate_noise():
                                                     )
 
     # Generate spatial noise
-    with pytest.raises(IndexError):
-        sim._generate_noise_spatial(np.array([10, 10, 10, trs]))
+    vol = sim._generate_noise_spatial(np.array([10, 10, 10, trs]))
+    assert len(vol.shape) == 3, 'Volume was not reshaped to ignore TRs'
 
     # Switch some of the noise types on
     noise_dict = dict(physiological_sigma=1, drift_sigma=1, task_sigma=1,
