@@ -34,7 +34,9 @@
     This code was written to give some flexibility compared to
     the specific instances in Kok, 2013 & in Brouwer, 2009. For
     instance, users can set the number of basis functions, or
-    channels, and the range of possible feature values.
+    channels, and the range of possible feature values. This
+    implementation also gives the option to normalize channel
+    weights and responses, if desired.
 """
 
 # Authors: David Huberdeau (Yale University) &
@@ -95,6 +97,10 @@ class InvertedEncoding(BaseEstimator):
     range_stop: double, default 180, end of range of
         independent variable (usually degrees)
 
+    normalize: Boolean, default False. If True, normalizes
+        weights of basis functions and channel responses; if
+        False, does not normalize.
+
     Attributes
     ----------
     C_: [n_channels, channel density] NumPy 2D array
@@ -112,7 +118,8 @@ class InvertedEncoding(BaseEstimator):
                  n_channels=5,
                  channel_exp=6,
                  range_start=0,
-                 range_stop=180):
+                 range_stop=180,
+                 normalize=False):
 
         # Check that range_start is less than range_stop
         if range_start >= range_stop:
@@ -121,6 +128,7 @@ class InvertedEncoding(BaseEstimator):
         self.channel_exp = channel_exp  # default = 6
         self.range_start = range_start  # in degrees, def=0
         self.range_stop = range_stop  # in degrees, def=180
+        self.normalize = normalize  # boolean, def=False
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -168,9 +176,11 @@ class InvertedEncoding(BaseEstimator):
 
         # Do regression
         clf.fit(F, X)
-        # Normalize regression coefficients
-        clf.coef_ = (clf.coef_ - np.min(clf.coef_))\
-            / (np.max(clf.coef_) - np.min(clf.coef_))
+        # Normalize regression coefficients if indicated
+        if self.normalize:
+            clf.coef_ = (clf.coef_ - np.min(clf.coef_))\
+                / (np.max(clf.coef_) - np.min(clf.coef_))
+
         self.W_ = clf
         return self
 
@@ -299,8 +309,12 @@ class InvertedEncoding(BaseEstimator):
                                             normalize=False)
         clf.fit(self.W_.coef_, X.transpose())
 
-        channel_response = (clf.coef_ - np.min(clf.coef_))\
-            / (np.max(clf.coef_) - np.min(clf.coef_))
+        if self.normalize:
+            channel_response = (clf.coef_ - np.min(clf.coef_))\
+                / (np.max(clf.coef_) - np.min(clf.coef_))
+        else:
+            channel_response = clf.coef_
+
         return channel_response
 
     def _predict_directions(self, X):

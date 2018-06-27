@@ -33,7 +33,8 @@ def test_instantiate_improper_range():
         s = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                       6,
                                                       180,
-                                                      90)
+                                                      90,
+                                                      True)
         assert s, "Invalid InvertedEncoding instance"
 
 
@@ -69,7 +70,8 @@ def test_can_fit_data():
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                            6,
                                                            -30,
-                                                           210)
+                                                           210,
+                                                           True)
     Invt_model.fit(X, y)
 
 
@@ -97,7 +99,8 @@ def test_cannot_fit_data():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               210)
+                                                               210,
+                                                               True)
         Invt_model.fit(X, y)
 
 
@@ -123,7 +126,8 @@ def test_ill_conditioned_train_data():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               210)
+                                                               210,
+                                                               True)
         Invt_model.fit(X, y)
 
 
@@ -140,7 +144,8 @@ def test_extra_data_dimensions():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               120)
+                                                               120,
+                                                               True)
         Invt_model.fit(X, y)
 
 
@@ -159,7 +164,8 @@ def test_mismatched_observations():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               120)
+                                                               120,
+                                                               True)
         Invt_model.fit(X, y)
 
 
@@ -184,7 +190,8 @@ def test_can_predict_from_data():
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                            6,
                                                            -30,
-                                                           210)
+                                                           210,
+                                                           True)
     Invt_model.fit(X, y)
 
     X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
@@ -219,7 +226,8 @@ def test_cannot_predict_from_data():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               210)
+                                                               210,
+                                                               True)
         Invt_model.fit(X, y)
 
         X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
@@ -259,7 +267,8 @@ def test_ill_conditioned_test_data():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               210)
+                                                               210,
+                                                               True)
         Invt_model.fit(X, y)
 
         # offending lines - data ill conditioned.
@@ -297,7 +306,8 @@ def test_can_score():
     Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                            6,
                                                            -30,
-                                                           210)
+                                                           210,
+                                                           True)
     Invt_model.fit(X, y)
 
     X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
@@ -336,7 +346,8 @@ def test_cannot_score():
         Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                                6,
                                                                -30,
-                                                               210)
+                                                               210,
+                                                               True)
         Invt_model.fit(X, y)
 
         # create data intentionally insufficient
@@ -355,13 +366,138 @@ def test_cannot_score():
         logger.info('Scores: ' + str(score))
 
 
+# Show better scoring with normalization
+def test_normalize():
+    import brainiak.reconstruct.iem
+
+    n, dim = 90, 60
+    n_ = int(n / 3)
+    np.random.seed(0)
+    C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+    centers_0 = np.linspace(-1, 1, dim)
+    centers_60 = np.roll(centers_0, 5)
+    centers_120 = centers_0[::-1]
+    X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                   np.dot(np.random.randn(n_, dim), C) + centers_60,
+                   np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+    y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+    # Create iem object with normalization:
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
+                                                           6,
+                                                           -30,
+                                                           210,
+                                                           True)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    y2_0 = np.zeros(n_)
+    y2_60 = 60 * np.ones(n_)
+    y2_120 = 120 * np.ones(n_)
+
+    X2_ = np.vstack((X2_0, X2_60, X2_120))
+    y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+    score = Invt_model.score(X2_, y2_)
+    logger.info('Score Normalized: ' + str(score))
+
+    # Create iem object with out normalization:
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
+                                                           6,
+                                                           -30,
+                                                           210,
+                                                           False)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    y2_0 = np.zeros(n_)
+    y2_60 = 60 * np.ones(n_)
+    y2_120 = 120 * np.ones(n_)
+
+    X2_ = np.vstack((X2_0, X2_60, X2_120))
+    y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+    score = Invt_model.score(X2_, y2_)
+    logger.info('Score Not Normalized: ' + str(score))
+
+
+# Show equalivalent or better scoring with without normalization
+def test_non_normalize():
+    import brainiak.reconstruct.iem
+
+    n, dim = 300, 9
+    n_ = int(n / 3)
+    np.random.seed(0)
+    C = -.25 + .5 * np.random.rand(dim, dim)  # covariance matrix
+    centers_0 = np.linspace(-1, 1, dim)
+    centers_60 = np.roll(centers_0, 5)
+    centers_120 = centers_0[::-1]
+    X = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
+                   np.dot(np.random.randn(n_, dim), C) + centers_60,
+                   np.dot(np.random.randn(n_, dim), C) + centers_120))
+
+    y = np.hstack((np.zeros(n_), 60 * np.ones(n_), 120 * np.ones(n_)))
+
+    # Create iem object with normalization:
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
+                                                           6,
+                                                           -30,
+                                                           210,
+                                                           True)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    y2_0 = np.zeros(n_)
+    y2_60 = 60 * np.ones(n_)
+    y2_120 = 120 * np.ones(n_)
+
+    X2_ = np.vstack((X2_0, X2_60, X2_120))
+    y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+    score = Invt_model.score(X2_, y2_)
+    logger.info('Score Normalized: ' + str(score))
+
+    # Create iem object with out normalization:
+    Invt_model = brainiak.reconstruct.iem.InvertedEncoding(6,
+                                                           6,
+                                                           -30,
+                                                           210,
+                                                           False)
+    Invt_model.fit(X, y)
+
+    X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
+    X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
+    X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+
+    y2_0 = np.zeros(n_)
+    y2_60 = 60 * np.ones(n_)
+    y2_120 = 120 * np.ones(n_)
+
+    X2_ = np.vstack((X2_0, X2_60, X2_120))
+    y2_ = np.hstack((y2_0, y2_60, y2_120))
+
+    score = Invt_model.score(X2_, y2_)
+    logger.info('Score Not Normalized: ' + str(score))
+
+
 # Test ability to get model parameters from object
 def test_can_get_params():
     import brainiak.reconstruct.iem
     s = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                   6,
                                                   0,
-                                                  180)
+                                                  180,
+                                                  True)
     param_out = s.get_params()
     logger.info('Returned Parameters: ' +
                 str(param_out.get('n_channels')) +
@@ -375,7 +511,8 @@ def test_can_set_params():
     s = brainiak.reconstruct.iem.InvertedEncoding(6,
                                                   6,
                                                   0,
-                                                  180)
+                                                  180,
+                                                  True)
     s.set_params(n_channels=10,
                  range_start=-90,
                  range_stop=270)

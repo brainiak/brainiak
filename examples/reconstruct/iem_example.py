@@ -45,7 +45,11 @@ y = np.hstack((np.zeros(n_), 60*np.ones(n_), 120*np.ones(n_)))
 
 # Create iem object
 
-Invt_model = brainiak.reconstruct.iem.InvertedEncoding(4, 6, -30, 210)
+Invt_model = brainiak.reconstruct.iem.InvertedEncoding(4, # channels
+                                                       6, # exponent
+                                                       -30, # start
+                                                       210, # stop
+                                                       True) #normlz
 Invt_model.fit(X, y)
 
 X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
