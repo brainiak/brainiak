@@ -71,8 +71,9 @@ Convert the signal function into useful metric units according to metrics
 used by others (Welvaert & Rosseel, 2013)
 
  Authors:
- Cameron Ellis (Princeton) 2016-2017
+ Cameron Ellis (Princeton & Yale) 2016-2018
  Chris Baldassano (Princeton) 2016-2017
+ Mingbo Cai (Princeton) 2017
 """
 import logging
 
@@ -2220,13 +2221,16 @@ def _noise_dict_update(noise_dict):
         to the brain. If you set the noise dict to matched then it will fit
         the parameters to match the participant as best as possible.
         The noise variables are as follows:
-        snr [float]: Size of the spatial noise
-        sfnr [float]: Size of the temporal noise. This is the total variability
-        that the following sigmas 'sum' to:
+
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
 
         task_sigma [float]: Size of the variance of task specific noise
         drift_sigma [float]: Size of the variance of drift noise
-        auto_reg_sigma [float]: Size of the variance of autoregressive noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
         physiological_sigma [float]: Size of the variance of physiological
         noise
 
@@ -2239,6 +2243,9 @@ def _noise_dict_update(noise_dict):
         voxel_size [list]: The mm size of the voxels
         fwhm [float]: The gaussian smoothing kernel size (mm)
         matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
 
     Returns
     -------
@@ -2380,7 +2387,7 @@ def _fit_spatial(noise,
                                               )
 
         # Sum up the noise of the brain
-        noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
+        noise = base + (noise_temporal * temporal_sd) + noise_system
 
         # Reject negative values (only happens outside of the brain)
         noise[noise < 0] = 0
@@ -2389,7 +2396,7 @@ def _fit_spatial(noise,
     if iterations == 0:
         logger.info('No fitting iterations were run')
     elif iteration == iterations:
-        logger.info('SNR failed to converge.')
+        logger.warning('SNR failed to converge.')
 
     # Return the updated noise
     return noise, spatial_sd
@@ -2531,12 +2538,12 @@ def _fit_temporal(noise,
         temp_sd_new = mean_signal / new_sfnr
         temporal_sd -= ((temp_sd_new - temp_sd_orig) * fit_delta)
 
-        # Set the new system noise
-        temp_sd_system_new = np.sqrt((temporal_sd ** 2) * temporal_proportion)
-
         # Prevent these going out of range
         if temporal_sd < 0 or np.isnan(temporal_sd):
             temporal_sd = 10e-3
+
+        # Set the new system noise
+        temp_sd_system_new = np.sqrt((temporal_sd ** 2) * temporal_proportion)
 
         # Get the new AR value
         new_nd['auto_reg_rho'][0] -= (ar_diff * fit_delta)
@@ -2561,7 +2568,7 @@ def _fit_temporal(noise,
                                               )
 
         # Sum up the noise of the brain
-        noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
+        noise = base + (noise_temporal * temporal_sd) + noise_system
 
         # Reject negative values (only happens outside of the brain)
         noise[noise < 0] = 0
@@ -2570,7 +2577,7 @@ def _fit_temporal(noise,
     if iterations == 0:
         logger.info('No fitting iterations were run')
     elif iteration == iterations:
-        logger.info('AR failed to converge.')
+        logger.warning('AR failed to converge.')
 
     # Return the updated noise
     return noise
@@ -2616,13 +2623,16 @@ def generate_noise(dimensions,
         This is a dictionary which describes the noise parameters of the
         data. If there are no other variables provided then it will use
         default values. The noise variables are as follows:
-        snr [float]: Size of the spatial noise
-        sfnr [float]: Size of the temporal noise. This is the total variability
-        that the following sigmas 'sum' to:
+
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
 
         task_sigma [float]: Size of the variance of task specific noise
         drift_sigma [float]: Size of the variance of drift noise
-        auto_reg_sigma [float]: Size of the variance of autoregressive noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
         physiological_sigma [float]: Size of the variance of physiological
         noise
 
@@ -2635,6 +2645,9 @@ def generate_noise(dimensions,
         voxel_size [list]: The mm size of the voxels
         fwhm [float]: The gaussian smoothing kernel size (mm)
         matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
 
     temporal_proportion, float
         What is the proportion of the temporal variance (as specified by the
@@ -2739,7 +2752,7 @@ def generate_noise(dimensions,
                                           )
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * (1 - temporal_sd)) + noise_system
+    noise = base + (noise_temporal * temporal_sd) + noise_system
 
     # Reject negative values (only happens outside of the brain)
     noise[noise < 0] = 0
@@ -2782,11 +2795,12 @@ def compute_signal_change(signal_function,
                           magnitude,
                           method='PSC',
                           ):
-    """ Rescale the current a signal functions based on a metric and
-    magnitude supplied. Metrics are heavily influenced by Welvaert & Rosseel
-    (2013). The rescaling is based on the maximal activity in the
-    timecourse. Importantly, all values within the signal_function are
-    scaled to have a min of -1 or max of 1
+    """ Rescale the signal to be a given magnitude, based on a specified
+    metric (e.g. percent signal change). Metrics are heavily inspired by
+    Welvaert & Rosseel (2013). The rescaling is based on the maximal
+    activity in the timecourse. Importantly, all values within the
+    signal_function are scaled to have a min of -1 or max of 1, meaning that
+    the voxel value will be the same as the magnitude.
 
     Parameters
     ----------
@@ -2797,7 +2811,12 @@ def compute_signal_change(signal_function,
         multiple time courses specified as different columns in this
         array. Conceivably you could use the output of
         generate_stimfunction as the input but the temporal variance
-        will be incorrect
+        will be incorrect. Critically, different values across voxels are
+        considered relative to each other, not independently. E.g., if the
+        voxel has a peak signal twice as high as another voxel's, then this
+        means that the signal after these transformations will still be
+        twice as high (according to the metric) in the first voxel relative
+        to the second
 
     noise_function : timepoint by voxel numpy array
         The time course of noise (a voxel created from generate_noise)
@@ -2847,7 +2866,7 @@ def compute_signal_change(signal_function,
     # If you have only one magnitude value, duplicate the magnitude for each
     #  timecourse you have
     if len(magnitude) == 1:
-        magnitude *= signal_function.shape[1]
+        magnitude = np.ones((signal_function.shape[1], 1)) * magnitude[0]
 
     # Scale all signals that to have a range of -1 to 1. This is
     # so that any values less than this will be scaled appropriately
@@ -2861,6 +2880,10 @@ def compute_signal_change(signal_function,
         sig_voxel = signal_function[:, voxel_counter]
         noise_voxel = noise_function[:, voxel_counter]
         magnitude_voxel = magnitude[voxel_counter]
+
+        # Calculate the maximum signal amplitude (likely to be 1,
+        # but not necessarily)
+        max_amp = np.max(np.abs(sig_voxel))
 
         # Calculate the scaled time course using the specified method
         if method == 'SFNR':
@@ -2883,18 +2906,14 @@ def compute_signal_change(signal_function,
 
         elif method == 'CNR_Amp2/Noise-Var_dB':
 
-            # Calculate the current signal amplitude (likely to be 1,
-            # but not necessarily)
-            sig_amp = np.max(np.abs(sig_voxel))
-
             # What is the standard deviation of the noise
             noise_std = np.std(noise_voxel)
 
             # Rearrange the equation to compute the size of signal change in
             #  decibels
-            scale = 10 ** ((magnitude_voxel / sig_amp) + np.log10(noise_std
-                                                                  ** 2))
-            new_sig = sig_voxel * np.sqrt(scale)
+            scale = (10 ** (magnitude_voxel / 20)) * noise_std / max_amp
+
+            new_sig = sig_voxel * scale
 
         elif method == 'CNR_Signal-SD/Noise-SD':
 
@@ -2904,7 +2923,8 @@ def compute_signal_change(signal_function,
 
             # Multiply the signal timecourse by the the CNR and noise (
             # rearranging eq.)
-            new_sig = sig_voxel * (magnitude_voxel * noise_std / sig_std)
+            new_sig = sig_voxel * ((magnitude_voxel / max_amp) * noise_std
+                                   / sig_std)
 
         elif method == 'CNR_Signal-Var/Noise-Var_dB':
             # What is the standard deviation of the signal and noise
@@ -2913,9 +2933,10 @@ def compute_signal_change(signal_function,
 
             # Rearrange the equation to compute the size of signal change in
             #  decibels
-            scale = 10 ** ((magnitude_voxel / sig_std) + np.log10(noise_std
-                                                                  ** 2))
-            new_sig = sig_voxel * np.sqrt(scale)
+            scale = (10 ** (magnitude_voxel / 20)) * noise_std / (max_amp *
+                                                                  sig_std)
+
+            new_sig = sig_voxel * scale
 
         elif method == 'PSC':
 

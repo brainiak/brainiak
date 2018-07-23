@@ -245,58 +245,125 @@ def test_apply_signal():
                                iterations=[0, 0]
                                )
     coords = feature_coordinates[0]
-    noise_function = noise[coords[0], coords[1], coords[2], :]
-    noise_function = noise_function.reshape(duration // tr_duration, 1)
+    noise_function_a = noise[coords[0], coords[1], coords[2], :]
+    noise_function_a = noise_function_a.reshape(duration // tr_duration, 1)
+
+    noise_function_b = noise[coords[0] + 1, coords[1], coords[2], :]
+    noise_function_b = noise_function_b.reshape(duration // tr_duration, 1)
 
     # Create the calibrated signal with PSC
-    magnitude = [0.5]
+    method = 'PSC'
     sig_a = sim.compute_signal_change(signal_function,
-                                      noise_function,
+                                      noise_function_a,
                                       noise_dict,
-                                      magnitude,
-                                      'PSC',
+                                      [0.5],
+                                      method,
                                       )
-    magnitude = [1]
     sig_b = sim.compute_signal_change(signal_function,
-                                      noise_function,
+                                      noise_function_a,
                                       noise_dict,
-                                      magnitude,
-                                      'PSC',
+                                      [1.0],
+                                      method,
                                       )
 
-    assert (abs(sig_b) - abs(sig_a)).min() >= 0, 'Magnitude modulation failed'
+    assert sig_b.max() / sig_a.max() == 2, 'PSC modulation failed'
 
-    # Check the other signal change metrics
-    sim.compute_signal_change(signal_function,
-                              noise_function,
-                              noise_dict,
-                              magnitude,
-                              'SFNR',
-                              )
-    sim.compute_signal_change(signal_function,
-                              noise_function,
-                              noise_dict,
-                              magnitude,
-                              'CNR_Amp/Noise-SD',
-                              )
-    sim.compute_signal_change(signal_function,
-                              noise_function,
-                              noise_dict,
-                              magnitude,
-                              'CNR_Amp2/Noise-Var_dB',
-                              )
-    sim.compute_signal_change(signal_function,
-                              noise_function,
-                              noise_dict,
-                              magnitude,
-                              'CNR_Signal-SD/Noise-SD',
-                              )
-    sim.compute_signal_change(signal_function,
-                              noise_function,
-                              noise_dict,
-                              magnitude,
-                              'CNR_Signal-Var/Noise-Var_dB',
-                              )
+    # Create the calibrated signal with SFNR
+    method = 'SFNR'
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [0.5],
+                                      method,
+                                      )
+    scaled_a = sig_a / (noise_function_a.mean() / noise_dict['sfnr'])
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function_b,
+                                      noise_dict,
+                                      [1.0],
+                                      method,
+                                      )
+    scaled_b = sig_b / (noise_function_b.mean() / noise_dict['sfnr'])
+
+    assert scaled_b.max() / scaled_a.max() == 2, 'SFNR modulation failed'
+
+    # Create the calibrated signal with CNR_Amp/Noise-SD
+    method = 'CNR_Amp/Noise-SD'
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [0.5],
+                                      method,
+                                      )
+    scaled_a = sig_a / noise_function_a.std()
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function_b,
+                                      noise_dict,
+                                      [1.0],
+                                      method,
+                                      )
+    scaled_b = sig_b / noise_function_b.std()
+
+    assert scaled_b.max() / scaled_a.max() == 2, 'CNR_Amp modulation failed'
+
+    # Create the calibrated signal with CNR_Amp/Noise-Var_dB
+    method = 'CNR_Amp2/Noise-Var_dB'
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [0.5],
+                                      method,
+                                      )
+    scaled_a = np.log(sig_a.max() / noise_function_a.std())
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function_b,
+                                      noise_dict,
+                                      [1.0],
+                                      method,
+                                      )
+    scaled_b = np.log(sig_b.max() / noise_function_b.std())
+
+    assert np.round(scaled_b / scaled_a) == 2, 'CNR_Amp dB modulation failed'
+
+    # Create the calibrated signal with CNR_Signal-SD/Noise-SD
+    method = 'CNR_Signal-SD/Noise-SD'
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [0.5],
+                                      method,
+                                      )
+    scaled_a = sig_a.std() / noise_function_a.std()
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [1.0],
+                                      method,
+                                      )
+    scaled_b = sig_b.std() / noise_function_a.std()
+
+    assert (scaled_b / scaled_a) == 2, 'CNR signal modulation failed'
+
+    # Create the calibrated signal with CNR_Amp/Noise-Var_dB
+    method = 'CNR_Signal-Var/Noise-Var_dB'
+    sig_a = sim.compute_signal_change(signal_function,
+                                      noise_function_a,
+                                      noise_dict,
+                                      [0.5],
+                                      method,
+                                      )
+
+    scaled_a = np.log(sig_a.std() / noise_function_a.std())
+    sig_b = sim.compute_signal_change(signal_function,
+                                      noise_function_b,
+                                      noise_dict,
+                                      [1.0],
+                                      method,
+                                      )
+    scaled_b = np.log(sig_b.std() / noise_function_b.std())
+
+    assert np.round(scaled_b / scaled_a) == 2, 'CNR signal dB modulation ' \
+                                               'failed'
 
     # Convolve the HRF with the stimulus sequence
     signal = sim.apply_signal(signal_function=signal_function,
