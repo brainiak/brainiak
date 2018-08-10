@@ -1471,12 +1471,12 @@ def _generate_noise_system(dimensions_tr,
     temporal_noise *= temporal_sd
 
     # The mean in time of system noise needs to be zero, so subtract the
-    # means of the temporal noise in time and spatial noise
+    # means of the temporal noise in time
     temporal_noise_mean = np.mean(temporal_noise, 3).reshape(dimensions[0],
                                                              dimensions[1],
                                                              dimensions[2],
                                                              1)
-    temporal_noise = temporal_noise - (temporal_noise_mean - spatial_noise)
+    temporal_noise = temporal_noise - temporal_noise_mean
 
     # Save the combination
     system_noise = spatial_noise + temporal_noise
@@ -2866,7 +2866,7 @@ def compute_signal_change(signal_function,
     # If you have only one magnitude value, duplicate the magnitude for each
     #  timecourse you have
     if len(magnitude) == 1:
-        magnitude = np.ones((signal_function.shape[1], 1)) * magnitude[0]
+        magnitude *= signal_function.shape[1]
 
     # Scale all signals that to have a range of -1 to 1. This is
     # so that any values less than this will be scaled appropriately
