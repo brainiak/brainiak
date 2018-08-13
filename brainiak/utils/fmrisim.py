@@ -1126,7 +1126,7 @@ def _calc_sfnr(volume,
 def _calc_snr(volume,
               mask,
               dilation=5,
-              tr=None,
+              reference_tr=None,
               ):
     """ Calculate the the SNR of a volume
     Calculates the Signal to  Noise Ratio, the mean of brain voxels
@@ -1152,8 +1152,9 @@ def _calc_snr(volume,
         increases and the non-brain voxels (after baseline subtraction) more
         closely resemble a gaussian
 
-    tr : int
-        Integer specifying TR to calculate the SNR for
+    reference_tr : int or list
+        Specifies the TR to calculate the SNR for. If multiple are supplied
+        then it will use the average of them.
 
     Returns
     -------
@@ -1164,8 +1165,8 @@ def _calc_snr(volume,
     """
 
     # If no TR is specified then take all of them
-    if tr is None:
-        tr = list(range(volume.shape[3]))
+    if reference_tr is None:
+        reference_tr = list(range(volume.shape[3]))
 
     # Dilate the mask in order to ensure that non-brain voxels are far from
     # the brain
@@ -1176,8 +1177,8 @@ def _calc_snr(volume,
         mask_dilated = mask
 
     # Make a matrix of brain and non_brain voxels, selecting the timepoint/s
-    brain_voxels = volume[mask > 0][:, tr]
-    nonbrain_voxels = (volume[:, :, :, tr]).astype('float64')
+    brain_voxels = volume[mask > 0][:, reference_tr]
+    nonbrain_voxels = (volume[:, :, :, reference_tr]).astype('float64')
 
     # If you have multiple TRs
     if len(brain_voxels.shape) > 1:
@@ -2079,7 +2080,10 @@ def mask_brain(volume,
     """ Mask the simulated volume
     This creates a mask specifying the approximate likelihood that a voxel is
     part of the brain. All values are bounded to the range of 0 to 1. An
-    appropriate threshold to isolate brain voxels is >0.2
+    appropriate threshold to isolate brain voxels is >0.2. Critically,
+    the data that should be used to create a template shouldn't already be
+    masked/skull stripped. If it is then it will give in accurate estimates
+    of non-brain noise and corrupt estimations of SNR.
 
     Parameters
     ----------
