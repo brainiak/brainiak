@@ -1457,14 +1457,6 @@ def _generate_noise_system(dimensions_tr,
     spatial_noise = noise_volume(dimensions, spatial_noise_type)
     temporal_noise = noise_volume(dimensions_tr, temporal_noise_type)
 
-    # Since you are combining spatial and temporal noise, you need to
-    # subtract the variance of the two to get the spatial sd
-    if spatial_sd > temporal_sd:
-        spatial_sd = np.sqrt(spatial_sd ** 2 - temporal_sd ** 2)
-    else:
-        # If this is below zero then all the noise will be temporal
-        spatial_sd = 0
-
     # Make the system noise have a specific spatial variability
     spatial_noise *= spatial_sd
 
