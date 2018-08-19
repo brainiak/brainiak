@@ -707,7 +707,7 @@ def test_calc_noise():
     no_dilation_snr = sim._calc_snr(noise_matched,
                                     mask,
                                     dilation=0,
-                                    tr=tr_duration,
+                                    reference_tr=tr_duration,
                                     )
 
     assert nd_new['snr'] > no_dilation_snr, "Dilation did not increase SNR"
