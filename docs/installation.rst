@@ -10,7 +10,7 @@ dependencies are not available in the default channels.
 
 Use our ``brainiak`` channel to install::
 
-    conda install -c brainiak brainiak
+    conda install -c brainiak -c defaults -c conda-forge brainiak
 
 Note that `~brainiak.funcalign.sssrm.SSSRM` currently uses Theano, which
 requires the Xcode Command Line Tools on `MacOS`_.
