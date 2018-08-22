@@ -33,7 +33,6 @@ __all__ = [
     "concatenate_not_none",
     "cov2corr",
     "ReadDesign",
-    "read_afni",
     "gen_design",
     "center_mass_exp",
     "usable_cpu_count",
