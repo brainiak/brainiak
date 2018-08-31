@@ -43,7 +43,7 @@ function remove_venv_venv {
 }
 
 function create_conda_venv {
-    conda create -n $1 --yes python=3
+    conda create -n $1 --yes python=3.6
 }
 
 function activate_conda_venv {
