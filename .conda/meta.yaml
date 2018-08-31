@@ -26,6 +26,7 @@ build:
     # the --keep-old-work flag later on to use the $PREFIX/work directory
     - BRAINIAK_HOME
     - MKL_THREADING_LAYER
+    - KMP_DUPLICATE_LIB_OK
 
 requirements:
   build:
