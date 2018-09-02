@@ -2861,7 +2861,7 @@ def compute_signal_change(signal_function,
 
     # If you have only one magnitude value, duplicate the magnitude for each
     #  timecourse you have
-    assert type(magnitude) is list, 'magnitude should be a list of floats'
+    assert type(magnitude) is list, '"magnitude" should be a list of floats'
     if len(magnitude) == 1:
         magnitude *= signal_function.shape[1]
 
