@@ -127,6 +127,7 @@ setup(
         'numpy',
         'scikit-learn[alldeps]>=0.18',
         'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
+        'statsmodels',
         'pymanopt',
         'theano',
         'pybind11>=1.7',
