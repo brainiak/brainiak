@@ -34,8 +34,8 @@ __all__ = [
     "cov2corr",
     "ReadDesign",
     "gen_design",
-    "center_mass_exp",
     "usable_cpu_count",
+    "center_mass_exp",
     "phase_randomize",
     "ecdf",
     "p_from_null"
