@@ -592,6 +592,22 @@ def test_generate_noise():
                        )
 
 
+def test_generate_noise_spatial():
+
+    # Set up the inputs
+    dimensions = np.array([10, 5, 10])
+    mask = np.ones(dimensions)
+    vol = sim._generate_noise_spatial(dimensions, mask)
+
+    assert np.all(vol.shape == dimensions), 'Volume incorrect shape'
+
+    # Check that the variance is similar across dimensions
+    x_var = (np.std(vol, 0) ** 2).mean()
+    y_var = (np.std(vol, 1) ** 2).mean()
+
+    assert abs(x_var - y_var) < y_var * 2, 'Variance is incorrect across dim'
+
+
 def test_mask_brain():
 
     # Inputs for generate_signal
