@@ -1928,11 +1928,10 @@ def _generate_noise_spatial(dimensions,
     amplitude = amp_vec.reshape(new_dim)
 
     # The output
-    noise_spatial_fft = np.fft.ifftn(noise * amplitude)
+    noise_fft = (np.fft.ifftn(noise * amplitude)).real
 
     # Fix the dimensionality of the data (if necessary)
-    noise_spatial = noise_spatial_fft.real[:dimensions[0], :dimensions[1],
-                    :dimensions[2]]
+    noise_spatial = noise_fft[:dimensions[0], :dimensions[1], :dimensions[2]]
 
     # Mask or not, then z score
     if mask is not None:
