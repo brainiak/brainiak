@@ -852,7 +852,6 @@ def convolve_hrf(stimfunction,
     """
 
     # Check if it is timepoint by feature
-    print(stimfunction.shape)
     if stimfunction.shape[0] < stimfunction.shape[1]:
         logger.warning('Stimfunction may be the wrong shape')
 
