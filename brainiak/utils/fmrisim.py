@@ -522,7 +522,7 @@ def generate_stimfunction(onsets,
 
         # Store the weights
         stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]]
- 
+
     return stimfunction
 
 
