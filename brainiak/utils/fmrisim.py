@@ -522,11 +522,7 @@ def generate_stimfunction(onsets,
 
         # Store the weights
         stimfunction[onset_idx:offset_idx, 0] = [weights[onset_counter]]
-
-    # Shorten the data if it's too long
-    if stimfunction.shape[0] > total_time * temporal_resolution:
-        stimfunction = stimfunction[0:int(total_time * temporal_resolution), 0]
-
+ 
     return stimfunction
 
 
