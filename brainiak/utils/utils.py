@@ -27,6 +27,22 @@ Some utility functions that can be used by different algorithms
 """
 
 
+__all__ = [
+    "from_tri_2_sym",
+    "from_sym_2_tri",
+    "sumexp_stable",
+    "concatenate_not_none",
+    "cov2corr",
+    "ReadDesign",
+    "gen_design",
+    "usable_cpu_count",
+    "center_mass_exp",
+    "phase_randomize",
+    "ecdf",
+    "p_from_null"
+]
+
+
 def from_tri_2_sym(tri, dim):
     """convert a upper triangular matrix in 1D format
        to 2D symmetric matrix
