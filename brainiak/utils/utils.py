@@ -443,10 +443,10 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
     n_C = len(stimtime_files)  # number of conditions
     n_S = np.size(scan_duration)  # number of scans
     if n_S > 1:
-        design = [np.empty([int(np.floor(duration / TR)), n_C])
+        design = [np.empty([int(np.round(duration / TR)), n_C])
                   for duration in scan_duration]
     else:
-        design = [np.empty([int(np.floor(scan_duration / TR)), n_C])]
+        design = [np.empty([int(np.round(scan_duration / TR)), n_C])]
     scan_onoff = np.insert(np.cumsum(scan_duration), 0, 0)
     if style == 'FSL':
         design_info = _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
@@ -461,21 +461,24 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
     # generate design matrix
     for i_s in range(n_S):
         for i_c in range(n_C):
-            stimfunction = generate_stimfunction(
-                onsets=design_info[i_s][i_c]['onset'],
-                event_durations=design_info[i_s][i_c]['duration'],
-                total_time=scan_duration[i_s],
-                weights=design_info[i_s][i_c]['weight'],
-                temporal_resolution=1.0/temp_res)
-            hrf = _double_gamma_hrf(response_delay=response_delay,
-                                    undershoot_delay=undershoot_delay,
-                                    response_dispersion=response_disp,
-                                    undershoot_dispersion=undershoot_disp,
-                                    undershoot_scale=undershoot_scale,
-                                    temporal_resolution=1.0/temp_res)
-            design[i_s][:, i_c] = convolve_hrf(
-                stimfunction, TR, hrf_type=hrf, scale_function=0,
-                temporal_resolution=1.0 / temp_res).transpose() * temp_res
+            if len(design_info[i_s][i_c]['onset']) > 0:
+                stimfunction = generate_stimfunction(
+                    onsets=design_info[i_s][i_c]['onset'],
+                    event_durations=design_info[i_s][i_c]['duration'],
+                    total_time=scan_duration[i_s],
+                    weights=design_info[i_s][i_c]['weight'],
+                    temporal_resolution=1.0/temp_res)
+                hrf = _double_gamma_hrf(response_delay=response_delay,
+                                        undershoot_delay=undershoot_delay,
+                                        response_dispersion=response_disp,
+                                        undershoot_dispersion=undershoot_disp,
+                                        undershoot_scale=undershoot_scale,
+                                        temporal_resolution=1.0/temp_res)
+                design[i_s][:, i_c] = convolve_hrf(
+                    stimfunction, TR, hrf_type=hrf, scale_function=False,
+                    temporal_resolution=1.0 / temp_res).transpose() * temp_res
+            else:
+                design[i_s][:, i_c] = 0.0
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
