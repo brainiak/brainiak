@@ -50,9 +50,18 @@ def isc(data, pairwise=False, summary_statistic=None):
     be applied and inverted if using mean). Input data should be a list 
     where each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
-    supplied, the last dimension is assumed to correspond to subjects. 
-    Output is an ndarray where the first dimension is the number of subjects
-    or pairs and the second dimension is the number of voxels (or ROIs).
+    supplied, the last dimension is assumed to correspond to subjects. If 
+    only two subjects are supplied, simply compute Pearson correlation
+    (precludes averaging in leave-one-out approach, and does not apply
+    summary statistic.) Output is an ndarray where the first dimension is
+    the number of subjects or pairs and the second dimension is the number
+    of voxels (or ROIs).
+        
+    The implementation is based on the following publication:
+    
+    .. [Hasson2004] "Intersubject synchronization of cortical activity 
+    during natural vision.", U. Hasson, Y. Nir, I. Levy, G. Fuhrmann,
+    R. Malach, 2004, Science, 303, 1634-1640.
 
     Parameters
     ----------
@@ -68,7 +77,7 @@ def isc(data, pairwise=False, summary_statistic=None):
     Returns
     -------
     iscs : subjects or pairs by voxels ndarray
-        ISC for each subject or pair
+        ISC for each subject or pair (or summary statistic) per voxel
 
     """
     
@@ -104,7 +113,11 @@ def isc(data, pairwise=False, summary_statistic=None):
     voxel_iscs = []
     for v in np.arange(n_voxels):
         voxel_data = data[:, v, :].T
-        if pairwise:
+        if n_subjects == 2:
+            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
+            summary_statistic = None
+            print("Only two subjects! Simply computing Pearson correlation.")
+        elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
             iscs = np.array([pearsonr(subject,
@@ -113,9 +126,9 @@ def isc(data, pairwise=False, summary_statistic=None):
                                               axis=0))[0]
                     for subject in voxel_data])
         voxel_iscs.append(iscs)
-    
     iscs = np.column_stack(voxel_iscs)
     
+    # Summarize results (if requested)
     if summary_statistic == np.mean:
         iscs = np.tanh(summary_statistic(np.arctanh(iscs), axis=0))[np.newaxis, :]
     elif summary_statistic == np.median:    
@@ -125,99 +138,6 @@ def isc(data, pairwise=False, summary_statistic=None):
     else:
         raise TypeError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
     return iscs
-    
-###IF PAIRWISE=FALSE COMES IN AS JUST TWO VECTORS, ASSUME THE AVERAGING HAS
-###ALREADY BEEN DONE!!!
-
-
-def isc(D, collapse_subj=True, return_p=False, num_perm=1000,
-        two_sided=False, random_state=0, float_type=np.float64):
-    """Intersubject correlation
-
-    For each voxel, computes the correlation of each subject's timecourse with
-    the mean of all other subjects' timecourses. By default the result is
-    averaged across subjects, unless collapse_subj is set to False. A null
-    distribution can optionally be computed using phase randomization, to
-    compute a p value for each voxel.
-
-    Parameters
-    ----------
-    D : voxel by time by subject ndarray
-        fMRI data for which to compute ISC
-
-    collapse_subj : bool, default:True
-        Whether to average across subjects before returning result
-
-    return_p : bool, default:False
-        Whether to use phase randomization to compute a p value for each voxel
-
-    num_perm : int, default:1000
-        Number of null samples to use for computing p values
-
-    two_sided : bool, default:False
-        Whether the p value should be one-sided (testing only for being
-        above the null) or two-sided (testing for both significantly positive
-        and significantly negative values)
-
-    random_state : RandomState or an int seed (0 by default)
-        A random number generator instance to define the state of the
-        random permutations generator.
-
-    float_type : either float16, float32, or float64,
-        Depends on the required precision
-        and available memory in the system.
-        All the arrays generated during the execution will be cast
-        to specified float type in order to save memory.
-
-    Returns
-    -------
-    ISC : voxel ndarray (or voxel by subject ndarray, if collapse_subj=False)
-        pearson correlation for each voxel, across subjects
-
-    p : ndarray the same shape as ISC (if return_p = True)
-        p values for each ISC value under the null distribution
-    """
-
-    n_vox = D.shape[0]
-    n_subj = D.shape[2]
-
-    n_perm = num_perm*int(return_p)
-    max_null = np.zeros(n_perm, dtype=float_type)
-    min_null = np.zeros(n_perm, dtype=float_type)
-    ISC = np.zeros((n_vox, n_subj), dtype=float_type)
-
-    for loo_subj in range(n_subj):
-        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-        subj = D[:, :, loo_subj]
-        for v in range(n_vox):
-            ISC[v, loo_subj] = stats.pearsonr(group[v, :],
-                                              subj[v, :])[0]
-    if collapse_subj:
-        ISC = np.mean(ISC, axis=1)
-
-    for p in range(n_perm):
-        # Randomize phases of D to create next null dataset
-        D = phase_randomize(D, random_state)
-        # Loop across choice of leave-one-out subject
-        tmp_ISC = np.zeros((n_vox, n_subj), dtype=float_type)
-        for loo_subj in range(n_subj):
-            group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-            subj = D[:, :, loo_subj]
-            for v in range(n_vox):
-                tmp_ISC[v, loo_subj] = stats.pearsonr(group[v, :],
-                                                      subj[v, :])[0]
-        if collapse_subj:
-            tmp_ISC = np.mean(tmp_ISC, axis=1)
-        max_null[p] = np.max(tmp_ISC)
-        min_null[p] = np.min(tmp_ISC)
-
-    if return_p:
-        p = p_from_null(ISC, two_sided,
-                        max_null_input=max_null,
-                        min_null_input=min_null)
-        return ISC, p
-    else:
-        return ISC
 
 
 def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
@@ -320,3 +240,11 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     else:
         return ISFC
 
+'''    two_sided : bool, default:False
+        Whether the p value should be one-sided (testing only for being
+        above the null) or two-sided (testing for both significantly positive
+        and significantly negative values)
+
+    random_state : RandomState or an int seed (0 by default)
+        A random number generator instance to define the state of the
+        random permutations generator.'''
