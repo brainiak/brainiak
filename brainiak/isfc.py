@@ -248,3 +248,170 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
         random permutations generator.'''
+    
+    
+def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
+                  n_bootstraps=1000, ci_percentile=95,
+                  return_distribution=False):
+    
+    """One-sample group-level bootstrap hypothesis test for iscs
+
+    For ISCs from one more voxels or ROIs, resample subjects with replacement
+    to construct a bootstrap distribution. Input is either a list or ndarray
+    of ISCs for a single voxel/ROI, or an ISCs-by-voxels ndarray. ISC values
+    should be either N ISC values for N subjects in the leave-one-out appraoch
+    (pairwise=False), N(N-1)/2 ISC values for N subjects in the pairwise
+    approach (pairwise=True). In the pairwise approach, ISC values should 
+    correspond to the vectorized upper triangle of a square corrlation matrix
+    (see scipy.stats.distance.squareform). Shifts bootstrap by actual median
+    (effectively to zero) for two-tailed null hypothesis test (Hall & Wilson,
+    1991). Uses subject-wise (not pair-wise) resampling in the pairwise approach.
+    Returns the observed ISC, the confidence interval, and a p-value for the
+    bootstrap hypothesis test. According to Chen et al., 2016, this is the
+    preferred nonparametric approach for controlling false positive rates (FPR)
+    for one-sample tests in the pairwise approach. Optionally, you can return
+    the bootstrap distribution of summary statistics (memory intensive).
+    
+    The implementation is based on the following publications:
+    
+    .. [Chen2016] "Untangling the relatedness among correlations, part I: 
+    nonparametric approaches to inter-subject correlation analysis at the
+    group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C. 
+    Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+    
+    .. [HallWilson1991] "Two guidelines for bootstrap hypothesis testing.",
+    P. Hall, S. R., Wilson, 1991, Biometrics, 757-762.
+
+    Parameters
+    ----------
+    iscs : list or ndarray, ISCs by voxels array
+        ISC values for one or more voxels
+
+    pairwise : bool, default:False
+        Indicator of pairwise or leave-one-out, should match ISCs structure
+
+    summary_statistic : numpy function, default:np.median
+        Summary statistic, either np.median (default) or np.mean
+
+    n_bootstraps : int, default:1000
+        Number of bootstrap samples (subject-level with replacement)
+
+    ci_percentile : int, default:95
+         Percentile for computing confidence intervals
+
+    Returns
+    -------
+    observed : float, median (or mean) ISC value
+        Summary statistic for actual ISCs
+
+    ci : tuple, bootstrap confidence intervals
+        Confidence intervals generated from bootstrap distribution
+
+    p : float, p-value
+        p-value based on bootstrap hypothesis test
+        
+    distribution : ndarray, bootstraps by voxels (optional)
+        Bootstrap distribution if return_bootstrap=True
+    
+    """
+    
+    # Standardize structure of input data
+    if type(iscs) == list:
+        iscs = np.array(iscs)[:, np.newaxis]
+        
+    elif type(iscs) == np.ndarray:
+        if iscs.ndim == 1:
+            iscs = iscs[:, np.newaxis]
+
+    # Check if incoming pairwise matrix is vectorized triangle
+    if pairwise:
+        try:
+            test_square = squareform(iscs[:, 0])
+            n_subjects = test_square.shape[0]
+        except ValueError:
+            raise ValueError("For pairwise input, ISCs must be the "
+                             "vectorized triangle of a square matrix.")
+    elif not pairwise:
+        n_subjects = iscs.shape[0]
+    
+    # Infer subjects, TRs, voxels and print for user to check
+    n_voxels = iscs.shape[1]
+    print(f"Assuming {n_subjects} subjects with and {n_voxels} "
+           "voxel(s) or ROI(s).")
+    
+    # Compute summary statistic for observed ISCs
+    if summary_statistic == np.mean:
+        observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))[np.newaxis, :]
+    elif summary_statistic == np.median:
+        observed = summary_statistic(iscs, axis=0)[np.newaxis, :]
+    else:
+        raise TypeError("Unrecognized summary_statistic! Use np.median or np.mean.")
+    
+    # Set up an empty list to build our bootstrap distribution
+    distribution = []
+    
+    # Loop through n bootstrap iterations and populate distribution
+    for i in np.arange(n_bootstraps):
+
+        # Randomly sample subject IDs with replacement
+        subject_sample = sorted(np.random.choice(np.arange(n_subjects),
+                                                 size=n_subjects))
+        
+        # Loop through voxels
+        voxel_statistics = []
+        for voxel_iscs in iscs.T:
+
+            # Squareform and shuffle rows/columns of pairwise ISC matrix to
+            # to retain correlation structure among ISCs, then get triangle
+            if pairwise:
+
+                # Square the triangle and fill diagonal
+                voxel_iscs = squareform(voxel_iscs)
+                np.fill_diagonal(voxel_iscs, 1)
+
+                # Check that pairwise ISC matrix is square and symmetric
+                assert voxel_iscs.shape[0] == voxel_iscs.shape[1]
+                assert np.allclose(voxel_iscs, voxel_iscs.T)
+
+                # Shuffle square correlation matrix and get triangle
+                voxel_sample = voxel_iscs[subject_sample, :][:, subject_sample]
+                voxel_sample = squareform(voxel_sample, checks=False)
+
+                # Censor off-diagonal 1s for same-subject pairs
+                voxel_sample[voxel_sample == 1.] = np.NaN
+
+            # Get simple bootstrap sample of not pairwise
+            elif not pairwise:
+                voxel_sample = voxel_iscs[subject_sample]
+                
+            # Compute summary statistic for bootstrap ISCs per voxel
+            # (alternatively could construct distrubtion for all voxels
+            # then compute statistics, but larger memory footprint)
+            if summary_statistic == np.mean:
+                voxel_statistics.append(np.tanh(np.nanmean(np.arctanh(voxel_sample), axis=0)))
+            elif summary_statistic == np.median:
+                voxel_statistics.append(np.nanmedian(voxel_sample, axis=0))
+            
+        distribution.append(voxel_statistics)
+        
+    # Convert distribution to numpy array
+    distribution = np.array(distribution)
+    assert distribution.shape == (n_bootstraps, n_voxels)
+
+    # Compute CIs of median from bootstrap distribution (default: 95%)
+    ci = (np.percentile(distribution, (100 - ci_percentile)/2, axis=0),
+          np.percentile(distribution, ci_percentile + (100 - ci_percentile)/2, axis=0))
+    
+    # Shift bootstrap distribution to 0 for hypothesis test
+    shifted = distribution - observed
+    
+    # Get p-value for actual median from shifted distribution
+    p = ((np.sum(np.abs(shifted) >= np.abs(observed), axis=0) + 1) /
+          float((len(shifted) + 1)))[np.newaxis, :]
+    
+    if return_distribution:
+        return observed, ci, p, distribution
+    elif not return_distribution:
+        return observed, ci, p
+
+
