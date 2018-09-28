@@ -29,10 +29,11 @@ comprehension. Nat Commun 7.
 # Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
-from brainiak.fcma.util import compute_correlation
+#from brainiak.fcma.util import compute_correlation
 import numpy as np
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr, zscore
+import itertools as it
 
 def isc(data, pairwise=False, summary_statistic=None):
     """Intersubject correlation
@@ -136,7 +137,7 @@ def isc(data, pairwise=False, summary_statistic=None):
     elif not summary_statistic:
         pass
     else:
-        raise TypeError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
+        raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
     return iscs
 
 
@@ -252,25 +253,25 @@ def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
     
 def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
                   n_bootstraps=1000, ci_percentile=95,
-                  return_distribution=False):
+                  return_distribution=False, random_state=None):
     
-    """One-sample group-level bootstrap hypothesis test for iscs
+    """One-sample group-level bootstrap hypothesis test for ISCs
 
     For ISCs from one more voxels or ROIs, resample subjects with replacement
-    to construct a bootstrap distribution. Input is either a list or ndarray
-    of ISCs for a single voxel/ROI, or an ISCs-by-voxels ndarray. ISC values
+    to construct a bootstrap distribution. Input is a list or ndarray of
+    ISCs for a single voxel/ROI, or an ISCs-by-voxels ndarray. ISC values
     should be either N ISC values for N subjects in the leave-one-out appraoch
     (pairwise=False), N(N-1)/2 ISC values for N subjects in the pairwise
     approach (pairwise=True). In the pairwise approach, ISC values should 
     correspond to the vectorized upper triangle of a square corrlation matrix
-    (see scipy.stats.distance.squareform). Shifts bootstrap by actual median
-    (effectively to zero) for two-tailed null hypothesis test (Hall & Wilson,
-    1991). Uses subject-wise (not pair-wise) resampling in the pairwise approach.
-    Returns the observed ISC, the confidence interval, and a p-value for the
-    bootstrap hypothesis test. According to Chen et al., 2016, this is the
-    preferred nonparametric approach for controlling false positive rates (FPR)
-    for one-sample tests in the pairwise approach. Optionally, you can return
-    the bootstrap distribution of summary statistics (memory intensive).
+    (see scipy.stats.distance.squareform). Shifts bootstrap distribution by
+    actual summary statistic (effectively to zero) for two-tailed null
+    hypothesis test (Hall & Wilson, 1991). Uses subject-wise (not pair-wise)
+    resampling in the pairwise approach. Returns the observed ISC, the confidence
+    interval, and a p-value for the bootstrap hypothesis test. Optionally returns
+    the bootstrap distribution of summary statistics.According to Chen et al.,
+    2016, this is the preferred nonparametric approach for controlling false
+    positive rates (FPR) for one-sample tests in the pairwise approach.
     
     The implementation is based on the following publications:
     
@@ -298,6 +299,12 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
 
     ci_percentile : int, default:95
          Percentile for computing confidence intervals
+         
+    return_distribution : bool, default:False
+        Optionally return the bootstrap distribution of summary statistics
+        
+    random_state = int or None, default:None
+        Initial random seed
 
     Returns
     -------
@@ -333,8 +340,13 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
                              "vectorized triangle of a square matrix.")
     elif not pairwise:
         n_subjects = iscs.shape[0]
+        
+    if n_subjects < 2:
+        raise ValueError("Input data seems to contain only one subject! "
+                         "Needs two or more subjects. Check that input is "
+                         "not summary statistic.")
     
-    # Infer subjects, TRs, voxels and print for user to check
+    # Infer subjects, voxels and print for user to check
     n_voxels = iscs.shape[1]
     print(f"Assuming {n_subjects} subjects with and {n_voxels} "
            "voxel(s) or ROI(s).")
@@ -352,18 +364,24 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
     
     # Loop through n bootstrap iterations and populate distribution
     for i in np.arange(n_bootstraps):
+        
+        # Random seed to be deterministically re-randomized at each iteration
+        if isinstance(random_state, np.random.RandomState):
+            prng = random_state
+        else:
+            prng = np.random.RandomState(random_state)
 
         # Randomly sample subject IDs with replacement
-        subject_sample = sorted(np.random.choice(np.arange(n_subjects),
+        subject_sample = sorted(prng.choice(np.arange(n_subjects),
                                                  size=n_subjects))
         
-        # Loop through voxels
-        voxel_statistics = []
-        for voxel_iscs in iscs.T:
-
-            # Squareform and shuffle rows/columns of pairwise ISC matrix to
-            # to retain correlation structure among ISCs, then get triangle
-            if pairwise:
+        # Squareform and shuffle rows/columns of pairwise ISC matrix to
+        # to retain correlation structure among ISCs, then get triangle
+        if pairwise:
+            
+            # Loop through voxels
+            isc_sample = []
+            for voxel_iscs in iscs.T:
 
                 # Square the triangle and fill diagonal
                 voxel_iscs = squareform(voxel_iscs)
@@ -380,19 +398,24 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
                 # Censor off-diagonal 1s for same-subject pairs
                 voxel_sample[voxel_sample == 1.] = np.NaN
 
-            # Get simple bootstrap sample of not pairwise
-            elif not pairwise:
-                voxel_sample = voxel_iscs[subject_sample]
+                isc_sample.append(voxel_sample)
                 
-            # Compute summary statistic for bootstrap ISCs per voxel
-            # (alternatively could construct distrubtion for all voxels
-            # then compute statistics, but larger memory footprint)
-            if summary_statistic == np.mean:
-                voxel_statistics.append(np.tanh(np.nanmean(np.arctanh(voxel_sample), axis=0)))
-            elif summary_statistic == np.median:
-                voxel_statistics.append(np.nanmedian(voxel_sample, axis=0))
+            isc_sample = np.column_stack(isc_sample)
+
+        # Get simple bootstrap sample of not pairwise
+        elif not pairwise:
+            isc_sample = iscs[subject_sample, :]
             
-        distribution.append(voxel_statistics)
+        # Compute summary statistic for bootstrap ISCs per voxel
+        # (alternatively could construct distrubtion for all voxels
+        # then compute statistics, but larger memory footprint)
+        if summary_statistic == np.mean:
+            distribution.append(np.tanh(np.nanmean(np.arctanh(isc_sample), axis=0)))
+        elif summary_statistic == np.median:
+            distribution.append(np.nanmedian(isc_sample, axis=0))
+                    
+        # Update random state
+        random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
         
     # Convert distribution to numpy array
     distribution = np.array(distribution)
@@ -413,5 +436,3 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
         return observed, ci, p, distribution
     elif not return_distribution:
         return observed, ci, p
-
-
