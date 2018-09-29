@@ -24,6 +24,7 @@ from brainiak.utils import fmrisim as sim
 import pytest
 from itertools import product
 
+
 def test_generate_signal():
 
     # Inputs for generate_signal
