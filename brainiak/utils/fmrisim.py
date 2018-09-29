@@ -1821,7 +1821,7 @@ def _generate_noise_spatial(dimensions,
         dimensions = dimensions[0:3]
 
     # If the dimensions are wrong then upsample now
-    if dimensions[0] != dimensions[1]:
+    if dimensions[0] != dimensions[1] or dimensions[1] != dimensions[2]:
         max_dim = np.max(dimensions)
         new_dim = (max_dim, max_dim, max_dim)
     else:
