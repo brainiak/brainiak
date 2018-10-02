@@ -634,7 +634,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     if n_groups == 1:
         if summary_statistic == np.mean:
             observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))
-        if summary_statistic == np.median:
+        elif summary_statistic == np.median:
             observed = np.median(iscs, axis=0)
     
     # If two groups, get the observed difference
@@ -645,7 +645,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
                 iscs[group_selector == group_labels[0], :]), axis=0)) - 
                         np.tanh(np.mean(np.arctanh(
                 iscs[group_selector == group_labels[1], :]), axis=0)))
-        if summary_statistic == np.median:
+        elif summary_statistic == np.median:
             observed = (np.median(
                 iscs[group_selector == group_labels[0], :], axis=0) - 
                         np.median(
@@ -687,7 +687,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
             # Get summary statistics on sign-flipped ISCs
             if summary_statistic == np.mean:
                 isc_sample = np.tanh(np.mean(np.arctanh(isc_flipped), axis=0))
-            if summary_statistic == np.median:
+            elif summary_statistic == np.median:
                 isc_sample = np.median(isc_flipped, axis=0)            
         
         # If two groups, set up group matrix get the observed difference
@@ -726,7 +726,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
                     iscs[group_selector == group_labels[0], :]), axis=0)) - 
                             np.tanh(np.mean(np.arctanh(
                     iscs[group_selector == group_labels[1], :]), axis=0)))
-            if summary_statistic == np.median:
+            elif summary_statistic == np.median:
                 isc_sample = (np.median(
                     iscs[group_selector == group_labels[0], :], axis=0) - 
                             np.median(
@@ -837,7 +837,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
     observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
     
     # Roll axis to get subjects in first dimension for loop
-    data = np.rollaxis(data, 2, 0)
+    if pairwise:
+        data = np.rollaxis(data, 2, 0)
     
     # Iterate through randomized shifts to create null distribution
     distribution = []
@@ -853,16 +854,35 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
         shifts = prng.choice(np.arange(n_TRs), size=n_subjects,
                              replace=True)
         
-        # Apply circular shift to each subject's time series
-        shifted_data = []
-        for subject, shift in zip(data, shifts):
-            shifted_data.append(np.concatenate(
-                                    (subject[-shift:, :], subject[:-shift, :])))
-        shifted_data = np.dstack(shifted_data)
+        # In pairwise approach, apply all shifts then compute pairwise ISCs
+        if pairwise:
+        
+            # Apply circular shift to each subject's time series
+            shifted_data = []
+            for subject, shift in zip(data, shifts):            
+                shifted_data.append(np.concatenate(
+                                        (subject[-shift:, :], subject[:-shift, :])))
+            shifted_data = np.dstack(shifted_data)
+
+            # Compute null ISC on shifted data for pairwise approach
+            shifted_isc = isc(shifted_data, pairwise=pairwise,
+                              summary_statistic=summary_statistic, verbose=False)
+        
+        # In leave-one-out, apply shift only to each left-out participant
+        elif not pairwise:
             
-        # Compute null ISC on shifted data
-        shifted_isc = isc(shifted_data, pairwise=pairwise,
-                          summary_statistic=summary_statistic, verbose=False)
+            shifted_isc = []
+            for s, shift in enumerate(shifts):
+                shifted_subject = np.concatenate((data[-shift:, :, s], data[:-shift, :, s]))
+                nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
+                loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)), pairwise=False,
+                              summary_statistic=None, verbose=False)
+                shifted_isc.append(loo_isc)
+            if summary_statistic == np.mean:
+                shifted_isc = np.tanh(np.mean(np.arctanh(np.dstack(shifted_isc)), axis=2))
+            elif summary_statistic == np.median:
+                shifted_isc = np.median(np.dstack(shifted_isc), axis=2)
+                
         distribution.append(shifted_isc)
         
         # Update random state for next iteration
