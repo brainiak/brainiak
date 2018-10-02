@@ -35,7 +35,7 @@ from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr, zscore
 import itertools as it
 
-def isc(data, pairwise=False, summary_statistic=None):
+def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     """Intersubject correlation
 
     For each voxel or ROI, compute the Pearson correlation between each
@@ -107,8 +107,9 @@ def isc(data, pairwise=False, summary_statistic=None):
     n_subjects = data.shape[2]
     n_TRs = data.shape[0]
     n_voxels = data.shape[1]
-    print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-          f"and {n_voxels} voxel(s) or ROI(s).")
+    if verbose:
+        print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
+              f"and {n_voxels} voxel(s) or ROI(s).")
     
     # Loop over each voxel or ROI
     voxel_iscs = []
@@ -117,7 +118,8 @@ def isc(data, pairwise=False, summary_statistic=None):
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
             summary_statistic = None
-            print("Only two subjects! Simply computing Pearson correlation.")
+            if verbose:
+                print("Only two subjects! Simply computing Pearson correlation.")
         elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
@@ -740,6 +742,135 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     # Convert distribution to numpy array
     distribution = np.array(distribution)
     assert distribution.shape == (n_permutations, n_voxels)
+
+    # Get p-value for actual median from shifted distribution
+    p = ((np.sum(np.abs(distribution) >= np.abs(observed), axis=0) + 1) /
+          float((len(distribution) + 1)))[np.newaxis, :]
+    
+    if return_distribution:
+        return observed, p, distribution
+    elif not return_distribution:
+        return observed, p
+
+
+def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
+                  n_shifts=1000, return_distribution=False, random_state=None):
+    
+    """Circular time-shift randomization for one-sample ISC test
+    
+    For a single voxel/ROI, take in response time series for multiple
+    subjects and apply a random temporal shift interval to each subject
+    prior to computing ISCs. Input should be list or dictionary of
+    n_samples x n_voxels time series data where each item in the list
+    or value in the dictionary corresponds to one subject's data.
+    
+    This implementation is based on the following publications:
+
+    .. [Kauppi2010] "Inter-subject correlation of brain hemodynamic 
+    responses during watching a movie: localization in space and
+    frequency.", J. P. Kauppi, I. P. Jääskeläinen, M. Sams, J. Tohka,
+    2010, Frontiers in Neuroinformatics, 4, 5.
+
+    .. [Kauppi2014] "A versatile software package for inter-subject
+    correlation based analyses of fMRI.", J. P. Kauppi, J. Pajula, 
+    J. Tohka, 2014, Frontiers in Neuroinformatics, 8, 2.
+
+    Parameters
+    ----------
+    data : list or dict, time series data for multiple subjects
+        List or dictionary of response time series for multiple subjects
+
+    pairwise : bool, default:False
+        Indicator of pairwise or leave-one-out, should match iscs variable
+
+    summary_statistic : numpy function, default:np.median
+        Summary statistic, either np.median (default) or np.mean
+        
+    n_shifts : int, default:1000
+        Number of randomly shifted samples
+        
+    return_distribution : bool, default:False
+        Optionally return the bootstrap distribution of summary statistics
+        
+    random_state = int, None, or np.random.RandomState, default:None
+        Initial random seed
+
+    Returns
+    -------
+    observed : float, observed ISC (without time-shifting)
+        Actual ISCs
+
+    p : float, p-value
+        p-value based on time-shifting randomization test
+        
+    distribution : ndarray, time-shifts by voxels (optional)
+        Time-shifted null distribution if return_bootstrap=True
+    """
+
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
+
+    # Convert input ndarray to 3d and check shape
+    elif type(data) == np.ndarray:
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]            
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             f"or 3 dimensions (got {data.ndim})!")
+
+    # Infer subjects, TRs, voxels and print for user to check
+    n_subjects = data.shape[2]
+    n_TRs = data.shape[0]
+    n_voxels = data.shape[1]
+    
+    # Get actual observed ISC
+    observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
+    
+    # Roll axis to get subjects in first dimension for loop
+    data = np.rollaxis(data, 2, 0)
+    
+    # Iterate through randomized shifts to create null distribution
+    distribution = []
+    for i in np.arange(n_shifts):
+        
+        # Random seed to be deterministically re-randomized at each iteration
+        if isinstance(random_state, np.random.RandomState):
+            prng = random_state
+        else:
+            prng = np.random.RandomState(random_state)
+        
+        # Get a random set of shifts based on number of TRs,
+        shifts = prng.choice(np.arange(n_TRs), size=n_subjects,
+                             replace=True)
+        
+        # Apply circular shift to each subject's time series
+        shifted_data = []
+        for subject, shift in zip(data, shifts):
+            shifted_data.append(np.concatenate(
+                                    (subject[-shift:, :], subject[:-shift, :])))
+        shifted_data = np.dstack(shifted_data)
+            
+        # Compute null ISC on shifted data
+        shifted_isc = isc(shifted_data, pairwise=pairwise,
+                          summary_statistic=summary_statistic, verbose=False)
+        distribution.append(shifted_isc)
+        
+        # Update random state for next iteration
+        random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        
+    # Convert distribution to numpy array
+    distribution = np.vstack(distribution)
+    assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
     p = ((np.sum(np.abs(distribution) >= np.abs(observed), axis=0) + 1) /
