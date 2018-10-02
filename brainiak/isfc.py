@@ -14,7 +14,7 @@
 """Intersubject correlation (ISC) analysis
 
 Functions for computing intersubject correlation (ISC) and variations
-including intersubject fucntional correlations (ISFC)
+including intersubject functional correlations (ISFC)
 
 Paper references:
 ISC: Hasson, U., Nir, Y., Levy, I., Fuhrmann, G. & Malach, R. Intersubject
@@ -143,115 +143,116 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
         raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
     return iscs
 
+    
+def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
+    
+    """Intersubject correlation
 
-def isfc(D, collapse_subj=True, return_p=False, num_perm=1000,
-         two_sided=False, random_state=0, float_type=np.float64):
-    """Intersubject functional correlation
-
-    Computes the correlation between the timecoure of each voxel in each
-    subject with the average of all other subjects' timecourses in *all*
-    voxels. By default the result is averaged across subjects, unless
-    collapse_subj is set to False. A null distribution can optionally be
-    computed using phase randomization, to compute a p value for each voxel-to-
-    voxel correlation.
-
-    Uses the high performance compute_correlation routine from fcma.util
+    For each voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and other subjects' response time series.
+    If pairwise is False (default), use the leave-one-out approach, where
+    correlation is computed between each subject and the average of the other
+    subjects. If pairwise is True, compute correlations between all pairs of
+    subjects. If summary_statistic is None, return N ISC values for N subjects
+    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
+    corresponding to the upper triangle of the pairwise correlation matrix
+    (see scipy.spatial.distance.squareform). Alternatively, supply either
+    np.mean or np.median to compute summary statistic of ISCs (Fisher Z will
+    be applied and inverted if using mean). Input data should be a list 
+    where each item is a time-points by voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a single ndarray is
+    supplied, the last dimension is assumed to correspond to subjects. If 
+    only two subjects are supplied, simply compute Pearson correlation
+    (precludes averaging in leave-one-out approach, and does not apply
+    summary statistic.) Output is an ndarray where the first dimension is
+    the number of subjects or pairs and the second dimension is the number
+    of voxels (or ROIs).
+        
+    The implementation is based on the following publication:
+    
+    .. [Simony2016] "Dynamic reconfiguration of the default mode network
+    during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
+    Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
+    7, 12141.
 
     Parameters
     ----------
-    D : voxel by time by subject ndarray
+    data : list or ndarray
         fMRI data for which to compute ISFC
-
-    collapse_subj : bool, default:True
-        Whether to average across subjects before returning result
-
-    return_p : bool, default:False
-        Whether to use phase randomization to compute a p value for each voxel
-
-    num_perm : int, default:1000
-        Number of null samples to use for computing p values
-
-    two_sided : bool, default:False
-        Whether the p value should be one-sided (testing only for being
-        above the null) or two-sided (testing for both significantly positive
-        and significantly negative values)
-
-    random_state : RandomState or an int seed (0 by default)
-        A random number generator instance to define the state of the
-        random permutations generator.
-
-    float_type : either float16, float32, or float64
-        Depends on the required precision
-        and available memory in the system.
-        All the arrays generated during the execution will be cast
-        to specified float type in order to save memory.
+        
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
+        
+    summary_statistic : None
+        Return all ISFCs or collapse using np.mean or np.median
 
     Returns
     -------
-    ISFC : voxel by voxel ndarray
-        (or voxel by voxel by subject ndarray, if collapse_subj=False)
-        pearson correlation between all pairs of voxels, across subjects
+    isfcs : subjects or pairs by voxels ndarray
+        ISFC for each subject or pair (or summary statistic) per voxel
 
-    p : ndarray the same shape as ISC (if return_p = True)
-        p values for each ISC value under the null distribution
     """
+    
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
 
-    n_vox = D.shape[0]
-    n_subj = D.shape[2]
+    # Convert input ndarray to 3d and check shape
+    elif type(data) == np.ndarray:
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]            
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             f"or 3 dimensions (got {data.ndim})!")
 
-    n_perm = num_perm*int(return_p)
-    max_null = -np.ones(n_perm, dtype=float_type)
-    min_null = np.ones(n_perm, dtype=float_type)
+    # Infer subjects, TRs, voxels and print for user to check
+    n_subjects = data.shape[2]
+    n_TRs = data.shape[0]
+    n_voxels = data.shape[1]
+    if verbose:
+        print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
+              f"and {n_voxels} voxel(s) or ROI(s).")
 
-    ISFC = np.zeros((n_vox, n_vox, n_subj), dtype=float_type)
-
-    for loo_subj in range(D.shape[2]):
-        group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-        subj = D[:, :, loo_subj]
-        tmp_ISFC = compute_correlation(group, subj).astype(float_type)
-        # Symmetrize matrix
-        tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
-        ISFC[:, :, loo_subj] = tmp_ISFC
-    if collapse_subj:
-        ISFC = np.mean(ISFC, axis=2)
-
-    for p in range(n_perm):
-        # Randomize phases of D to create next null dataset
-        D = phase_randomize(D, random_state)
-        # Loop across choice of leave-one-out subject
-        ISFC_null = np.zeros((n_vox, n_vox), dtype=float_type)
-        for loo_subj in range(D.shape[2]):
-            group = np.mean(D[:, :, np.arange(n_subj) != loo_subj], axis=2)
-            subj = D[:, :, loo_subj]
-            tmp_ISFC = compute_correlation(group, subj).astype(float_type)
-            # Symmetrize matrix
-            tmp_ISFC = (tmp_ISFC+tmp_ISFC.T)/2
-
-            if not collapse_subj:
-                max_null[p] = max(np.max(tmp_ISFC), max_null[p])
-                min_null[p] = min(np.min(tmp_ISFC), min_null[p])
-            ISFC_null = ISFC_null + tmp_ISFC/n_subj
-
-        if collapse_subj:
-            max_null[p] = np.max(ISFC_null)
-            min_null[p] = np.min(ISFC_null)
-
-    if return_p:
-        p = p_from_null(ISFC, two_sided,
-                        max_null_input=max_null,
-                        min_null_input=min_null)
-        return ISFC, p
+    # Compute all pairwise ISFCs
+    if pairwise:
+        pass
+        
+    # Compute ISFCs using leave-one-out approach
+    if not pairwise:
+        
+        # Roll subject axis for loop
+        data = np.rollaxis(data, 2, 0)
+        
+        # Compute leave-one-out ISFCs
+        isfcs = [compute_correlation(subject,
+                                     np.mean([s for s in data
+                                              if s is not subject],
+                                             axis=0))
+                 for subject in data]
+        
+        # Transpose and average ISFC matrices for both directions
+        isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
+                           for isfc_matrix in isfcs])
+    
+    # Summarize results (if requested)
+    if summary_statistic == np.mean:
+        isfcs = np.tanh(np.mean(np.arctanh(isfcs), axis=2))
+    elif summary_statistic == np.median:    
+        isfcs = np.median(isfcs, axis=2)
+    elif not summary_statistic:
+        pass
     else:
-        return ISFC
-
-'''    two_sided : bool, default:False
-        Whether the p value should be one-sided (testing only for being
-        above the null) or two-sided (testing for both significantly positive
-        and significantly negative values)
-
-    random_state : RandomState or an int seed (0 by default)
-        A random number generator instance to define the state of the
-        random permutations generator.'''
+        raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
+    return isfcs
     
     
 def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
