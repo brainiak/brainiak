@@ -13,17 +13,10 @@
 #  limitations under the License.
 """Intersubject correlation (ISC) analysis
 
-Functions for computing intersubject correlation (ISC) and variations
-including intersubject functional correlations (ISFC)
+Functions for computing intersubject correlation (ISC) and related
+analyses (e.g., intersubject funtional correlations; ISFC), as well
+as statistical tests designed specifically for ISC analyses.
 
-Paper references:
-ISC: Hasson, U., Nir, Y., Levy, I., Fuhrmann, G. & Malach, R. Intersubject
-synchronization of cortical activity during natural vision. Science 303,
-1634–1640 (2004).
-
-ISFC: Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
-(2016) Dynamic reconfiguration of the default mode network during narrative
-comprehension. Nat Commun 7.
 """
 
 # Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
@@ -221,27 +214,47 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
     if verbose:
         print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
               f"and {n_voxels} voxel(s) or ROI(s).")
-
-    # Compute all pairwise ISFCs
-    if pairwise:
-        pass
+        
+    # Handle just two subjects properly
+    if n_subjects == 2:
+        isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
+                                    np.ascontiguousarray(data[..., 1].T))
+        isfcs = (isfcs + isfcs.T) / 2
+        assert isfcs.shape == (n_voxels, n_voxels)
+        summary_statistic = None
+        if verbose:
+            print("Only two subjects! Computing ISFC between them.")
+                
+    # Compute all pairwise ISFCs    
+    elif pairwise:
+        isfcs = []
+        for pair in it.combinations(np.arange(n_subjects), 2):
+            isfc_pair = compute_correlation(np.ascontiguousarray(data[..., pair[0]].T),
+                                            np.ascontiguousarray(data[..., pair[1]].T))
+            isfc_pair = (isfc_pair + isfc_pair.T) / 2
+            isfcs.append(isfc_pair)
+        isfcs = np.dstack(isfcs)
+        assert isfcs.shape == (n_voxels, n_voxels,
+                               n_subjects * (n_subjects - 1) / 2)
         
     # Compute ISFCs using leave-one-out approach
-    if not pairwise:
+    elif not pairwise:
         
         # Roll subject axis for loop
         data = np.rollaxis(data, 2, 0)
         
         # Compute leave-one-out ISFCs
-        isfcs = [compute_correlation(subject,
-                                     np.mean([s for s in data
-                                              if s is not subject],
-                                             axis=0))
+        isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
+                                     np.ascontiguousarray(np.mean(
+                                         [s for s in data
+                                          if s is not subject],
+                                             axis=0).T))
                  for subject in data]
         
         # Transpose and average ISFC matrices for both directions
         isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
                            for isfc_matrix in isfcs])
+        assert isfcs.shape == (n_voxels, n_voxels, n_subjects)
     
     # Summarize results (if requested)
     if summary_statistic == np.mean:
