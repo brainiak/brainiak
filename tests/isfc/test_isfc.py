@@ -1,90 +1,499 @@
-import brainiak.isfc
-from brainiak import image, io
 import numpy as np
-import os
+from brainiak.isfc import isc, bootstrap_isc
 
 
-def test_ISC():
-    # Create dataset in which one voxel is highly correlated across subjects
-    # and the other is not
-    D = np.zeros((2, 5, 3))
-    D[:, :, 0] = \
-        [[-0.36225433, -0.43482456,  0.26723158,  0.16461712, -0.37991465],
-         [-0.62305959, -0.46660116, -0.50037994,  1.81083754,  0.23499509]]
-    D[:, :, 1] = \
-        [[-0.30484153, -0.49486988,  0.10966625, -0.19568572, -0.20535156],
-         [1.68267639, -0.78433298, -0.35875085, -0.6121344,  0.28603493]]
-    D[:, :, 2] = \
-        [[-0.36593192, -0.50914734,  0.21397317,  0.30276589, -0.42637472],
-         [0.04127293, -0.67598379, -0.51549055, -0.64196342,  1.60686666]]
-
-    (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
-                                 two_sided=True, random_state=0)
-
-    assert np.isclose(ISC, [0.8909243, 0.0267954]).all(), \
-        "Calculated ISC does not match ground truth"
-
-    assert np.isclose(p, [0.02, 1]).all(), \
-        "Calculated p values do not match ground truth"
-
-    (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
-                                 two_sided=True, collapse_subj=False,
-                                 random_state=0)
-    true_ISC = [[0.98221543, 0.76747914, 0.92307833],
-                [-0.26377767, 0.01490501, 0.32925896]]
-    true_p = [[0, 0.6, 0.08], [1, 1, 1]]
-
-    assert np.isclose(ISC, true_ISC).all(), \
-        "Calculated ISC (non collapse) does not match ground truth"
-
-    assert np.isclose(p, true_p).all(), \
-        "Calculated p values (non collapse) do not match ground truth"
+# Create simple simulated data with high intersubject correlation
+def simulated_timeseries(n_subjects, n_TRs, n_voxels=30, 
+                         noise=1, data_type='array',
+                         random_state=None):
+    prng = np.random.RandomState(random_state)
+    if n_voxels:
+        signal = prng.randn(n_TRs, n_voxels)
+        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        data = [signal + prng.randn(n_TRs, n_voxels) * noise
+                for subject in np.arange(n_subjects)]
+    elif not n_voxels:
+        signal = prng.randn(n_TRs)
+        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        data = [signal + prng.randn(n_TRs) * noise
+                for subject in np.arange(n_subjects)]
+    if data_type == 'array':
+        if n_voxels:
+            data = np.dstack(data)
+        elif not n_voxels:    
+            data = np.column_stack(data)
+    return data
 
 
-def test_ISFC():
-    curr_dir = os.path.dirname(__file__)
+# Create 3 voxel simulated data with correlated time series
+def correlated_timeseries(n_subjects, n_TRs, noise=0,
+                          random_state=None):
+    prng = np.random.RandomState(random_state)
+    signal = prng.randn(n_TRs)
+    other = np.random.randn(n_TRs, n_subjects)[:, np.newaxis, :]
+    data = np.repeat(np.column_stack((signal, signal,
+                                     ))[..., np.newaxis],  20, axis=2)
+    data = np.concatenate((data, other), axis=1)
+    data = data + np.random.randn(n_TRs, 3, n_subjects) * noise
+    return data
 
-    mask_fname = os.path.join(curr_dir, 'mask.nii.gz')
-    mask = io.load_boolean_mask(mask_fname)
-    fnames = [os.path.join(curr_dir, 'subj1.nii.gz'),
-              os.path.join(curr_dir, 'subj2.nii.gz')]
-    masked_images = image.mask_images(io.load_images(fnames), mask)
 
-    D = image.MaskedMultiSubjectData.from_masked_images(masked_images,
-                                                        len(fnames))
+# Compute ISCs using different input types
+# List of subjects with one voxel/ROI
+def test_isc_input():
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+    
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=None, data_type='list',
+                                random_state=random_state)
+    iscs_list = isc(data, pairwise=False, summary_statistic=None)
 
-    assert D.shape == (4, 5, 2), "Loaded data has incorrect shape"
+    # Array of subjects with one voxel/ROI
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=None, data_type='array',
+                                random_state=random_state)
+    iscs_array = isc(data, pairwise=False, summary_statistic=None)
 
-    (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
-                                   two_sided=True, random_state=0)
+    # Check they're the same
+    assert np.array_equal(iscs_list, iscs_array)
 
-    ground_truth = \
-        [[1, 1, 0, -1],
-         [1, 1, 0, -1],
-         [0, 0, 1,  0],
-         [-1, -1, 0, 1]]
+    # List of subjects with multiple voxels/ROIs
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='list',
+                                random_state=random_state)
+    iscs_list = isc(data, pairwise=False, summary_statistic=None)
 
-    ground_truth_p = 1 - np.abs(ground_truth)
+    # Array of subjects with multiple voxels/ROIs
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+    iscs_array = isc(data, pairwise=False, summary_statistic=None)
 
-    assert np.isclose(ISFC, ground_truth).all(), \
-        "Calculated ISFC does not match ground truth"
+    # Check they're the same
+    assert np.array_equal(iscs_list, iscs_array)
 
-    assert np.isclose(p, ground_truth_p).all(), \
-        "Calculated p values do not match ground truth"
 
-    (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
-                                   two_sided=True, collapse_subj=False,
-                                   random_state=0)
-    array1 = np.array([[1, 1], [1, 1], [0, 0], [-1, -1]])
-    array2 = -array1
-    array3 = np.absolute(array1)
-    array4 = 1 - array3
+# Check pairwise and leave-one-out, and summary statistics for ISC
+def test_isc_options():
 
-    true_ISFC = np.array([array1, array1, array4, array2])
-    true_p = np.array([array4, array4, array3, array4])
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+    
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+    
+    iscs_loo = isc(data, pairwise=False, summary_statistic=None)
+    assert iscs_loo.shape == (n_subjects, n_voxels)
 
-    assert np.isclose(ISFC, true_ISFC).all(), \
-        "Calculated ISFC (non collapse) does not match ground truth"
+    iscs_pw = isc(data, pairwise=True, summary_statistic=None)
+    assert iscs_pw.shape == (n_subjects*(n_subjects-1)/2, n_voxels)
 
-    assert np.isclose(p, true_p).all(), \
-        "Calculated p values (non collapse) do not match ground truth"
+    # Check summary statistics
+    isc_mean = isc(data, pairwise=False, summary_statistic=np.mean)
+    assert isc_mean.shape == (1, n_voxels)
+
+    isc_median = isc(data, pairwise=False, summary_statistic=np.median)
+    assert isc_median.shape == (1, n_voxels)
+
+    try:
+        isc_min = isc(data, pairwise=False, summary_statistic=np.min)
+    except ValueError:
+        print("Correctly caught unexpected summary statistic")
+
+
+# Make sure ISC recovers correlations of 1 and less than 1
+def test_isc_output():
+    
+    data = correlated_timeseries(20, 60, noise=0,
+                                 random_state=42)
+    iscs = isc(data, pairwise=False)
+    assert np.all(iscs[:, :2] == 1.)
+    assert np.all(iscs[:, -1] < 1.)
+    
+    iscs = isc(data, pairwise=True)
+    assert np.all(iscs[:, :2] == 1.)
+    assert np.all(iscs[:, -1] < 1.)
+        
+        
+# Test one-sample bootstrap test
+def test_bootstrap_isc():
+    n_bootstraps = 10
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+    
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+
+    iscs = isc(data, pairwise=False, summary_statistic=None)
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False,
+                                                  summary_statistic=np.median,
+                                                  n_bootstraps=n_bootstraps,
+                                                  ci_percentile=95,
+                                                  return_distribution=True)
+    assert distribution.shape == (n_bootstraps, n_voxels)
+
+    # Test one-sample bootstrap test with pairwise approach
+    n_bootstraps = 10
+
+    iscs = isc(data, pairwise=True, summary_statistic=None)
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True,
+                                                  summary_statistic=np.median,
+                                                  n_bootstraps=n_bootstraps,
+                                                  ci_percentile=95,
+                                                  return_distribution=True)
+    assert distribution.shape == (n_bootstraps, n_voxels)
+
+    # Check random seeds
+    iscs = isc(data, pairwise=False, summary_statistic=None)
+    distributions = []
+    for random_state in [42, 42, None]:
+        observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False,
+                                                      summary_statistic=np.median,
+                                                      n_bootstraps=n_bootstraps,
+                                                      ci_percentile=95,
+                                                      return_distribution=True,
+                                                      random_state=random_state)
+        distributions.append(distribution)
+    assert np.array_equal(distributions[0], distributions[1])
+    assert not np.array_equal(distributions[1], distributions[2])
+    
+    # Check output p-values
+    data = correlated_timeseries(20, 60, noise=.5,
+                                 random_state=42)
+    iscs = isc(data, pairwise=False)
+    observed, ci, p = bootstrap_isc(iscs, pairwise=False)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    iscs = isc(data, pairwise=True)
+    observed, ci, p = bootstrap_isc(iscs, pairwise=True)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    # Check that ISC computation and bootstrap observed are same
+    iscs = isc(data, pairwise=False)
+    observed, ci, p = bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median)
+    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic=np.median))
+    
+    # Check that ISC computation and bootstrap observed are same
+    iscs = isc(data, pairwise=True)
+    observed, ci, p = bootstrap_isc(iscs, pairwise=True, summary_statistic=np.mean)
+    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+    
+    
+# Test permutation test with group assignments
+def test_permutation_isc():
+    group_assignment = [1] * 10 + [2] * 10
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+
+    # Create dataset with two groups in pairwise approach
+    data = np.dstack((simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
+                                           noise=1, data_type='array',
+                                           random_state=3),
+                      simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
+                                           noise=5, data_type='array',
+                                           random_state=4)))
+    iscs = isc(data, pairwise=True, summary_statistic=None)
+
+    observed, p, distribution = permutation_isc(iscs, group_assignment=group_assignment,
+                                                pairwise=True,
+                                                summary_statistic=np.mean,
+                                                n_permutations=200,
+                                                return_distribution=True)
+
+    # Create data with two groups in leave-one-out approach
+    data_1 = simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
+                                  noise=1, data_type='array',
+                                  random_state=3)
+    data_2 = simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
+                                  noise=10, data_type='array',
+                                  random_state=4)
+    iscs = np.vstack((isc(data_1, pairwise=False, summary_statistic=None),
+                      isc(data_2, pairwise=False, summary_statistic=None)))
+
+    observed, p, distribution = permutation_isc(iscs, group_assignment=group_assignment,
+                                                pairwise=False,
+                                                summary_statistic=np.median,
+                                                n_permutations=200,
+                                                return_distribution=True)
+
+    # One-sample leave-one-out permutation test
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+    iscs = isc(data, pairwise=False, summary_statistic=None)
+
+    observed, p, distribution = permutation_isc(iscs,
+                                                pairwise=False,
+                                                summary_statistic=np.median,
+                                                n_permutations=200,
+                                                return_distribution=True)
+
+    # One-sample pairwise permutation test
+    iscs = isc(data, pairwise=True, summary_statistic=None)
+
+    observed, p, distribution = permutation_isc(iscs,
+                                                pairwise=True,
+                                                summary_statistic=np.median,
+                                                n_permutations=200,
+                                                return_distribution=True)
+
+    # Small one-sample pairwise exact test
+    data = simulated_timeseries(12, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+    iscs = isc(data, pairwise=False, summary_statistic=None)
+
+    observed, p, distribution = permutation_isc(iscs,
+                                                pairwise=False,
+                                                summary_statistic=np.median,
+                                                n_permutations=10000,
+                                                return_distribution=True)
+
+    # Small two-sample pairwise exact test (and unequal groups)
+    data = np.dstack((simulated_timeseries(3, n_TRs, n_voxels=n_voxels,
+                                  noise=1, data_type='array',
+                                  random_state=3),
+                      simulated_timeseries(4, n_TRs, n_voxels=n_voxels,
+                                  noise=50, data_type='array',
+                                  random_state=4)))
+    iscs = isc(data, pairwise=True, summary_statistic=None)
+    group_assignment = [1, 1, 1, 2, 2, 2, 2]
+
+    observed, p, distribution = permutation_isc(iscs,
+                                                group_assignment=group_assignment,
+                                                pairwise=True,
+                                                summary_statistic=np.mean,
+                                                n_permutations=10000,
+                                                return_distribution=True)
+
+    # Small two-sample leave-one-out exact test (and unequal groups)
+    data_1 = simulated_timeseries(3, n_TRs, n_voxels=n_voxels,
+                                  noise=1, data_type='array',
+                                  random_state=3)
+    data_2 = simulated_timeseries(4, n_TRs, n_voxels=n_voxels,
+                                  noise=50, data_type='array',
+                                  random_state=4)
+    iscs = np.vstack((isc(data_1, pairwise=False, summary_statistic=None),
+                      isc(data_2, pairwise=False, summary_statistic=None)))
+    group_assignment = [1, 1, 1, 2, 2, 2, 2]
+
+    observed, p, distribution = permutation_isc(iscs,
+                                                group_assignment=group_assignment,
+                                                pairwise=False,
+                                                summary_statistic=np.mean,
+                                                n_permutations=10000,
+                                                return_distribution=True)
+    
+    # Check output p-values
+    data = correlated_timeseries(20, 60, noise=.5,
+                                 random_state=42)
+    iscs = isc(data, pairwise=False)
+    observed, p = permutation_isc(iscs, pairwise=False)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    iscs = isc(data, pairwise=True)
+    observed, p = permutation_isc(iscs, pairwise=True)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    # Check that ISC computation and permutation observed are same
+    iscs = isc(data, pairwise=False)
+    observed, p = permutation_isc(iscs, pairwise=False, summary_statistic=np.median)
+    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic=np.median))
+    
+    # Check that ISC computation and permuation observed are same
+    iscs = isc(data, pairwise=True)
+    observed, p = permutation_isc(iscs, pairwise=True, summary_statistic=np.mean)
+    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+
+
+def test_timeshift_isc():
+    # Circular time-shift on one sample, leave-one-out
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+    
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    observed, p, distribution = timeshift_isc(data, pairwise=False,
+                                              summary_statistic=np.median,
+                                              n_shifts=200,
+                                              return_distribution=True)
+
+    # Circular time-shift on one sample, pairwise
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    observed, p, distribution = timeshift_isc(data, pairwise=True,
+                                              summary_statistic=np.median,
+                                              n_shifts=200,
+                                              return_distribution=True)
+
+    # Circular time-shift on one sample, leave-one-out
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    observed, p, distribution = timeshift_isc(data, pairwise=False,
+                                              summary_statistic=np.mean,
+                                              n_shifts=200,
+                                              return_distribution=True)
+    # Check output p-values
+    data = correlated_timeseries(20, 60, noise=.5,
+                                 random_state=42)
+    iscs = isc(data, pairwise=False)
+    observed, p = timeshift_isc(data, pairwise=False)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    iscs = isc(data, pairwise=True)
+    observed, p = timeshift_isc(data, pairwise=True)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    # Check that ISC computation and permutation observed are same
+    iscs = isc(data, pairwise=False)
+    observed, p = timeshift_isc(data, pairwise=False, summary_statistic=np.median)
+    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic=np.median))
+    
+    # Check that ISC computation and permuation observed are same
+    iscs = isc(data, pairwise=True)
+    observed, p = timeshift_isc(data, pairwise=True, summary_statistic=np.mean)
+    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+    
+
+# Phase randomization test
+def test_phaseshift_isc():
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    observed, p, distribution = phaseshift_isc(data, pairwise=True,
+                                               summary_statistic=np.median,
+                                               n_shifts=200,
+                                               return_distribution=True)
+
+    # Phase randomization one-sample test, leave-one-out
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    observed, p, distribution = phaseshift_isc(data, pairwise=False,
+                                               summary_statistic=np.mean,
+                                               n_shifts=200,
+                                               return_distribution=True)
+    
+    # Check output p-values
+    data = correlated_timeseries(20, 60, noise=.5,
+                                 random_state=42)
+    iscs = isc(data, pairwise=False)
+    observed, p = phaseshift_isc(data, pairwise=False)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    iscs = isc(data, pairwise=True)
+    observed, p = phaseshift_isc(data, pairwise=True)
+    assert np.all(iscs[:, :2] > .5)
+    assert np.all(iscs[:, -1] < .5)
+    assert p[0, 0] < .05 and p[0, 1] < .05
+    assert p[0, 2] > .1
+    
+    # Check that ISC computation and permutation observed are same
+    iscs = isc(data, pairwise=False)
+    observed, p = phaseshift_isc(data, pairwise=False, summary_statistic=np.median)
+    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic=np.median))
+    
+    # Check that ISC computation and permuation observed are same
+    iscs = isc(data, pairwise=True)
+    observed, p = phaseshift_isc(data, pairwise=True, summary_statistic=np.mean)
+    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+
+
+# Test ISFC 
+def test_isfc_options():
+    from brainiak.fcma.util import compute_correlation
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    isfcs = isfc(data, pairwise=False, summary_statistic=None)
+
+    # Just two subjects
+    isfcs = isfc(data[..., :2], pairwise=False, summary_statistic=None)
+
+    # ISFC with pairwise approach
+    isfcs = isfc(data, pairwise=True, summary_statistic=None)
+
+    # ISFC with summary statistics
+    isfcs = isfc(data, pairwise=True, summary_statistic=np.mean)
+    isfcs = isfc(data, pairwise=True, summary_statistic=np.median)
+
+    # Check output p-values
+    data = correlated_timeseries(20, 60, noise=.5,
+                                 random_state=42)
+    isfcs = isfc(data, pairwise=False)
+    assert np.all(isfcs[0, 1, :] > .5) and np.all(isfcs[1, 0, :] > .5)
+    assert np.all(isfcs[:2, 2, :] < .5) and np.all(isfcs[2, :2, :] < .5)
+    
+    isfcs = isfc(data, pairwise=True)
+    assert np.all(isfcs[0, 1, :] > .5) and np.all(isfcs[1, 0, :] > .5)
+    assert np.all(isfcs[:2, 2, :] < .5) and np.all(isfcs[2, :2, :] < .5)
+    
+    # Check that ISC and ISFC diagonal are identical
+    iscs = isc(data, pairwise=False)
+    isfcs = isfc(data, pairwise=False)
+    for s in np.arange(len(iscs)):
+        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
+        
+    # Check that ISC and ISFC diagonal are identical
+    iscs = isc(data, pairwise=True)
+    isfcs = isfc(data, pairwise=True)
+    for s in np.arange(len(iscs)):
+        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
+
+
+if __name__ == '__main__':
+    test_isc_input()
+    test_isc_options()
+    test_isc_output()
+    test_bootstrap_isc()
+    test_permutation_isc()
+    test_timeshift_isc()
+    test_phaseshift_isc()
+    test_isfc_options()
