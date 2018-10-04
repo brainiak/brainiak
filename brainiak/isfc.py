@@ -22,12 +22,12 @@ as statistical tests designed specifically for ISC analyses.
 # Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
-#from brainiak.fcma.util import compute_correlation
 import numpy as np
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr, zscore
 from scipy.fftpack import fft, ifft
 import itertools as it
+from brainiak.fcma.util import compute_correlation
 
 def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     """Intersubject correlation
@@ -118,10 +118,10 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
             iscs = np.array([pearsonr(subject,
-                                      np.mean([s for s in voxel_data
-                                               if s is not subject],
+                                      np.mean(np.delete(voxel_data,
+                                                        s, axis=0),
                                               axis=0))[0]
-                    for subject in voxel_data])
+                    for s, subject in enumerate(voxel_data)])
         voxel_iscs.append(iscs)
     iscs = np.column_stack(voxel_iscs)
     
@@ -155,11 +155,10 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
     where each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects. If 
-    only two subjects are supplied, simply compute Pearson correlation
+    only two subjects are supplied, simply ISFC between these two subjects
     (precludes averaging in leave-one-out approach, and does not apply
-    summary statistic.) Output is an ndarray where the first dimension is
-    the number of subjects or pairs and the second dimension is the number
-    of voxels (or ROIs).
+    summary statistic.) Output is an voxels by voxels by subjects (or pairs)
+    ndarray.
         
     The implementation is based on the following publication:
     
@@ -246,10 +245,9 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
         # Compute leave-one-out ISFCs
         isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
                                      np.ascontiguousarray(np.mean(
-                                         [s for s in data
-                                          if s is not subject],
+                                         np.delete(data, s, axis=0),
                                              axis=0).T))
-                 for subject in data]
+                 for s, subject in enumerate(data)]
         
         # Transpose and average ISFC matrices for both directions
         isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
@@ -648,9 +646,9 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     # If one group, just get observed summary statistic
     if n_groups == 1:
         if summary_statistic == np.mean:
-            observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))
+            observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))[np.newaxis, :]
         elif summary_statistic == np.median:
-            observed = np.median(iscs, axis=0)
+            observed = np.median(iscs, axis=0)[np.newaxis, :]
     
     # If two groups, get the observed difference
     elif n_groups == 2:
