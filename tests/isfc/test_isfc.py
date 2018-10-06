@@ -1,5 +1,6 @@
 import numpy as np
-from brainiak.isfc import isc, bootstrap_isc
+from brainiak.isfc import (isc, isfc, bootstrap_isc, permutation_ics,
+                           timeshift_isc, phaseshift_isc)
 
 
 # Create simple simulated data with high intersubject correlation
@@ -179,14 +180,14 @@ def test_bootstrap_isc():
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .05
     
     iscs = isc(data, pairwise=True)
     observed, ci, p = bootstrap_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .05
     
     # Check that ISC computation and bootstrap observed are same
     iscs = isc(data, pairwise=False)
@@ -449,6 +450,13 @@ def test_phaseshift_isc():
 
 # Test ISFC 
 def test_isfc_options():
+    
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+    
     from brainiak.fcma.util import compute_correlation
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
