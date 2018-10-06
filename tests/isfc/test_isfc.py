@@ -1,152 +1,97 @@
+import brainiak.isfc
+from brainiak import image, io
 import numpy as np
+<<<<<<< HEAD
 from brainiak.isfc import (isc, isfc, bootstrap_isc, permutation_ics,
                            timeshift_isc, phaseshift_isc)
+=======
+import os
+>>>>>>> parent of 94d10cc... Fixed location of test_isfc.py and added module imports
 
 
-# Create simple simulated data with high intersubject correlation
-def simulated_timeseries(n_subjects, n_TRs, n_voxels=30, 
-                         noise=1, data_type='array',
-                         random_state=None):
-    prng = np.random.RandomState(random_state)
-    if n_voxels:
-        signal = prng.randn(n_TRs, n_voxels)
-        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
-        data = [signal + prng.randn(n_TRs, n_voxels) * noise
-                for subject in np.arange(n_subjects)]
-    elif not n_voxels:
-        signal = prng.randn(n_TRs)
-        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
-        data = [signal + prng.randn(n_TRs) * noise
-                for subject in np.arange(n_subjects)]
-    if data_type == 'array':
-        if n_voxels:
-            data = np.dstack(data)
-        elif not n_voxels:    
-            data = np.column_stack(data)
-    return data
+def test_ISC():
+    # Create dataset in which one voxel is highly correlated across subjects
+    # and the other is not
+    D = np.zeros((2, 5, 3))
+    D[:, :, 0] = \
+        [[-0.36225433, -0.43482456,  0.26723158,  0.16461712, -0.37991465],
+         [-0.62305959, -0.46660116, -0.50037994,  1.81083754,  0.23499509]]
+    D[:, :, 1] = \
+        [[-0.30484153, -0.49486988,  0.10966625, -0.19568572, -0.20535156],
+         [1.68267639, -0.78433298, -0.35875085, -0.6121344,  0.28603493]]
+    D[:, :, 2] = \
+        [[-0.36593192, -0.50914734,  0.21397317,  0.30276589, -0.42637472],
+         [0.04127293, -0.67598379, -0.51549055, -0.64196342,  1.60686666]]
+
+    (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
+                                 two_sided=True, random_state=0)
+
+    assert np.isclose(ISC, [0.8909243, 0.0267954]).all(), \
+        "Calculated ISC does not match ground truth"
+
+    assert np.isclose(p, [0.02, 1]).all(), \
+        "Calculated p values do not match ground truth"
+
+    (ISC, p) = brainiak.isfc.isc(D, return_p=True, num_perm=100,
+                                 two_sided=True, collapse_subj=False,
+                                 random_state=0)
+    true_ISC = [[0.98221543, 0.76747914, 0.92307833],
+                [-0.26377767, 0.01490501, 0.32925896]]
+    true_p = [[0, 0.6, 0.08], [1, 1, 1]]
+
+    assert np.isclose(ISC, true_ISC).all(), \
+        "Calculated ISC (non collapse) does not match ground truth"
+
+    assert np.isclose(p, true_p).all(), \
+        "Calculated p values (non collapse) do not match ground truth"
 
 
-# Create 3 voxel simulated data with correlated time series
-def correlated_timeseries(n_subjects, n_TRs, noise=0,
-                          random_state=None):
-    prng = np.random.RandomState(random_state)
-    signal = prng.randn(n_TRs)
-    other = np.random.randn(n_TRs, n_subjects)[:, np.newaxis, :]
-    data = np.repeat(np.column_stack((signal, signal,
-                                     ))[..., np.newaxis],  20, axis=2)
-    data = np.concatenate((data, other), axis=1)
-    data = data + np.random.randn(n_TRs, 3, n_subjects) * noise
-    return data
+def test_ISFC():
+    curr_dir = os.path.dirname(__file__)
 
+    mask_fname = os.path.join(curr_dir, 'mask.nii.gz')
+    mask = io.load_boolean_mask(mask_fname)
+    fnames = [os.path.join(curr_dir, 'subj1.nii.gz'),
+              os.path.join(curr_dir, 'subj2.nii.gz')]
+    masked_images = image.mask_images(io.load_images(fnames), mask)
 
-# Compute ISCs using different input types
-# List of subjects with one voxel/ROI
-def test_isc_input():
-    
-    # Set parameters for toy time series data
-    n_subjects = 20
-    n_TRs = 60
-    n_voxels = 30
-    random_state = 42
-    
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=None, data_type='list',
-                                random_state=random_state)
-    iscs_list = isc(data, pairwise=False, summary_statistic=None)
+    D = image.MaskedMultiSubjectData.from_masked_images(masked_images,
+                                                        len(fnames))
 
-    # Array of subjects with one voxel/ROI
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=None, data_type='array',
-                                random_state=random_state)
-    iscs_array = isc(data, pairwise=False, summary_statistic=None)
+    assert D.shape == (4, 5, 2), "Loaded data has incorrect shape"
 
-    # Check they're the same
-    assert np.array_equal(iscs_list, iscs_array)
+    (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
+                                   two_sided=True, random_state=0)
 
-    # List of subjects with multiple voxels/ROIs
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=n_voxels, data_type='list',
-                                random_state=random_state)
-    iscs_list = isc(data, pairwise=False, summary_statistic=None)
+    ground_truth = \
+        [[1, 1, 0, -1],
+         [1, 1, 0, -1],
+         [0, 0, 1,  0],
+         [-1, -1, 0, 1]]
 
-    # Array of subjects with multiple voxels/ROIs
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=n_voxels, data_type='array',
-                                random_state=random_state)
-    iscs_array = isc(data, pairwise=False, summary_statistic=None)
+    ground_truth_p = 1 - np.abs(ground_truth)
 
-    # Check they're the same
-    assert np.array_equal(iscs_list, iscs_array)
+    assert np.isclose(ISFC, ground_truth).all(), \
+        "Calculated ISFC does not match ground truth"
 
+    assert np.isclose(p, ground_truth_p).all(), \
+        "Calculated p values do not match ground truth"
 
-# Check pairwise and leave-one-out, and summary statistics for ISC
-def test_isc_options():
+    (ISFC, p) = brainiak.isfc.isfc(D, return_p=True, num_perm=100,
+                                   two_sided=True, collapse_subj=False,
+                                   random_state=0)
+    array1 = np.array([[1, 1], [1, 1], [0, 0], [-1, -1]])
+    array2 = -array1
+    array3 = np.absolute(array1)
+    array4 = 1 - array3
 
-    # Set parameters for toy time series data
-    n_subjects = 20
-    n_TRs = 60
-    n_voxels = 30
-    random_state = 42
-    
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=n_voxels, data_type='array',
-                                random_state=random_state)
-    
-    iscs_loo = isc(data, pairwise=False, summary_statistic=None)
-    assert iscs_loo.shape == (n_subjects, n_voxels)
+    true_ISFC = np.array([array1, array1, array4, array2])
+    true_p = np.array([array4, array4, array3, array4])
 
-    iscs_pw = isc(data, pairwise=True, summary_statistic=None)
-    assert iscs_pw.shape == (n_subjects*(n_subjects-1)/2, n_voxels)
+    assert np.isclose(ISFC, true_ISFC).all(), \
+        "Calculated ISFC (non collapse) does not match ground truth"
 
-    # Check summary statistics
-    isc_mean = isc(data, pairwise=False, summary_statistic=np.mean)
-    assert isc_mean.shape == (1, n_voxels)
-
-    isc_median = isc(data, pairwise=False, summary_statistic=np.median)
-    assert isc_median.shape == (1, n_voxels)
-
-    try:
-        isc_min = isc(data, pairwise=False, summary_statistic=np.min)
-    except ValueError:
-        print("Correctly caught unexpected summary statistic")
-
-
-# Make sure ISC recovers correlations of 1 and less than 1
-def test_isc_output():
-    
-    data = correlated_timeseries(20, 60, noise=0,
-                                 random_state=42)
-    iscs = isc(data, pairwise=False)
-    assert np.all(iscs[:, :2] == 1.)
-    assert np.all(iscs[:, -1] < 1.)
-    
-    iscs = isc(data, pairwise=True)
-    assert np.all(iscs[:, :2] == 1.)
-    assert np.all(iscs[:, -1] < 1.)
-        
-        
-# Test one-sample bootstrap test
-def test_bootstrap_isc():
-    n_bootstraps = 10
-    
-    # Set parameters for toy time series data
-    n_subjects = 20
-    n_TRs = 60
-    n_voxels = 30
-    random_state = 42
-    
-    data = simulated_timeseries(n_subjects, n_TRs,
-                                n_voxels=n_voxels, data_type='array',
-                                random_state=random_state)
-
-    iscs = isc(data, pairwise=False, summary_statistic=None)
-    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False,
-                                                  summary_statistic=np.median,
-                                                  n_bootstraps=n_bootstraps,
-                                                  ci_percentile=95,
-                                                  return_distribution=True)
-    assert distribution.shape == (n_bootstraps, n_voxels)
-
+<<<<<<< HEAD
     # Test one-sample bootstrap test with pairwise approach
     n_bootstraps = 10
 
@@ -505,3 +450,7 @@ if __name__ == '__main__':
     test_timeshift_isc()
     test_phaseshift_isc()
     test_isfc_options()
+=======
+    assert np.isclose(p, true_p).all(), \
+        "Calculated p values (non collapse) do not match ground truth"
+>>>>>>> parent of 94d10cc... Fixed location of test_isfc.py and added module imports
