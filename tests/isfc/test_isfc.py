@@ -1,6 +1,7 @@
 import numpy as np
 from brainiak.isfc import (isc, isfc, bootstrap_isc, permutation_ics,
                            timeshift_isc, phaseshift_isc)
+from scipy.spatial.distance import squareform
 
 
 # Create simple simulated data with high intersubject correlation
@@ -31,10 +32,19 @@ def correlated_timeseries(n_subjects, n_TRs, noise=0,
                           random_state=None):
     prng = np.random.RandomState(random_state)
     signal = prng.randn(n_TRs)
-    other = np.random.randn(n_TRs, n_subjects)[:, np.newaxis, :]
+    correlated = True
+    while correlated:
+        uncorrelated = np.random.randn(n_TRs,
+                                       n_subjects)[:, np.newaxis, :]
+        unc_max = np.amax(squareform(np.corrcoef(
+            uncorrelated[:, 0, :].T), checks=False))
+        unc_mean = np.mean(squareform(np.corrcoef(
+            uncorrelated[:, 0, :].T), checks=False))
+        if unc_max < .3 and np.abs(unc_mean) < .001:
+            correlated = False
     data = np.repeat(np.column_stack((signal, signal,
                                      ))[..., np.newaxis],  20, axis=2)
-    data = np.concatenate((data, other), axis=1)
+    data = np.concatenate((data, uncorrelated), axis=1)
     data = data + np.random.randn(n_TRs, 3, n_subjects) * noise
     return data
 
@@ -48,6 +58,8 @@ def test_isc_input():
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    
+    print("Testing ISC inputs")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=None, data_type='list',
@@ -77,6 +89,8 @@ def test_isc_input():
 
     # Check they're the same
     assert np.array_equal(iscs_list, iscs_array)
+    
+    print("Finished testing ISC inputs")
 
 
 # Check pairwise and leave-one-out, and summary statistics for ISC
@@ -87,6 +101,8 @@ def test_isc_options():
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    
+    print("Testing ISC options")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array',
@@ -109,10 +125,14 @@ def test_isc_options():
         isc_min = isc(data, pairwise=False, summary_statistic=np.min)
     except ValueError:
         print("Correctly caught unexpected summary statistic")
+        
+    print("Finished testing ISC options")
 
 
 # Make sure ISC recovers correlations of 1 and less than 1
 def test_isc_output():
+    
+    print("Testing ISC outputs")
     
     data = correlated_timeseries(20, 60, noise=0,
                                  random_state=42)
@@ -123,17 +143,21 @@ def test_isc_output():
     iscs = isc(data, pairwise=True)
     assert np.all(iscs[:, :2] == 1.)
     assert np.all(iscs[:, -1] < 1.)
+    
+    print("Finished testing ISC outputs")
         
         
 # Test one-sample bootstrap test
 def test_bootstrap_isc():
-    n_bootstraps = 10
     
     # Set parameters for toy time series data
     n_subjects = 20
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    n_bootstraps = 10
+    
+    print("Testing bootstrap hypothesis test")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array',
@@ -180,14 +204,14 @@ def test_bootstrap_isc():
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .05
+    assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
     observed, ci, p = bootstrap_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .05
+    assert p[0, 2] > .01
     
     # Check that ISC computation and bootstrap observed are same
     iscs = isc(data, pairwise=False)
@@ -199,16 +223,20 @@ def test_bootstrap_isc():
     observed, ci, p = bootstrap_isc(iscs, pairwise=True, summary_statistic=np.mean)
     assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
     
+    print("Finished testing bootstrap hypothesis test")
+    
     
 # Test permutation test with group assignments
 def test_permutation_isc():
-    group_assignment = [1] * 10 + [2] * 10
-    
+        
     # Set parameters for toy time series data
     n_subjects = 20
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    group_assignment = [1] * 10 + [2] * 10
+    
+    print("Testing permutation test")
 
     # Create dataset with two groups in pairwise approach
     data = np.dstack((simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
@@ -317,14 +345,14 @@ def test_permutation_isc():
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
     observed, p = permutation_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
@@ -335,17 +363,21 @@ def test_permutation_isc():
     iscs = isc(data, pairwise=True)
     observed, p = permutation_isc(iscs, pairwise=True, summary_statistic=np.mean)
     assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+    
+    print("Finished testing permutaton test")
 
 
 def test_timeshift_isc():
-    # Circular time-shift on one sample, leave-one-out
-    
+        
     # Set parameters for toy time series data
     n_subjects = 20
     n_TRs = 60
     n_voxels = 30
     random_state = 42
     
+    print("Testing circular time-shift")
+
+    # Circular time-shift on one sample, leave-one-out
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = timeshift_isc(data, pairwise=False,
@@ -376,14 +408,14 @@ def test_timeshift_isc():
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
     observed, p = timeshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
@@ -395,6 +427,8 @@ def test_timeshift_isc():
     observed, p = timeshift_isc(data, pairwise=True, summary_statistic=np.mean)
     assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
     
+    print("Finished testing circular time-shift")
+    
 
 # Phase randomization test
 def test_phaseshift_isc():
@@ -404,6 +438,8 @@ def test_phaseshift_isc():
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    
+    print("Testing phase randomization")
 
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
@@ -428,14 +464,14 @@ def test_phaseshift_isc():
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
     observed, p = phaseshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .1
+    assert p[0, 2] > .01
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
@@ -446,6 +482,8 @@ def test_phaseshift_isc():
     iscs = isc(data, pairwise=True)
     observed, p = phaseshift_isc(data, pairwise=True, summary_statistic=np.mean)
     assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic=np.mean))
+    
+    print("Finished testing phase randomization")
 
 
 # Test ISFC 
@@ -456,6 +494,8 @@ def test_isfc_options():
     n_TRs = 60
     n_voxels = 30
     random_state = 42
+    
+    print("Testing ISFC options")
     
     from brainiak.fcma.util import compute_correlation
     data = simulated_timeseries(n_subjects, n_TRs,
@@ -494,7 +534,9 @@ def test_isfc_options():
     isfcs = isfc(data, pairwise=True)
     for s in np.arange(len(iscs)):
         assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
-
+        
+    print("Finished testing ISFC options")
+    
 
 if __name__ == '__main__':
     test_isc_input()
@@ -505,3 +547,4 @@ if __name__ == '__main__':
     test_timeshift_isc()
     test_phaseshift_isc()
     test_isfc_options()
+    print("Finished all ISC tests")
