@@ -626,7 +626,7 @@ def test_generate_noise_spatial():
 
             # Find the the volume sum and squared values
             v_count += 1
-            v_sum += np.abs(vol[x, y, z])
+            v_sum += vol[x, y, z]
             v_sq += vol[x, y, z] ** 2
 
     # Get the volume variance
