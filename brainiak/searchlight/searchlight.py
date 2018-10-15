@@ -420,18 +420,35 @@ class Searchlight:
             processes = usable_cpus
         else:
             processes = min(pool_size, usable_cpus)
-        with Pool(processes) as pool:
+
+        if processes > 1:
+            with Pool(processes) as pool:
+                for idx, block in enumerate(self.blocks):
+                    result = pool.apply_async(
+                        block_fn,
+                        ([subproblem[idx] for subproblem in self.subproblems],
+                         self.submasks[idx],
+                         self.sl_rad,
+                         self.bcast_var,
+                         extra_block_fn_params))
+                    results.append((block[0], result))
+                local_outputs = [(result[0], result[1].get())
+                                 for result in results]
+        else:
+            # If we only are using one CPU core, no need to create a Pool, cause an underlying
+            # fork(), and send the data to that process. Just do it here in serial. This
+            # will save copying the memory and will stop a fork() which can cause problems in
+            # some MPI implementations.
             for idx, block in enumerate(self.blocks):
-                result = pool.apply_async(
-                    block_fn,
-                    ([subproblem[idx] for subproblem in self.subproblems],
-                     self.submasks[idx],
-                     self.sl_rad,
-                     self.bcast_var,
-                     extra_block_fn_params))
+                subprob_list = [subproblem[idx] for subproblem in self.subproblems]
+                result = block_fn(
+                            subprob_list,
+                            self.submasks[idx],
+                            self.sl_rad,
+                            self.bcast_var,
+                            extra_block_fn_params)
                 results.append((block[0], result))
-            local_outputs = [(result[0], result[1].get())
-                             for result in results]
+            local_outputs = [(result[0], result[1]) for result in results]
 
         # Collect results
         global_outputs = self.comm.gather(local_outputs)
