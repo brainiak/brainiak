@@ -3009,7 +3009,10 @@ class GBRSA(BRSA):
             'SNR_prior can only be chosen from ''unif'', ''lognorm''' \
             ' ''exp'' and ''equal'''
         self.SNR_prior = SNR_prior
-        self.SNR_bins = SNR_bins
+        if self.SNR_prior == 'equal':
+            self.SNR_bins = 1
+        else:
+            self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
         self.tol = tol
         self.optimizer = optimizer
