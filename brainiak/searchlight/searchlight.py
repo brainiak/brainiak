@@ -435,12 +435,14 @@ class Searchlight:
                 local_outputs = [(result[0], result[1].get())
                                  for result in results]
         else:
-            # If we only are using one CPU core, no need to create a Pool, cause an underlying
-            # fork(), and send the data to that process. Just do it here in serial. This
-            # will save copying the memory and will stop a fork() which can cause problems in
-            # some MPI implementations.
+            # If we only are using one CPU core, no need to create a Pool,
+            # cause an underlying fork(), and send the data to that process.
+            # Just do it here in serial. This  will save copying the memory
+            # and will stop a fork() which can cause problems in some MPI
+            # implementations.
             for idx, block in enumerate(self.blocks):
-                subprob_list = [subproblem[idx] for subproblem in self.subproblems]
+                subprob_list = [subproblem[idx]
+                                for subproblem in self.subproblems]
                 result = block_fn(
                             subprob_list,
                             self.submasks[idx],
