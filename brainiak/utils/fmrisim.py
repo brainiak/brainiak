@@ -1775,7 +1775,9 @@ def _generate_noise_spatial(dimensions,
     ----------
 
     dimensions : 3 length array, int
-        What is the shape of the volume to be generated
+        What is the shape of the volume to be generated. This code
+        compresesses the range if the x and y dimensions are not equivalent.
+        This fixes this by upsampling and then downsampling the volume.
 
     template : 3d array, float
         A continuous (0 -> 1) volume describing the likelihood a voxel is in
@@ -1813,6 +1815,13 @@ def _generate_noise_spatial(dimensions,
     if len(dimensions) == 4:
         logger.warning('4 dimensions have been supplied, only using 3')
         dimensions = dimensions[0:3]
+
+    # If the dimensions are wrong then upsample now
+    if dimensions[0] != dimensions[1] or dimensions[1] != dimensions[2]:
+        max_dim = np.max(dimensions)
+        new_dim = (max_dim, max_dim, max_dim)
+    else:
+        new_dim = dimensions
 
     def _logfunc(x, a, b, c):
         """Solve for y given x for log function.
@@ -1898,11 +1907,11 @@ def _generate_noise_spatial(dimensions,
     # relies on an assumption of brain size).
     spatial_sigma = _logfunc(fwhm, -0.36778719, 2.10601011, 2.15439247)
 
-    noise = np.fft.fftn(np.random.normal(size=dimensions))
+    noise = np.fft.fftn(np.random.normal(size=new_dim))
 
     # Create a meshgrid of the object
-    fft_vol = np.meshgrid(_fftIndgen(dimensions[0]), _fftIndgen(dimensions[1]),
-                          _fftIndgen(dimensions[2]))
+    fft_vol = np.meshgrid(_fftIndgen(new_dim[0]), _fftIndgen(new_dim[1]),
+                          _fftIndgen(new_dim[2]))
 
     # Reshape the data into a vector
     fft_vec = np.asarray((fft_vol[0].flatten(), fft_vol[1].flatten(), fft_vol[
@@ -1912,21 +1921,28 @@ def _generate_noise_spatial(dimensions,
     amp_vec = _Pk2(fft_vec, spatial_sigma)
 
     # Reshape to be a brain volume
-    amplitude = amp_vec.reshape(dimensions)
+    amplitude = amp_vec.reshape(new_dim)
 
-    # Inverse FFT of the noise plus amplitude
-    noise_spatial = np.fft.ifftn(noise * amplitude)
+    # The output
+    noise_fft = (np.fft.ifftn(noise * amplitude)).real
+
+    # Fix the dimensionality of the data (if necessary)
+    noise_spatial = noise_fft[:dimensions[0], :dimensions[1], :dimensions[2]]
 
     # Mask or not, then z score
     if mask is not None:
 
         # Mask the output
-        noise_spatial = noise_spatial.real * mask
+        noise_spatial *= mask
 
         # Z score the specific to the brain
         noise_spatial[mask > 0] = stats.zscore(noise_spatial[mask > 0])
     else:
-        noise_spatial = stats.zscore(noise_spatial.real)
+        # Take the grand mean/std and use for z scoring
+        grand_mean = (noise_spatial).mean()
+        grand_std = (noise_spatial).std()
+
+        noise_spatial = (noise_spatial - grand_mean) / grand_std
 
     return noise_spatial
 
