@@ -101,7 +101,8 @@ def test_gen_design():
     import os.path
     files = {'FSL1': 'example_stimtime_1_FSL.txt',
              'FSL2': 'example_stimtime_2_FSL.txt',
-             'AFNI1': 'example_stimtime_1_AFNI.txt'}
+             'AFNI1': 'example_stimtime_1_AFNI.txt',
+             'AFNI2': 'example_stimtime_2_AFNI.txt'}
     for key in files.keys():
         files[key] = os.path.join(os.path.dirname(__file__), files[key])
     design1 = gen_design(stimtime_files=files['FSL1'], scan_duration=[48, 20],
@@ -130,6 +131,11 @@ def test_gen_design():
                          scan_duration=[48, 20], TR=2, style='AFNI')
     assert np.all(np.isclose(design1, design6)), (
         'design matrices generated from AFNI style and FSL style do not match')
+    design7 = gen_design(stimtime_files=[files['AFNI2']],
+                         scan_duration=[48], TR=2, style='AFNI')
+    assert np.all(design7 == 0.0), (
+        'A negative stimulus onset of AFNI style should result in an all-zero'
+        + ' design matrix')
 
 
 def test_center_mass_exp():
