@@ -360,7 +360,7 @@ def test_SNR_grids():
             and np.all(SNR_weights > 0)
             and np.all(np.diff(SNR_grids) > 0)
             ), 'SNR_grids or SNR_weights not correct for exponential prior'
-    
+
     s = brainiak.reprsimil.brsa.GBRSA(SNR_prior='equal')
     SNR_grids, SNR_weights = s._set_SNR_grids()
     assert (np.all(SNR_grids == 1)
