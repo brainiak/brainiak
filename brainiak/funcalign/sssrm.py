@@ -642,8 +642,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """Compute the objective function for one subject.
 
         .. math:: (1-C)*Loss_{SRM}_i(W_i,S;X_i)
-        .. math:: + C/\gamma * Loss_{MLR_i}(\theta, bias; {(W_i^T*Z_i, y_i})
-        .. math:: + R(\theta)
+        .. math:: + C/\\gamma * Loss_{MLR_i}(\\theta, bias; {(W_i^T*Z_i, y_i})
+        .. math:: + R(\\theta)
 
         Parameters
         ----------
