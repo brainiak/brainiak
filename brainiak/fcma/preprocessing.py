@@ -237,7 +237,7 @@ def generate_epochs_info(epoch_list):
 
     Parameters
     ----------
-    epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
+    epoch_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
         Contains specification of epochs and conditions, assuming
         1. all subjects have the same number of epochs;
         2. len(epoch_list) equals the number of subjects;
