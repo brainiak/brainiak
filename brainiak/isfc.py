@@ -22,12 +22,21 @@ as statistical tests designed specifically for ISC analyses.
 # Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
+#data aggregating
+#summary statistic
+#get p-value
+
 import numpy as np
+import logging
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr, zscore
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
+from brainiak.utils.utils import compute_p_from_null_distribution
+
+logger = logging.getLogger(__name__)
+
 
 def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     """Intersubject correlation
@@ -60,7 +69,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
 
     Parameters
     ----------
-    data : list or ndarray
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISC
         
     pairwise : bool, default: False
@@ -98,9 +107,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
                              f"or 3 dimensions (got {data.ndim})!")
 
     # Infer subjects, TRs, voxels and print for user to check
-    n_subjects = data.shape[2]
-    n_TRs = data.shape[0]
-    n_voxels = data.shape[1]
+    n_TRs, n_voxels, n_subjects = data.shape
     if verbose:
         print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
               f"and {n_voxels} voxel(s) or ROI(s).")
@@ -113,7 +120,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
             summary_statistic = None
             if verbose:
-                print("Only two subjects! Simply computing Pearson correlation.")
+                logger.warning("Only two subjects! Simply computing Pearson correlation.")
         elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
@@ -136,7 +143,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
         raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
     return iscs
 
-    
+
 def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
     
     """Intersubject correlation
@@ -169,7 +176,7 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
 
     Parameters
     ----------
-    data : list or ndarray
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISFC
         
     pairwise : bool, default: False
@@ -207,9 +214,7 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
                              f"or 3 dimensions (got {data.ndim})!")
 
     # Infer subjects, TRs, voxels and print for user to check
-    n_subjects = data.shape[2]
-    n_TRs = data.shape[0]
-    n_voxels = data.shape[1]
+    n_TRs, n_voxels, n_subjects = data.shape
     if verbose:
         print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
               f"and {n_voxels} voxel(s) or ROI(s).")
@@ -444,14 +449,14 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
     shifted = distribution - observed
     
     # Get p-value for actual median from shifted distribution
-    p = ((np.sum(np.abs(shifted) >= np.abs(observed), axis=0) + 1) /
-          float((len(shifted) + 1)))[np.newaxis, :]
+    p = compute_p_from_null_distribution(observed, shifted,
+                                         side='two-sided', exact=False)
     
     if return_distribution:
         return observed, ci, p, distribution
     elif not return_distribution:
         return observed, ci, p
-
+        
 
 def permutation_isc(iscs, group_assignment=None, pairwise=False,
                     summary_statistic=np.median, n_permutations=1000,
@@ -483,21 +488,16 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     for controlling false positive rates (FPR) for two-sample tests. This approach
     may yield inflated FPRs for one-sample tests.
     
-    The implementation is based on the following publications:
+    The implementation is based on the following publication:
     
     .. [Chen2016] "Untangling the relatedness among correlations, part I: 
     nonparametric approaches to inter-subject correlation analysis at the
     group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C. 
     Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
-    
-    .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
-    calculating exact p-values when permutations are randomly drawn.",
-    B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
-    and Molecular Biology, 9, 1544-6115.
 
     Parameters
     ----------
-    iscs : list or ndarray, correlation matrix of iscs
+    iscs : list or ndarray, correlation matrix of ISCs
         ISC values for one or more voxels
 
     group_assignment : list or ndarray, group labels
@@ -555,7 +555,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     elif type(group_assignment) == np.ndarray:
         group_assignment = group_assignment.tolist()
     else:
-        print("No group assignment provided, performing one-sample test.")
+        logger.warning("No group assignment provided, performing one-sample test.")
     
     if group_assignment and len(group_assignment) != n_subjects:
         raise ValueError(f"Group assignments ({len(group_assignment)}) "
@@ -621,24 +621,25 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     # Set up permutation type (exact or Monte Carlo)
     if n_groups == 1:
         if n_permutations < 2**n_subjects:
-            print("One-sample approximate permutation test using sign-flipping "
-                  "procedure with Monte Carlo resampling.")
+            logger.info("One-sample approximate permutation test using "
+                        "sign-flipping procedure with Monte Carlo resampling.")
             exact_permutations = None
         elif n_permutations >= 2**n_subjects:
-            print("One-sample exact permutation test using sign-flipping "
-                  f"procedure with 2**{n_subjects} ({2**n_subjects}) iterations.")
+            logger.info("One-sample exact permutation test using "
+                        f"sign-flipping procedure with 2**{n_subjects} "
+                        f"({2**n_subjects}) iterations.")
             exact_permutations = list(it.product([-1, 1], repeat=n_subjects))
             n_permutations = 2**n_subjects
     elif n_groups == 2:
         if n_permutations < np.math.factorial(n_subjects):
-            print("Two-sample approximate permutation test using "
-                  "group randomization with Monte Carlo resampling.")
+            logger.info("Two-sample approximate permutation test using "
+                        "group randomization with Monte Carlo resampling.")
             exact_permutations = None
         elif n_permutations >= np.math.factorial(n_subjects):
-            print("Two-sample exact permutation test using group "
-                  f"randomization with {n_subjects}! "
-                  f"({np.math.factorial(n_subjects)}) "
-                  "iterations.")
+            logger.info("Two-sample exact permutation test using group "
+                        f"randomization with {n_subjects}! "
+                        f"({np.math.factorial(n_subjects)}) "
+                        "iterations.")
             exact_permutations = list(it.permutations(
                 np.arange(len(group_assignment))))
             n_permutations = np.math.factorial(n_subjects)
@@ -757,8 +758,12 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     assert distribution.shape == (n_permutations, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = ((np.sum(np.abs(distribution) >= np.abs(observed), axis=0) + 1) /
-          float((len(distribution) + 1)))[np.newaxis, :]
+    if exact_permutations:
+        p = compute_p_from_null_distribution(observed, shifted,
+                                             side='two-sided', exact=True)
+    elif not exact_permutations:
+        p = compute_p_from_null_distribution(observed, shifted,
+                                             side='two-sided', exact=False)
     
     if return_distribution:
         return observed, p, distribution
@@ -798,11 +803,11 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
 
     Parameters
     ----------
-    data : list or dict, time series data for multiple subjects
-        List or dictionary of response time series for multiple subjects
-
-    pairwise : bool, default:False
-        Indicator of pairwise or leave-one-out, should match iscs variable
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISFC
+        
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
 
     summary_statistic : numpy function, default:np.median
         Summary statistic, either np.median (default) or np.mean
@@ -916,8 +921,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = ((np.sum(np.abs(distribution) >= np.abs(observed), axis=0) + 1) /
-          float((len(distribution) + 1)))[np.newaxis, :]
+    p = compute_p_from_null_distribution(observed, shifted,
+                                         side='two-sided', exact=False)
     
     if return_distribution:
         return observed, p, distribution
@@ -957,11 +962,11 @@ def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
 
     Parameters
     ----------
-    data : list or dict, time series data for multiple subjects
-        List or dictionary of response time series for multiple subjects
-
-    pairwise : bool, default:False
-        Indicator of pairwise or leave-one-out, should match iscs variable
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISFC
+        
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
 
     summary_statistic : numpy function, default:np.median
         Summary statistic, either np.median (default) or np.mean
@@ -1095,8 +1100,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = ((np.sum(np.abs(distribution) >= np.abs(observed), axis=0) + 1) /
-          float((len(distribution) + 1)))[np.newaxis, :]
+    p = compute_p_from_null_distribution(observed, shifted,
+                                         side='two-sided', exact=False)
     
     if return_distribution:
         return observed, p, distribution

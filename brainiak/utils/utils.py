@@ -20,6 +20,9 @@ from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
 from sklearn.utils import check_random_state
 from scipy.fftpack import fft, ifft
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 """
@@ -814,4 +817,71 @@ def p_from_null(X, two_sided=False,
     else:
         p = 1 - max_null_ecdf(real_data)
 
+    return p
+
+
+def compute_p_from_null_distribution(observed, distribution,
+                                     side='two-sided', exact=False):
+    
+    """Compute p-value from null distribution
+    
+    Returns the p-value for an observed test statistic given a null
+    distribution. Performs either a 'two-sided' (i.e., two-tailed)
+    test (default) or a one-sided (i.e., one-tailed) test for either the
+    'left' or 'right' side. First dimension of distribution should
+    correspond to the number of resampling iterations (e.g., the number
+    of permutations). For an exact test (exact=True), does not adjust
+    for the observed test statistic; otherwise, adjusts for observed
+    test statistic (prevents p-values of zero).
+    
+    The implementation is based on the following publication:
+    
+    .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
+    calculating exact p-values when permutations are randomly drawn.",
+    B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
+    and Molecular Biology, 9, 1544-6115.
+    
+    Parameters
+    ----------
+    observed : float
+        Observed test statistic
+
+    distribution : ndarray
+        Null distribution of test statistic
+        
+    side : str, default:'two-sided'
+        Perform one-sided ('left' or 'right') or 'two-sided' test
+
+    Returns
+    -------
+    p : float
+        p-value for observed test statistic based on null distribution
+    """
+    
+    if side not in ('two-sided', 'left', 'right'):
+        raise ValueError("The value for 'side' must be either "
+                         f"'two-sided', 'left', or 'right', got {side}")
+    
+    n_samples = len(distribution)
+    logger.info(f"Assuming {n_samples} resampling iterations")
+    
+    if side == 'two-sided':
+        # numerator for two-sided test
+        numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=0)
+    elif side == 'left':
+        # numerator for one-sided test in left tail
+        numerator = np.sum(distribution <= observed, axis=0)
+    elif side == 'right':
+        # numerator for one-sided test in right tail
+        numerator = np.sum(distribution >= observed, axis=0)
+        
+    # If exact test (all possible permutations), do not adjust
+    if exact:
+        p = numerator / n_samples
+        
+    # If not exact test, adjust number of samples to account for
+    # observed statistic; prevents p-value from being zero
+    else:
+        p = (numerator + 1) / (n_samples + 1)
+    
     return p
