@@ -600,19 +600,21 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
             sorter = np.array(group_assignment).argsort()
             unsorter = np.array(group_assignment).argsort().argsort()
             
-            # Populate a matrix with group assignments                                 
-            group_matrix = np.vstack((np.hstack((np.full((groups[group_labels[0]],
-                                                          groups[group_labels[0]]),
-                                                         group_labels[0]),
-                                                 np.full((groups[group_labels[0]],
-                                                          groups[group_labels[1]]),
-                                                        np.nan))),
-                                      np.hstack((np.full((groups[group_labels[1]],
-                                                          groups[group_labels[0]]),
-                                                         np.nan),
-                                                 np.full((groups[group_labels[1]],
-                                                          groups[group_labels[1]]),
-                                                         group_labels[1])))))
+            # Populate a matrix with group assignments
+            upper_left = np.full((groups[group_labels[0]],
+                                  groups[group_labels[0]]),
+                                 group_labels[0])
+            upper_right = np.full((groups[group_labels[0]],
+                                   groups[group_labels[1]]),
+                                  np.nan)
+            lower_left = np.full((groups[group_labels[1]],
+                                  groups[group_labels[0]]),
+                                 np.nan)
+            lower_right = np.full((groups[group_labels[1]],
+                                   groups[group_labels[1]]),
+                                  group_labels[1])
+            group_matrix = np.vstack((np.hstack((upper_left, upper_right)),
+                                      np.hstack((lower_left, lower_right))))
             np.fill_diagonal(group_matrix, np.nan)
             
             # Unsort matrix and squareform to create selector
