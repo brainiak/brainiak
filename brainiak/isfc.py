@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 """Intersubject correlation (ISC) analysis
 
 Functions for computing intersubject correlation (ISC) and related
@@ -114,7 +115,7 @@ def isc(data, pairwise=False, summary_statistic=None):
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
             summary_statistic = None
-            logger.warning("Only two subjects! Simply computing Pearson correlation.")
+            logger.info("Only two subjects! Simply computing Pearson correlation.")
         elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
@@ -215,7 +216,7 @@ def isfc(data, pairwise=False, summary_statistic=None):
         isfcs = (isfcs + isfcs.T) / 2
         assert isfcs.shape == (n_voxels, n_voxels)
         summary_statistic = None
-        logger.warning("Only two subjects! Computing ISFC between them.")
+        logger.info("Only two subjects! Computing ISFC between them.")
                 
     # Compute all pairwise ISFCs    
     elif pairwise:
@@ -301,8 +302,7 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
 
     
 def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
-                  n_bootstraps=1000, ci_percentile=95,
-                  return_distribution=False, random_state=None):
+                  n_bootstraps=1000, ci_percentile=95, random_state=None):
     
     """One-sample group-level bootstrap hypothesis test for ISCs
 
@@ -317,7 +317,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     actual summary statistic (effectively to zero) for two-tailed null
     hypothesis test (Hall & Wilson, 1991). Uses subject-wise (not pair-wise)
     resampling in the pairwise approach. Returns the observed ISC, the confidence
-    interval, and a p-value for the bootstrap hypothesis test. Optionally returns
+    interval, and a p-value for the bootstrap hypothesis test, as well as
     the bootstrap distribution of summary statistics. According to Chen et al.,
     2016, this is the preferred nonparametric approach for controlling false
     positive rates (FPR) for one-sample tests in the pairwise approach.
@@ -348,9 +348,6 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
 
     ci_percentile : int, default:95
          Percentile for computing confidence intervals
-         
-    return_distribution : bool, default:False
-        Optionally return the bootstrap distribution of summary statistics
         
     random_state = int or None, default:None
         Initial random seed
@@ -480,15 +477,12 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     # Reshape p-values to fit with data shape
     p = p[np.newaxis, :]
     
-    if return_distribution:
-        return observed, ci, p, distribution
-    elif not return_distribution:
-        return observed, ci, p
+    return observed, ci, p, distribution
     
 
 def permutation_isc(iscs, group_assignment=None, pairwise=False,
                     summary_statistic='median', n_permutations=1000,
-                    return_distribution=False, random_state=None):
+                    random_state=None):
     
     """Group-level permutation test for ISCs
 
@@ -511,7 +505,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     row/column order of the subject-by-subject square ISC matrix even though the
     input ISCs should be supplied as the vectorized upper triangle of the square
     ISC matrix. Returns the observed ISC and permutation-based p-value (two-tailed
-    test). Optionally returns the permutation distribution of summary statistics.
+    test), as well as the permutation distribution of summary statistic.
     According to Chen et al., 2016, this is the preferred nonparametric approach
     for controlling false positive rates (FPR) for two-sample tests. This approach
     may yield inflated FPRs for one-sample tests.
@@ -539,10 +533,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
 
     n_permutations : int, default:1000
         Number of permutation iteration (randomizing group assignment)
-        
-    return_distribution : bool, default:False
-        Optionally return the bootstrap distribution of summary statistics
-        
+
     random_state = int, None, or np.random.RandomState, default:None
         Initial random seed
 
@@ -587,7 +578,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     elif type(group_assignment) == np.ndarray:
         group_assignment = group_assignment.tolist()
     else:
-        logger.warning("No group assignment provided, performing one-sample test.")
+        logger.info("No group assignment provided, performing one-sample test.")
     
     if group_assignment and len(group_assignment) != n_subjects:
         raise ValueError(f"Group assignments ({len(group_assignment)}) "
@@ -790,14 +781,11 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     # Reshape p-values to fit with data shape
     p = p[np.newaxis, :]
     
-    if return_distribution:
-        return observed, p, distribution
-    elif not return_distribution:
-        return observed, p
+    return observed, p, distribution
 
 
 def timeshift_isc(data, pairwise=False, summary_statistic='median',
-                  n_shifts=1000, return_distribution=False, random_state=None):
+                  n_shifts=1000, random_state=None):
     
     """Circular time-shift randomization for one-sample ISC test
     
@@ -811,9 +799,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test). Optionally
-    returns the null distribution of ISCs computed on randomly time-
-    shifted data.
+    Returns the observed ISC and p-values (two-tailed test), as well as
+    the null distribution of ISCs computed on randomly time-shifted data.
     
     This implementation is based on the following publications:
 
@@ -839,9 +826,6 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         
     n_shifts : int, default:1000
         Number of randomly shifted samples
-        
-    return_distribution : bool, default:False
-        Optionally return the bootstrap distribution of summary statistics
         
     random_state = int, None, or np.random.RandomState, default:None
         Initial random seed
@@ -890,10 +874,6 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     # Roll axis to get subjects in first dimension for loop
     if pairwise:
         data = np.rollaxis(data, 2, 0)
-        
-    # Temporarily suppress ISC warning when constructing distribution
-    logging_level = logger.getEffectiveLevel()
-    logger.setLevel('CRITICAL')
     
     # Iterate through randomized shifts to create null distribution
     distribution = []
@@ -941,9 +921,6 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                 
         distribution.append(shifted_isc)
         
-        # Re-enable logging at original level
-        logger.setLevel(logging_level)
-        
         # Update random state for next iteration
         random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
         
@@ -959,14 +936,11 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     # Reshape p-values to fit with data shape
     p = p[np.newaxis, :]
     
-    if return_distribution:
-        return observed, p, distribution
-    elif not return_distribution:
-        return observed, p
+    return observed, p, distribution
 
     
 def phaseshift_isc(data, pairwise=False, summary_statistic='median',
-                   n_shifts=1000, return_distribution=False, random_state=None):
+                   n_shifts=1000, random_state=None):
     
     """Phase randomization for one-sample ISC test
     
@@ -980,9 +954,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test). Optionally
-    returns the null distribution of ISCs computed on phase-randomized
-    data.
+    Returns the observed ISC and p-values (two-tailed test), as well as
+    the null distribution of ISCs computed on phase-randomized data.
     
     This implementation is based on the following publications:
 
@@ -1008,9 +981,6 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         
     n_shifts : int, default:1000
         Number of randomly shifted samples
-        
-    return_distribution : bool, default:False
-        Optionally return the bootstrap distribution of summary statistics
         
     random_state = int, None, or np.random.RandomState, default:None
         Initial random seed
@@ -1055,11 +1025,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
-    
-    # Temporarily suppress ISC warning when constructing distribution
-    logging_level = logger.getEffectiveLevel()
-    logger.setLevel('CRITICAL')
-    
+
     # Iterate through randomized shifts to create null distribution
     distribution = []
     for i in np.arange(n_shifts):
@@ -1129,9 +1095,6 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                                                     axis=2)                
         distribution.append(shifted_isc)
         
-        # Re-enable logging at original level
-        logger.setLevel(logging_level)
-        
         # Update random state for next iteration
         random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
         
@@ -1147,7 +1110,4 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     # Reshape p-values to fit with data shape
     p = p[np.newaxis, :]
     
-    if return_distribution:
-        return observed, p, distribution
-    elif not return_distribution:
-        return observed, p
+    return observed, p, distribution

@@ -1,7 +1,10 @@
 import numpy as np
+import logging
 from brainiak.isfc import (isc, isfc, bootstrap_isc, permutation_ics,
                            timeshift_isc, phaseshift_isc)
 from scipy.spatial.distance import squareform
+
+logger = logging.getLogger(__name__)
 
 
 # Create simple simulated data with high intersubject correlation
@@ -59,7 +62,7 @@ def test_isc_input():
     n_voxels = 30
     random_state = 42
     
-    print("Testing ISC inputs")
+    logger.info("Testing ISC inputs")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=None, data_type='list',
@@ -90,7 +93,7 @@ def test_isc_input():
     # Check they're the same
     assert np.array_equal(iscs_list, iscs_array)
     
-    print("Finished testing ISC inputs")
+    logger.info("Finished testing ISC inputs")
 
 
 # Check pairwise and leave-one-out, and summary statistics for ISC
@@ -102,7 +105,7 @@ def test_isc_options():
     n_voxels = 30
     random_state = 42
     
-    print("Testing ISC options")
+    logger.info("Testing ISC options")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array',
@@ -124,15 +127,15 @@ def test_isc_options():
     try:
         isc_min = isc(data, pairwise=False, summary_statistic='min')
     except ValueError:
-        print("Correctly caught unexpected summary statistic")
+        logger.info("Correctly caught unexpected summary statistic")
         
-    print("Finished testing ISC options")
+    logger.info("Finished testing ISC options")
 
 
 # Make sure ISC recovers correlations of 1 and less than 1
 def test_isc_output():
     
-    print("Testing ISC outputs")
+    logger.info("Testing ISC outputs")
     
     data = correlated_timeseries(20, 60, noise=0,
                                  random_state=42)
@@ -144,7 +147,7 @@ def test_isc_output():
     assert np.all(iscs[:, :2] == 1.)
     assert np.all(iscs[:, -1] < 1.)
     
-    print("Finished testing ISC outputs")
+    logger.info("Finished testing ISC outputs")
         
         
 # Test one-sample bootstrap test
@@ -157,7 +160,7 @@ def test_bootstrap_isc():
     random_state = 42
     n_bootstraps = 10
     
-    print("Testing bootstrap hypothesis test")
+    logger.info("Testing bootstrap hypothesis test")
     
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array',
@@ -167,8 +170,7 @@ def test_bootstrap_isc():
     observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False,
                                                   summary_statistic='median',
                                                   n_bootstraps=n_bootstraps,
-                                                  ci_percentile=95,
-                                                  return_distribution=True)
+                                                  ci_percentile=95)
     assert distribution.shape == (n_bootstraps, n_voxels)
 
     # Test one-sample bootstrap test with pairwise approach
@@ -178,8 +180,7 @@ def test_bootstrap_isc():
     observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True,
                                                   summary_statistic='median',
                                                   n_bootstraps=n_bootstraps,
-                                                  ci_percentile=95,
-                                                  return_distribution=True)
+                                                  ci_percentile=95)
     assert distribution.shape == (n_bootstraps, n_voxels)
 
     # Check random seeds
@@ -190,7 +191,6 @@ def test_bootstrap_isc():
                                                       summary_statistic='median',
                                                       n_bootstraps=n_bootstraps,
                                                       ci_percentile=95,
-                                                      return_distribution=True,
                                                       random_state=random_state)
         distributions.append(distribution)
     assert np.array_equal(distributions[0], distributions[1])
@@ -200,14 +200,14 @@ def test_bootstrap_isc():
     data = correlated_timeseries(20, 60, noise=.5,
                                  random_state=42)
     iscs = isc(data, pairwise=False)
-    observed, ci, p = bootstrap_isc(iscs, pairwise=False)
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
     assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
-    observed, ci, p = bootstrap_isc(iscs, pairwise=True)
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
@@ -215,15 +215,19 @@ def test_bootstrap_isc():
     
     # Check that ISC computation and bootstrap observed are same
     iscs = isc(data, pairwise=False)
-    observed, ci, p = bootstrap_isc(iscs, pairwise=False, summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic='median'))
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False,
+                                                  summary_statistic='median')
+    assert np.array_equal(observed, isc(data, pairwise=False,
+                                        summary_statistic='median'))
     
     # Check that ISC computation and bootstrap observed are same
     iscs = isc(data, pairwise=True)
-    observed, ci, p = bootstrap_isc(iscs, pairwise=True, summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic='median'))
+    observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True,
+                                                  summary_statistic='median')
+    assert np.array_equal(observed, isc(data, pairwise=True,
+                                        summary_statistic='median'))
     
-    print("Finished testing bootstrap hypothesis test")
+    logger.info("Finished testing bootstrap hypothesis test")
     
     
 # Test permutation test with group assignments
@@ -236,7 +240,7 @@ def test_permutation_isc():
     random_state = 42
     group_assignment = [1] * 10 + [2] * 10
     
-    print("Testing permutation test")
+    logger.info("Testing permutation test")
 
     # Create dataset with two groups in pairwise approach
     data = np.dstack((simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
@@ -247,11 +251,11 @@ def test_permutation_isc():
                                            random_state=4)))
     iscs = isc(data, pairwise=True, summary_statistic=None)
 
-    observed, p, distribution = permutation_isc(iscs, group_assignment=group_assignment,
+    observed, p, distribution = permutation_isc(iscs,
+                                                group_assignment=group_assignment,
                                                 pairwise=True,
                                                 summary_statistic='mean',
-                                                n_permutations=200,
-                                                return_distribution=True)
+                                                n_permutations=200)
 
     # Create data with two groups in leave-one-out approach
     data_1 = simulated_timeseries(10, n_TRs, n_voxels=n_voxels,
@@ -263,11 +267,11 @@ def test_permutation_isc():
     iscs = np.vstack((isc(data_1, pairwise=False, summary_statistic=None),
                       isc(data_2, pairwise=False, summary_statistic=None)))
 
-    observed, p, distribution = permutation_isc(iscs, group_assignment=group_assignment,
+    observed, p, distribution = permutation_isc(iscs,
+                                                group_assignment=group_assignment,
                                                 pairwise=False,
                                                 summary_statistic='mean',
-                                                n_permutations=200,
-                                                return_distribution=True)
+                                                n_permutations=200)
 
     # One-sample leave-one-out permutation test
     data = simulated_timeseries(n_subjects, n_TRs,
@@ -278,8 +282,7 @@ def test_permutation_isc():
     observed, p, distribution = permutation_isc(iscs,
                                                 pairwise=False,
                                                 summary_statistic='median',
-                                                n_permutations=200,
-                                                return_distribution=True)
+                                                n_permutations=200)
 
     # One-sample pairwise permutation test
     iscs = isc(data, pairwise=True, summary_statistic=None)
@@ -287,8 +290,7 @@ def test_permutation_isc():
     observed, p, distribution = permutation_isc(iscs,
                                                 pairwise=True,
                                                 summary_statistic='median',
-                                                n_permutations=200,
-                                                return_distribution=True)
+                                                n_permutations=200)
 
     # Small one-sample pairwise exact test
     data = simulated_timeseries(12, n_TRs,
@@ -299,8 +301,7 @@ def test_permutation_isc():
     observed, p, distribution = permutation_isc(iscs,
                                                 pairwise=False,
                                                 summary_statistic='median',
-                                                n_permutations=10000,
-                                                return_distribution=True)
+                                                n_permutations=10000)
 
     # Small two-sample pairwise exact test (and unequal groups)
     data = np.dstack((simulated_timeseries(3, n_TRs, n_voxels=n_voxels,
@@ -316,8 +317,7 @@ def test_permutation_isc():
                                                 group_assignment=group_assignment,
                                                 pairwise=True,
                                                 summary_statistic='mean',
-                                                n_permutations=10000,
-                                                return_distribution=True)
+                                                n_permutations=10000)
 
     # Small two-sample leave-one-out exact test (and unequal groups)
     data_1 = simulated_timeseries(3, n_TRs, n_voxels=n_voxels,
@@ -334,21 +334,20 @@ def test_permutation_isc():
                                                 group_assignment=group_assignment,
                                                 pairwise=False,
                                                 summary_statistic='mean',
-                                                n_permutations=10000,
-                                                return_distribution=True)
+                                                n_permutations=10000)
     
     # Check output p-values
     data = correlated_timeseries(20, 60, noise=.5,
                                  random_state=42)
     iscs = isc(data, pairwise=False)
-    observed, p = permutation_isc(iscs, pairwise=False)
+    observed, p, distribution = permutation_isc(iscs, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
     assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
-    observed, p = permutation_isc(iscs, pairwise=True)
+    observed, p, distribution = permutation_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
@@ -356,15 +355,19 @@ def test_permutation_isc():
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
-    observed, p = permutation_isc(iscs, pairwise=False, summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic='median'))
+    observed, p, distribution = permutation_isc(iscs, pairwise=False,
+                                                summary_statistic='median')
+    assert np.array_equal(observed, isc(data, pairwise=False,
+                                        summary_statistic='median'))
     
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
-    observed, p = permutation_isc(iscs, pairwise=True, summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic='mean'))
+    observed, p, distribution = permutation_isc(iscs, pairwise=True,
+                                                summary_statistic='mean')
+    assert np.array_equal(observed, isc(data, pairwise=True,
+                                        summary_statistic='mean'))
     
-    print("Finished testing permutaton test")
+    logger.info("Finished testing permutaton test")
 
 
 def test_timeshift_isc():
@@ -375,43 +378,40 @@ def test_timeshift_isc():
     n_voxels = 30
     random_state = 42
     
-    print("Testing circular time-shift")
+    logger.info("Testing circular time-shift")
 
     # Circular time-shift on one sample, leave-one-out
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = timeshift_isc(data, pairwise=False,
                                               summary_statistic='median',
-                                              n_shifts=200,
-                                              return_distribution=True)
+                                              n_shifts=200)
 
     # Circular time-shift on one sample, pairwise
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = timeshift_isc(data, pairwise=True,
                                               summary_statistic='median',
-                                              n_shifts=200,
-                                              return_distribution=True)
+                                              n_shifts=200)
 
     # Circular time-shift on one sample, leave-one-out
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = timeshift_isc(data, pairwise=False,
                                               summary_statistic='mean',
-                                              n_shifts=200,
-                                              return_distribution=True)
+                                              n_shifts=200)
     # Check output p-values
     data = correlated_timeseries(20, 60, noise=.5,
                                  random_state=42)
     iscs = isc(data, pairwise=False)
-    observed, p = timeshift_isc(data, pairwise=False)
+    observed, p, distribution = timeshift_isc(data, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
     assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
-    observed, p = timeshift_isc(data, pairwise=True)
+    observed, p, distribution = timeshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
@@ -419,15 +419,19 @@ def test_timeshift_isc():
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
-    observed, p = timeshift_isc(data, pairwise=False, summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic='median'))
+    observed, p, distribution = timeshift_isc(data, pairwise=False,
+                                              summary_statistic='median')
+    assert np.array_equal(observed, isc(data, pairwise=False,
+                                        summary_statistic='median'))
     
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
-    observed, p = timeshift_isc(data, pairwise=True, summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic='mean'))
+    observed, p, distribution = timeshift_isc(data, pairwise=True,
+                                              summary_statistic='mean')
+    assert np.array_equal(observed, isc(data, pairwise=True,
+                                        summary_statistic='mean'))
     
-    print("Finished testing circular time-shift")
+    logger.info("Finished testing circular time-shift")
     
 
 # Phase randomization test
@@ -439,35 +443,33 @@ def test_phaseshift_isc():
     n_voxels = 30
     random_state = 42
     
-    print("Testing phase randomization")
+    logger.info("Testing phase randomization")
 
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = phaseshift_isc(data, pairwise=True,
                                                summary_statistic='median',
-                                               n_shifts=200,
-                                               return_distribution=True)
+                                               n_shifts=200)
 
     # Phase randomization one-sample test, leave-one-out
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
     observed, p, distribution = phaseshift_isc(data, pairwise=False,
                                                summary_statistic='mean',
-                                               n_shifts=200,
-                                               return_distribution=True)
+                                               n_shifts=200)
     
     # Check output p-values
     data = correlated_timeseries(20, 60, noise=.5,
                                  random_state=42)
     iscs = isc(data, pairwise=False)
-    observed, p = phaseshift_isc(data, pairwise=False)
+    observed, p, distribution = phaseshift_isc(data, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
     assert p[0, 2] > .01
     
     iscs = isc(data, pairwise=True)
-    observed, p = phaseshift_isc(data, pairwise=True)
+    observed, p, distribution = phaseshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
     assert p[0, 0] < .05 and p[0, 1] < .05
@@ -475,15 +477,19 @@ def test_phaseshift_isc():
     
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
-    observed, p = phaseshift_isc(data, pairwise=False, summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False, summary_statistic='median'))
+    observed, p, distribution = phaseshift_isc(data, pairwise=False,
+                                               summary_statistic='median')
+    assert np.array_equal(observed, isc(data, pairwise=False,
+                                        summary_statistic='median'))
     
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
-    observed, p = phaseshift_isc(data, pairwise=True, summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True, summary_statistic='mean'))
+    observed, p, distribution = phaseshift_isc(data, pairwise=True,
+                                               summary_statistic='mean')
+    assert np.array_equal(observed, isc(data, pairwise=True,
+                                        summary_statistic='mean'))
     
-    print("Finished testing phase randomization")
+    logger.info("Finished testing phase randomization")
 
 
 # Test ISFC 
@@ -495,7 +501,7 @@ def test_isfc_options():
     n_voxels = 30
     random_state = 42
     
-    print("Testing ISFC options")
+    logger.info("Testing ISFC options")
     
     from brainiak.fcma.util import compute_correlation
     data = simulated_timeseries(n_subjects, n_TRs,
@@ -535,7 +541,7 @@ def test_isfc_options():
     for s in np.arange(len(iscs)):
         assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
         
-    print("Finished testing ISFC options")
+    logger.info("Finished testing ISFC options")
     
 
 if __name__ == '__main__':
@@ -547,4 +553,4 @@ if __name__ == '__main__':
     test_timeshift_isc()
     test_phaseshift_isc()
     test_isfc_options()
-    print("Finished all ISC tests")
+    logger.info("Finished all ISC tests")
