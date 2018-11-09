@@ -30,9 +30,11 @@ from scipy.stats import pearsonr, zscore
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-#from brainiak.utils.utils import compute_p_from_null_distribution
+from brainiak.utils.utils import compute_p_from_null_distribution
 
 logger = logging.getLogger(__name__)
+
+MAX_RANDOM_SEED = 2**32 - 1
 
 
 def isc(data, pairwise=False, summary_statistic=None):
@@ -456,7 +458,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
                                                       axis=0))
                     
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
         
     # Convert distribution to numpy array
     distribution = np.array(distribution)
@@ -764,7 +766,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         
         # Update random state for next iteration
         if not exact_permutations:
-            random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
+            random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
         
     # Convert distribution to numpy array
     distribution = np.array(distribution)
@@ -924,7 +926,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         distribution.append(shifted_isc)
         
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
         
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
@@ -1098,7 +1100,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         distribution.append(shifted_isc)
         
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
         
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
