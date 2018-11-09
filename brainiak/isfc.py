@@ -22,10 +22,6 @@ as statistical tests designed specifically for ISC analyses.
 # Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
-#data aggregating
-#summary statistic
-#get p-value
-
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
@@ -49,8 +45,8 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     subjects. If summary_statistic is None, return N ISC values for N subjects
     (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
     corresponding to the upper triangle of the pairwise correlation matrix
-    (see scipy.spatial.distance.squareform). Alternatively, supply either
-    np.mean or np.median to compute summary statistic of ISCs (Fisher Z will
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
     be applied and inverted if using mean). Input data should be a list 
     where each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
@@ -72,11 +68,11 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISC
         
-    pairwise : bool, default: False
+    pairwise : bool, default:False
         Whether to use pairwise (True) or leave-one-out (False) approach
         
-    summary_statistic : None
-        Return all ISCs or collapse using np.mean or np.median
+    summary_statistic : None or str, default:None
+        Return all ISCs or collapse using 'mean' or 'median'
 
     Returns
     -------
@@ -133,14 +129,10 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     iscs = np.column_stack(voxel_iscs)
     
     # Summarize results (if requested)
-    if summary_statistic == np.mean:
-        iscs = np.tanh(summary_statistic(np.arctanh(iscs), axis=0))[np.newaxis, :]
-    elif summary_statistic == np.median:    
-        iscs = summary_statistic(iscs, axis=0)[np.newaxis, :]
-    elif not summary_statistic:
-        pass
-    else:
-        raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
+    if summary_statistic:
+        iscs = compute_summary_statistic(iscs, summary_statistic=summary_statistic,
+                                         axis=0)[np.newaxis, :]
+    
     return iscs
 
 
@@ -156,8 +148,8 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
     subjects. If summary_statistic is None, return N ISC values for N subjects
     (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
     corresponding to the upper triangle of the pairwise correlation matrix
-    (see scipy.spatial.distance.squareform). Alternatively, supply either
-    np.mean or np.median to compute summary statistic of ISCs (Fisher Z will
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
     be applied and inverted if using mean). Input data should be a list 
     where each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
@@ -182,8 +174,8 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
         
-    summary_statistic : None
-        Return all ISFCs or collapse using np.mean or np.median
+    summary_statistic : None or str, default:None
+        Return all ISFCs or collapse using 'mean' or 'median'
 
     Returns
     -------
@@ -260,18 +252,59 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
         assert isfcs.shape == (n_voxels, n_voxels, n_subjects)
     
     # Summarize results (if requested)
-    if summary_statistic == np.mean:
-        isfcs = np.tanh(np.mean(np.arctanh(isfcs), axis=2))
-    elif summary_statistic == np.median:    
-        isfcs = np.median(isfcs, axis=2)
-    elif not summary_statistic:
-        pass
-    else:
-        raise ValueError("Unrecognized summary_statistic! Use None, np.median, or np.mean.")
+    if summary_statistic:
+        isfcs = compute_summary_statistic(isfcs, summary_statistic=summary_statistic,
+                                          axis=2)
+
     return isfcs
+
+
+def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     
+    """Computes summary statistics for ISCs
     
-def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
+    Computes either the 'mean' or 'median' across a set of ISCs. In the
+    case of the mean, ISC values are first Fisher Z transformed (arctanh),
+    averaged, then inverse Fisher Z transformed (tanh).
+    
+    The implementation is based on the following publication:
+    
+    .. [SilverDunlap1987] "Averaging corrlelation coefficients: should
+    Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
+    Journal of Applied Psychology, 72, 146-148.
+    
+    Parameters
+    ----------
+    iscs : list or ndarray
+        ISC values
+        
+    summary_statistic : str, default:'mean'
+        Summary statistic, 'mean' or 'median'
+        
+    axis : None or int or tuple of ints, optional
+        Axis or axes along which the means are computed. The default is to
+        compute the mean of the flattened array.
+
+    Returns
+    -------
+    statistic : float or ndarray
+        Summary statistic of ISC values
+    
+    """
+    
+    if summary_statistic not in ('mean', 'median'):
+        raise ValueError("Summary statistic must be 'mean' or 'median'")
+    
+    # Compute summary statistic
+    if summary_statistic == 'mean':
+        statistic = np.tanh(np.nanmean(np.arctanh(iscs), axis=axis))
+    elif summary_statistic == 'median':
+        statistic = np.nanmedian(iscs, axis=axis)
+        
+    return statistic
+
+    
+def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
                   n_bootstraps=1000, ci_percentile=95,
                   return_distribution=False, random_state=None):
     
@@ -289,7 +322,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
     hypothesis test (Hall & Wilson, 1991). Uses subject-wise (not pair-wise)
     resampling in the pairwise approach. Returns the observed ISC, the confidence
     interval, and a p-value for the bootstrap hypothesis test. Optionally returns
-    the bootstrap distribution of summary statistics.According to Chen et al.,
+    the bootstrap distribution of summary statistics. According to Chen et al.,
     2016, this is the preferred nonparametric approach for controlling false
     positive rates (FPR) for one-sample tests in the pairwise approach.
     
@@ -311,8 +344,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
     pairwise : bool, default:False
         Indicator of pairwise or leave-one-out, should match ISCs structure
 
-    summary_statistic : numpy function, default:np.median
-        Summary statistic, either np.median (default) or np.mean
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
 
     n_bootstraps : int, default:1000
         Number of bootstrap samples (subject-level with replacement)
@@ -372,12 +405,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
            "voxel(s) or ROI(s).")
     
     # Compute summary statistic for observed ISCs
-    if summary_statistic == np.mean:
-        observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))[np.newaxis, :]
-    elif summary_statistic == np.median:
-        observed = summary_statistic(iscs, axis=0)[np.newaxis, :]
-    else:
-        raise TypeError("Unrecognized summary_statistic! Use np.median or np.mean.")
+    observed = compute_summary_statistic(iscs, summary_statistic=summary_statistic,
+                                          axis=0)[np.newaxis, :]
     
     # Set up an empty list to build our bootstrap distribution
     distribution = []
@@ -427,12 +456,11 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
             isc_sample = iscs[subject_sample, :]
             
         # Compute summary statistic for bootstrap ISCs per voxel
-        # (alternatively could construct distrubtion for all voxels
+        # (alternatively could construct distribution for all voxels
         # then compute statistics, but larger memory footprint)
-        if summary_statistic == np.mean:
-            distribution.append(np.tanh(np.nanmean(np.arctanh(isc_sample), axis=0)))
-        elif summary_statistic == np.median:
-            distribution.append(np.nanmedian(isc_sample, axis=0))
+        distribution.append(compute_summary_statistic(isc_sample,
+                                                      summary_statistic=summary_statistic,
+                                                      axis=0))
                     
         # Update random state for next iteration
         random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
@@ -456,10 +484,10 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic=np.median,
         return observed, ci, p, distribution
     elif not return_distribution:
         return observed, ci, p
-        
+    
 
 def permutation_isc(iscs, group_assignment=None, pairwise=False,
-                    summary_statistic=np.median, n_permutations=1000,
+                    summary_statistic='median', n_permutations=1000,
                     return_distribution=False, random_state=None):
     
     """Group-level permutation test for ISCs
@@ -506,8 +534,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     pairwise : bool, default:False
         Indicator of pairwise or leave-one-out, should match ISCs variable
         
-    summary_statistic : numpy function, default:np.median
-        Summary statistic, either np.median (default) or np.mean
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
 
     n_permutations : int, default:1000
         Number of permutation iteration (randomizing group assignment)
@@ -646,24 +674,17 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     
     # If one group, just get observed summary statistic
     if n_groups == 1:
-        if summary_statistic == np.mean:
-            observed = np.tanh(np.mean(np.arctanh(iscs), axis=0))[np.newaxis, :]
-        elif summary_statistic == np.median:
-            observed = np.median(iscs, axis=0)[np.newaxis, :]
-    
+        observed = compute_summary_statistic(iscs, summary_statistic=summary_statistic,
+                                             axis=0)[np.newaxis, :]
+
     # If two groups, get the observed difference
-    elif n_groups == 2:
-        
-        if summary_statistic == np.mean:
-            observed = (np.tanh(np.mean(np.arctanh(
-                iscs[group_selector == group_labels[0], :]), axis=0)) - 
-                        np.tanh(np.mean(np.arctanh(
-                iscs[group_selector == group_labels[1], :]), axis=0)))
-        elif summary_statistic == np.median:
-            observed = (np.median(
-                iscs[group_selector == group_labels[0], :], axis=0) - 
-                        np.median(
-                iscs[group_selector == group_labels[1], :], axis=0))
+    elif n_groups == 2:        
+        observed = (compute_summary_statistic(iscs[group_selector == group_labels[0], :],
+                                        summary_statistic=summary_statistic,
+                                        axis=0) - 
+                    compute_summary_statistic(iscs[group_selector == group_labels[1], :],
+                                        summary_statistic=summary_statistic,
+                                        axis=0))
         observed = np.array(observed)[np.newaxis, :]
         
     # Set up an empty list to build our permutation distribution
@@ -699,10 +720,9 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
             isc_flipped = iscs * sign_flipper[:, np.newaxis]
             
             # Get summary statistics on sign-flipped ISCs
-            if summary_statistic == np.mean:
-                isc_sample = np.tanh(np.mean(np.arctanh(isc_flipped), axis=0))
-            elif summary_statistic == np.median:
-                isc_sample = np.median(isc_flipped, axis=0)            
+            isc_sample = compute_summary_statistic(isc_flipped,
+                                                   summary_statistic=summary_statistic,
+                                                   axis=0)        
         
         # If two groups, set up group matrix get the observed difference
         elif n_groups == 2:
@@ -734,17 +754,13 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
                 group_selector = np.array(group_assignment)[group_shuffler]
                 
             # Get difference of within-group summary statistics
-            # with group permutation        
-            if summary_statistic == np.mean:
-                isc_sample = (np.tanh(np.mean(np.arctanh(
-                    iscs[group_selector == group_labels[0], :]), axis=0)) - 
-                            np.tanh(np.mean(np.arctanh(
-                    iscs[group_selector == group_labels[1], :]), axis=0)))
-            elif summary_statistic == np.median:
-                isc_sample = (np.median(
-                    iscs[group_selector == group_labels[0], :], axis=0) - 
-                            np.median(
-                    iscs[group_selector == group_labels[1], :], axis=0))
+            # with group permutation            
+            isc_sample = (compute_summary_statistic(iscs[group_selector == group_labels[0], :],
+                                                    summary_statistic=summary_statistic,
+                                                    axis=0) - 
+                          compute_summary_statistic(iscs[group_selector == group_labels[1], :],
+                                                    summary_statistic=summary_statistic,
+                                                    axis=0))
         
         # Tack our permuted ISCs onto the permutation distribution
         distribution.append(isc_sample) 
@@ -759,10 +775,10 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
 
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
-        p = compute_p_from_null_distribution(observed, shifted,
+        p = compute_p_from_null_distribution(observed, distribution,
                                              side='two-sided', exact=True)
     elif not exact_permutations:
-        p = compute_p_from_null_distribution(observed, shifted,
+        p = compute_p_from_null_distribution(observed, distribution,
                                              side='two-sided', exact=False)
     
     if return_distribution:
@@ -771,7 +787,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         return observed, p
 
 
-def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
+def timeshift_isc(data, pairwise=False, summary_statistic='median',
                   n_shifts=1000, return_distribution=False, random_state=None):
     
     """Circular time-shift randomization for one-sample ISC test
@@ -809,8 +825,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : numpy function, default:np.median
-        Summary statistic, either np.median (default) or np.mean
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
         
     n_shifts : int, default:1000
         Number of randomly shifted samples
@@ -906,10 +922,9 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
                 shifted_isc.append(loo_isc)
                 
             # Get summary statistics across left-out subjects
-            if summary_statistic == np.mean:
-                shifted_isc = np.tanh(np.mean(np.arctanh(np.dstack(shifted_isc)), axis=2))
-            elif summary_statistic == np.median:
-                shifted_isc = np.median(np.dstack(shifted_isc), axis=2)
+            shifted_isc = compute_summary_statistic(np.dstack(shifted_isc),
+                                                    summary_statistic=summary_statistic,
+                                                    axis=2)    
                 
         distribution.append(shifted_isc)
         
@@ -921,7 +936,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, shifted,
+    p = compute_p_from_null_distribution(observed, distribution,
                                          side='two-sided', exact=False)
     
     if return_distribution:
@@ -930,7 +945,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic=np.median,
         return observed, p
 
     
-def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
+def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                    n_shifts=1000, return_distribution=False, random_state=None):
     
     """Phase randomization for one-sample ISC test
@@ -968,8 +983,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : numpy function, default:np.median
-        Summary statistic, either np.median (default) or np.mean
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
         
     n_shifts : int, default:1000
         Number of randomly shifted samples
@@ -1085,11 +1100,9 @@ def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
                 shifted_isc.append(loo_isc)
                 
             # Get summary statistics across left-out subjects
-            if summary_statistic == np.mean:
-                shifted_isc = np.tanh(np.mean(np.arctanh(np.dstack(shifted_isc)), axis=2))
-            elif summary_statistic == np.median:
-                shifted_isc = np.median(np.dstack(shifted_isc), axis=2)
-                
+            shifted_isc = compute_summary_statistic(np.dstack(shifted_isc),
+                                                    summary_statistic=summary_statistic,
+                                                    axis=2)                
         distribution.append(shifted_isc)
         
         # Update random state for next iteration
@@ -1100,7 +1113,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic=np.median,
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, shifted,
+    p = compute_p_from_null_distribution(observed, distribution,
                                          side='two-sided', exact=False)
     
     if return_distribution:

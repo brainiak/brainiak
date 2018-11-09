@@ -883,5 +883,7 @@ def compute_p_from_null_distribution(observed, distribution,
     # observed statistic; prevents p-value from being zero
     else:
         p = (numerator + 1) / (n_samples + 1)
+        
+    p = p[np.newaxis, :]
     
     return p
