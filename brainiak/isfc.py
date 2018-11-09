@@ -34,7 +34,7 @@ from brainiak.utils.utils import compute_p_from_null_distribution
 logger = logging.getLogger(__name__)
 
 
-def isc(data, pairwise=False, summary_statistic=None, verbose=True):
+def isc(data, pairwise=False, summary_statistic=None):
     """Intersubject correlation
 
     For each voxel or ROI, compute the Pearson correlation between each
@@ -102,11 +102,10 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
             raise ValueError("Input ndarray should have 2 "
                              f"or 3 dimensions (got {data.ndim})!")
 
-    # Infer subjects, TRs, voxels and print for user to check
+    # Infer subjects, TRs, voxels and log for user to check
     n_TRs, n_voxels, n_subjects = data.shape
-    if verbose:
-        print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-              f"and {n_voxels} voxel(s) or ROI(s).")
+    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
+                f"and {n_voxels} voxel(s) or ROI(s) for ISC analysis.")
     
     # Loop over each voxel or ROI
     voxel_iscs = []
@@ -115,8 +114,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
             summary_statistic = None
-            if verbose:
-                logger.warning("Only two subjects! Simply computing Pearson correlation.")
+            logger.warning("Only two subjects! Simply computing Pearson correlation.")
         elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
@@ -136,7 +134,7 @@ def isc(data, pairwise=False, summary_statistic=None, verbose=True):
     return iscs
 
 
-def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
+def isfc(data, pairwise=False, summary_statistic=None):
     
     """Intersubject correlation
 
@@ -207,9 +205,8 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
 
     # Infer subjects, TRs, voxels and print for user to check
     n_TRs, n_voxels, n_subjects = data.shape
-    if verbose:
-        print(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-              f"and {n_voxels} voxel(s) or ROI(s).")
+    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
+                f"and {n_voxels} voxel(s) or ROI(s) for ISFC analysis.")
         
     # Handle just two subjects properly
     if n_subjects == 2:
@@ -218,8 +215,7 @@ def isfc(data, pairwise=False, summary_statistic=None, verbose=True):
         isfcs = (isfcs + isfcs.T) / 2
         assert isfcs.shape == (n_voxels, n_voxels)
         summary_statistic = None
-        if verbose:
-            print("Only two subjects! Computing ISFC between them.")
+        logger.warning("Only two subjects! Computing ISFC between them.")
                 
     # Compute all pairwise ISFCs    
     elif pairwise:
@@ -401,8 +397,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     
     # Infer subjects, voxels and print for user to check
     n_voxels = iscs.shape[1]
-    print(f"Assuming {n_subjects} subjects with and {n_voxels} "
-           "voxel(s) or ROI(s).")
+    logger.info(f"Assuming {n_subjects} subjects with and {n_voxels} "
+                "voxel(s) or ROI(s) in bootstrap ISC test.")
     
     # Compute summary statistic for observed ISCs
     observed = compute_summary_statistic(iscs, summary_statistic=summary_statistic,
@@ -643,8 +639,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     
     # Infer subjects, groups, voxels and print for user to check
     n_voxels = iscs.shape[1]
-    print(f"Assuming {n_subjects} subjects, {n_groups} group(s), "
-          f"and {n_voxels} voxel(s) or ROI(s).")
+    logging.info(f"Assuming {n_subjects} subjects, {n_groups} group(s), "
+                 f"and {n_voxels} voxel(s) or ROI(s) for permutation ISC test.")
     
     # Set up permutation type (exact or Monte Carlo)
     if n_groups == 1:
@@ -908,7 +904,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=pairwise,
-                              summary_statistic=summary_statistic, verbose=False)
+                              summary_statistic=summary_statistic)
         
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
@@ -918,7 +914,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                 shifted_subject = np.concatenate((data[-shift:, :, s], data[:-shift, :, s]))
                 nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)), pairwise=False,
-                              summary_statistic=None, verbose=False)
+                              summary_statistic=None)
                 shifted_isc.append(loo_isc)
                 
             # Get summary statistics across left-out subjects
@@ -1072,7 +1068,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=True,
-                              summary_statistic=summary_statistic, verbose=False)
+                              summary_statistic=summary_statistic)
         
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
@@ -1096,7 +1092,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                 # Compute ISC of shifted left-out subject against mean of N-1 subjects
                 nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)), pairwise=False,
-                              summary_statistic=None, verbose=False)
+                              summary_statistic=None)
                 shifted_isc.append(loo_isc)
                 
             # Get summary statistics across left-out subjects
