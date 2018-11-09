@@ -29,7 +29,7 @@ from scipy.stats import pearsonr, zscore
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import compute_p_from_null_distribution
+#from brainiak.utils.utils import compute_p_from_null_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -566,6 +566,10 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         if iscs.ndim == 1:
             iscs = iscs[:, np.newaxis]
 
+    # Check for valid summary statistic
+    if summary_statistic not in ('mean', 'median'):
+        raise ValueError("Summary statistic must be 'mean' or 'median'")
+            
     # Check if incoming pairwise matrix is vectorized triangle
     if pairwise:
         try:
@@ -637,7 +641,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         
     elif len(np.unique(group_assignment)) > 2:
         raise ValueError("This test is not valid for more than "
-                         f"2 groups! (got {n_groups})")
+                         f"2 groups! (got {len(np.unique(group_assignment))})")
     else:
         raise ValueError("Invalid group assignments!")
     
@@ -886,6 +890,10 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     # Roll axis to get subjects in first dimension for loop
     if pairwise:
         data = np.rollaxis(data, 2, 0)
+        
+    # Temporarily suppress ISC warning when constructing distribution
+    logging_level = logger.getEffectiveLevel()
+    logger.setLevel('CRITICAL')
     
     # Iterate through randomized shifts to create null distribution
     distribution = []
@@ -932,6 +940,9 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                                                     axis=2)    
                 
         distribution.append(shifted_isc)
+        
+        # Re-enable logging at original level
+        logger.setLevel(logging_level)
         
         # Update random state for next iteration
         random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
@@ -1045,6 +1056,10 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
     
+    # Temporarily suppress ISC warning when constructing distribution
+    logging_level = logger.getEffectiveLevel()
+    logger.setLevel('CRITICAL')
+    
     # Iterate through randomized shifts to create null distribution
     distribution = []
     for i in np.arange(n_shifts):
@@ -1113,6 +1128,9 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                                                     summary_statistic=summary_statistic,
                                                     axis=2)                
         distribution.append(shifted_isc)
+        
+        # Re-enable logging at original level
+        logger.setLevel(logging_level)
         
         # Update random state for next iteration
         random_state = np.random.RandomState(prng.randint(0, 2**32 - 1))
