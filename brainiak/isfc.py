@@ -474,7 +474,11 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     
     # Get p-value for actual median from shifted distribution
     p = compute_p_from_null_distribution(observed, shifted,
-                                         side='two-sided', exact=False)
+                                         side='two-sided', exact=False,
+                                         axis=0)
+    
+    # Reshape p-values to fit with data shape
+    p = p[np.newaxis, :]
     
     if return_distribution:
         return observed, ci, p, distribution
@@ -772,10 +776,15 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
         p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=True)
+                                             side='two-sided', exact=True,
+                                             axis=0)
     elif not exact_permutations:
         p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=False)
+                                             side='two-sided', exact=False,
+                                             axis=0)
+        
+    # Reshape p-values to fit with data shape
+    p = p[np.newaxis, :]
     
     if return_distribution:
         return observed, p, distribution
@@ -933,7 +942,11 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get p-value for actual median from shifted distribution
     p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False)
+                                         side='two-sided', exact=False, 
+                                         axis=0)
+    
+    # Reshape p-values to fit with data shape
+    p = p[np.newaxis, :]
     
     if return_distribution:
         return observed, p, distribution
@@ -1043,7 +1056,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
             prng = np.random.RandomState(random_state)
             
         # Get randomized phase shifts
-        if data.shape[0] % 2 == 0:
+        if n_TRs % 2 == 0:
             # Why are we indexing from 1 not zero here? Vector is n_TRs / -1 long?
             pos_freq = np.arange(1, data.shape[0] // 2)
             neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
@@ -1110,7 +1123,11 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get p-value for actual median from shifted distribution
     p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False)
+                                         side='two-sided', exact=False,
+                                         axis=0)
+    
+    # Reshape p-values to fit with data shape
+    p = p[np.newaxis, :]
     
     if return_distribution:
         return observed, p, distribution

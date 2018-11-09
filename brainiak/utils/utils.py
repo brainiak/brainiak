@@ -821,18 +821,19 @@ def p_from_null(X, two_sided=False,
 
 
 def compute_p_from_null_distribution(observed, distribution,
-                                     side='two-sided', exact=False):
+                                     side='two-sided', exact=False,
+                                     axis=None):
     
     """Compute p-value from null distribution
     
     Returns the p-value for an observed test statistic given a null
     distribution. Performs either a 'two-sided' (i.e., two-tailed)
     test (default) or a one-sided (i.e., one-tailed) test for either the
-    'left' or 'right' side. First dimension of distribution should
-    correspond to the number of resampling iterations (e.g., the number
-    of permutations). For an exact test (exact=True), does not adjust
+    'left' or 'right' side. For an exact test (exact=True), does not adjust
     for the observed test statistic; otherwise, adjusts for observed
-    test statistic (prevents p-values of zero).
+    test statistic (prevents p-values of zero). If a multidimensional
+    distribution is provided, use axis argument to specify which axis indexes
+    resampling iterations.
     
     The implementation is based on the following publication:
     
@@ -852,6 +853,9 @@ def compute_p_from_null_distribution(observed, distribution,
     side : str, default:'two-sided'
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
+    axis: None or int, default:None
+        Axis indicating resampling iterations in input distribution
+
     Returns
     -------
     p : float
@@ -867,13 +871,13 @@ def compute_p_from_null_distribution(observed, distribution,
     
     if side == 'two-sided':
         # numerator for two-sided test
-        numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=0)
+        numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=axis)
     elif side == 'left':
         # numerator for one-sided test in left tail
-        numerator = np.sum(distribution <= observed, axis=0)
+        numerator = np.sum(distribution <= observed, axis=axis)
     elif side == 'right':
         # numerator for one-sided test in right tail
-        numerator = np.sum(distribution >= observed, axis=0)
+        numerator = np.sum(distribution >= observed, axis=axis)
         
     # If exact test (all possible permutations), do not adjust
     if exact:
@@ -883,7 +887,5 @@ def compute_p_from_null_distribution(observed, distribution,
     # observed statistic; prevents p-value from being zero
     else:
         p = (numerator + 1) / (n_samples + 1)
-        
-    p = p[np.newaxis, :]
     
     return p
