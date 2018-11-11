@@ -22,6 +22,7 @@ import numpy as np
 import math
 from brainiak.utils import fmrisim as sim
 import pytest
+from itertools import product
 
 
 def test_generate_signal():
@@ -590,6 +591,92 @@ def test_generate_noise():
                        noise_dict=noise_dict,
                        iterations=[0, 0],
                        )
+
+
+def test_generate_noise_spatial():
+
+    # Set up the inputs
+    dimensions = np.array([10, 5, 10])
+    mask = np.ones(dimensions)
+    vol = sim._generate_noise_spatial(dimensions, mask)
+
+    # Run the analysis from _calc_FHWM but for th elast step of aggregating
+    # across dimensions
+    v_count = 0
+    v_sum = 0
+    v_sq = 0
+
+    d_sum = [0.0, 0.0, 0.0]
+    d_sq = [0.0, 0.0, 0.0]
+    d_count = [0, 0, 0]
+
+    # Pull out all the voxel coordinates
+    coordinates = list(product(range(dimensions[0]),
+                               range(dimensions[1]),
+                               range(dimensions[2])))
+
+    # Find the sum of squared error for the non-masked voxels in the brain
+    for i in list(range(len(coordinates))):
+
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
+
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
+
+            # Find the the volume sum and squared values
+            v_count += 1
+            v_sum += vol[x, y, z]
+            v_sq += vol[x, y, z] ** 2
+
+    # Get the volume variance
+    v_var = (v_sq - ((v_sum ** 2) / v_count)) / (v_count - 1)
+
+    for i in list(range(len(coordinates))):
+
+        # Pull out this coordinate
+        x, y, z = coordinates[i]
+
+        # Is this within the mask?
+        if mask[x, y, z] > 0:
+            # For each xyz dimension calculate the squared
+            # difference of this voxel and the next
+
+            in_range = (x < dimensions[0] - 1)
+            in_mask = in_range and (mask[x + 1, y, z] > 0)
+            included = in_mask and (~np.isnan(vol[x + 1, y, z]))
+            if included:
+                d_sum[0] += vol[x, y, z] - vol[x + 1, y, z]
+                d_sq[0] += (vol[x, y, z] - vol[x + 1, y, z]) ** 2
+                d_count[0] += 1
+
+            in_range = (y < dimensions[1] - 1)
+            in_mask = in_range and (mask[x, y + 1, z] > 0)
+            included = in_mask and (~np.isnan(vol[x, y + 1, z]))
+            if included:
+                d_sum[1] += vol[x, y, z] - vol[x, y + 1, z]
+                d_sq[1] += (vol[x, y, z] - vol[x, y + 1, z]) ** 2
+                d_count[1] += 1
+
+            in_range = (z < dimensions[2] - 1)
+            in_mask = in_range and (mask[x, y, z + 1] > 0)
+            included = in_mask and (~np.isnan(vol[x, y, z + 1]))
+            if included:
+                d_sum[2] += vol[x, y, z] - vol[x, y, z + 1]
+                d_sq[2] += (vol[x, y, z] - vol[x, y, z + 1]) ** 2
+                d_count[2] += 1
+
+    # Find the variance
+    d_var = np.divide((d_sq - np.divide(np.power(d_sum, 2),
+                                        d_count)), (np.add(d_count, -1)))
+
+    o_var = np.divide(-1, (4 * np.log(1 - (0.5 * d_var / v_var))))
+    fwhm3 = np.sqrt(o_var) * 2 * np.sqrt(2 * np.log(2))
+
+    # Calculate the proportion of std relative to the mean
+    std_proportion = np.nanstd(fwhm3) / np.nanmean(fwhm3)
+    print(fwhm3)
+    assert std_proportion < 0.25, 'Variance is inconsistent across dim'
 
 
 def test_mask_brain():
