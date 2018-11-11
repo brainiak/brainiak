@@ -20,7 +20,8 @@ as statistical tests designed specifically for ISC analyses.
 
 """
 
-# Authors: Sam Nastase, Christopher Baldassano, Mai Nguyen, and Mor Regev
+# Authors: Sam Nastase, Christopher Baldassano, Qihong Lu,
+#          Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
 import numpy as np
