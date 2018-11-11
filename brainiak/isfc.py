@@ -30,7 +30,7 @@ from scipy.stats import pearsonr, zscore
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import compute_p_from_null_distribution
+#from brainiak.utils.utils import compute_p_from_null_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -50,15 +50,15 @@ def isc(data, pairwise=False, summary_statistic=None):
     corresponding to the upper triangle of the pairwise correlation matrix
     (see scipy.spatial.distance.squareform). Alternatively, use either
     'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
-    be applied and inverted if using mean). Input data should be a list 
-    where each item is a time-points by voxels ndarray for a given subject.
-    Multiple input ndarrays must be the same shape. If a single ndarray is
-    supplied, the last dimension is assumed to correspond to subjects. If 
-    only two subjects are supplied, simply compute Pearson correlation
-    (precludes averaging in leave-one-out approach, and does not apply
-    summary statistic.) Output is an ndarray where the first dimension is
-    the number of subjects or pairs and the second dimension is the number
-    of voxels (or ROIs).
+    be applied if using mean). Input data should be a n_TRs by n_voxels by
+    n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData) or a list
+    where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute Pearson correlation (precludes
+    averaging in leave-one-out approach, and does not apply summary statistic).
+    Output is an ndarray where the first dimension is the number of subjects
+    or pairs and the second dimension is the number of voxels (or ROIs).
         
     The implementation is based on the following publication:
     
@@ -83,33 +83,11 @@ def isc(data, pairwise=False, summary_statistic=None):
         ISC for each subject or pair (or summary statistic) per voxel
 
     """
-    
-    # Convert list input to 3d and check shapes
-    if type(data) == list:
-        data_shape = data[0].shape
-        for i, d in enumerate(data):
-            if d.shape != data_shape:
-                raise ValueError("All ndarrays in input list "
-                                 "must be the same shape!")
-            if d.ndim == 1:
-                data[i] = d[:, np.newaxis]
-        data = np.dstack(data)
 
-    # Convert input ndarray to 3d and check shape
-    elif type(data) == np.ndarray:
-        if data.ndim == 2:
-            data = data[:, np.newaxis, :]            
-        elif data.ndim == 3:
-            pass
-        else:
-            raise ValueError("Input ndarray should have 2 "
-                             f"or 3 dimensions (got {data.ndim})!")
-
-    # Infer subjects, TRs, voxels and log for user to check
-    n_TRs, n_voxels, n_subjects = data.shape
-    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-                f"and {n_voxels} voxel(s) or ROI(s) for ISC analysis.")
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
     
+    # No summary statistic if only two subjects 
     if n_subjects == 2:
         logger.info("Only two subjects! Simply computing Pearson correlation.")
         summary_statistic = None
@@ -141,26 +119,28 @@ def isc(data, pairwise=False, summary_statistic=None):
 
 def isfc(data, pairwise=False, summary_statistic=None):
     
-    """Intersubject correlation
+    """Intersubject functional correlation (ISFC)
 
     For each voxel or ROI, compute the Pearson correlation between each
-    subject's response time series and other subjects' response time series.
-    If pairwise is False (default), use the leave-one-out approach, where
-    correlation is computed between each subject and the average of the other
-    subjects. If pairwise is True, compute correlations between all pairs of
-    subjects. If summary_statistic is None, return N ISC values for N subjects
-    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
-    corresponding to the upper triangle of the pairwise correlation matrix
-    (see scipy.spatial.distance.squareform). Alternatively, use either
-    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
-    be applied and inverted if using mean). Input data should be a list 
-    where each item is a time-points by voxels ndarray for a given subject.
-    Multiple input ndarrays must be the same shape. If a single ndarray is
-    supplied, the last dimension is assumed to correspond to subjects. If 
-    only two subjects are supplied, simply ISFC between these two subjects
-    (precludes averaging in leave-one-out approach, and does not apply
-    summary statistic.) Output is an voxels by voxels by subjects (or pairs)
-    ndarray.
+    subject's response time series and other subjects' response time series
+    for all voxels or ROIs. If pairwise is False (default), use the
+    leave-one-out approach, where correlation is computed between each
+    subject and the average of the other subjects. If pairwise is True,
+    compute correlations between all pairs of subjects. If summary_statistic
+    is None, return N ISFC values for N subjects (leave-one-out) or N(N-1)/2
+    ISFC values for each pair of N subjects, corresponding to the upper
+    triangle of the correlation matrix (see scipy.spatial.distance.squareform).
+    Alternatively, use either 'mean' or 'median' to compute summary statistic
+    of ISFCs (Fisher Z will be applied if using mean). Input should be n_TRs
+    by n_voxels by n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData)
+    or a list where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute ISFC between these two subjects
+    (precludes averaging in leave-one-out approach, and does not apply summary
+    statistic). Output is n_voxels by n_voxels array if summary_statistic is
+    supplied; otherwise output is n_voxels by n_voxels by n_subjects (or
+    n_pairs) array.
         
     The implementation is based on the following publication:
     
@@ -187,32 +167,9 @@ def isfc(data, pairwise=False, summary_statistic=None):
 
     """
     
-    # Convert list input to 3d and check shapes
-    if type(data) == list:
-        data_shape = data[0].shape
-        for i, d in enumerate(data):
-            if d.shape != data_shape:
-                raise ValueError("All ndarrays in input list "
-                                 "must be the same shape!")
-            if d.ndim == 1:
-                data[i] = d[:, np.newaxis]
-        data = np.dstack(data)
-
-    # Convert input ndarray to 3d and check shape
-    elif type(data) == np.ndarray:
-        if data.ndim == 2:
-            data = data[:, np.newaxis, :]            
-        elif data.ndim == 3:
-            pass
-        else:
-            raise ValueError("Input ndarray should have 2 "
-                             f"or 3 dimensions (got {data.ndim})!")
-
-    # Infer subjects, TRs, voxels and print for user to check
-    n_TRs, n_voxels, n_subjects = data.shape
-    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-                f"and {n_voxels} voxel(s) or ROI(s) for ISFC analysis.")
-        
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
+    
     # Handle just two subjects properly
     if n_subjects == 2:
         isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
@@ -258,6 +215,118 @@ def isfc(data, pairwise=False, summary_statistic=None):
                                           axis=2)
 
     return isfcs
+
+
+def check_timeseries_input(data):
+    
+    """Checks response time series input data for ISC analysis
+    
+    Input data should be a n_TRs by n_voxels by n_subjects ndarray
+    (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
+    item is a n_TRs by n_voxels ndarray for a given subject. Multiple
+    input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects.
+        
+    Parameters
+    ----------
+    data : ndarray or list
+        Time series data
+
+    Returns
+    -------
+    iscs : ndarray
+        Array of ISC values
+              
+    n_TRs : int
+        Number of time points (TRs)
+                       
+    n_voxels : int
+        Number of voxels (or ROIs)
+        
+    n_subjects : int
+        Number of subjects
+
+    """
+    
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
+
+    # Convert input ndarray to 3d and check shape
+    elif type(data) == np.ndarray:
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]            
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             f"or 3 dimensions (got {data.ndim})!")
+            
+    # Infer subjects, TRs, voxels and log for user to check
+    n_TRs, n_voxels, n_subjects = data.shape
+    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
+                f"and {n_voxels} voxel(s) or ROI(s) for ISC analysis.")
+            
+    return data, n_TRs, n_voxels, n_subjects
+
+
+def check_isc_input(iscs, pairwise=False):
+    
+    """Checks ISC inputs for statistical tests
+    
+    Input ISCs should be n_subjects (leave-one-out approach) or
+    n_pairs (pairwise approach) by n_voxels or n_ROIs array or a 1D
+    array (or list) of ISC values for a single voxel or ROI.
+    
+    Parameters
+    ----------
+    iscs : ndarray or list
+        ISC values
+
+    Returns
+    -------
+    iscs : ndarray
+        Array of ISC values
+        
+    n_subjects : int
+        Number of subjects
+        
+    n_voxels : int
+        Number of voxels (or ROIs)
+    """
+    
+    # Standardize structure of input data
+    if type(iscs) == list:
+        iscs = np.array(iscs)[:, np.newaxis]
+        
+    elif type(iscs) == np.ndarray:
+        if iscs.ndim == 1:
+            iscs = iscs[:, np.newaxis]
+            
+    # Check if incoming pairwise matrix is vectorized triangle
+    if pairwise:
+        try:
+            test_square = squareform(iscs[:, 0])
+            n_subjects = test_square.shape[0]
+        except ValueError:
+            raise ValueError("For pairwise input, ISCs must be the "
+                             "vectorized triangle of a square matrix.")
+    elif not pairwise:
+        n_subjects = iscs.shape[0]
+        
+    # Infer subjects, voxels and print for user to check
+    n_voxels = iscs.shape[1]
+    logger.info(f"Assuming {n_subjects} subjects with and {n_voxels} "
+                "voxel(s) or ROI(s) in bootstrap ISC test.")
+    
+    return iscs, n_subjects, n_voxels
 
 
 def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
@@ -373,33 +442,11 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     """
     
     # Standardize structure of input data
-    if type(iscs) == list:
-        iscs = np.array(iscs)[:, np.newaxis]
-        
-    elif type(iscs) == np.ndarray:
-        if iscs.ndim == 1:
-            iscs = iscs[:, np.newaxis]
-
-    # Check if incoming pairwise matrix is vectorized triangle
-    if pairwise:
-        try:
-            test_square = squareform(iscs[:, 0])
-            n_subjects = test_square.shape[0]
-        except ValueError:
-            raise ValueError("For pairwise input, ISCs must be the "
-                             "vectorized triangle of a square matrix.")
-    elif not pairwise:
-        n_subjects = iscs.shape[0]
-        
-    if n_subjects < 2:
-        raise ValueError("Input data seems to contain only one subject! "
-                         "Needs two or more subjects. Check that input is "
-                         "not summary statistic.")
+    iscs, n_subjects, n_voxels = check_isc_input(iscs, pairwise=pairwise)
     
-    # Infer subjects, voxels and print for user to check
-    n_voxels = iscs.shape[1]
-    logger.info(f"Assuming {n_subjects} subjects with and {n_voxels} "
-                "voxel(s) or ROI(s) in bootstrap ISC test.")
+    # Check for valid summary statistic
+    if summary_statistic not in ('mean', 'median'):
+        raise ValueError("Summary statistic must be 'mean' or 'median'")
     
     # Compute summary statistic for observed ISCs
     observed = compute_summary_statistic(iscs, summary_statistic=summary_statistic,
@@ -554,27 +601,11 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
     """
     
     # Standardize structure of input data
-    if type(iscs) == list:
-        iscs = np.array(iscs)[:, np.newaxis]
-        
-    elif type(iscs) == np.ndarray:
-        if iscs.ndim == 1:
-            iscs = iscs[:, np.newaxis]
-
+    iscs, n_subjects, n_voxels = check_isc_input(iscs, pairwise=pairwise)
+    
     # Check for valid summary statistic
     if summary_statistic not in ('mean', 'median'):
         raise ValueError("Summary statistic must be 'mean' or 'median'")
-            
-    # Check if incoming pairwise matrix is vectorized triangle
-    if pairwise:
-        try:
-            test_square = squareform(iscs[:, 0])
-            n_subjects = test_square.shape[0]
-        except ValueError:
-            raise ValueError("For pairwise input, ISCs must be the "
-                             "vectorized triangle of a square matrix.")
-    elif not pairwise:
-        n_subjects = iscs.shape[0]
             
     # Check match between group labels and ISCs
     if type(group_assignment) == list:
@@ -641,11 +672,6 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
                          f"2 groups! (got {len(np.unique(group_assignment))})")
     else:
         raise ValueError("Invalid group assignments!")
-    
-    # Infer subjects, groups, voxels and print for user to check
-    n_voxels = iscs.shape[1]
-    logging.info(f"Assuming {n_subjects} subjects, {n_groups} group(s), "
-                 f"and {n_voxels} voxel(s) or ROI(s) for permutation ISC test.")
     
     # Set up permutation type (exact or Monte Carlo)
     if n_groups == 1:
@@ -848,31 +874,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         Time-shifted null distribution if return_bootstrap=True
     """
 
-    # Convert list input to 3d and check shapes
-    if type(data) == list:
-        data_shape = data[0].shape
-        for i, d in enumerate(data):
-            if d.shape != data_shape:
-                raise ValueError("All ndarrays in input list "
-                                 "must be the same shape!")
-            if d.ndim == 1:
-                data[i] = d[:, np.newaxis]
-        data = np.dstack(data)
-
-    # Convert input ndarray to 3d and check shape
-    elif type(data) == np.ndarray:
-        if data.ndim == 2:
-            data = data[:, np.newaxis, :]            
-        elif data.ndim == 3:
-            pass
-        else:
-            raise ValueError("Input ndarray should have 2 "
-                             f"or 3 dimensions (got {data.ndim})!")
-
-    # Infer subjects, TRs, voxels and print for user to check
-    n_subjects = data.shape[2]
-    n_TRs = data.shape[0]
-    n_voxels = data.shape[1]
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
     
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
@@ -1003,31 +1006,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         Time-shifted null distribution if return_bootstrap=True
     """
 
-    # Convert list input to 3d and check shapes
-    if type(data) == list:
-        data_shape = data[0].shape
-        for i, d in enumerate(data):
-            if d.shape != data_shape:
-                raise ValueError("All ndarrays in input list "
-                                 "must be the same shape!")
-            if d.ndim == 1:
-                data[i] = d[:, np.newaxis]
-        data = np.dstack(data)
-
-    # Convert input ndarray to 3d and check shape
-    elif type(data) == np.ndarray:
-        if data.ndim == 2:
-            data = data[:, np.newaxis, :]            
-        elif data.ndim == 3:
-            pass
-        else:
-            raise ValueError("Input ndarray should have 2 "
-                             f"or 3 dimensions (got {data.ndim})!")
-
-    # Infer subjects, TRs, voxels and print for user to check
-    n_subjects = data.shape[2]
-    n_TRs = data.shape[0]
-    n_voxels = data.shape[1]
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
     
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise, summary_statistic=summary_statistic)
