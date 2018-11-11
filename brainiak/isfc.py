@@ -110,14 +110,16 @@ def isc(data, pairwise=False, summary_statistic=None):
     logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
                 f"and {n_voxels} voxel(s) or ROI(s) for ISC analysis.")
     
+    if n_subjects == 2:
+        logger.info("Only two subjects! Simply computing Pearson correlation.")
+        summary_statistic = None
+    
     # Loop over each voxel or ROI
     voxel_iscs = []
     for v in np.arange(n_voxels):
         voxel_data = data[:, v, :].T
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
-            summary_statistic = None
-            logger.info("Only two subjects! Simply computing Pearson correlation.")
         elif pairwise:
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
