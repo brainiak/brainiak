@@ -879,7 +879,8 @@ def compute_p_from_null_distribution(observed, distribution,
 
     if side not in ('two-sided', 'left', 'right'):
         raise ValueError("The value for 'side' must be either "
-                         f"'two-sided', 'left', or 'right', got {side}")
+                         "'two-sided', 'left', or 'right', got {0}".
+                         format(side))
 
     n_samples = len(distribution)
     logger.info(f"Assuming {n_samples} resampling iterations")
@@ -904,4 +905,3 @@ def compute_p_from_null_distribution(observed, distribution,
         p = (numerator + 1) / (n_samples + 1)
 
     return p
-

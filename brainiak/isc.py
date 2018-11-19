@@ -265,14 +265,14 @@ def check_timeseries_input(data):
         data = np.dstack(data)
 
     # Convert input ndarray to 3d and check shape
-    elif type(data) == np.ndarray:
+    elif isinstance(data, np.ndarray):
         if data.ndim == 2:
             data = data[:, np.newaxis, :]
         elif data.ndim == 3:
             pass
         else:
             raise ValueError("Input ndarray should have 2 "
-                             f"or 3 dimensions (got {data.ndim})!")
+                             "or 3 dimensions (got {0})!".format(data.ndim))
 
     # Infer subjects, TRs, voxels and log for user to check
     n_TRs, n_voxels, n_subjects = data.shape
@@ -311,7 +311,7 @@ def check_isc_input(iscs, pairwise=False):
     if type(iscs) == list:
         iscs = np.array(iscs)[:, np.newaxis]
 
-    elif type(iscs) == np.ndarray:
+    elif isinstance(iscs, np.ndarray):
         if iscs.ndim == 1:
             iscs = iscs[:, np.newaxis]
 
@@ -509,7 +509,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
         # Compute summary statistic for bootstrap ISCs per voxel
         # (alternatively could construct distribution for all voxels
         # then compute statistics, but larger memory footprint)
-        distribution.append(compute_summary_statistic(isc_sample,
+        distribution.append(compute_summary_statistic(
+                                isc_sample,
                                 summary_statistic=summary_statistic,
                                 axis=0))
 
@@ -1121,4 +1122,3 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     p = p[np.newaxis, :]
 
     return observed, p, distribution
-
