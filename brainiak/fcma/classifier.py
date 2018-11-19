@@ -69,25 +69,25 @@ class Classifier(BaseEstimator):
     ----------
 
     training_data_: 2D numpy array in shape [num_samples, num_features]
-        training_data\_ is None except clf is SVM.SVC with precomputed kernel,
+        training_data\\_ is None except clf is SVM.SVC with precomputed kernel,
         in which case training data is needed to compute
         the similarity vector for each sample to be classified.
         However, if the test samples are also provided during the fit,
         the similarity vectors can be precomputed too
-        and then training_data\ is None
+        and then training_data\\_ is None
 
     test_raw_data_: a list of 2D array in shape [num_TRs, num_voxels]
         default None
-        test_raw_data\_ is set after a prediction is called,
-        if the new input data equals test_raw_data\_,
-        test_data\_ can be reused
+        test_raw_data\\_ is set after a prediction is called,
+        if the new input data equals test_raw_data\\_,
+        test_data\\_ can be reused
 
     test_data_: 2D numpy array in shape [num_samples, num_features]
         default None
-        test_data\_ is set after a prediction is called,
+        test_data\\_ is set after a prediction is called,
         so that the test data does not need to be regenerated in the
         subsequent operations, e.g. getting decision values of the prediction.
-        test_data\_ may also be set in the fit method
+        test_data\\_ may also be set in the fit method
         if sklearn.svm.SVC with precomputed kernel
         and the test samples are known.
         NOTE: the test samples will never be used to fit the model.
@@ -103,7 +103,7 @@ class Classifier(BaseEstimator):
         The dimension of correlation data, normally is the product of
         the number of voxels of brain region 1 and
         the number of voxels of brain region 2.
-        num_features\_ must be consistent in both training and classification
+        num_features\\_ must be consistent in both training and classification
 
     num_samples_: int
         The number of samples
@@ -597,10 +597,10 @@ class Classifier(BaseEstimator):
     def decision_function(self, X=None):
         """Output the decision value of the prediction.
 
-        if X is not equal to self.test_raw_data\_, i.e. predict is not called,
+        if X is not equal to self.test_raw_data\\_, i.e. predict is not called,
         first generate the test_data
         after getting the test_data, get the decision value via self.clf.
-        if X is None, test_data\_ is ready to be used
+        if X is None, test_data\\_ is ready to be used
 
         Parameters
         ----------

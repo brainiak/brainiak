@@ -2,6 +2,12 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+python_version=$1
+if [ -z "$python_version" ]
+then
+    python_version=3.6
+fi
+
 export BRAINIAK_HOME=$DIR/../../
 
 # See run-tests.sh
@@ -10,9 +16,9 @@ export MKL_THREADING_LAYER=GNU
 # See https://github.com/brainiak/brainiak/issues/377
 export KMP_DUPLICATE_LIB_OK=TRUE
 
-if [ -z ${CONDA_HOME+dummy} ]
+if [ -z "$CONDA_HOME" ]
 then
     CONDA_HOME="$HOME"/miniconda3
 fi
 
-"$CONDA_HOME"/bin/conda build "$DIR"/..
+"$CONDA_HOME"/bin/conda build --python=$python_version "$DIR"/..

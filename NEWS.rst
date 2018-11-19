@@ -2,6 +2,54 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.8 (2018-11-06)
+=========================
+
+Features
+--------
+
+- searchlight: Add ball shape. (`#348
+  <https://github.com/brainiak/brainiak/pull/348>`_)
+- eventseg: Added event_chains option and model_prior function. (`#353
+  <https://github.com/brainiak/brainiak/pull/353>`_)
+- srm: Added the ability to transform a new subject to a shared response.
+  (`#371 <https://github.com/brainiak/brainiak/pull/371>`_).
+- fmrisim: Added fitting procedure for SFNR and SNR parameters. Updated AR to
+  be ARMA, involving both the generation and estimation. (`#372
+  <https://github.com/brainiak/brainiak/pull/372>`_)
+- reprsimil: Added an option in BRSA to set the prior of SNR to be "equal"
+  across all voxels. (`#387
+  <https://github.com/brainiak/brainiak/pull/387>`_)
+
+
+Bugfixes
+--------
+
+- fmrisim: Corrected error in generating system noise; specifically spatial
+  noise was being double counted. Updated the export epoch file to deal with
+  error in epoch number generation. (`#372
+  <https://github.com/brainiak/brainiak/pull/372>`_).
+- utils: Fix AFNI-style design matrix generation. (`#381
+  <https://github.com/brainiak/brainiak/pull/381>`_)
+
+
+Documentation improvements
+--------------------------
+
+- fcma: Clarify that image data is shuffled. (`#365
+  <https://github.com/brainiak/brainiak/pull/365>`_)
+- Fix Conda channels in install instructions. (`#373
+  <https://github.com/brainiak/brainiak/pull/373>`_)
+
+
+Deprecations and removals
+-------------------------
+
+- fmrisim: Removed plot_brain because other tools like nilearn do a much better
+  job at plotting data. (`#372
+  <https://github.com/brainiak/brainiak/pull/372>`_)
+
+
 BrainIAK 0.7.1 (2018-02-20)
 ===========================
 
