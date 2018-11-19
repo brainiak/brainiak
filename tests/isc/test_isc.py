@@ -1,6 +1,6 @@
 import numpy as np
 import logging
-from brainiak.isfc import (isc, isfc, bootstrap_isc, permutation_ics,
+from brainiak.isc import (isc, isfc, bootstrap_isc, permutation_ics,
                            timeshift_isc, phaseshift_isc)
 from scipy.spatial.distance import squareform
 
