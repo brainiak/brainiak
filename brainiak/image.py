@@ -179,3 +179,4 @@ def mask_images(images: Iterable[SpatialImage], mask: np.ndarray,
     """
     for images in multimask_images(images, (mask,), image_type):
         yield images[0]
+
