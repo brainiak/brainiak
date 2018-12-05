@@ -26,6 +26,7 @@ as statistical tests designed specifically for ISC analyses.
 
 import numpy as np
 import logging
+import warnings
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr
 from scipy.fftpack import fft, ifft
@@ -37,6 +38,9 @@ logger = logging.getLogger(__name__)
 
 MAX_RANDOM_SEED = 2**32 - 1
 
+warnings.simplefilter('always', DeprecationWarning)
+warnings.warn("'isfc' module name will be deprecated in an "
+              "upcoming version, use 'isc' instead", DeprecationWarning)
 
 def isc(data, pairwise=False, summary_statistic=None):
     """Intersubject correlation
