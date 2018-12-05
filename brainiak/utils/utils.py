@@ -883,7 +883,7 @@ def compute_p_from_null_distribution(observed, distribution,
                          format(side))
 
     n_samples = len(distribution)
-    logger.info(f"Assuming {n_samples} resampling iterations")
+    logger.info("Assuming {0} resampling iterations".format(n_samples))
 
     if side == 'two-sided':
         # numerator for two-sided test

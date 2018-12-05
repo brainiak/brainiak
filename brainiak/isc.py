@@ -27,7 +27,7 @@ as statistical tests designed specifically for ISC analyses.
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
-from scipy.stats import pearsonr, zscore
+from scipy.stats import pearsonr
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
@@ -276,8 +276,9 @@ def check_timeseries_input(data):
 
     # Infer subjects, TRs, voxels and log for user to check
     n_TRs, n_voxels, n_subjects = data.shape
-    logger.info(f"Assuming {n_subjects} subjects with {n_TRs} time points "
-                f"and {n_voxels} voxel(s) or ROI(s) for ISC analysis.")
+    logger.info("Assuming {0} subjects with {1} time points "
+                "and {2} voxel(s) or ROI(s) for ISC analysis.".format(
+                    n_subjects, n_TRs, n_voxels))
 
     return data, n_TRs, n_voxels, n_subjects
 
@@ -712,7 +713,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
 
     # If one group, just get observed summary statistic
     if n_groups == 1:
-        observed = compute_summary_statistic(iscs,
+        observed = compute_summary_statistic(
+                        iscs,
                         summary_statistic=summary_statistic,
                         axis=0)[np.newaxis, :]
 
@@ -762,7 +764,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
             isc_flipped = iscs * sign_flipper[:, np.newaxis]
 
             # Get summary statistics on sign-flipped ISCs
-            isc_sample = compute_summary_statistic(isc_flipped,
+            isc_sample = compute_summary_statistic(
+                            isc_flipped,
                             summary_statistic=summary_statistic,
                             axis=0)
 
@@ -948,7 +951,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
-            shifted_isc = compute_summary_statistic(np.dstack(shifted_isc),
+            shifted_isc = compute_summary_statistic(
+                                np.dstack(shifted_isc),
                                 summary_statistic=summary_statistic,
                                 axis=2)
 
@@ -1102,7 +1106,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
-            shifted_isc = compute_summary_statistic(np.dstack(shifted_isc),
+            shifted_isc = compute_summary_statistic(
+                            np.dstack(shifted_isc),
                             summary_statistic=summary_statistic, axis=2)
         distribution.append(shifted_isc)
 
