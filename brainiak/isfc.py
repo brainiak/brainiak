@@ -42,6 +42,7 @@ warnings.simplefilter('always', DeprecationWarning)
 warnings.warn("'isfc' module name will be deprecated in an "
               "upcoming version, use 'isc' instead", DeprecationWarning)
 
+
 def isc(data, pairwise=False, summary_statistic=None):
     """Intersubject correlation
 
@@ -234,7 +235,9 @@ def check_timeseries_input(data):
     (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
     item is a n_TRs by n_voxels ndarray for a given subject. Multiple
     input ndarrays must be the same shape. If a 2D array is supplied,
-    the last dimension is assumed to correspond to subjects.
+    the last dimension is assumed to correspond to subjects. This
+    function is only intended to be used internally by other
+    functions in this module (e.g., isc, isfc).
 
     Parameters
     ----------
@@ -293,7 +296,9 @@ def check_isc_input(iscs, pairwise=False):
 
     Input ISCs should be n_subjects (leave-one-out approach) or
     n_pairs (pairwise approach) by n_voxels or n_ROIs array or a 1D
-    array (or list) of ISC values for a single voxel or ROI.
+    array (or list) of ISC values for a single voxel or ROI. This
+    function is only intended to be used internally by other
+    functions in this module (e.g., bootstrap_isc, permutation_isc).
 
     Parameters
     ----------
@@ -333,8 +338,9 @@ def check_isc_input(iscs, pairwise=False):
 
     # Infer subjects, voxels and print for user to check
     n_voxels = iscs.shape[1]
-    logger.info("Assuming {n_subjects} subjects with and {0} "
-                "voxel(s) or ROI(s) in bootstrap ISC test.".format(n_voxels))
+    logger.info("Assuming {0} subjects with and {1} "
+                "voxel(s) or ROI(s) in bootstrap ISC test.".format(n_subjects,
+                                                                   n_voxels))
 
     return iscs, n_subjects, n_voxels
 
@@ -545,7 +551,258 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     return observed, ci, p, distribution
 
 
-def permutation_isc(iscs, group_assignment=None, pairwise=False,
+def check_group_assignment(group_assignment, n_subjects):
+    if type(group_assignment) == list:
+        pass
+    elif type(group_assignment) == np.ndarray:
+        group_assignment = group_assignment.tolist()
+    else:
+        logger.info("No group assignment provided, "
+                    "performing one-sample test.")
+
+    if group_assignment and len(group_assignment) != n_subjects:
+        raise ValueError("Group assignments ({0}) "
+                         "do not match number of subjects ({1})!".format(
+                                len(group_assignment), n_subjects))
+    return group_assignment
+
+
+def get_group_parameters(group_assignment, n_subjects, pairwise=False):
+
+    # Set up dictionary to contain group info
+    group_parameters = {'group_assignment': group_assignment,
+                        'n_subjects': n_subjects,
+                        'group_labels': None, 'groups': None,
+                        'sorter': None, 'unsorter': None,
+                        'group_matrix': None, 'group_selector': None}
+
+    # Set up group selectors for two-group scenario
+    if group_assignment and len(np.unique(group_assignment)) == 2:
+        group_parameters['n_groups'] = 2
+
+        # Get group labels and counts
+        group_labels = np.unique(group_assignment)
+        groups = {group_labels[0]: group_assignment.count(group_labels[0]),
+                  group_labels[1]: group_assignment.count(group_labels[1])}
+
+        # For two-sample pairwise approach set up selector from matrix
+        if pairwise:
+            # Sort the group_assignment variable if it came in shuffled
+            # so it's easier to build group assignment matrix
+            sorter = np.array(group_assignment).argsort()
+            unsorter = np.array(group_assignment).argsort().argsort()
+
+            # Populate a matrix with group assignments
+            upper_left = np.full((groups[group_labels[0]],
+                                  groups[group_labels[0]]),
+                                 group_labels[0])
+            upper_right = np.full((groups[group_labels[0]],
+                                   groups[group_labels[1]]),
+                                  np.nan)
+            lower_left = np.full((groups[group_labels[1]],
+                                  groups[group_labels[0]]),
+                                 np.nan)
+            lower_right = np.full((groups[group_labels[1]],
+                                   groups[group_labels[1]]),
+                                  group_labels[1])
+            group_matrix = np.vstack((np.hstack((upper_left, upper_right)),
+                                      np.hstack((lower_left, lower_right))))
+            np.fill_diagonal(group_matrix, np.nan)
+            group_parameters['group_matrix'] = group_matrix
+
+            # Unsort matrix and squareform to create selector
+            group_parameters['group_selector'] = squareform(
+                                        group_matrix[unsorter, :][:, unsorter],
+                                        checks=False)
+            group_parameters['sorter'] = sorter
+            group_parameters['unsorter'] = unsorter
+
+        # If leave-one-out approach, just user group assignment as selector
+        else:
+            group_parameters['group_selector'] = group_assignment
+
+        # Save these parameters for later
+        group_parameters['groups'] = groups
+        group_parameters['group_labels'] = group_labels
+
+    # Manage one-sample and incorrect group assignments
+    elif not group_assignment or len(np.unique(group_assignment)) == 1:
+        group_parameters['n_groups'] = 1
+
+        # If pairwise initialize matrix of ones for sign-flipping
+        if pairwise:
+            group_parameters['group_matrix'] = np.ones((
+                                            group_parameters['n_subjects'],
+                                            group_parameters['n_subjects']))
+
+    elif len(np.unique(group_assignment)) > 2:
+        raise ValueError("This test is not valid for more than "
+                         "2 groups! (got {0})".format(
+                                len(np.unique(group_assignment))))
+    else:
+        raise ValueError("Invalid group assignments!")
+
+    return group_parameters
+
+
+def permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
+                            summary_statistic='median', group_matrix=None,
+                            exact_permutations=None, prng=None):
+
+    """Applies one-sample permutations to ISC data
+
+    Input ISCs should be n_subjects (leave-one-out approach) or
+    n_pairs (pairwise approach) by n_voxels or n_ROIs array.
+    This function is only intended to be used internally by the
+    permutation_isc function in this module.
+
+    Parameters
+    ----------
+    iscs : ndarray or list
+        ISC values
+
+    group_parameters : dict
+        Dictionary of group parameters
+
+    i : int
+        Permutation iteration
+
+    pairwise : bool, default:False
+        Indicator of pairwise or leave-one-out, should match ISCs variable
+
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
+
+    exact_permutations : list
+        List of permutations
+
+    prng = None or np.random.RandomState, default:None
+        Initial random seed
+
+    Returns
+    -------
+    isc_sample : ndarray
+        Array of permuted ISC values
+
+    """
+
+    # Randomized sign-flips
+    if exact_permutations:
+        sign_flipper = np.array(exact_permutations[i])
+    else:
+        sign_flipper = prng.choice([-1, 1],
+                                   size=group_parameters['n_subjects'],
+                                   replace=True)
+
+    # If pairwise, apply sign-flips by rows and columns
+    if pairwise:
+        matrix_flipped = (group_parameters['group_matrix'] * sign_flipper
+                                                           * sign_flipper[
+                                                                :, np.newaxis])
+        sign_flipper = squareform(matrix_flipped, checks=False)
+
+    # Apply flips along ISC axis (same across voxels)
+    isc_flipped = iscs * sign_flipper[:, np.newaxis]
+
+    # Get summary statistics on sign-flipped ISCs
+    isc_sample = compute_summary_statistic(
+                    isc_flipped,
+                    summary_statistic=summary_statistic,
+                    axis=0)
+
+    return isc_sample
+
+
+def permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
+                            summary_statistic='median',
+                            exact_permutations=None, prng=None):
+
+    """Applies two-sample permutations to ISC data
+
+    Input ISCs should be n_subjects (leave-one-out approach) or
+    n_pairs (pairwise approach) by n_voxels or n_ROIs array.
+    This function is only intended to be used internally by the
+    permutation_isc function in this module.
+
+    Parameters
+    ----------
+    iscs : ndarray or list
+        ISC values
+
+    group_parameters : dict
+        Dictionary of group parameters
+
+    i : int
+        Permutation iteration
+
+    pairwise : bool, default:False
+        Indicator of pairwise or leave-one-out, should match ISCs variable
+
+    summary_statistic : str, default:'median'
+        Summary statistic, either 'median' (default) or 'mean'
+
+    exact_permutations : list
+        List of permutations
+
+    prng = None or np.random.RandomState, default:None
+        Initial random seed
+        Indicator of pairwise or leave-one-out, should match ISCs variable
+
+    Returns
+    -------
+    isc_sample : ndarray
+        Array of permuted ISC values
+
+    """
+
+    # Shuffle the group assignments
+    if exact_permutations:
+        group_shuffler = np.array(exact_permutations[i])
+    elif not exact_permutations and pairwise:
+        group_shuffler = prng.permutation(np.arange(
+            len(np.array(group_parameters['group_assignment'])[
+                            group_parameters['sorter']])))
+    elif not exact_permutations and not pairwise:
+        group_shuffler = prng.permutation(np.arange(
+            len(group_parameters['group_assignment'])))
+
+    # If pairwise approach, convert group assignments to matrix
+    if pairwise:
+
+        # Apply shuffler to group matrix rows/columns
+        group_shuffled = group_parameters['group_matrix'][
+                            group_shuffler, :][:, group_shuffler]
+
+        # Unsort shuffled matrix and squareform to create selector
+        group_selector = squareform(group_shuffled[
+                                    group_parameters['unsorter'], :]
+                                    [:, group_parameters['unsorter']],
+                                    checks=False)
+
+    # Shuffle group assignments in leave-one-out two sample test
+    elif not pairwise:
+
+        # Apply shuffler to group matrix rows/columns
+        group_selector = np.array(
+                    group_parameters['group_assignment'])[group_shuffler]
+
+    # Get difference of within-group summary statistics
+    # with group permutation
+    isc_sample = (compute_summary_statistic(
+                    iscs[group_selector == group_parameters[
+                                            'group_labels'][0], :],
+                    summary_statistic=summary_statistic,
+                    axis=0) -
+                  compute_summary_statistic(
+                    iscs[group_selector == group_parameters[
+                                            'group_labels'][1], :],
+                    summary_statistic=summary_statistic,
+                    axis=0))
+
+    return isc_sample
+
+
+def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                     summary_statistic='median', n_permutations=1000,
                     random_state=None):
 
@@ -623,93 +880,34 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         raise ValueError("Summary statistic must be 'mean' or 'median'")
 
     # Check match between group labels and ISCs
-    if type(group_assignment) == list:
-        pass
-    elif type(group_assignment) == np.ndarray:
-        group_assignment = group_assignment.tolist()
-    else:
-        logger.info("No group assignment provided, "
-                    "performing one-sample test.")
+    group_assignment = check_group_assignment(group_assignment,
+                                              n_subjects)
 
-    if group_assignment and len(group_assignment) != n_subjects:
-        raise ValueError("Group assignments ({0}) "
-                         "do not match number of subjects ({1})!".format(
-                                len(group_assignment), n_subjects))
-
-    # Set up group selectors for two-group scenario
-    if group_assignment and len(np.unique(group_assignment)) == 2:
-        n_groups = 2
-
-        # Get group labels and counts
-        group_labels = np.unique(group_assignment)
-        groups = {group_labels[0]: group_assignment.count(group_labels[0]),
-                  group_labels[1]: group_assignment.count(group_labels[1])}
-
-        # For two-sample pairwise approach set up selector from matrix
-        if pairwise:
-            # Sort the group_assignment variable if it came in shuffled
-            # so it's easier to build group assignment matrix
-            sorter = np.array(group_assignment).argsort()
-            unsorter = np.array(group_assignment).argsort().argsort()
-
-            # Populate a matrix with group assignments
-            upper_left = np.full((groups[group_labels[0]],
-                                  groups[group_labels[0]]),
-                                 group_labels[0])
-            upper_right = np.full((groups[group_labels[0]],
-                                   groups[group_labels[1]]),
-                                  np.nan)
-            lower_left = np.full((groups[group_labels[1]],
-                                  groups[group_labels[0]]),
-                                 np.nan)
-            lower_right = np.full((groups[group_labels[1]],
-                                   groups[group_labels[1]]),
-                                  group_labels[1])
-            group_matrix = np.vstack((np.hstack((upper_left, upper_right)),
-                                      np.hstack((lower_left, lower_right))))
-            np.fill_diagonal(group_matrix, np.nan)
-
-            # Unsort matrix and squareform to create selector
-            group_selector = squareform(group_matrix[unsorter, :][:, unsorter],
-                                        checks=False)
-
-        # If leave-one-out approach, just user group assignment as selector
-        elif not pairwise:
-            group_selector = group_assignment
-
-    # Manage one-sample and incorrect group assignments
-    elif not group_assignment or len(np.unique(group_assignment)) == 1:
-        n_groups = 1
-
-        # If pairwise initialize matrix of ones for sign-flipping
-        ones_matrix = np.ones((n_subjects, n_subjects))
-
-    elif len(np.unique(group_assignment)) > 2:
-        raise ValueError("This test is not valid for more than "
-                         "2 groups! (got {0})".format(
-                                len(np.unique(group_assignment))))
-    else:
-        raise ValueError("Invalid group assignments!")
+    # Get group parameters
+    group_parameters = get_group_parameters(group_assignment, n_subjects,
+                                            pairwise=pairwise)
 
     # Set up permutation type (exact or Monte Carlo)
-    if n_groups == 1:
+    if group_parameters['n_groups'] == 1:
         if n_permutations < 2**n_subjects:
             logger.info("One-sample approximate permutation test using "
                         "sign-flipping procedure with Monte Carlo resampling.")
             exact_permutations = None
-        elif n_permutations >= 2**n_subjects:
+        else:
             logger.info("One-sample exact permutation test using "
                         "sign-flipping procedure with 2**{0} "
                         "({1}) iterations.".format(n_subjects,
                                                    2**n_subjects))
             exact_permutations = list(it.product([-1, 1], repeat=n_subjects))
             n_permutations = 2**n_subjects
-    elif n_groups == 2:
+
+    # Check for exact test for two groups
+    else:
         if n_permutations < np.math.factorial(n_subjects):
             logger.info("Two-sample approximate permutation test using "
                         "group randomization with Monte Carlo resampling.")
             exact_permutations = None
-        elif n_permutations >= np.math.factorial(n_subjects):
+        else:
             logger.info("Two-sample exact permutation test using group "
                         "randomization with {0}! "
                         "({1}) iterations.".format(
@@ -720,20 +918,22 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
             n_permutations = np.math.factorial(n_subjects)
 
     # If one group, just get observed summary statistic
-    if n_groups == 1:
+    if group_parameters['n_groups'] == 1:
         observed = compute_summary_statistic(
                         iscs,
                         summary_statistic=summary_statistic,
                         axis=0)[np.newaxis, :]
 
     # If two groups, get the observed difference
-    elif n_groups == 2:
+    else:
         observed = (compute_summary_statistic(
-                        iscs[group_selector == group_labels[0], :],
+                        iscs[group_parameters['group_selector'] ==
+                             group_parameters['group_labels'][0], :],
                         summary_statistic=summary_statistic,
                         axis=0) -
                     compute_summary_statistic(
-                        iscs[group_selector == group_labels[1], :],
+                        iscs[group_parameters['group_selector'] ==
+                             group_parameters['group_labels'][1], :],
                         summary_statistic=summary_statistic,
                         axis=0))
         observed = np.array(observed)[np.newaxis, :]
@@ -746,78 +946,29 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
 
         # Random seed to be deterministically re-randomized at each iteration
         if exact_permutations:
-            pass
+            prng = None
         elif isinstance(random_state, np.random.RandomState):
             prng = random_state
         else:
             prng = np.random.RandomState(random_state)
 
         # If one group, apply sign-flipping procedure
-        if n_groups == 1:
-
-            # Randomized sign-flips
-            if exact_permutations:
-                sign_flipper = np.array(exact_permutations[i])
-            elif not exact_permutations:
-                sign_flipper = prng.choice([-1, 1], size=n_subjects,
-                                           replace=True)
-
-            # If pairwise, apply sign-flips by rows and columns
-            if pairwise:
-                matrix_flipped = (ones_matrix * sign_flipper
-                                              * sign_flipper[:, np.newaxis])
-                sign_flipper = squareform(matrix_flipped, checks=False)
-
-            # Apply flips along ISC axis (same across voxels)
-            isc_flipped = iscs * sign_flipper[:, np.newaxis]
-
-            # Get summary statistics on sign-flipped ISCs
-            isc_sample = compute_summary_statistic(
-                            isc_flipped,
+        if group_parameters['n_groups'] == 1:
+            isc_sample = permute_one_sample_iscs(
+                            iscs, group_parameters, i,
+                            pairwise=pairwise,
                             summary_statistic=summary_statistic,
-                            axis=0)
+                            exact_permutations=exact_permutations,
+                            prng=prng)
 
         # If two groups, set up group matrix get the observed difference
-        elif n_groups == 2:
-
-            # Shuffle the group assignments
-            if exact_permutations:
-                group_shuffler = np.array(exact_permutations[i])
-            elif not exact_permutations and pairwise:
-                group_shuffler = prng.permutation(np.arange(
-                    len(np.array(group_assignment)[sorter])))
-            elif not exact_permutations and not pairwise:
-                group_shuffler = prng.permutation(np.arange(
-                    len(group_assignment)))
-
-            # If pairwise approach, convert group assignments to matrix
-            if pairwise:
-
-                # Apply shuffler to group matrix rows/columns
-                group_shuffled = group_matrix[
-                                    group_shuffler, :][:, group_shuffler]
-
-                # Unsort shuffled matrix and squareform to create selector
-                group_selector = squareform(
-                                    group_shuffled[unsorter, :][:, unsorter],
-                                    checks=False)
-
-            # Shuffle group assignments in leave-one-out two sample test
-            elif not pairwise:
-
-                # Apply shuffler to group matrix rows/columns
-                group_selector = np.array(group_assignment)[group_shuffler]
-
-            # Get difference of within-group summary statistics
-            # with group permutation
-            isc_sample = (compute_summary_statistic(
-                            iscs[group_selector == group_labels[0], :],
+        else:
+            isc_sample = permute_two_sample_iscs(
+                            iscs, group_parameters, i,
+                            pairwise=pairwise,
                             summary_statistic=summary_statistic,
-                            axis=0) -
-                          compute_summary_statistic(
-                            iscs[group_selector == group_labels[1], :],
-                            summary_statistic=summary_statistic,
-                            axis=0))
+                            exact_permutations=exact_permutations,
+                            prng=prng)
 
         # Tack our permuted ISCs onto the permutation distribution
         distribution.append(isc_sample)
@@ -836,7 +987,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,
         p = compute_p_from_null_distribution(observed, distribution,
                                              side='two-sided', exact=True,
                                              axis=0)
-    elif not exact_permutations:
+    else:
         p = compute_p_from_null_distribution(observed, distribution,
                                              side='two-sided', exact=False,
                                              axis=0)
