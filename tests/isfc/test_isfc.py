@@ -533,13 +533,13 @@ def test_isfc_options():
     iscs = isc(data, pairwise=False)
     isfcs = isfc(data, pairwise=False)
     for s in np.arange(len(iscs)):
-        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
+        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :], rtol=1e-03)
 
     # Check that ISC and ISFC diagonal are identical
     iscs = isc(data, pairwise=True)
     isfcs = isfc(data, pairwise=True)
     for s in np.arange(len(iscs)):
-        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :])
+        assert np.allclose(isfcs[..., s].diagonal(), iscs[s, :], rtol=1e-03)
 
     logger.info("Finished testing ISFC options")
 
