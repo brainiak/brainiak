@@ -18,6 +18,29 @@ Functions for computing intersubject correlation (ISC) and related
 analyses (e.g., intersubject funtional correlations; ISFC), as well
 as statistical tests designed specifically for ISC analyses.
 
+The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
+[Simony2016]_, and [Chen2016]_.
+
+.. [Chen2016] "Untangling the relatedness among correlations, part I:
+   nonparametric approaches to inter-subject correlation analysis at the
+   group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
+   Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+   https://doi.org/10.1016/j.neuroimage.2016.05.023
+
+.. [Hasson2004] "Intersubject synchronization of cortical activity
+   during natural vision.", U. Hasson, Y. Nir, I. Levy, G. Fuhrmann,
+   R. Malach, 2004, Science, 303, 1634-1640.
+   https://doi.org/10.1126/science.1089506
+
+.. [Kauppi2014] "A versatile software package for inter-subject
+   correlation based analyses of fMRI.", J. P. Kauppi, J. Pajula,
+   J. Tohka, 2014, Frontiers in Neuroinformatics, 8, 2.
+   https://doi.org/10.3389/fninf.2014.00002
+
+.. [Simony2016] "Dynamic reconfiguration of the default mode network
+   during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
+   Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
+   7, 12141. https://doi.org/10.1038/ncomms12141
 """
 
 # Authors: Sam Nastase, Christopher Baldassano, Qihong Lu,
@@ -61,11 +84,7 @@ def isc(data, pairwise=False, summary_statistic=None):
     Output is an ndarray where the first dimension is the number of subjects
     or pairs and the second dimension is the number of voxels (or ROIs).
 
-    The implementation is based on the following publication:
-
-    .. [Hasson2004] "Intersubject synchronization of cortical activity
-      during natural vision.", U. Hasson, Y. Nir, I. Levy, G. Fuhrmann,
-      R. Malach, 2004, Science, 303, 1634-1640.
+    The implementation is based on the work in [Hasson2004]_.
 
     Parameters
     ----------
@@ -144,12 +163,7 @@ def isfc(data, pairwise=False, summary_statistic=None):
     supplied; otherwise output is n_voxels by n_voxels by n_subjects (or
     n_pairs) array.
 
-    The implementation is based on the following publication:
-
-    .. [Simony2016] "Dynamic reconfiguration of the default mode network
-      during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
-      Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
-      7, 12141.
+    The implementation is based on the work in [Simony2016]_.
 
     Parameters
     ----------
@@ -348,11 +362,12 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     case of the mean, ISC values are first Fisher Z transformed (arctanh),
     averaged, then inverse Fisher Z transformed (tanh).
 
-    The implementation is based on the following publication:
+    The implementation is based on the work in [SilverDunlap1987]_.
 
     .. [SilverDunlap1987] "Averaging corrlelation coefficients: should
-      Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
-      Journal of Applied Psychology, 72, 146-148.
+       Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
+       Journal of Applied Psychology, 72, 146-148.
+       https://doi.org/10.1037/0021-9010.72.1.146
 
     Parameters
     ----------
@@ -407,15 +422,12 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     controlling false positive rates (FPR) for one-sample tests in the pairwise
     approach.
 
-    The implementation is based on the following publications:
-
-    .. [Chen2016] "Untangling the relatedness among correlations, part I:
-      nonparametric approaches to inter-subject correlation analysis at the
-      group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
-      Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+    The implementation is based on the work in [Chen2016]_ and
+    [HallWilson1991]_.
 
     .. [HallWilson1991] "Two guidelines for bootstrap hypothesis testing.",
-      P. Hall, S. R., Wilson, 1991, Biometrics, 757-762.
+       P. Hall, S. R., Wilson, 1991, Biometrics, 757-762.
+       https://doi.org/10.2307/2532163
 
     Parameters
     ----------
@@ -828,7 +840,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     two-sample tests. This approach may yield inflated FPRs for one-sample
     tests.
 
-    The implementation is based on the following publication: [Chen2016]_
+    The implementation is based on the work in [Chen2016]_.
 
     Parameters
     ----------
@@ -1006,16 +1018,14 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on randomly time-shifted data.
 
-    This implementation is based on the following publications:
+    The implementation is based on the work in [Kauppi2010]_ and
+    [Kauppi2014]_.
 
     .. [Kauppi2010] "Inter-subject correlation of brain hemodynamic
-      responses during watching a movie: localization in space and
-      frequency.", J. P. Kauppi, I. P. Jääskeläinen, M. Sams, J. Tohka,
-      2010, Frontiers in Neuroinformatics, 4, 5.
-
-    .. [Kauppi2014] "A versatile software package for inter-subject
-      correlation based analyses of fMRI.", J. P. Kauppi, J. Pajula,
-      J. Tohka, 2014, Frontiers in Neuroinformatics, 8, 2.
+       responses during watching a movie: localization in space and
+       frequency.", J. P. Kauppi, I. P. Jääskeläinen, M. Sams, J. Tohka,
+       2010, Frontiers in Neuroinformatics, 4, 5.
+       https://doi.org/10.3389/fninf.2010.00005
 
     Parameters
     ----------
@@ -1143,11 +1153,13 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on phase-randomized data.
 
-    This implementation is based on the following publications:
+    The implementation is based on the work in [Lerner2011]_ and
+    [Simony2016]_.
 
     .. [Lerner2011] "Topographic mapping of a hierarchy of temporal
-      receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
-      L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
+       receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
+       L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
+       https://doi.org/10.1523/jneurosci.3684-10.2011
 
     Parameters
     ----------

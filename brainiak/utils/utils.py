@@ -850,12 +850,13 @@ def compute_p_from_null_distribution(observed, distribution,
     distribution is provided, use axis argument to specify which axis indexes
     resampling iterations.
 
-    The implementation is based on the following publication:
+    The implementation is based on the work in [PhipsonSmyth2010]_.
 
     .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
-      calculating exact p-values when permutations are randomly drawn.",
-      B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
-      and Molecular Biology, 9, 1544-6115.
+       calculating exact p-values when permutations are randomly drawn.",
+       B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
+       and Molecular Biology, 9, 1544-6115.
+       https://doi.org/10.2202/1544-6115.1585
 
     Parameters
     ----------
