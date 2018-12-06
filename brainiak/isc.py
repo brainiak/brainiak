@@ -64,8 +64,8 @@ def isc(data, pairwise=False, summary_statistic=None):
     The implementation is based on the following publication:
 
     .. [Hasson2004] "Intersubject synchronization of cortical activity
-    during natural vision.", U. Hasson, Y. Nir, I. Levy, G. Fuhrmann,
-    R. Malach, 2004, Science, 303, 1634-1640.
+      during natural vision.", U. Hasson, Y. Nir, I. Levy, G. Fuhrmann,
+      R. Malach, 2004, Science, 303, 1634-1640.
 
     Parameters
     ----------
@@ -147,9 +147,9 @@ def isfc(data, pairwise=False, summary_statistic=None):
     The implementation is based on the following publication:
 
     .. [Simony2016] "Dynamic reconfiguration of the default mode network
-    during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
-    Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
-    7, 12141.
+      during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
+      Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
+      7, 12141.
 
     Parameters
     ----------
@@ -351,8 +351,8 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     The implementation is based on the following publication:
 
     .. [SilverDunlap1987] "Averaging corrlelation coefficients: should
-    Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
-    Journal of Applied Psychology, 72, 146-148.
+      Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
+      Journal of Applied Psychology, 72, 146-148.
 
     Parameters
     ----------
@@ -410,12 +410,12 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     The implementation is based on the following publications:
 
     .. [Chen2016] "Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the
-    group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
-    Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+      nonparametric approaches to inter-subject correlation analysis at the
+      group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
+      Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
 
     .. [HallWilson1991] "Two guidelines for bootstrap hypothesis testing.",
-    P. Hall, S. R., Wilson, 1991, Biometrics, 757-762.
+      P. Hall, S. R., Wilson, 1991, Biometrics, 757-762.
 
     Parameters
     ----------
@@ -831,9 +831,9 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     The implementation is based on the following publication:
 
     .. [Chen2016] "Untangling the relatedness among correlations, part I:
-    nonparametric approaches to inter-subject correlation analysis at the
-    group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
-    Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+      nonparametric approaches to inter-subject correlation analysis at the
+      group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
+      Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
 
     Parameters
     ----------
@@ -1014,13 +1014,13 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     This implementation is based on the following publications:
 
     .. [Kauppi2010] "Inter-subject correlation of brain hemodynamic
-    responses during watching a movie: localization in space and
-    frequency.", J. P. Kauppi, I. P. Jääskeläinen, M. Sams, J. Tohka,
-    2010, Frontiers in Neuroinformatics, 4, 5.
+      responses during watching a movie: localization in space and
+      frequency.", J. P. Kauppi, I. P. Jääskeläinen, M. Sams, J. Tohka,
+      2010, Frontiers in Neuroinformatics, 4, 5.
 
     .. [Kauppi2014] "A versatile software package for inter-subject
-    correlation based analyses of fMRI.", J. P. Kauppi, J. Pajula,
-    J. Tohka, 2014, Frontiers in Neuroinformatics, 8, 2.
+      correlation based analyses of fMRI.", J. P. Kauppi, J. Pajula,
+      J. Tohka, 2014, Frontiers in Neuroinformatics, 8, 2.
 
     Parameters
     ----------
@@ -1151,13 +1151,13 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     This implementation is based on the following publications:
 
     .. [Lerner2011] "Topographic mapping of a hierarchy of temporal
-    receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
-    L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
+      receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
+      L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
 
     .. [Simony2016] "Dynamic reconfiguration of the default mode network
-    during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
-    Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
-    7, 12141.
+      during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
+      Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
+      7, 12141.
 
     Parameters
     ----------

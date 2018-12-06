@@ -853,9 +853,9 @@ def compute_p_from_null_distribution(observed, distribution,
     The implementation is based on the following publication:
 
     .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
-    calculating exact p-values when permutations are randomly drawn.",
-    B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
-    and Molecular Biology, 9, 1544-6115.
+      calculating exact p-values when permutations are randomly drawn.",
+      B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
+      and Molecular Biology, 9, 1544-6115.
 
     Parameters
     ----------
