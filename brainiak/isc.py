@@ -828,12 +828,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     two-sample tests. This approach may yield inflated FPRs for one-sample
     tests.
 
-    The implementation is based on the following publication:
-
-    .. [Chen2016] "Untangling the relatedness among correlations, part I:
-      nonparametric approaches to inter-subject correlation analysis at the
-      group level.", G. Chen, Y. W. Shin, P. A. Taylor, D. R. Glen, R. C.
-      Reynolds, R. B. Israel, R. W. Cox, 2016, NeuroImage, 142, 248-259.
+    The implementation is based on the following publication: [Chen2016]_
 
     Parameters
     ----------
