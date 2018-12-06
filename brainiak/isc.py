@@ -1149,11 +1149,6 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
       receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
       L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
 
-    .. [Simony2016] "Dynamic reconfiguration of the default mode network
-      during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
-      Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
-      7, 12141.
-
     Parameters
     ----------
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
