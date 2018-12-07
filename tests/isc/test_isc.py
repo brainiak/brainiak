@@ -140,11 +140,11 @@ def test_isc_output():
     data = correlated_timeseries(20, 60, noise=0,
                                  random_state=42)
     iscs = isc(data, pairwise=False)
-    assert np.all(iscs[:, :2] == 1.)
+    assert np.allclose(iscs[:, :2], 1., rtol=1e-05)
     assert np.all(iscs[:, -1] < 1.)
 
     iscs = isc(data, pairwise=True)
-    assert np.all(iscs[:, :2] == 1.)
+    assert np.allclose(iscs[:, :2], 1., rtol=1e-05)
     assert np.all(iscs[:, -1] < 1.)
 
     logger.info("Finished testing ISC outputs")
