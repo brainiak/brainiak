@@ -200,7 +200,7 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : None or str, default:None
+    summary_statistic : None or str, default: None
         Return all ISFCs or collapse using 'mean' or 'median'
 
     Returns
@@ -223,7 +223,8 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     # Handle just two subjects properly
     if n_subjects == 2:
         isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
-                                    np.ascontiguousarray(data[..., 1].T))
+                                    np.ascontiguousarray(data[..., 1].T),
+                                    return_nans=True)
         isfcs = (isfcs + isfcs.T) / 2
         isfcs = isfcs[..., np.newaxis]
         assert isfcs.shape == (n_voxels, n_voxels, 1)
@@ -237,7 +238,8 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
-                                                data[..., pair[1]].T))
+                                                data[..., pair[1]].T),
+                                            return_nans=True)
             isfc_pair = (isfc_pair + isfc_pair.T) / 2
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
@@ -254,7 +256,8 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
                                      np.ascontiguousarray(mean(
                                          np.delete(data, s, axis=0),
-                                         axis=0).T))
+                                         axis=0).T),
+                                     return_nans=True)
                  for s, subject in enumerate(data)]
 
         # Transpose and average ISFC matrices for both directions
@@ -264,6 +267,9 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     # Get ISCs back into correct shape after masking out NaNs
     isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
     isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
+    
+    # compute_correlation returns zeros for NaNs, change them back
+    #isfcs_all[isfcs_all == 0] = np.nan
 
     # Summarize results (if requested)
     if summary_statistic:
