@@ -37,11 +37,12 @@ __all__ = [
     "cov2corr",
     "ReadDesign",
     "gen_design",
-    "usable_cpu_count",
     "center_mass_exp",
+    "usable_cpu_count",
     "phase_randomize",
     "ecdf",
-    "p_from_null"
+    "p_from_null",
+    "compute_p_from_null_distribution"
 ]
 
 

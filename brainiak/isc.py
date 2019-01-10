@@ -58,6 +58,23 @@ from brainiak.utils.utils import compute_p_from_null_distribution
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "isc",
+    "isfc",
+    "check_timeseries_input",
+    "check_isc_input",
+    "compute_summary_statistic",
+    "bootstrap_isc",
+    "check_group_assignment",
+    "get_group_parameters",
+    "permute_one_sample_iscs",
+    "permute_two_sample_iscs",
+    "permutation_isc",
+    "timeshift_isc",
+    "phaseshift_isc"
+]
+
+
 MAX_RANDOM_SEED = 2**32 - 1
 
 
