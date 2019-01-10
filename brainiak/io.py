@@ -16,7 +16,7 @@
 __all__ = [
     "load_images_from_dir",
     "load_images",
-    "load_boolean_mask",    
+    "load_boolean_mask",
     "load_labels",
     "save_as_nifti_file",
 ]
