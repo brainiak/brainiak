@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 MAX_RANDOM_SEED = 2**32 - 1
 
 
-def isc(data, pairwise=False, summary_statistic=None):
+def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     """Intersubject correlation
 
     For each voxel or ROI, compute the Pearson correlation between each
@@ -81,8 +81,21 @@ def isc(data, pairwise=False, summary_statistic=None):
     the last dimension is assumed to correspond to subjects. If only two
     subjects are supplied, simply compute Pearson correlation (precludes
     averaging in leave-one-out approach, and does not apply summary statistic).
-    Output is an ndarray where the first dimension is the number of subjects
-    or pairs and the second dimension is the number of voxels (or ROIs).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs).
 
     The implementation is based on the work in [Hasson2004]_.
 
@@ -96,6 +109,9 @@ def isc(data, pairwise=False, summary_statistic=None):
 
     summary_statistic : None or str, default:None
         Return all ISCs or collapse using 'mean' or 'median'
+
+    tolerate_nans : bool or float, default:True
+        Accommodate NaNs (when averaging in leave-one-out approach)
 
     Returns
     -------
@@ -112,9 +128,16 @@ def isc(data, pairwise=False, summary_statistic=None):
         logger.info("Only two subjects! Simply computing Pearson correlation.")
         summary_statistic = None
 
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = threshold_nans(data, tolerate_nans)
+
     # Loop over each voxel or ROI
     voxel_iscs = []
-    for v in np.arange(n_voxels):
+    for v in np.arange(data.shape[1]):
         voxel_data = data[:, v, :].T
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
@@ -122,12 +145,16 @@ def isc(data, pairwise=False, summary_statistic=None):
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
             iscs = np.array([pearsonr(subject,
-                                      np.mean(np.delete(voxel_data,
-                                                        s, axis=0),
+                                      mean(np.delete(voxel_data,
+                                                     s, axis=0),
                                               axis=0))[0]
                              for s, subject in enumerate(voxel_data)])
         voxel_iscs.append(iscs)
-    iscs = np.column_stack(voxel_iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
 
     # Summarize results (if requested)
     if summary_statistic:
@@ -138,7 +165,7 @@ def isc(data, pairwise=False, summary_statistic=None):
     return iscs
 
 
-def isfc(data, pairwise=False, summary_statistic=None):
+def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
 
     """Intersubject functional correlation (ISFC)
 
@@ -186,12 +213,20 @@ def isfc(data, pairwise=False, summary_statistic=None):
     # Check response time series input format
     data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
 
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = threshold_nans(data, tolerate_nans)
+
     # Handle just two subjects properly
     if n_subjects == 2:
         isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
                                     np.ascontiguousarray(data[..., 1].T))
         isfcs = (isfcs + isfcs.T) / 2
-        assert isfcs.shape == (n_voxels, n_voxels)
+        isfcs = isfcs[..., np.newaxis]
+        assert isfcs.shape == (n_voxels, n_voxels, 1)
         summary_statistic = None
         logger.info("Only two subjects! Computing ISFC between them.")
 
@@ -217,7 +252,7 @@ def isfc(data, pairwise=False, summary_statistic=None):
 
         # Compute leave-one-out ISFCs
         isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
-                                     np.ascontiguousarray(np.mean(
+                                     np.ascontiguousarray(mean(
                                          np.delete(data, s, axis=0),
                                          axis=0).T))
                  for s, subject in enumerate(data)]
@@ -225,11 +260,14 @@ def isfc(data, pairwise=False, summary_statistic=None):
         # Transpose and average ISFC matrices for both directions
         isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
                            for isfc_matrix in isfcs])
-        assert isfcs.shape == (n_voxels, n_voxels, n_subjects)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
+    isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
 
     # Summarize results (if requested)
     if summary_statistic:
-        isfcs = compute_summary_statistic(isfcs,
+        isfcs = compute_summary_statistic(isfcs_all,
                                           summary_statistic=summary_statistic,
                                           axis=2)
 
@@ -398,6 +436,63 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
         statistic = np.nanmedian(iscs, axis=axis)
 
     return statistic
+
+
+def threshold_nans(data, tolerate_nans):
+
+    """Thresholds data based on proportion of subjects with NaNs
+
+    Takes in data and a threshold value (float between 0.0 and 1.0) determining
+    the permissible proportion of subjects with non-NaN values. For example, if
+    threshold=.8, any voxel where >= 80% of subjects have non-NaN values will
+    be left unchanged, while any voxel with < 80% non-NaN values will be
+    assigned all NaN values and included in the nan_mask output. Note that the
+    output data has not been masked and will be same shape as the input data,
+    but may have a different number of NaNs based on the threshold.
+
+    Parameters
+    ----------
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI time series data
+
+    tolerate_nans : bool or float (0.0 <= threshold <= 1.0)
+        Proportion of subjects with non-NaN values required to keep voxel
+
+    Returns
+    -------
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI time series data with adjusted NaNs
+
+    nan_mask : ndarray (n_voxels,)
+        Boolean mask array of voxels with too many NaNs based on threshold
+
+    """
+
+    nans = np.all(np.any(np.isnan(data), axis=0), axis=1)
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans is True:
+        logger.info("ISC computation will tolerate all NaNs when averaging")
+
+    elif type(tolerate_nans) is float:
+        if not 0.0 <= tolerate_nans <= 1.0:
+            raise ValueError("If threshold to tolerate NaNs is a float, "
+                             "it must be between 0.0 and 1.0; got {0}".format(
+                             tolerate_nans))
+        nans += ~(np.sum(~np.any(np.isnan(data), axis=0), axis=1) >=
+                         data.shape[-1] * tolerate_nans)
+        logger.info("ISC computation will tolerate voxels with at least "
+                    "{0} non-NaN values: {1} voxels do not meet "
+                    "threshold".format(tolerate_nans,
+                                       np.sum(nans)))
+
+    else:
+        logger.info("ISC computation will not tolerate NaNs when averaging")    
+
+    mask = ~nans
+    data = data[:, mask, :]
+
+    return data, mask
 
 
 def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
