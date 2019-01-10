@@ -52,7 +52,7 @@ def _normalize_for_correlation(data, axis):
     return data
 
 
-def compute_correlation(matrix1, matrix2):
+def compute_correlation(matrix1, matrix2, return_nans=False):
     """compute correlation between two sets of variables
 
     Correlate the rows of matrix1 with the rows of matrix2.
@@ -83,6 +83,9 @@ def compute_correlation(matrix1, matrix2):
         {\\sqrt{\\sum\\limits_{j=1}^n x_j^2-n\\bar{x}}}
         \\frac{(y_i-\\bar{y})}{\\sqrt{\\sum\\limits_{j=1}^n y_j^2-n\\bar{y}}})
 
+    By default (return_nans=False), returns zeros for vectors with NaNs.
+    If return_nans=True, convert zeros to NaNs (np.nan) in output.
+
     Parameters
     ----------
     matrix1: 2D array in shape [r1, c]
@@ -90,6 +93,9 @@ def compute_correlation(matrix1, matrix2):
 
     matrix2: 2D array in shape [r2, c]
         MUST be continuous and row-major
+
+    return_nans: bool, default:False
+        If False, return zeros for NaNs; if True, return NaNs
 
     Returns
     -------
@@ -115,4 +121,9 @@ def compute_correlation(matrix1, matrix2):
                                               0.0,
                                               corr_data,
                                               r2)
+
+    # optionally convert zeros back to NaNs
+    if return_nans:
+        corr_data[corr_data == 0] = np.nan
+
     return corr_data
