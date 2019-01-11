@@ -147,7 +147,7 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
             iscs = np.array([pearsonr(subject,
                                       mean(np.delete(voxel_data,
                                                      s, axis=0),
-                                              axis=0))[0]
+                                           axis=0))[0]
                              for s, subject in enumerate(voxel_data)])
         voxel_iscs.append(iscs)
     iscs_stack = np.column_stack(voxel_iscs)
@@ -222,7 +222,7 @@ def isfc(data, pairwise=False, summary_statistic=None,
         Return all ISFCs or collapse using 'mean' or 'median'
 
     vectorize_isfcs : bool, default: True
-        Return upper triangle ISFCs (True) or 2D ISFC matrix (False) 
+        Return upper triangle ISFCs (True) or 2D ISFC matrix (False)
 
     tolerate_nans : bool or float, default: True
         Accommodate NaNs (when averaging in leave-one-out approach)
@@ -289,12 +289,11 @@ def isfc(data, pairwise=False, summary_statistic=None,
     isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
     isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
     isfcs = np.moveaxis(isfcs_all, 2, 0)
-    
+
     # Optionally squareform to vectorize ISFC matrices
     if vectorize_isfcs:
         isfcs = np.vstack([squareform(isfc, checks=False)[np.newaxis, :]
                            for isfc in isfcs])
-
 
     # Summarize results (if requested)
     if summary_statistic:
@@ -509,16 +508,16 @@ def threshold_nans(data, tolerate_nans):
         if not 0.0 <= tolerate_nans <= 1.0:
             raise ValueError("If threshold to tolerate NaNs is a float, "
                              "it must be between 0.0 and 1.0; got {0}".format(
-                             tolerate_nans))
+                                tolerate_nans))
         nans += ~(np.sum(~np.any(np.isnan(data), axis=0), axis=1) >=
-                         data.shape[-1] * tolerate_nans)
+                  data.shape[-1] * tolerate_nans)
         logger.info("ISC computation will tolerate voxels with at least "
                     "{0} non-NaN values: {1} voxels do not meet "
                     "threshold".format(tolerate_nans,
                                        np.sum(nans)))
 
     else:
-        logger.info("ISC computation will not tolerate NaNs when averaging")    
+        logger.info("ISC computation will not tolerate NaNs when averaging")
 
     mask = ~nans
     data = data[:, mask, :]

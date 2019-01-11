@@ -599,7 +599,7 @@ def test_isfc_options():
                                 n_voxels=n_voxels, data_type='array')
     isfcs = isfc(data, pairwise=False, summary_statistic=None)
     assert isfcs.shape == (n_subjects, n_voxels * (n_voxels - 1) / 2)
-    
+
     # Without vectorized upper triangle
     isfcs = isfc(data, pairwise=False, summary_statistic=None,
                  vectorize_isfcs=False)
@@ -608,7 +608,7 @@ def test_isfc_options():
     # Just two subjects
     isfcs = isfc(data[..., :2], pairwise=False, summary_statistic=None)
     assert isfcs.shape == (1, n_voxels * (n_voxels - 1) / 2)
-    
+
     isfcs = isfc(data[..., :2], pairwise=False, summary_statistic=None,
                  vectorize_isfcs=False)
     assert isfcs.shape == (1, n_voxels, n_voxels)
@@ -617,7 +617,7 @@ def test_isfc_options():
     isfcs = isfc(data, pairwise=True, summary_statistic=None)
     assert isfcs.shape == (n_subjects * (n_subjects - 1) / 2,
                            n_voxels * (n_voxels - 1) / 2)
-    
+
     isfcs = isfc(data, pairwise=True, summary_statistic=None,
                  vectorize_isfcs=False)
     assert isfcs.shape == (n_subjects * (n_subjects - 1) / 2,
