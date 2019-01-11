@@ -223,9 +223,6 @@ def test_isc_nans():
                                 n_voxels=n_voxels, data_type='array',
                                 random_state=random_state)
 
-    # Inject NaNs into data
-    data[0, 0, 0] = np.nan
-
     # Make sure voxel with NaNs across all subjects is always removed
     data[0, 0, :] = np.nan
     iscs_loo_T = isc(data, pairwise=False, tolerate_nans=True)
@@ -658,11 +655,11 @@ def test_isfc_nans():
 
     # Don't tolerate NaNs, should lose zeroeth voxel
     isfcs_loo = isfc(data, pairwise=False, tolerate_nans=False)
-    assert np.sum(isfcs_loo == 0) == n_subjects
+    assert np.sum(np.isnan(isfcs_loo)) == (n_voxels * 2 - 1) * n_subjects
 
     # Tolerate all NaNs, only subject with NaNs yields NaN
     isfcs_loo = isfc(data, pairwise=False, tolerate_nans=True)
-    assert np.sum(np.isnan(isfcs_loo)) == 0
+    assert np.sum(np.isnan(isfcs_loo)) == n_voxels * 2 - 1
 
     # Pairwise approach shouldn't care
     isfcs_pw_T = isfc(data, pairwise=True, tolerate_nans=True)
@@ -670,7 +667,8 @@ def test_isfc_nans():
     assert np.allclose(isfcs_pw_T, isfcs_pw_F, equal_nan=True)
 
     assert (np.sum(np.isnan(isfcs_pw_T)) ==
-            np.sum(np.isnan(isfcs_pw_F)) == 0)
+            np.sum(np.isnan(isfcs_pw_F)) ==
+            (n_voxels * 2 - 1) * (n_subjects - 1))
 
     # Set proportion of nans to reject (70% and 90% non-NaN)
     data[0, 0, :] = np.nan
@@ -679,6 +677,7 @@ def test_isfc_nans():
 
     nans = np.sum(np.any(np.isnan(data), axis=0), axis=1)
 
+    ### TRIMMING NANS AND NOT REPLACING THEM!!! reduced size
     isfcs_loo_T = isfc(data, pairwise=False, tolerate_nans=True)
     isfcs_loo_F = isfc(data, pairwise=False, tolerate_nans=False)
     isfcs_loo_95 = isfc(data, pairwise=False, tolerate_nans=.95)
@@ -687,43 +686,47 @@ def test_isfc_nans():
     isfcs_loo_70 = isfc(data, pairwise=False, tolerate_nans=.7)
     isfcs_loo_60 = isfc(data, pairwise=False, tolerate_nans=.6)
 
-    assert (np.sum(np.isnan(iscs_loo_F)) ==
-            np.sum(np.isnan(iscs_loo_95)) == 60)
-    assert (np.sum(np.isnan(iscs_loo_80)) ==
-            np.sum(np.isnan(iscs_loo_90)) == 42)
-    assert (np.sum(np.isnan(iscs_loo_T)) ==
-            np.sum(np.isnan(iscs_loo_60)) ==
-            np.sum(np.isnan(iscs_loo_70)) == 28)
-    assert np.array_equal(np.sum(np.isnan(iscs_loo_F), axis=0),
-                          np.sum(np.isnan(iscs_loo_95), axis=0))
-    assert np.array_equal(np.sum(np.isnan(iscs_loo_80), axis=0),
-                          np.sum(np.isnan(iscs_loo_90), axis=0))
+    assert (np.sum(np.isnan(isfcs_loo_F)) ==
+            np.sum(np.isnan(isfcs_loo_95)) == 3420)
+    assert (np.sum(np.isnan(isfcs_loo_80)) ==
+            np.sum(np.isnan(isfcs_loo_90)) == 2430)
+    assert (np.sum(np.isnan(isfcs_loo_T)) ==
+            np.sum(np.isnan(isfcs_loo_60)) ==
+            np.sum(np.isnan(isfcs_loo_70)) == 1632)
+    assert np.array_equal(np.sum(np.isnan(isfcs_loo_F), axis=0),
+                          np.sum(np.isnan(isfcs_loo_95), axis=0))
+    assert np.array_equal(np.sum(np.isnan(isfcs_loo_80), axis=0),
+                          np.sum(np.isnan(isfcs_loo_90), axis=0))
     assert np.all((np.array_equal(
-                        np.sum(np.isnan(iscs_loo_T), axis=0),
-                        np.sum(np.isnan(iscs_loo_60), axis=0)),
+                        np.sum(np.isnan(isfcs_loo_T), axis=0),
+                        np.sum(np.isnan(isfcs_loo_60), axis=0)),
                    np.array_equal(
-                        np.sum(np.isnan(iscs_loo_T), axis=0),
-                        np.sum(np.isnan(iscs_loo_70), axis=0)),
+                        np.sum(np.isnan(isfcs_loo_T), axis=0),
+                        np.sum(np.isnan(isfcs_loo_70), axis=0)),
                    np.array_equal(
-                        np.sum(np.isnan(iscs_loo_60), axis=0),
-                        np.sum(np.isnan(iscs_loo_70), axis=0))))
+                        np.sum(np.isnan(isfcs_loo_60), axis=0),
+                        np.sum(np.isnan(isfcs_loo_70), axis=0))))
+
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
 
     # Make sure voxel with NaNs across all subjects is always removed
     data[0, 0, :] = np.nan
-    iscs_loo_T = isc(data, pairwise=False, tolerate_nans=True)
-    iscs_loo_F = isc(data, pairwise=False, tolerate_nans=False)
-    assert np.allclose(iscs_loo_T, iscs_loo_F, equal_nan=True)
-    assert (np.sum(np.isnan(iscs_loo_T)) ==
-            np.sum(np.isnan(iscs_loo_T)) ==
-            n_subjects)
+    isfcs_loo_T = isfc(data, pairwise=False, tolerate_nans=True)
+    isfcs_loo_F = isfc(data, pairwise=False, tolerate_nans=False)
+    assert np.allclose(isfcs_loo_T, isfcs_loo_F, equal_nan=True)
+    assert (np.sum(np.isnan(isfcs_loo_T)) ==
+            np.sum(np.isnan(isfcs_loo_T)) ==
+            1180)
 
-    iscs_pw_T = isc(data, pairwise=True, tolerate_nans=True)
-    iscs_pw_F = isc(data, pairwise=True, tolerate_nans=False)
-    assert np.allclose(iscs_pw_T, iscs_pw_F, equal_nan=True)
+    isfcs_pw_T = isfc(data, pairwise=True, tolerate_nans=True)
+    isfcs_pw_F = isfc(data, pairwise=True, tolerate_nans=False)
+    assert np.allclose(isfcs_pw_T, isfcs_pw_F, equal_nan=True)
 
-    assert (np.sum(np.isnan(iscs_pw_T)) ==
-            np.sum(np.isnan(iscs_pw_T)) ==
-            n_subjects * (n_subjects - 1) / 2)
+    assert (np.sum(np.isnan(isfcs_pw_T)) ==
+            np.sum(np.isnan(isfcs_pw_T)) ==
+            11210)
 
 
 if __name__ == '__main__':
@@ -736,4 +739,5 @@ if __name__ == '__main__':
     test_timeshift_isc()
     test_phaseshift_isc()
     test_isfc_options()
+    test_isfc_nans()
     logger.info("Finished all ISC tests")

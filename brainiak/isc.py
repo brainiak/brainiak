@@ -227,7 +227,6 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
                                     return_nans=True)
         isfcs = (isfcs + isfcs.T) / 2
         isfcs = isfcs[..., np.newaxis]
-        assert isfcs.shape == (n_voxels, n_voxels, 1)
         summary_statistic = None
         logger.info("Only two subjects! Computing ISFC between them.")
 
@@ -243,8 +242,7 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
             isfc_pair = (isfc_pair + isfc_pair.T) / 2
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
-        assert isfcs.shape == (n_voxels, n_voxels,
-                               n_subjects * (n_subjects - 1) / 2)
+
 
     # Compute ISFCs using leave-one-out approach
     elif not pairwise:
@@ -267,13 +265,11 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     # Get ISCs back into correct shape after masking out NaNs
     isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
     isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
-    
-    # compute_correlation returns zeros for NaNs, change them back
-    #isfcs_all[isfcs_all == 0] = np.nan
+    isfcs = isfcs_all
 
     # Summarize results (if requested)
     if summary_statistic:
-        isfcs = compute_summary_statistic(isfcs_all,
+        isfcs = compute_summary_statistic(isfcs,
                                           summary_statistic=summary_statistic,
                                           axis=2)
 
