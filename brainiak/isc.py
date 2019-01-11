@@ -104,13 +104,13 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISC
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : None or str, default:None
+    summary_statistic : None or str, default: None
         Return all ISCs or collapse using 'mean' or 'median'
 
-    tolerate_nans : bool or float, default:True
+    tolerate_nans : bool or float, default: True
         Accommodate NaNs (when averaging in leave-one-out approach)
 
     Returns
@@ -165,7 +165,8 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     return iscs
 
 
-def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
+def isfc(data, pairwise=False, summary_statistic=None,
+         vectorize_isfcs=True, tolerate_nans=True):
 
     """Intersubject functional correlation (ISFC)
 
@@ -186,9 +187,26 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     the last dimension is assumed to correspond to subjects. If only two
     subjects are supplied, simply compute ISFC between these two subjects
     (precludes averaging in leave-one-out approach, and does not apply summary
-    statistic). Output is n_voxels by n_voxels array if summary_statistic is
-    supplied; otherwise output is n_voxels by n_voxels by n_subjects (or
-    n_pairs) array.
+    statistic). Returns vectorized upper triangle of ISFC matrices for each
+    subject or pair when vectorized_isfcs=True, or full (redundant) 2D ISFC
+    matrices when vectorized_isfcs=False. When using leave-one-out approach,
+    NaNs are ignored when computing mean time series of N-1 subjects (default:
+    tolerate_nans=True). Alternatively, you may supply a float between 0 and
+    1 indicating a threshold proportion of N subjects with non-NaN values
+    required when computing the average time series for a given voxel. For
+    example, if tolerate_nans=.8, ISCs will be computed for any voxel where
+    >= 80% of subjects have non-NaN values, while voxels with < 80% non-NaN
+    values will be assigned NaNs. If set to False, NaNs are not tolerated
+    and voxels with one or more NaNs among the N-1 subjects will be assigned
+    NaN. Setting tolerate_nans to True or False will not affect the pairwise
+    approach; however, if a threshold float is provided, voxels that do not
+    reach this threshold will be excluded. Note that accommodating NaNs may
+    be notably slower than setting tolerate_nans to False. Output is either
+    n_subjects (or n_pairs) by n_voxels * (n_voxels - 1) / 2 voxel pairs
+    if vectorize_isfcs=True (see scipy.spatial.distance.squareform), or
+    n_subjects (or n_pairs) by n_voxels by n_voxels 3D matrix if
+    vectorize_isfcs=False. If summary_statistic is supplied, output is
+    1 by n_voxel_pairs or 1 by n_voxels by n_voxels.
 
     The implementation is based on the work in [Simony2016]_.
 
@@ -203,10 +221,16 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     summary_statistic : None or str, default: None
         Return all ISFCs or collapse using 'mean' or 'median'
 
+    vectorize_isfcs : bool, default: True
+        Return upper triangle ISFCs (True) or 2D ISFC matrix (False) 
+
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+
     Returns
     -------
-    isfcs : subjects or pairs by voxels ndarray
-        ISFC for each subject or pair (or summary statistic) per voxel
+    isfcs : ndarray
+        ISFCs for each subject or pair (or summary statistic) per voxel pair
 
     """
 
@@ -243,7 +267,6 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
 
-
     # Compute ISFCs using leave-one-out approach
     elif not pairwise:
 
@@ -265,13 +288,19 @@ def isfc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     # Get ISCs back into correct shape after masking out NaNs
     isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
     isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
-    isfcs = isfcs_all
+    isfcs = np.moveaxis(isfcs_all, 2, 0)
+    
+    # Optionally squareform to vectorize ISFC matrices
+    if vectorize_isfcs:
+        isfcs = np.vstack([squareform(isfc, checks=False)[np.newaxis, :]
+                           for isfc in isfcs])
+
 
     # Summarize results (if requested)
     if summary_statistic:
         isfcs = compute_summary_statistic(isfcs,
                                           summary_statistic=summary_statistic,
-                                          axis=2)
+                                          axis=0)
 
     return isfcs
 
@@ -414,7 +443,7 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     iscs : list or ndarray
         ISC values
 
-    summary_statistic : str, default:'mean'
+    summary_statistic : str, default: 'mean'
         Summary statistic, 'mean' or 'median'
 
     axis : None or int or tuple of ints, optional
@@ -531,19 +560,19 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     iscs : list or ndarray, ISCs by voxels array
         ISC values for one or more voxels
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs structure
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_bootstraps : int, default:1000
+    n_bootstraps : int, default: 1000
         Number of bootstrap samples (subject-level with replacement)
 
-    ci_percentile : int, default:95
+    ci_percentile : int, default: 95
          Percentile for computing confidence intervals
 
-    random_state = int or None, default:None
+    random_state = int or None, default: None
         Initial random seed
 
     Returns
@@ -771,16 +800,16 @@ def permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
     i : int
         Permutation iteration
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
     exact_permutations : list
         List of permutations
 
-    prng = None or np.random.RandomState, default:None
+    prng = None or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -839,16 +868,16 @@ def permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
     i : int
         Permutation iteration
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
     exact_permutations : list
         List of permutations
 
-    prng = None or np.random.RandomState, default:None
+    prng = None or np.random.RandomState, default: None
         Initial random seed
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
@@ -947,16 +976,16 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     group_assignment : list or ndarray, group labels
         Group labels matching order of ISC input
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_permutations : int, default:1000
+    n_permutations : int, default: 1000
         Number of permutation iteration (randomizing group assignment)
 
-    random_state = int, None, or np.random.RandomState, default:None
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -1132,13 +1161,13 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_shifts : int, default:1000
+    n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    random_state = int, None, or np.random.RandomState, default:None
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -1266,13 +1295,13 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_shifts : int, default:1000
+    n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    random_state = int, None, or np.random.RandomState, default:None
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
