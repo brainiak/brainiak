@@ -81,6 +81,9 @@ from itertools import product
 from statsmodels.tsa.arima_model import ARMA
 import math
 import numpy as np
+# See pyflakes issue #248
+# https://github.com/PyCQA/pyflakes/issues/248
+import numpy.matlib  # noqa: F401
 from numpy.linalg import LinAlgError
 from pkg_resources import resource_stream
 from scipy import stats
