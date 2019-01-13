@@ -1126,7 +1126,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
 
 def timeshift_isc(data, pairwise=False, summary_statistic='median',
-                  n_shifts=1000, random_state=None):
+                  n_shifts=1000, tolerate_nans=True, random_state=None):
 
     """Circular time-shift randomization for one-sample ISC test
 
@@ -1140,7 +1140,19 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test), as well as
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on randomly time-shifted data.
 
     The implementation is based on the work in [Kauppi2010]_ and
@@ -1166,6 +1178,9 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     n_shifts : int, default: 1000
         Number of randomly shifted samples
 
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+
     random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
@@ -1186,7 +1201,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,
-                   summary_statistic=summary_statistic)
+                   summary_statistic=summary_statistic,
+                   tolerate_nans=tolerate_nans)
 
     # Roll axis to get subjects in first dimension for loop
     if pairwise:
@@ -1219,7 +1235,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=pairwise,
-                              summary_statistic=summary_statistic)
+                              summary_statistic=summary_statistic,
+                              tolerate_nans=tolerate_nans)
 
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
@@ -1231,7 +1248,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                 nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)),
                               pairwise=False,
-                              summary_statistic=None)
+                              summary_statistic=None,
+                              tolerate_nans=tolerate_nans)
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
@@ -1261,7 +1279,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
 
 def phaseshift_isc(data, pairwise=False, summary_statistic='median',
-                   n_shifts=1000, random_state=None):
+                   n_shifts=1000, tolerate_nans=True, random_state=None):
 
     """Phase randomization for one-sample ISC test
 
@@ -1275,7 +1293,19 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test), as well as
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on phase-randomized data.
 
     The implementation is based on the work in [Lerner2011]_ and
@@ -1300,6 +1330,9 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     n_shifts : int, default: 1000
         Number of randomly shifted samples
 
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+
     random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
@@ -1320,7 +1353,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,
-                   summary_statistic=summary_statistic)
+                   summary_statistic=summary_statistic,
+                   tolerate_nans=tolerate_nans)
 
     # Iterate through randomized shifts to create null distribution
     distribution = []
@@ -1359,7 +1393,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=True,
-                              summary_statistic=summary_statistic)
+                              summary_statistic=summary_statistic,
+                              tolerate_nans=tolerate_nans)
 
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
@@ -1383,7 +1418,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
                 # ISC of shifted left-out subject vs mean of N-1 subjects
                 nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)),
-                              pairwise=False, summary_statistic=None)
+                              pairwise=False, summary_statistic=None,
+                              tolerate_nans=tolerate_nans)
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
