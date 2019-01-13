@@ -59,19 +59,19 @@ from brainiak.utils.utils import compute_p_from_null_distribution
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "isc",
-    "isfc",
-    "check_timeseries_input",
-    "check_isc_input",
-    "compute_summary_statistic",
     "bootstrap_isc",
     "check_group_assignment",
+    "check_isc_input",
+    "check_timeseries_input",
+    "compute_summary_statistic",
     "get_group_parameters",
+    "isfc",
+    "isc",
+    "permutation_isc",
     "permute_one_sample_iscs",
     "permute_two_sample_iscs",
-    "permutation_isc",
+    "phaseshift_isc",
     "timeshift_isc",
-    "phaseshift_isc"
 ]
 
 

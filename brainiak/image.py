@@ -14,12 +14,12 @@
 """Generic image functionality."""
 
 __all__ = [
-    "MaskedMultiSubjectData",
     "ConditionSpec",
-    "SingleConditionSpec",
+    "MaskedMultiSubjectData",
     "mask_image",
+    "mask_images",
     "multimask_images",
-    "mask_images"
+    "SingleConditionSpec",
 ]
 
 import itertools

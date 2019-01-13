@@ -39,8 +39,7 @@ import scipy.stats as st
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "get_sigma", "gmm_1d_distribution", "get_next_sample",
-    "fmin"
+    "fmin",
 ]
 
 

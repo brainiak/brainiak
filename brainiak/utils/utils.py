@@ -30,19 +30,19 @@ Some utility functions that can be used by different algorithms
 """
 
 __all__ = [
-    "from_tri_2_sym",
-    "from_sym_2_tri",
-    "sumexp_stable",
+    "center_mass_exp",
+    "compute_p_from_null_distribution",
     "concatenate_not_none",
     "cov2corr",
-    "ReadDesign",
-    "gen_design",
-    "center_mass_exp",
-    "usable_cpu_count",
-    "phase_randomize",
     "ecdf",
+    "from_tri_2_sym",
+    "from_sym_2_tri",
+    "gen_design",
+    "phase_randomize",
     "p_from_null",
-    "compute_p_from_null_distribution"
+    "ReadDesign",
+    "sumexp_stable",
+    "usable_cpu_count",
 ]
 
 
