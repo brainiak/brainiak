@@ -24,6 +24,10 @@ from . import cython_blas as blas  # type: ignore
 from scipy.stats.mstats import zscore
 import math
 
+__all__ = [
+    "compute_correlation",
+]
+
 
 def _normalize_for_correlation(data, axis):
     """normalize the data before computing correlation

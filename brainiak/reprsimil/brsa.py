@@ -62,8 +62,11 @@ import copy
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BRSA", "GBRSA", "prior_GP_var_inv_gamma", "prior_GP_var_half_cauchy",
-    "Ncomp_SVHT_MG_DLD_approx"
+    "BRSA",
+    "GBRSA",
+    "Ncomp_SVHT_MG_DLD_approx",
+    "prior_GP_var_inv_gamma",
+    "prior_GP_var_half_cauchy",
 ]
 
 
