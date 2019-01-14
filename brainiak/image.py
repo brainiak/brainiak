@@ -15,10 +15,11 @@
 
 __all__ = [
     "ConditionSpec",
-    "SingleConditionSpec",
-    "mask_image",
     "MaskedMultiSubjectData",
+    "mask_image",
+    "mask_images",
     "multimask_images",
+    "SingleConditionSpec",
 ]
 
 import itertools
