@@ -124,7 +124,7 @@ setup(
         'cython',
         'mpi4py',
         'nitime',
-        'numpy',
+        'numpy<1.16',  # See https://github.com/Theano/Theano/pull/6671
         'scikit-learn[alldeps]>=0.18',
         'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
         'statsmodels',
