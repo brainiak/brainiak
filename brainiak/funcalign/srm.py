@@ -260,7 +260,8 @@ class SRM(BaseEstimator, TransformerMixin):
         s = [None] * len(X)
         for subject in range(len(X)):
             if X[subject] is not None:
-                s[subject] = self.w_[subject].T.dot(X[subject])
+                s[subject] = self.w_[subject].T.dot(
+                    X[subject] - self.mu_[subject][:, np.newaxis])
 
         return s
 
