@@ -665,7 +665,7 @@ def _get_group_parameters(group_assignment, n_subjects, pairwise=False):
 
 def _permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
                              summary_statistic='median', group_matrix=None,
-                            exact_permutations=None, prng=None):
+                             exact_permutations=None, prng=None):
 
     """Applies one-sample permutations to ISC data
 
@@ -733,7 +733,7 @@ def _permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
 
 def _permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
                              summary_statistic='median',
-                            exact_permutations=None, prng=None):
+                             exact_permutations=None, prng=None):
 
     """Applies two-sample permutations to ISC data
 
