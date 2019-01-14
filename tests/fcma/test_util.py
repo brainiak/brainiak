@@ -47,13 +47,13 @@ def test_correlation_nans():
     mat2 = prng.rand(row2, col).astype(np.float32)
     mat1[0, 0] = np.nan
     corr = compute_correlation(mat1, mat2, return_nans=False)
-    assert np.all(corr == 0, axis=1)[0] == True
+    assert np.all(corr == 0, axis=1)[0]
     assert np.sum(corr == 0) == row2
     corr = compute_correlation(mat1, mat2, return_nans=True)
-    assert np.all(np.isnan(corr), axis=1)[0] == True
+    assert np.all(np.isnan(corr), axis=1)[0]
     assert np.sum(np.isnan(corr)) == row2
 
 
 if __name__ == '__main__':
     test_correlation_computation()
-    test_correlatioon_nans()
+    test_correlation_nans()
