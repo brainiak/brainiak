@@ -23,7 +23,11 @@ from ..utils.utils import usable_cpu_count
 """
 
 __all__ = [
-        "Searchlight", "Shape", "Cube", "Diamond", "Ball"
+    "Ball",
+    "Cube",
+    "Diamond",
+    "Searchlight",
+    "Shape",
 ]
 
 

@@ -58,6 +58,17 @@ from brainiak.utils.utils import compute_p_from_null_distribution
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "bootstrap_isc",
+    "compute_summary_statistic",
+    "isfc",
+    "isc",
+    "permutation_isc",
+    "phaseshift_isc",
+    "timeshift_isc",
+]
+
+
 MAX_RANDOM_SEED = 2**32 - 1
 
 
@@ -121,7 +132,7 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     """
 
     # Check response time series input format
-    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
     # No summary statistic if only two subjects
     if n_subjects == 2:
@@ -235,7 +246,7 @@ def isfc(data, pairwise=False, summary_statistic=None,
     """
 
     # Check response time series input format
-    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
     # Check tolerate_nans input and use either mean/nanmean and exclude voxels
     if tolerate_nans:
@@ -304,7 +315,7 @@ def isfc(data, pairwise=False, summary_statistic=None,
     return isfcs
 
 
-def check_timeseries_input(data):
+def _check_timeseries_input(data):
 
     """Checks response time series input data for ISC analysis
 
@@ -367,7 +378,7 @@ def check_timeseries_input(data):
     return data, n_TRs, n_voxels, n_subjects
 
 
-def check_isc_input(iscs, pairwise=False):
+def _check_isc_input(iscs, pairwise=False):
 
     """Checks ISC inputs for statistical tests
 
@@ -591,7 +602,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     """
 
     # Standardize structure of input data
-    iscs, n_subjects, n_voxels = check_isc_input(iscs, pairwise=pairwise)
+    iscs, n_subjects, n_voxels = _check_isc_input(iscs, pairwise=pairwise)
 
     # Check for valid summary statistic
     if summary_statistic not in ('mean', 'median'):
@@ -683,7 +694,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     return observed, ci, p, distribution
 
 
-def check_group_assignment(group_assignment, n_subjects):
+def _check_group_assignment(group_assignment, n_subjects):
     if type(group_assignment) == list:
         pass
     elif type(group_assignment) == np.ndarray:
@@ -699,7 +710,7 @@ def check_group_assignment(group_assignment, n_subjects):
     return group_assignment
 
 
-def get_group_parameters(group_assignment, n_subjects, pairwise=False):
+def _get_group_parameters(group_assignment, n_subjects, pairwise=False):
 
     # Set up dictionary to contain group info
     group_parameters = {'group_assignment': group_assignment,
@@ -777,9 +788,9 @@ def get_group_parameters(group_assignment, n_subjects, pairwise=False):
     return group_parameters
 
 
-def permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
-                            summary_statistic='median', group_matrix=None,
-                            exact_permutations=None, prng=None):
+def _permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
+                             summary_statistic='median', group_matrix=None,
+                             exact_permutations=None, prng=None):
 
     """Applies one-sample permutations to ISC data
 
@@ -845,9 +856,9 @@ def permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
     return isc_sample
 
 
-def permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
-                            summary_statistic='median',
-                            exact_permutations=None, prng=None):
+def _permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
+                             summary_statistic='median',
+                             exact_permutations=None, prng=None):
 
     """Applies two-sample permutations to ISC data
 
@@ -1000,19 +1011,19 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     """
 
     # Standardize structure of input data
-    iscs, n_subjects, n_voxels = check_isc_input(iscs, pairwise=pairwise)
+    iscs, n_subjects, n_voxels = _check_isc_input(iscs, pairwise=pairwise)
 
     # Check for valid summary statistic
     if summary_statistic not in ('mean', 'median'):
         raise ValueError("Summary statistic must be 'mean' or 'median'")
 
     # Check match between group labels and ISCs
-    group_assignment = check_group_assignment(group_assignment,
-                                              n_subjects)
+    group_assignment = _check_group_assignment(group_assignment,
+                                               n_subjects)
 
     # Get group parameters
-    group_parameters = get_group_parameters(group_assignment, n_subjects,
-                                            pairwise=pairwise)
+    group_parameters = _get_group_parameters(group_assignment, n_subjects,
+                                             pairwise=pairwise)
 
     # Set up permutation type (exact or Monte Carlo)
     if group_parameters['n_groups'] == 1:
@@ -1081,7 +1092,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
         # If one group, apply sign-flipping procedure
         if group_parameters['n_groups'] == 1:
-            isc_sample = permute_one_sample_iscs(
+            isc_sample = _permute_one_sample_iscs(
                             iscs, group_parameters, i,
                             pairwise=pairwise,
                             summary_statistic=summary_statistic,
@@ -1090,7 +1101,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
         # If two groups, set up group matrix get the observed difference
         else:
-            isc_sample = permute_two_sample_iscs(
+            isc_sample = _permute_two_sample_iscs(
                             iscs, group_parameters, i,
                             pairwise=pairwise,
                             summary_statistic=summary_statistic,
@@ -1197,7 +1208,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     """
 
     # Check response time series input format
-    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,
@@ -1349,7 +1360,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     """
 
     # Check response time series input format
-    data, n_TRs, n_voxels, n_subjects = check_timeseries_input(data)
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,

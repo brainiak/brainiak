@@ -43,7 +43,8 @@ from mpi4py import MPI
 import sys
 
 __all__ = [
-    "SRM", "DetSRM"
+    "DetSRM",
+    "SRM",
 ]
 
 logger = logging.getLogger(__name__)

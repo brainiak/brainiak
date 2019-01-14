@@ -81,6 +81,9 @@ from itertools import product
 from statsmodels.tsa.arima_model import ARMA
 import math
 import numpy as np
+# See pyflakes issue #248
+# https://github.com/PyCQA/pyflakes/issues/248
+import numpy.matlib  # noqa: F401
 from numpy.linalg import LinAlgError
 from pkg_resources import resource_stream
 from scipy import stats
@@ -89,16 +92,16 @@ import scipy.ndimage as ndimage
 import copy
 
 __all__ = [
-    "generate_signal",
-    "generate_stimfunction",
-    "export_3_column",
-    "export_epoch_file",
-    "convolve_hrf",
     "apply_signal",
     "calc_noise",
+    "compute_signal_change",
+    "convolve_hrf",
+    "export_3_column",
+    "export_epoch_file",
+    "generate_signal",
+    "generate_stimfunction",
     "generate_noise",
     "mask_brain",
-    "compute_signal_change",
 ]
 
 logger = logging.getLogger(__name__)
