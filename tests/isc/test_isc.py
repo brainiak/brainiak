@@ -1,7 +1,8 @@
 import numpy as np
 import logging
 from brainiak.isc import (isc, isfc, bootstrap_isc, permutation_isc,
-                          timeshift_isc, phaseshift_isc)
+                          squareform_isfc, timeshift_isc,
+                          phaseshift_isc)
 from scipy.spatial.distance import squareform
 
 logger = logging.getLogger(__name__)
@@ -114,15 +115,19 @@ def test_isc_options():
     iscs_loo = isc(data, pairwise=False, summary_statistic=None)
     assert iscs_loo.shape == (n_subjects, n_voxels)
 
+    # Just two subjects
+    iscs_loo = isc(data[..., :2], pairwise=False, summary_statistic=None)
+    assert iscs_loo.shape == (n_voxels,)
+
     iscs_pw = isc(data, pairwise=True, summary_statistic=None)
     assert iscs_pw.shape == (n_subjects*(n_subjects-1)/2, n_voxels)
 
     # Check summary statistics
     isc_mean = isc(data, pairwise=False, summary_statistic='mean')
-    assert isc_mean.shape == (1, n_voxels)
+    assert isc_mean.shape == (n_voxels,)
 
     isc_median = isc(data, pairwise=False, summary_statistic='median')
-    assert isc_median.shape == (1, n_voxels)
+    assert isc_median.shape == (n_voxels,)
 
     try:
         isc(data, pairwise=False, summary_statistic='min')
@@ -295,15 +300,15 @@ def test_bootstrap_isc():
     observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     iscs = isc(data, pairwise=True)
     observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     # Check that ISC computation and bootstrap observed are same
     iscs = isc(data, pairwise=False)
@@ -438,29 +443,31 @@ def test_permutation_isc():
     observed, p, distribution = permutation_isc(iscs, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     iscs = isc(data, pairwise=True)
     observed, p, distribution = permutation_isc(iscs, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
     observed, p, distribution = permutation_isc(iscs, pairwise=False,
                                                 summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False,
-                                        summary_statistic='median'))
+    assert np.allclose(observed, isc(data, pairwise=False,
+                                     summary_statistic='median'),
+                       rtol=1e-03)
 
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
     observed, p, distribution = permutation_isc(iscs, pairwise=True,
                                                 summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True,
-                                        summary_statistic='mean'))
+    assert np.allclose(observed, isc(data, pairwise=True,
+                                     summary_statistic='mean'),
+                       rtol=1e-03)
 
     logger.info("Finished testing permutaton test")
 
@@ -501,29 +508,31 @@ def test_timeshift_isc():
     observed, p, distribution = timeshift_isc(data, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     iscs = isc(data, pairwise=True)
     observed, p, distribution = timeshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
     observed, p, distribution = timeshift_isc(data, pairwise=False,
                                               summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False,
-                                        summary_statistic='median'))
+    assert np.allclose(observed, isc(data, pairwise=False,
+                                     summary_statistic='median'),
+                       rtol=1e-03)
 
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
     observed, p, distribution = timeshift_isc(data, pairwise=True,
                                               summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True,
-                                        summary_statistic='mean'))
+    assert np.allclose(observed, isc(data, pairwise=True,
+                                     summary_statistic='mean'),
+                       rtol=1e-03)
 
     logger.info("Finished testing circular time-shift")
 
@@ -558,29 +567,31 @@ def test_phaseshift_isc():
     observed, p, distribution = phaseshift_isc(data, pairwise=False)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     iscs = isc(data, pairwise=True)
     observed, p, distribution = phaseshift_isc(data, pairwise=True)
     assert np.all(iscs[:, :2] > .5)
     assert np.all(iscs[:, -1] < .5)
-    assert p[0, 0] < .05 and p[0, 1] < .05
-    assert p[0, 2] > .01
+    assert p[0] < .05 and p[1] < .05
+    assert p[2] > .01
 
     # Check that ISC computation and permutation observed are same
     iscs = isc(data, pairwise=False)
     observed, p, distribution = phaseshift_isc(data, pairwise=False,
                                                summary_statistic='median')
-    assert np.array_equal(observed, isc(data, pairwise=False,
-                                        summary_statistic='median'))
+    assert np.allclose(observed, isc(data, pairwise=False,
+                                     summary_statistic='median'),
+                       rtol=1e-03)
 
     # Check that ISC computation and permuation observed are same
     iscs = isc(data, pairwise=True)
     observed, p, distribution = phaseshift_isc(data, pairwise=True,
                                                summary_statistic='mean')
-    assert np.array_equal(observed, isc(data, pairwise=True,
-                                        summary_statistic='mean'))
+    assert np.allclose(observed, isc(data, pairwise=True,
+                                     summary_statistic='mean'),
+                       rtol=1e-03)
 
     logger.info("Finished testing phase randomization")
 
@@ -597,8 +608,9 @@ def test_isfc_options():
 
     data = simulated_timeseries(n_subjects, n_TRs,
                                 n_voxels=n_voxels, data_type='array')
-    isfcs = isfc(data, pairwise=False, summary_statistic=None)
+    isfcs, iscs = isfc(data, pairwise=False, summary_statistic=None)
     assert isfcs.shape == (n_subjects, n_voxels * (n_voxels - 1) / 2)
+    assert iscs.shape == (n_subjects, n_voxels)
 
     # Without vectorized upper triangle
     isfcs = isfc(data, pairwise=False, summary_statistic=None,
@@ -606,17 +618,20 @@ def test_isfc_options():
     assert isfcs.shape == (n_subjects, n_voxels, n_voxels)
 
     # Just two subjects
-    isfcs = isfc(data[..., :2], pairwise=False, summary_statistic=None)
-    assert isfcs.shape == (1, n_voxels * (n_voxels - 1) / 2)
+    isfcs, iscs = isfc(data[..., :2], pairwise=False, summary_statistic=None)
+    assert isfcs.shape == (n_voxels * (n_voxels - 1) / 2,)
+    assert iscs.shape == (n_voxels,)
 
     isfcs = isfc(data[..., :2], pairwise=False, summary_statistic=None,
                  vectorize_isfcs=False)
-    assert isfcs.shape == (1, n_voxels, n_voxels)
+    assert isfcs.shape == (n_voxels, n_voxels)
 
     # ISFC with pairwise approach
-    isfcs = isfc(data, pairwise=True, summary_statistic=None)
+    isfcs, iscs = isfc(data, pairwise=True, summary_statistic=None)
     assert isfcs.shape == (n_subjects * (n_subjects - 1) / 2,
                            n_voxels * (n_voxels - 1) / 2)
+    assert iscs.shape == (n_subjects * (n_subjects - 1) / 2,
+                          n_voxels)
 
     isfcs = isfc(data, pairwise=True, summary_statistic=None,
                  vectorize_isfcs=False)
@@ -624,8 +639,8 @@ def test_isfc_options():
                            n_voxels, n_voxels)
 
     # ISFC with summary statistics
-    isfcs = isfc(data, pairwise=True, summary_statistic='mean')
-    isfcs = isfc(data, pairwise=True, summary_statistic='median')
+    isfcs, iscs = isfc(data, pairwise=True, summary_statistic='mean')
+    isfcs, iscs = isfc(data, pairwise=True, summary_statistic='median')
 
     # Check output p-values
     data = correlated_timeseries(20, 60, noise=.5,
@@ -643,12 +658,16 @@ def test_isfc_options():
     isfcs = isfc(data, pairwise=False, vectorize_isfcs=False)
     for s in np.arange(len(iscs)):
         assert np.allclose(isfcs[s, ...].diagonal(), iscs[s, :], rtol=1e-03)
+    isfcs, iscs_v = isfc(data, pairwise=False)
+    assert np.allclose(iscs, iscs_v, rtol=1e-03)
 
     # Check that ISC and ISFC diagonal are identical (pairwise)
     iscs = isc(data, pairwise=True)
     isfcs = isfc(data, pairwise=True, vectorize_isfcs=False)
     for s in np.arange(len(iscs)):
         assert np.allclose(isfcs[s, ...].diagonal(), iscs[s, :], rtol=1e-03)
+    isfcs, iscs_v = isfc(data, pairwise=True)
+    assert np.allclose(iscs, iscs_v, rtol=1e-03)
 
     logger.info("Finished testing ISFC options")
 
@@ -676,9 +695,9 @@ def test_isfc_nans():
                      tolerate_nans=False)
     assert np.sum(np.isnan(isfcs_loo)) == n_subjects * (n_voxels * 2 - 1)
 
-    # Without vectorized ISFCs
-    isfcs_loo = isfc(data, pairwise=False, vectorize_isfcs=True,
-                     tolerate_nans=False)
+    # With vectorized ISFCs
+    isfcs_loo, iscs_loo = isfc(data, pairwise=False, vectorize_isfcs=True,
+                               tolerate_nans=False)
     assert np.sum(np.isnan(isfcs_loo)) == n_subjects * (n_voxels - 1)
 
     # Tolerate all NaNs, only subject with NaNs yields NaN
@@ -686,8 +705,8 @@ def test_isfc_nans():
                      tolerate_nans=True)
     assert np.sum(np.isnan(isfcs_loo)) == n_voxels * 2 - 1
 
-    isfcs_loo = isfc(data, pairwise=False, vectorize_isfcs=True,
-                     tolerate_nans=True)
+    isfcs_loo, iscs_loo = isfc(data, pairwise=False, vectorize_isfcs=True,
+                               tolerate_nans=True)
     assert np.sum(np.isnan(isfcs_loo)) == n_voxels - 1
 
     # Pairwise approach shouldn't care
@@ -700,10 +719,10 @@ def test_isfc_nans():
             np.sum(np.isnan(isfcs_pw_F)) ==
             (n_voxels * 2 - 1) * (n_subjects - 1))
 
-    isfcs_pw_T = isfc(data, pairwise=True, vectorize_isfcs=True,
-                      tolerate_nans=True)
-    isfcs_pw_F = isfc(data, pairwise=True, vectorize_isfcs=True,
-                      tolerate_nans=False)
+    isfcs_pw_T, iscs_pw_T = isfc(data, pairwise=True, vectorize_isfcs=True,
+                                 tolerate_nans=True)
+    isfcs_pw_F, iscs_pw_T = isfc(data, pairwise=True, vectorize_isfcs=True,
+                                 tolerate_nans=False)
     assert np.allclose(isfcs_pw_T, isfcs_pw_F, equal_nan=True)
     assert (np.sum(np.isnan(isfcs_pw_T)) ==
             np.sum(np.isnan(isfcs_pw_F)) ==
@@ -749,20 +768,20 @@ def test_isfc_nans():
                         np.sum(np.isnan(isfcs_loo_60), axis=0),
                         np.sum(np.isnan(isfcs_loo_70), axis=0))))
 
-    isfcs_loo_T = isfc(data, pairwise=False, vectorize_isfcs=True,
-                       tolerate_nans=True)
-    isfcs_loo_F = isfc(data, pairwise=False, vectorize_isfcs=True,
-                       tolerate_nans=False)
-    isfcs_loo_95 = isfc(data, pairwise=False, vectorize_isfcs=True,
-                        tolerate_nans=.95)
-    isfcs_loo_90 = isfc(data, pairwise=False, vectorize_isfcs=True,
-                        tolerate_nans=.90)
-    isfcs_loo_80 = isfc(data, pairwise=False, vectorize_isfcs=True,
-                        tolerate_nans=.8)
-    isfcs_loo_70 = isfc(data, pairwise=False, vectorize_isfcs=True,
-                        tolerate_nans=.7)
-    isfcs_loo_60 = isfc(data, pairwise=False, vectorize_isfcs=True,
-                        tolerate_nans=.6)
+    isfcs_loo_T, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                          tolerate_nans=True)
+    isfcs_loo_F, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                          tolerate_nans=False)
+    isfcs_loo_95, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                           tolerate_nans=.95)
+    isfcs_loo_90, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                           tolerate_nans=.90)
+    isfcs_loo_80, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                           tolerate_nans=.8)
+    isfcs_loo_70, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                           tolerate_nans=.7)
+    isfcs_loo_60, _ = isfc(data, pairwise=False, vectorize_isfcs=True,
+                           tolerate_nans=.6)
     assert (np.sum(np.isnan(isfcs_loo_F)) ==
             np.sum(np.isnan(isfcs_loo_95)) == 1680)
     assert (np.sum(np.isnan(isfcs_loo_80)) ==
@@ -810,6 +829,45 @@ def test_isfc_nans():
             11210)
 
 
+def test_squareform_isfc():
+
+    # Set parameters for toy time series data
+    n_subjects = 20
+    n_TRs = 60
+    n_voxels = 30
+    random_state = 42
+
+    logger.info("Testing ISC options")
+
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+
+    # Generate square redundant ISFCs
+    isfcs_r = isfc(data, vectorize_isfcs=False)
+    assert isfcs_r.shape == (n_subjects, n_voxels, n_voxels)
+
+    # Squareform these into condensed ISFCs and ISCs
+    isfcs_c, iscs_c = squareform_isfc(isfcs_r)
+    assert isfcs_c.shape == (n_subjects, n_voxels * (n_voxels - 1) / 2)
+    assert iscs_c.shape == (n_subjects, n_voxels)
+
+    # Go back the other way and check it's the same
+    isfcs_new = squareform_isfc(isfcs_c, iscs_c)
+    assert np.array_equal(isfcs_r, isfcs_new)
+
+    # Check against ISC function
+    assert np.allclose(isc(data), iscs_c, rtol=1e-03)
+
+    # Check for two subjects
+    isfcs_r = isfc(data[..., :2], vectorize_isfcs=False)
+    assert isfcs_r.shape == (n_voxels, n_voxels)
+    isfcs_c, iscs_c = squareform_isfc(isfcs_r)
+    assert isfcs_c.shape == (n_voxels * (n_voxels - 1) / 2,)
+    assert iscs_c.shape == (n_voxels,)
+    assert np.array_equal(isfcs_r, squareform_isfc(isfcs_c, iscs_c))
+
+
 if __name__ == '__main__':
     test_isc_input()
     test_isc_options()
@@ -821,4 +879,5 @@ if __name__ == '__main__':
     test_phaseshift_isc()
     test_isfc_options()
     test_isfc_nans()
+    test_squareform_isfc()
     logger.info("Finished all ISC tests")

@@ -65,6 +65,7 @@ __all__ = [
     "isc",
     "permutation_isc",
     "phaseshift_isc",
+    "squareform_isfc",
     "timeshift_isc",
 ]
 
@@ -106,7 +107,8 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     that accommodating NaNs may be notably slower than setting tolerate_nans to
     False. Output is an ndarray where the first dimension is the number of
     subjects or pairs and the second dimension is the number of voxels (or
-    ROIs).
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
 
     The implementation is based on the work in [Hasson2004]_.
 
@@ -144,7 +146,7 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         mean = np.nanmean
     else:
         mean = np.mean
-    data, mask = threshold_nans(data, tolerate_nans)
+    data, mask = _threshold_nans(data, tolerate_nans)
 
     # Loop over each voxel or ROI
     voxel_iscs = []
@@ -172,6 +174,10 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         iscs = compute_summary_statistic(iscs,
                                          summary_statistic=summary_statistic,
                                          axis=0)[np.newaxis, :]
+
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
 
     return iscs
 
@@ -213,11 +219,11 @@ def isfc(data, pairwise=False, summary_statistic=None,
     approach; however, if a threshold float is provided, voxels that do not
     reach this threshold will be excluded. Note that accommodating NaNs may
     be notably slower than setting tolerate_nans to False. Output is either
-    n_subjects (or n_pairs) by n_voxels * (n_voxels - 1) / 2 voxel pairs
-    if vectorize_isfcs=True (see scipy.spatial.distance.squareform), or
-    n_subjects (or n_pairs) by n_voxels by n_voxels 3D matrix if
-    vectorize_isfcs=False. If summary_statistic is supplied, output is
-    1 by n_voxel_pairs or 1 by n_voxels by n_voxels.
+    a tuple comprising condensed off-diagonal ISFC values and the diagonal
+    ISC values if vectorize_isfcs=True, or a single ndarray with shape
+    n_subjects (or n_pairs) by n_voxels by n_voxels 3D array if
+    vectorize_isfcs=False (see brainiak.isc.squareform_isfc). If
+    summary_statistic is supplied, output is collapsed along first dimension.
 
     The implementation is based on the work in [Simony2016]_.
 
@@ -233,14 +239,15 @@ def isfc(data, pairwise=False, summary_statistic=None,
         Return all ISFCs or collapse using 'mean' or 'median'
 
     vectorize_isfcs : bool, default: True
-        Return upper triangle ISFCs (True) or 2D ISFC matrix (False)
+        Return tuple of condensed ISFCs and ISCs (True) or square (redundant)
+        ISFCs (False)
 
     tolerate_nans : bool or float, default: True
         Accommodate NaNs (when averaging in leave-one-out approach)
 
     Returns
     -------
-    isfcs : ndarray
+    isfcs : ndarray or tuple of ndarrays
         ISFCs for each subject or pair (or summary statistic) per voxel pair
 
     """
@@ -253,7 +260,7 @@ def isfc(data, pairwise=False, summary_statistic=None,
         mean = np.nanmean
     else:
         mean = np.mean
-    data, mask = threshold_nans(data, tolerate_nans)
+    data, mask = _threshold_nans(data, tolerate_nans)
 
     # Handle just two subjects properly
     if n_subjects == 2:
@@ -301,18 +308,22 @@ def isfc(data, pairwise=False, summary_statistic=None,
     isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
     isfcs = np.moveaxis(isfcs_all, 2, 0)
 
-    # Optionally squareform to vectorize ISFC matrices
-    if vectorize_isfcs:
-        isfcs = np.vstack([squareform(isfc, checks=False)[np.newaxis, :]
-                           for isfc in isfcs])
-
     # Summarize results (if requested)
     if summary_statistic:
         isfcs = compute_summary_statistic(isfcs,
                                           summary_statistic=summary_statistic,
                                           axis=0)
 
-    return isfcs
+    # Throw away first dimension if singleton
+    if isfcs.shape[0] == 1:
+        isfcs = isfcs[0]
+
+    # Optionally squareform to vectorize ISFC matrices
+    if vectorize_isfcs:
+        isfcs, iscs = squareform_isfc(isfcs)
+        return isfcs, iscs
+    else:
+        return isfcs
 
 
 def _check_timeseries_input(data):
@@ -479,7 +490,70 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     return statistic
 
 
-def threshold_nans(data, tolerate_nans):
+def squareform_isfc(isfcs, iscs=None):
+
+    """Converts square ISFCs to condensed ISFCs (and ISCs), and vice-versa
+
+    If input is a 2- or 3-dimensional array of square ISFC matrices, converts
+    this to the condensed off-diagonal ISFC values (i.e., the vectorized
+    triangle) and the diagonal ISC values. In this case, input must be a
+    single array of shape either n_voxels x n_voxels or n_subjects (or
+    n_pairs) x n_voxels x n_voxels. The condensed ISFC values are vectorized
+    according to scipy.spatial.distance.squareform, yielding n_voxels *
+    (n_voxels - 1) / 2 values comprising every voxel pair. Alternatively, if
+    input is an array of condensed off-diagonal ISFC values and an array of
+    diagonal ISC values, the square (redundant) ISFC values are returned.
+    This function mimics scipy.spatial.distance.squareform, but is intended
+    to retain the diagonal ISC values.
+
+    Parameters
+    ----------
+    isfcs : ndarray
+        Either condensed or redundant ISFC values
+
+    iscs: ndarray, optional
+        Diagonal ISC values, required when input is condensed
+
+    Returns
+    -------
+    isfcs : ndarray or tuple of ndarrays
+        If condensed ISFCs are passed, a single redundant ISFC array is
+        returned; if redundant ISFCs are passed, both a condensed off-
+        diagonal ISFC array and the diagonal ISC values are returned
+    """
+
+    # Check if incoming ISFCs are square (redundant)
+    if not type(iscs) == np.ndarray and isfcs.shape[-2] == isfcs.shape[-1]:
+        if isfcs.ndim == 2:
+            isfcs = isfcs[np.newaxis, ...]
+        if isfcs.ndim == 3:
+            iscs = np.diagonal(isfcs, axis1=1, axis2=2)
+            isfcs = np.vstack([squareform(isfc, checks=False)[np.newaxis, :]
+                               for isfc in isfcs])
+        else:
+            raise ValueError("Square (redundant) ISFCs must be square "
+                             "with multiple subjects or pairs of subjects "
+                             "indexed by the first dimension")
+        if isfcs.shape[0] == iscs.shape[0] == 1:
+            isfcs, iscs = isfcs[0], iscs[0]
+        return isfcs, iscs
+
+    # Otherwise, convert from condensed to redundant
+    else:
+        if isfcs.ndim == iscs.ndim == 1:
+            isfcs, iscs = isfcs[np.newaxis, :], iscs[np.newaxis, :]
+        isfcs_stack = []
+        for isfc, isc in zip(isfcs, iscs):
+            isfc_sq = squareform(isfc, checks=False)
+            np.fill_diagonal(isfc_sq, isc)
+            isfcs_stack.append(isfc_sq[np.newaxis, ...])
+        isfcs = np.vstack(isfcs_stack)
+        if isfcs.shape[0] == 1:
+            isfcs = isfcs[0]
+        return isfcs
+
+
+def _threshold_nans(data, tolerate_nans):
 
     """Thresholds data based on proportion of subjects with NaNs
 
@@ -611,7 +685,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     # Compute summary statistic for observed ISCs
     observed = compute_summary_statistic(iscs,
                                          summary_statistic=summary_statistic,
-                                         axis=0)[np.newaxis, :]
+                                         axis=0)
 
     # Set up an empty list to build our bootstrap distribution
     distribution = []
@@ -687,9 +761,6 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     p = compute_p_from_null_distribution(observed, shifted,
                                          side='two-sided', exact=False,
                                          axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
 
     return observed, ci, p, distribution
 
@@ -1074,7 +1145,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                              group_parameters['group_labels'][1], :],
                         summary_statistic=summary_statistic,
                         axis=0))
-        observed = np.array(observed)[np.newaxis, :]
+        observed = np.array(observed)
 
     # Set up an empty list to build our permutation distribution
     distribution = []
@@ -1129,9 +1200,6 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
         p = compute_p_from_null_distribution(observed, distribution,
                                              side='two-sided', exact=False,
                                              axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
 
     return observed, p, distribution
 
@@ -1282,9 +1350,6 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     p = compute_p_from_null_distribution(observed, distribution,
                                          side='two-sided', exact=False,
                                          axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
 
     return observed, p, distribution
 
@@ -1450,8 +1515,5 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     p = compute_p_from_null_distribution(observed, distribution,
                                          side='two-sided', exact=False,
                                          axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
 
     return observed, p, distribution
