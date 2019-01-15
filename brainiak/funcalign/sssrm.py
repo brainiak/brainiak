@@ -46,7 +46,7 @@ from brainiak.utils import utils
 from brainiak.funcalign import srm
 
 __all__ = [
-    "SSSRM"
+    "SSSRM",
 ]
 
 logger = logging.getLogger(__name__)
