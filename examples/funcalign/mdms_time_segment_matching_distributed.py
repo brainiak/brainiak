@@ -43,7 +43,6 @@ import pickle as pkl
 from brainiak.fcma.util import compute_correlation
 from brainiak.funcalign.mdms import MDMS, Dataset
 
-
 # parameters
 features = 75 # number of features, k
 n_iter = 30 # number of iterations of EM
