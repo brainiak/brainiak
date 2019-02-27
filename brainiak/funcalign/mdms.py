@@ -35,8 +35,6 @@ import json
 import os
 import glob
 from scipy import sparse as sp
-import matplotlib.pyplot as plt
-import networkx as nx
 import pickle as pkl
 
 __all__ = [
@@ -405,7 +403,7 @@ class MDMS(BaseEstimator, TransformerMixin):
         self.logger = logger
         return
 
-    def fit(self, X, datasets=None, y=None):
+    def fit(self, X, datasets, y=None):
         """Compute the probabilistic multi-dataset multi-subject (MDMS) SRM
         analysis
 
@@ -424,9 +422,10 @@ class MDMS(BaseEstimator, TransformerMixin):
                 data of subject s in dataset d, where s is the name of the
                 subject and d is the name of the dataset.
 
-        datasets :  (optional) a Dataset object
+        datasets : (optional) a Dataset object
             The Dataset object containing datasets structure.
-            If not defined, the structure will be inferred from X.
+            If you only have X, call datasets.build_from_data(X) with full
+            data to infer datasets.
 
         y : not used
         """
@@ -434,7 +433,7 @@ class MDMS(BaseEstimator, TransformerMixin):
             self.logger.info('Starting Probabilistic MDMS')
 
         # Check if datasets is initialized
-        if datasets is not None and datasets.matrix is None:
+        if datasets is None or datasets.matrix is None:
             raise NotFittedError('Dataset object is not initialized.')
 
         # Check X format
@@ -444,23 +443,17 @@ class MDMS(BaseEstimator, TransformerMixin):
         if format_X != dict and format_X != list:
             raise Exception('X should be a dict of dict of arrays or dict of'
                             ' list of arrays.')
-        if format_X == list and (datasets is None or
-                                 datasets.built_from_data is None or
+        if format_X == list and (datasets.built_from_data is None or
                                  datasets.built_from_data):
             raise Exception("Argument 'datasets' must be defined and built "
-                            "from json "
-                            "files when X is a dict of list of 2D arrays. ")
-        if format_X == dict and datasets is not None:
+                            "from JSON files when X is a dict of list of 2D "
+                            "arrays. ")
+        if format_X == dict:
             datasets.built_from_data = True
         for v in X.values():
             if type(v) != format_X:
                 raise Exception('X should be a dict of dict of arrays or '
                                 'dict of list of arrays.')
-
-        # Infer datasets structure from data
-        if datasets is None:
-            datasets = Dataset()
-            datasets.build_from_data(X)
 
         self.voxels_, self.samples_ = _sanity_check(X, datasets, self.comm)
 
@@ -505,7 +498,7 @@ class MDMS(BaseEstimator, TransformerMixin):
         # Check if the subject exist in the fitted model and has the right
         # number of voxels
         for idx in range(len(X)):
-            if not subjects[idx] in self.w_:
+            if subjects[idx] not in self.w_:
                 raise NotFittedError("The model has not been fitted to "
                                      "subject {}.".format(subjects[idx]))
             if X[idx] is not None and (self.w_[subjects[idx]].
@@ -1350,7 +1343,7 @@ class DetMDMS(BaseEstimator, TransformerMixin):
         self.logger = logger
         return
 
-    def fit(self, X, datasets=None, demean=True, y=None):
+    def fit(self, X, datasets, demean=True, y=None):
         """Compute the Deterministic Shared Response Model
 
         Parameters
@@ -1371,7 +1364,8 @@ class DetMDMS(BaseEstimator, TransformerMixin):
 
         datasets : (optional) a Dataset object
             The Dataset object containing datasets structure.
-            If not defined, the structure will be inferred from X.
+            If you only have X, call datasets.build_from_data(X) with full
+            data to infer datasets.
 
         demean : (optional) If True, compute voxel means for each subject
             and subtract from data. If False, voxel means are set to zero
@@ -1383,7 +1377,7 @@ class DetMDMS(BaseEstimator, TransformerMixin):
             self.logger.info('Starting Deterministic SRM')
 
         # Check if datasets is initialized
-        if datasets is not None and datasets.matrix is None:
+        if datasets is None or datasets.matrix is None:
             raise NotFittedError('Dataset object is not initialized.')
 
         # Check X format
@@ -1393,23 +1387,17 @@ class DetMDMS(BaseEstimator, TransformerMixin):
         if format_X != dict and format_X != list:
             raise Exception('X should be a dict of dict of arrays or dict of'
                             ' list of arrays.')
-        if format_X == list and (datasets is None or
-                                 datasets.built_from_data is None or
+        if format_X == list and (datasets.built_from_data is None or
                                  datasets.built_from_data):
             raise Exception("Argument 'datasets' must be defined and built "
                             "from json files when X is a dict of list of 2D "
                             "arrays. ")
-        if format_X == dict and datasets is not None:
+        if format_X == dict:
             datasets.built_from_data = True
         for v in X.values():
             if type(v) != format_X:
                 raise Exception('X should be a dict of dict of arrays or '
                                 'dict of list of arrays.')
-
-        # Infer datasets structure from data
-        if datasets is None:
-            datasets = Dataset()
-            datasets.build_from_data(X)
 
         self.voxels_, self.samples_ = _sanity_check(X, datasets, self.comm)
 
@@ -1454,7 +1442,7 @@ class DetMDMS(BaseEstimator, TransformerMixin):
         # Check if the subject exist in the fitted model and has the right
         # number of voxels
         for idx in range(len(X)):
-            if not subjects[idx] in self.w_:
+            if subjects[idx] not in self.w_:
                 raise NotFittedError("The model has not been fitted to "
                                      "subject {}.".format(subjects[idx]))
             if X[idx] is not None and (self.w_[subjects[idx]].shape[0] !=
@@ -2553,37 +2541,6 @@ class Dataset(object):
         Name of all datasets in the organizer
         """
         return list(self.dataset_to_idx.keys())
-
-    def visualize_graph(self, font_size=14):
-        """Visualize the organizer as a graph where each node is a dataset
-        and the edge is number of shared subjects between the two datasets
-
-        Parameters
-        ----------
-
-        font_size : (optional) float, default = 14
-        Font size of labels in the graph
-
-        Returns
-        -------
-
-        None
-        """
-        if self.adj_matrix is None:
-            raise Exception('Dataset object not initialized.')
-        # build graph from adjacency matrix
-        G = nx.from_numpy_matrix(self.adj_matrix.toarray())
-        # assign edge labels
-        edge_labels = dict([((u, v), self.adj_matrix[u, v])
-                            for u, v in G.edges])
-        pos = nx.spring_layout(G)
-        nx.draw(G, pos=pos, with_labels=False)
-        _ = nx.draw_networkx_labels(G, labels=self.idx_to_dataset,
-                                    pos=pos, font_size=font_size)
-        _ = nx.draw_networkx_edge_labels(G, edge_labels=edge_labels,
-                                         pos=pos, font_size=font_size)
-        plt.show()
-        return
 
     def reset(self):
         """Reset all attributes in the organizer
