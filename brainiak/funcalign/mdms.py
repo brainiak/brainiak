@@ -14,6 +14,7 @@
 """multi-dataset multi-subject (MDMS) SRM analysis
 
 The implementations are based on the following publications:
+
 .. [Zhang2018] "Transfer learning on fMRI datasets",
    H. Zhang, P.-H. Chen, P. Ramadge
    The 21st International Conference on Artificial Intelligence and
@@ -318,8 +319,8 @@ class MDMS(BaseEstimator, TransformerMixin):
     response S among all subjects per dataset and an orthogonal transform W
     across all datasets per subject:
 
-    .. math:: X_{ds} \\approx W_s S_d, \\forall s=1 \\dots N, \\forall d=1 \\
-    dots M
+    .. math::
+       X_{ds} \\approx W_s S_d, \\forall s=1 \\dots N, \\forall d=1 \\dots M\\
 
     Parameters
     ----------
@@ -1260,15 +1261,11 @@ class MDMS(BaseEstimator, TransformerMixin):
 
 
 class DetMDMS(BaseEstimator, TransformerMixin):
-    """Deterministic multi-dataset multi-subject (MDMS) SRM analysis
-    (DetMDMS)
+    """Deterministic multi-dataset multi-subject (MDMS)
 
     Given multi-dataset multi-subject data, factorize it as a shared
     response S among all subjects per dataset and an orthogonal transform W
-    across all datasets per subject:
-
-    .. math:: X_{ds} \\approx W_s S_d, \\forall s=1 \\dots N, \\forall d=1 \\
-    dots M
+    across all datasets per subject.
 
     Parameters
     ----------
@@ -1331,8 +1328,8 @@ class DetMDMS(BaseEstimator, TransformerMixin):
         memory complexity is :math:`O(V T)` with I - the number of
         iterations, V - the sum of number of voxels from all subjects, T -
         the sum of number of samples from all datasets, K - the number of
-        features (typically,
-        :math:`V \\gg T \\gg K`), and N - the number of subjects.
+        features (typically, :math:`V \\gg T \\gg K`), and
+        N - the number of subjects.
     """
 
     def __init__(self, n_iter=10, features=50, rand_seed=0,
@@ -1977,6 +1974,9 @@ class Dataset(object):
     in each dataset, infer datasets structure in different formats, such as
     a graph where each dataset is a node and each edge is number of shared
     subjects between the two datasets.
+
+    .. math::
+       X_{ds} \\approx W_s S_d, \\forall s=1 \\dots N, \\forall d=1 \\dots M\\
 
     This organizer is used in the MDMS or DetMDMS [Zhang2018]_ and can also
     be used as a standalone datasets organizer.
