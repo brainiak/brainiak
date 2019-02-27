@@ -297,13 +297,14 @@ def _check_missing_data(datasets, shape0, shape1, data_exist):
             if datasets.dok_matrix[subj, ds_idx] != 0:
                 if data_exist[ds][subj] == 0:
                     raise ValueError("Data of subject {} in dataset {} is "
-                                     "missing.".format(datasets.dok_matrix[
-                                        subj, ds_idx]-1, ds))
+                                     "missing."
+                                     .format(datasets.idx_to_subject[subj],
+                                             ds))
                 elif data_exist[ds][subj] > 1:
                     raise ValueError("Data of subject {} in dataset {} "
                                      "appears more than once."
-                                     .format(datasets.dok_matrix[
-                                             subj, ds_idx]-1, ds))
+                                     .format(datasets.idx_to_subject[subj],
+                                             ds))
             else:
                 shape0[ds][subj] = 0
                 shape1[ds][subj] = 0

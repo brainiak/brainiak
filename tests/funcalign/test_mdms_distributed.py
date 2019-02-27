@@ -52,73 +52,63 @@ def test_distributed_mdms():  # noqa: C901
             rnd_matrix = np.random.rand(voxels[subj], features)
             W[subj], _ = np.linalg.qr(rnd_matrix)
         # compute X with noise
-        X = {}
+        all_X = {}
         for ds in samples:
-            X[ds] = {}
+            all_X[ds] = {}
             for subj in subj_ds_list[ds]:
                 noise = np.random.normal(loc=0, scale=noise_level *
                                          abs(np.random.randn()),
                                          size=(voxels[subj], samples[ds]))
-                X[ds][subj] = W[subj].dot(S[ds]) + noise
+                all_X[ds][subj] = W[subj].dot(S[ds]) + noise
         # compute data structure
         ds_struct = brainiak.funcalign.mdms.Dataset()
-        ds_struct.build_from_data(X)
+        ds_struct.build_from_data(all_X)
         assert ds_struct, "Invalid Dataset instance!"
-
+        # To distribute data later
+        data_mem = {}
+        tag = 0  # tag start from 0
+        for ds in all_X:
+            data_mem[ds] = {}
+            for subj in all_X[ds]:
+                data_mem[ds][subj] = [np.random.randint(low=0, high=nrank),
+                                      tag]
+                tag += 1
     else:
-        X = {}
-        for ds in samples:
-            X[ds] = {}
-            for subj in subj_ds_list[ds]:
-                X[ds][subj] = None
         ds_struct = None
+        data_mem = None
 
-    # MDMS: broadcast ds_struct
+    # broadcast ds_struct and data_mem
     ds_struct = comm.bcast(ds_struct)
+    data_mem = comm.bcast(data_mem)
+
+    # random distribution of data, otherwise None
+    X = {}
+    for ds in samples:
+        X[ds] = {}
+        for subj in subj_ds_list[ds]:
+            X[ds][subj] = None
+
+    if rank == 0:
+        for ds in X:
+            for subj in X[ds]:
+                mem, tag = data_mem[ds][subj]
+                if mem != 0:
+                    comm.send(all_X[ds][subj], dest=mem, tag=tag)
+                else:
+                    X[ds][subj] = all_X[ds][subj]
+        del all_X
+    else:
+        for ds in X:
+            for subj in X[ds]:
+                mem, tag = data_mem[ds][subj]
+                if mem == rank:
+                    X[ds][subj] = comm.recv(source=0, tag=tag)
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
         s.transform([X['D1']['Adam']], ['Adam'])
     if rank == 0:
         print("Test: transforming before fitting the model")
-
-    # Check that it does NOT run with wrong X structure
-    with pytest.raises(Exception):
-        s.fit({'D1': X['D1'], 'D2': [X['D2']['Bob']]}, ds_struct)
-    if rank == 0:
-        print("Test: running MDMS with wrong X data structure")
-
-    # random distribution of data, otherwise None
-    if rank == 0:
-        data_mem = {}
-        tag = 0  # tag start from 0
-        for ds in X:
-            data_mem[ds] = {}
-            for subj in X[ds]:
-                data_mem[ds][subj] = [np.random.randint(low=0, high=nrank),
-                                      tag]
-                tag += 1
-    else:
-        data_mem = None
-    data_mem = comm.bcast(data_mem)
-    if rank == 0:
-        X_new = {}
-        for ds in X:
-            X_new[ds] = {}
-            for subj in X[ds]:
-                mem, tag = data_mem[ds][subj]
-                if mem != 0:
-                    X_new[ds][subj] = None
-                    comm.send(X[ds][subj], dest=mem, tag=tag)
-                else:
-                    X_new[ds][subj] = X[ds][subj]
-        X = X_new
-    else:
-        for ds in X:
-            for subj in X[ds]:
-                mem, tag = data_mem[ds][subj]
-            if mem == rank:
-                X[ds][subj] = comm.recv(source=0, tag=tag)
 
     # Check that runs with 4 subject
     s.fit(X, ds_struct)
