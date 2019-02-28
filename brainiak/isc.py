@@ -54,7 +54,7 @@ from scipy.stats import pearsonr
 from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import compute_p_from_null_distribution
+from brainiak.utils.utils import p_from_null
 
 logger = logging.getLogger(__name__)
 
@@ -758,9 +758,9 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     shifted = distribution - observed
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, shifted,
-                                         side='two-sided', exact=False,
-                                         axis=0)
+    p = p_from_null(observed, shifted,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, ci, p, distribution
 
@@ -1193,13 +1193,13 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
-        p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=True,
-                                             axis=0)
+        p = p_from_null(observed, distribution,
+                        side='two-sided', exact=True,
+                        axis=0)
     else:
-        p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=False,
-                                             axis=0)
+        p = p_from_null(observed, distribution,
+                        side='two-sided', exact=False,
+                        axis=0)
 
     return observed, p, distribution
 
@@ -1347,9 +1347,9 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False,
-                                         axis=0)
+    p = p_from_null(observed, distribution,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, p, distribution
 
@@ -1512,8 +1512,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False,
-                                         axis=0)
+    p = p_from_null(observed, distribution,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, p, distribution
