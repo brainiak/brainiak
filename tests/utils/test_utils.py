@@ -181,19 +181,6 @@ def test_center_mass_exp():
         'close to its mid-point'
 
 
-def test_ecdf():
-    from brainiak.utils.utils import ecdf
-    import numpy as np
-
-    x = np.array([1, 4, 3])
-    cdf_fun = ecdf(x)
-
-    assert np.isclose(cdf_fun(0), [0]), "Left side of cdf should be 0"
-    assert np.isclose(cdf_fun(5), [1]), "Right side of cdf should be 1"
-    assert np.isclose(cdf_fun(1.5), [1 / 3]), "CDF value incorrect"
-    assert np.isclose(cdf_fun(1), [1 / 3]), "CDF should be right-continuous"
-
-
 def test_p_from_null():
     import numpy as np
     from brainiak.utils.utils import p_from_null

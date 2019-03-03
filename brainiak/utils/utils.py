@@ -32,7 +32,6 @@ __all__ = [
     "center_mass_exp",
     "concatenate_not_none",
     "cov2corr",
-    "ecdf",
     "from_tri_2_sym",
     "from_sym_2_tri",
     "gen_design",
@@ -786,31 +785,6 @@ def phase_randomize(data, voxelwise=False, random_state=None):
         shifted_data = shifted_data[:, 0, :]
 
     return shifted_data
-
-
-def ecdf(x):
-    """Empirical cumulative distribution function
-
-    Given a 1D array of values, returns a function f(q) that outputs the
-    fraction of values less than or equal to q.
-
-    Parameters
-    ----------
-    x : 1D array
-        values for which to compute CDF
-
-    Returns
-    ----------
-    ecdf_fun: Callable[[float], float]
-        function that returns the value of the CDF at a given point
-    """
-    xp = np.sort(x)
-    yp = np.arange(len(xp) + 1) / len(xp)
-
-    def ecdf_fun(q):
-        return yp[np.searchsorted(xp, q, side="right")]
-
-    return ecdf_fun
 
 
 def p_from_null(observed, distribution,
