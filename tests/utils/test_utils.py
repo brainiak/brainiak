@@ -181,35 +181,6 @@ def test_center_mass_exp():
         'close to its mid-point'
 
 
-def test_phase_randomize():
-    from brainiak.utils.utils import phase_randomize
-    import numpy as np
-    from scipy.fftpack import fft
-    import math
-    from scipy.stats import pearsonr
-
-    # Generate auto-correlated signals
-    nv = 2
-    T = 100
-    ns = 3
-    D = np.zeros((nv, T, ns))
-    for v in range(nv):
-        for s in range(ns):
-            D[v, :, s] = np.sin(np.linspace(0, math.pi * 5 * (v + 1), T)) + \
-                         np.sin(np.linspace(0, math.pi * 6 * (s + 1), T))
-
-    freq = fft(D, axis=1)
-    D_pr = phase_randomize(D)
-    freq_pr = fft(D_pr, axis=1)
-    p_corr = pearsonr(np.angle(freq).flatten(), np.angle(freq_pr).flatten())[0]
-
-    assert np.isclose(abs(freq), abs(freq_pr)).all(), \
-        "Amplitude spectrum not preserved under phase randomization"
-
-    assert abs(p_corr) < 0.03, \
-        "Phases still correlated after randomization"
-
-
 def test_ecdf():
     from brainiak.utils.utils import ecdf
     import numpy as np
@@ -224,26 +195,120 @@ def test_ecdf():
 
 
 def test_p_from_null():
-    from brainiak.utils.utils import p_from_null
     import numpy as np
+    from brainiak.utils.utils import p_from_null
 
-    X = np.zeros((2, 5))  # One true value, 4 null values
-    X[0, 0] = 1
-    X[1, 0] = -2
-    X[0, 1:] = [-1.0, 0.00,  0.50, 2.00]
-    X[1, 1:] = [-1.5, 0.25, -0.25, 0.25]
+    # Create random null and observed value in tail
+    null = np.random.randn(10000)
+    observed = np.ceil(np.percentile(null, 97.5) * 1000) / 1000
 
-    Y = X[:, 0]
-    Y_max = np.max(X[:, 1:], axis=0)
-    Y_min = np.min(X[:, 1:], axis=0)
+    # Check two-tailed p-value for observed
+    p_ts = p_from_null(observed, null)
+    assert np.isclose(p_ts, 0.05, atol=1e-02)
 
-    p_1side = p_from_null(X, two_sided=False)
-    assert np.isclose(p_1side, [0.25, 1]).all(), "One-sided p value incorrect"
+    # Check two-tailed p-value for observed
+    p_right = p_from_null(observed, null, side='right')
+    assert np.isclose(p_right, 0.025, atol=1e-02)
+    assert np.isclose(p_right, p_ts / 2, atol=1e-02)
 
-    p_2side = p_from_null(X, two_sided=True)
-    assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"
+    # Check two-tailed p-value for observed
+    p_left = p_from_null(observed, null, side='left')
+    assert np.isclose(p_left, 0.975, atol=1e-02)
+    assert np.isclose(1 - p_left, p_right, atol=1e-02)
+    assert np.isclose(1 - p_left, p_ts / 2, atol=1e-02)
 
-    p_2side_m = p_from_null(Y, two_sided=True,
-                            max_null_input=Y_max,
-                            min_null_input=Y_min)
-    assert np.isclose(p_2side, p_2side_m).all(), "p_null differs with max/min"
+    # Check 2-dimensional input (i.e., samples by voxels)
+    null = np.random.randn(10000, 3)
+    observed = np.ceil(np.percentile(null, 97.5, axis=0) * 1000) / 1000
+
+    # Check two-tailed p-value for observed
+    p_ts = p_from_null(observed, null, axis=0)
+    assert np.allclose(p_ts, 0.05, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_right = p_from_null(observed, null, side='right', axis=0)
+    assert np.allclose(p_right, 0.025, atol=1e-02)
+    assert np.allclose(p_right, p_ts / 2, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_left = p_from_null(observed, null, side='left', axis=0)
+    assert np.allclose(p_left, 0.975, atol=1e-02)
+    assert np.allclose(1 - p_left, p_right, atol=1e-02)
+    assert np.allclose(1 - p_left, p_ts / 2, atol=1e-02)
+
+    # Check for exact test
+    p_ts = p_from_null(observed, null, exact=True, axis=0)
+    assert np.allclose(p_ts, 0.05, atol=1e-02)
+
+    # Check two-tailed p-value for exact
+    p_right = p_from_null(observed, null, side='right',
+                          exact=True, axis=0)
+    assert np.allclose(p_right, 0.025, atol=1e-02)
+    assert np.allclose(p_right, p_ts / 2, atol=1e-02)
+
+    # Check two-tailed p-value for exact
+    p_left = p_from_null(observed, null, side='left',
+                         exact=True, axis=0)
+    assert np.allclose(p_left, 0.975, atol=1e-02)
+    assert np.allclose(1 - p_left, p_right, atol=1e-02)
+    assert np.allclose(1 - p_left, p_ts / 2, atol=1e-02)
+
+
+def test_phase_randomize():
+    import numpy as np
+    from scipy.fftpack import fft
+    from scipy.stats import pearsonr
+    from brainiak.utils.utils import phase_randomize
+
+    data = np.repeat(np.repeat(np.random.randn(60)[:, np.newaxis, np.newaxis],
+                               30, axis=1),
+                     20, axis=2)
+    assert np.array_equal(data[..., 0], data[..., 1])
+
+    # Phase-randomize data across subjects (same across voxels)
+    shifted_data = phase_randomize(data, voxelwise=False, random_state=1)
+    assert shifted_data.shape == data.shape
+    assert not np.array_equal(shifted_data[..., 0], shifted_data[..., 1])
+    assert not np.array_equal(shifted_data[..., 0], data[..., 0])
+
+    # Check that random_state returns same shifts
+    shifted_data_ = phase_randomize(data, voxelwise=False, random_state=1)
+    assert np.array_equal(shifted_data, shifted_data_)
+
+    shifted_data_ = phase_randomize(data, voxelwise=False, random_state=2)
+    assert not np.array_equal(shifted_data, shifted_data_)
+
+    # Phase-randomize subjects and voxels
+    shifted_data = phase_randomize(data, voxelwise=True, random_state=1)
+    assert shifted_data.shape == data.shape
+    assert not np.array_equal(shifted_data[..., 0], shifted_data[..., 1])
+    assert not np.array_equal(shifted_data[..., 0], data[..., 0])
+    assert not np.array_equal(shifted_data[:, 0, 0], shifted_data[:, 1, 0])
+
+    # Try with 2-dimensional input
+    shifted_data = phase_randomize(data[..., 0],
+                                   voxelwise=True,
+                                   random_state=1)
+    assert shifted_data.ndim == 2
+    assert not np.array_equal(shifted_data[:, 0], shifted_data[:, 1])
+
+    # Create correlated noisy data
+    corr_data = np.repeat(np.random.randn(60)[:, np.newaxis, np.newaxis],
+                          2, axis=2) + np.random.randn(60, 1, 2)
+
+    # Get correlation and frequency domain for data
+    corr_r = pearsonr(corr_data[:, 0, 0],
+                      corr_data[:, 0, 1])[0]
+    corr_freq = fft(corr_data, axis=0)
+
+    # Phase-randomize time series and get correlation/frequency
+    shifted_data = phase_randomize(corr_data)
+    shifted_r = pearsonr(shifted_data[:, 0, 0],
+                         shifted_data[:, 0, 1])[0]
+    shifted_freq = fft(shifted_data, axis=0)
+
+    # Check that phase-randomization reduces correlation
+    assert np.abs(shifted_r) < np.abs(corr_r)
+
+    # Check that amplitude spectrum is preserved
+    assert np.allclose(np.abs(shifted_freq), np.abs(corr_freq))

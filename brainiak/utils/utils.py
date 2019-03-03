@@ -17,9 +17,8 @@ import warnings
 import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
-from sklearn.utils import check_random_state
+import brainiak.isc as isc
 from scipy.fftpack import fft, ifft
-import math
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,7 +30,6 @@ Some utility functions that can be used by different algorithms
 
 __all__ = [
     "center_mass_exp",
-    "compute_p_from_null_distribution",
     "concatenate_not_none",
     "cov2corr",
     "ecdf",
@@ -697,25 +695,42 @@ def usable_cpu_count():
     return result
 
 
-def phase_randomize(D, random_state=0):
-    """Randomly shift signal phases
+def phase_randomize(data, voxelwise=False, random_state=None):
+    """Randomize phase of time series across subjects
 
-    For each timecourse (from each voxel and each subject), computes its DFT
-    and then randomly shifts the phase of each frequency before inverting
-    back into the time domain. This yields timecourses with the same power
-    spectrum (and thus the same autocorrelation) as the original timecourses,
-    but will remove any meaningful temporal relationships between the
-    timecourses.
+    For each subject, apply Fourier transform to voxel time series
+    and then randomly shift the phase of each frequency before inverting
+    back into the time domain. This yields time series with the same power
+    spectrum (and thus the same autocorrelation) as the original time series
+    but will remove any meaningful temporal relationships among time series
+    across subjects. By default (voxelwise=False), the same phase shift is
+    applied across all voxels; however if voxelwise=True, different random
+    phase shifts are applied to each voxel. The typical input is a time by
+    voxels by subjects ndarray. The first dimension is assumed to be the
+    time dimension and will be phase randomized. If a 2-dimensional ndarray
+    is provided, the last dimension is assumed to be subjects, and different
+    phase randomizations will be applied to each subject.
 
-    This procedure is described in:
-    Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
-    (2016) Dynamic reconfiguration of the default mode network during narrative
-    comprehension. Nat Commun 7.
+    The implementation is based on the work in [Lerner2011]_ and
+    [Simony2016]_.
+
+    .. [Lerner2011] "Topographic mapping of a hierarchy of temporal
+       receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
+       L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
+       https://doi.org/10.1523/jneurosci.3684-10.2011
+
+    .. [Simony2016] "Dynamic reconfiguration of the default mode network
+       during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
+       Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature
+       Communications, 7, 12141. https://doi.org/10.1038/ncomms12141
 
     Parameters
     ----------
-    D : voxel by time by subject ndarray
-        fMRI data to be phase randomized
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        Data to be phase randomized (per subject)
+
+    voxelwise : bool, default: False
+        Apply same (False) or different (True) randomizations across voxels
 
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
@@ -723,28 +738,54 @@ def phase_randomize(D, random_state=0):
 
     Returns
     ----------
-    ndarray of same shape as D
-        phase randomized timecourses
+    shifted_data : ndarray (n_TRs x n_voxels x n_subjects)
+        Phase-randomized time series
     """
 
-    random_state = check_random_state(random_state)
+    # Check if input is 2-dimensional
+    data_ndim = data.ndim
 
-    F = fft(D, axis=1)
-    if D.shape[1] % 2 == 0:
-        pos_freq = np.arange(1, D.shape[1] // 2)
-        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
+    # Get basic shape of data
+    data, n_TRs, n_voxels, n_subjects = isc._check_timeseries_input(data)
+
+    # Random seed to be deterministically re-randomized at each iteration
+    if isinstance(random_state, np.random.RandomState):
+        prng = random_state
     else:
-        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
-        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
+        prng = np.random.RandomState(random_state)
 
-    shift = random_state.rand(D.shape[0], len(pos_freq),
-                              D.shape[2]) * 2 * math.pi
+    # Get randomized phase shifts
+    if n_TRs % 2 == 0:
+        # Why are we indexing from 1 not zero here? n_TRs / -1 long?
+        pos_freq = np.arange(1, data.shape[0] // 2)
+        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
+        neg_freq = np.arange(data.shape[0] - 1,
+                             (data.shape[0] - 1) // 2, -1)
+
+    if not voxelwise:
+        phase_shifts = (prng.rand(len(pos_freq), 1, n_subjects)
+                        * 2 * np.math.pi)
+    else:
+        phase_shifts = (prng.rand(len(pos_freq), n_voxels, n_subjects)
+                        * 2 * np.math.pi)
+
+    # Fast Fourier transform along time dimension of data
+    fft_data = fft(data, axis=0)
 
     # Shift pos and neg frequencies symmetrically, to keep signal real
-    F[:, pos_freq, :] *= np.exp(1j * shift)
-    F[:, neg_freq, :] *= np.exp(-1j * shift)
+    fft_data[pos_freq, :, :] *= np.exp(1j * phase_shifts)
+    fft_data[neg_freq, :, :] *= np.exp(-1j * phase_shifts)
 
-    return np.real(ifft(F, axis=1))
+    # Inverse FFT to put data back in time domain
+    shifted_data = np.real(ifft(fft_data, axis=0))
+
+    # Go back to 2-dimensions if input was 2-dimensional
+    if data_ndim == 2:
+        shifted_data = shifted_data[:, 0, :]
+
+    return shifted_data
 
 
 def ecdf(x):
@@ -775,7 +816,6 @@ def ecdf(x):
 def p_from_null(observed, distribution,
                 side='two-sided', exact=False,
                 axis=None):
-
     """Compute p-value from null distribution
 
     Returns the p-value for an observed test statistic given a null

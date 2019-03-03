@@ -51,10 +51,9 @@ import numpy as np
 import logging
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr
-from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import p_from_null
+from brainiak.utils.utils import phase_randomize, p_from_null
 
 logger = logging.getLogger(__name__)
 
@@ -747,7 +746,6 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
-    assert distribution.shape == (n_bootstraps, n_voxels)
 
     # Compute CIs of median from bootstrap distribution (default: 95%)
     ci = (np.percentile(distribution, (100 - ci_percentile)/2, axis=0),
@@ -1189,7 +1187,6 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
-    assert distribution.shape == (n_permutations, n_voxels)
 
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
@@ -1344,7 +1341,6 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
-    assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
     p = p_from_null(observed, distribution,
@@ -1442,30 +1438,11 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         else:
             prng = np.random.RandomState(random_state)
 
-        # Get randomized phase shifts
-        if n_TRs % 2 == 0:
-            # Why are we indexing from 1 not zero here? n_TRs / -1 long?
-            pos_freq = np.arange(1, data.shape[0] // 2)
-            neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
-        else:
-            pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
-            neg_freq = np.arange(data.shape[0] - 1,
-                                 (data.shape[0] - 1) // 2, -1)
-
-        phase_shifts = prng.rand(len(pos_freq), 1, n_subjects) * 2 * np.math.pi
+        # Get shifted version of data
+        shifted_data = phase_randomize(data, random_state=prng)
 
         # In pairwise approach, apply all shifts then compute pairwise ISCs
         if pairwise:
-
-            # Fast Fourier transform along time dimension of data
-            fft_data = fft(data, axis=0)
-
-            # Shift pos and neg frequencies symmetrically, to keep signal real
-            fft_data[pos_freq, :, :] *= np.exp(1j * phase_shifts)
-            fft_data[neg_freq, :, :] *= np.exp(-1j * phase_shifts)
-
-            # Inverse FFT to put data back in time domain for ISC
-            shifted_data = np.real(ifft(fft_data, axis=0))
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=True,
@@ -1475,24 +1452,15 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
 
-            # Roll subject axis in phaseshifts for loop
-            phase_shifts = np.rollaxis(phase_shifts, 2, 0)
+            # Roll subject axis of phase-randomized data
+            shifted_data = np.rollaxis(shifted_data, 2, 0)
 
             shifted_isc = []
-            for s, shift in enumerate(phase_shifts):
-
-                # Apply FFT to left-out subject
-                fft_subject = fft(data[:, :, s], axis=0)
-
-                # Shift pos and neg frequencies symmetrically, keep signal real
-                fft_subject[pos_freq, :] *= np.exp(1j * shift)
-                fft_subject[neg_freq, :] *= np.exp(-1j * shift)
-
-                # Inverse FFT to put data back in time domain for ISC
-                shifted_subject = np.real(ifft(fft_subject, axis=0))
+            for s, shifted_subject in enumerate(shifted_data):
 
                 # ISC of shifted left-out subject vs mean of N-1 subjects
-                nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
+                nonshifted_mean = np.mean(np.delete(data, s, axis=2),
+                                          axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)),
                               pairwise=False, summary_statistic=None,
                               tolerate_nans=tolerate_nans)
@@ -1509,7 +1477,6 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
-    assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
     p = p_from_null(observed, distribution,
