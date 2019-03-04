@@ -17,7 +17,6 @@ import warnings
 import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
-import brainiak.isc as isc
 from scipy.fftpack import fft, ifft
 import logging
 
@@ -745,7 +744,7 @@ def phase_randomize(data, voxelwise=False, random_state=None):
     data_ndim = data.ndim
 
     # Get basic shape of data
-    data, n_TRs, n_voxels, n_subjects = isc._check_timeseries_input(data)
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
     # Random seed to be deterministically re-randomized at each iteration
     if isinstance(random_state, np.random.RandomState):
@@ -857,3 +856,66 @@ def p_from_null(observed, distribution,
         p = (numerator + 1) / (n_samples + 1)
 
     return p
+
+
+def _check_timeseries_input(data):
+
+    """Checks response time series input data (e.g., for ISC analysis)
+
+    Input data should be a n_TRs by n_voxels by n_subjects ndarray
+    (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
+    item is a n_TRs by n_voxels ndarray for a given subject. Multiple
+    input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. This
+    function is generally intended to be used internally by other
+    functions module (e.g., isc, isfc in brainiak.isc).
+
+    Parameters
+    ----------
+    data : ndarray or list
+        Time series data
+
+    Returns
+    -------
+    data : ndarray
+        Input time series data with standardized structure
+
+    n_TRs : int
+        Number of time points (TRs)
+
+    n_voxels : int
+        Number of voxels (or ROIs)
+
+    n_subjects : int
+        Number of subjects
+
+    """
+
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
+
+    # Convert input ndarray to 3d and check shape
+    elif isinstance(data, np.ndarray):
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             "or 3 dimensions (got {0})!".format(data.ndim))
+
+    # Infer subjects, TRs, voxels and log for user to check
+    n_TRs, n_voxels, n_subjects = data.shape
+    logger.info("Assuming {0} subjects with {1} time points "
+                "and {2} voxel(s) or ROI(s) for ISC analysis.".format(
+                    n_subjects, n_TRs, n_voxels))
+
+    return data, n_TRs, n_voxels, n_subjects

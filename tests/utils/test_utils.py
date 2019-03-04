@@ -299,3 +299,81 @@ def test_phase_randomize():
 
     # Check that amplitude spectrum is preserved
     assert np.allclose(np.abs(shifted_freq), np.abs(corr_freq))
+
+
+def test_check_timeseries_input():
+    import numpy as np
+    from itertools import combinations
+    from brainiak.utils.utils import _check_timeseries_input
+
+    # Set a fixed vector for comparison
+    vector = np.random.randn(60)
+
+    # List of subjects with one voxel/ROI
+    list_1d = [vector for _ in np.arange(10)]
+    (data_list_1d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_1d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # Array of subjects with one voxel/ROI
+    array_2d = np.hstack([vector[:, np.newaxis]
+                          for _ in np.arange(10)])
+    (data_array_2d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_2d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # List of 2-dimensional arrays
+    list_2d = [vector[:, np.newaxis] for _ in np.arange(10)]
+    (data_list_2d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_2d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # List of 3-dimensional arrays
+    list_3d = [vector[:, np.newaxis, np.newaxis]
+               for _ in np.arange(10)]
+    (data_list_3d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_3d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # 3-dimensional array
+    array_3d = np.dstack([vector[:, np.newaxis]
+                          for _ in np.arange(10)])
+    (data_array_3d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_3d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # Check they're the same
+    for pair in combinations([data_list_1d, data_array_2d,
+                              data_list_2d, data_list_3d,
+                              data_array_3d], 2):
+        assert np.array_equal(pair[0], pair[1])
+
+    # List of multivoxel arrays
+    matrix = np.random.randn(60, 30)
+    list_mv = [matrix
+               for _ in np.arange(10)]
+    (data_list_mv, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_mv)
+    assert n_TRs == 60
+    assert n_voxels == 30
+    assert n_subjects == 10
+
+    # 3-dimensional array with multiple voxels
+    array_mv = np.dstack([matrix for _ in np.arange(10)])
+    (data_array_mv, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_mv)
+    assert n_TRs == 60
+    assert n_voxels == 30
+    assert n_subjects == 10
+
+    assert np.array_equal(data_list_mv, data_array_mv)
