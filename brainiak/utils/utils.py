@@ -712,16 +712,6 @@ def phase_randomize(data, voxelwise=False, random_state=None):
     The implementation is based on the work in [Lerner2011]_ and
     [Simony2016]_.
 
-    .. [Lerner2011] "Topographic mapping of a hierarchy of temporal
-       receptive windows using a narrated story.", Y. Lerner, C. J. Honey,
-       L. J. Silbert, U. Hasson, 2011, Journal of Neuroscience, 31, 2906-2915.
-       https://doi.org/10.1523/jneurosci.3684-10.2011
-
-    .. [Simony2016] "Dynamic reconfiguration of the default mode network
-       during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
-       Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature
-       Communications, 7, 12141. https://doi.org/10.1038/ncomms12141
-
     Parameters
     ----------
     data : ndarray (n_TRs x n_voxels x n_subjects)
