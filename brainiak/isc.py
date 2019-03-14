@@ -182,20 +182,23 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     return iscs
 
 
-def isfc(data, pairwise=False, summary_statistic=None,
+def isfc(data, targets=None, pairwise=False, summary_statistic=None,
          vectorize_isfcs=True, tolerate_nans=True):
 
     """Intersubject functional correlation (ISFC)
 
-    For each voxel or ROI, compute the Pearson correlation between each
-    subject's response time series and other subjects' response time series
-    for all voxels or ROIs. If pairwise is False (default), use the
-    leave-one-out approach, where correlation is computed between each
-    subject and the average of the other subjects. If pairwise is True,
-    compute correlations between all pairs of subjects. If summary_statistic
-    is None, return N ISFC values for N subjects (leave-one-out) or N(N-1)/2
-    ISFC values for each pair of N subjects, corresponding to the upper
-    triangle of the correlation matrix (see scipy.spatial.distance.squareform).
+    For each input voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and all input voxels or ROIs in other
+    subjects. If a targets array is provided, instead compute ISFCs between
+    each input voxel time series and each voxel time series in targets across
+    subjects (resulting in asymmetric ISFC values). The targets array must have
+    the same number TRs and subjects as the input data. If pairwise is False
+    (default), use the leave-one-out approach, where correlation is computed
+    between each subject and the average of the other subjects. If pairwise is
+    True, compute correlations between all pairs of subjects. If
+    summary_statistic is None, return N ISFC values for N subjects (leave-one-
+    out) or N(N-1)/2 ISFC values for each pair of N subjects, corresponding to
+    the triangle of the correlation matrix (scipy.spatial.distance.squareform).
     Alternatively, use either 'mean' or 'median' to compute summary statistic
     of ISFCs (Fisher Z is applied if using mean). Input should be n_TRs by
     n_voxels by n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData)
@@ -222,7 +225,9 @@ def isfc(data, pairwise=False, summary_statistic=None,
     a tuple comprising condensed off-diagonal ISFC values and the diagonal
     ISC values if vectorize_isfcs=True, or a single ndarray with shape
     n_subjects (or n_pairs) by n_voxels by n_voxels 3D array if
-    vectorize_isfcs=False (see brainiak.isc.squareform_isfc). If
+    vectorize_isfcs=False (see brainiak.isc.squareform_isfc). If targets array
+    is provided (yielding asymmetric ISFCs), output ISFCs are not vectorized,
+    resulting in an n_subjects by n_voxels by n_targets ISFC array. If
     summary_statistic is supplied, output is collapsed along first dimension.
 
     The implementation is based on the work in [Simony2016]_.
@@ -231,6 +236,9 @@ def isfc(data, pairwise=False, summary_statistic=None,
     ----------
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISFC
+
+    targets : list or ndarray (n_TRs x n_voxels x n_subjects), optional
+        fMRI data to use as targets for ISFC
 
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
@@ -254,6 +262,20 @@ def isfc(data, pairwise=False, summary_statistic=None,
 
     # Check response time series input format
     data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+    if isinstance(targets, np.ndarray) or isinstance(targets, list):
+        targets, t_n_TRs, t_n_voxels, t_n_subjects = (
+            check_timeseries_input(targets))
+        if n_TRs != t_n_TRs:
+            raise ValueError("Targets array must have same number of TRs as"
+                             "input data")
+        if n_subjects != t_n_subjects:
+            raise ValueError("Targets array must have same number of subjects"
+                             "as input data")
+        symmetric = False
+    else:
+        targets = data
+        t_n_TRs, t_n_voxels, t_n_subjects = data.shape
+        symmetric = True
 
     # Check tolerate_nans input and use either mean/nanmean and exclude voxels
     if tolerate_nans:
@@ -261,6 +283,7 @@ def isfc(data, pairwise=False, summary_statistic=None,
     else:
         mean = np.mean
     data, mask = _threshold_nans(data, tolerate_nans)
+    targets, targets_mask = _threshold_nans(targets, tolerate_nans)
 
     # Handle just two subjects properly
     if n_subjects == 2:
@@ -279,33 +302,39 @@ def isfc(data, pairwise=False, summary_statistic=None,
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
-                                                data[..., pair[1]].T),
+                                                targeets[..., pair[1]].T),
                                             return_nans=True)
-            isfc_pair = (isfc_pair + isfc_pair.T) / 2
+            if symmetric:
+                isfc_pair = (isfc_pair + isfc_pair.T) / 2
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
+        assert isfcs.shape == (n_voxels, t_n_voxels,
+                               n_subjects * (n_subjects - 1) / 2)
 
     # Compute ISFCs using leave-one-out approach
     elif not pairwise:
 
         # Roll subject axis for loop
         data = np.rollaxis(data, 2, 0)
+        targets = np.rollaxis(targets, 2, 0)
 
         # Compute leave-one-out ISFCs
         isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
                                      np.ascontiguousarray(mean(
-                                         np.delete(data, s, axis=0),
+                                         np.delete(targets, s, axis=0),
                                          axis=0).T),
                                      return_nans=True)
                  for s, subject in enumerate(data)]
 
         # Transpose and average ISFC matrices for both directions
-        isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
-                           for isfc_matrix in isfcs])
+        isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2 if
+                           symmetric else isfc_matrix for
+                           isfc_matrix in isfcs])
+        assert isfcs.shape == (n_voxels, t_n_voxels, n_subjects)
 
     # Get ISCs back into correct shape after masking out NaNs
-    isfcs_all = np.full((n_voxels, n_voxels, isfcs.shape[2]), np.nan)
-    isfcs_all[np.ix_(np.where(mask)[0], np.where(mask)[0])] = isfcs
+    isfcs_all = np.full((n_voxels, t_n_voxels, isfcs.shape[2]), np.nan)
+    isfcs_all[np.ix_(np.where(mask)[0], np.where(targets_mask)[0])] = isfcs
     isfcs = np.moveaxis(isfcs_all, 2, 0)
 
     # Summarize results (if requested)
@@ -318,8 +347,8 @@ def isfc(data, pairwise=False, summary_statistic=None,
     if isfcs.shape[0] == 1:
         isfcs = isfcs[0]
 
-    # Optionally squareform to vectorize ISFC matrices
-    if vectorize_isfcs:
+    # Optionally squareform to vectorize ISFC matrices (only if symmetric)
+    if vectorize_isfcs and symmetric:
         isfcs, iscs = squareform_isfc(isfcs)
         return isfcs, iscs
     else:
