@@ -189,6 +189,12 @@ def test_p_from_null():
     null = np.random.randn(10000)
     observed = np.ceil(np.percentile(null, 97.5) * 1000) / 1000
 
+    # Check that we catch improper side
+    try:
+        _ = p_from_null(observed, null, side='wrong')
+    except ValueError:
+        pass
+
     # Check two-tailed p-value for observed
     p_ts = p_from_null(observed, null)
     assert np.isclose(p_ts, 0.05, atol=1e-02)
@@ -257,6 +263,9 @@ def test_phase_randomize():
     assert shifted_data.shape == data.shape
     assert not np.array_equal(shifted_data[..., 0], shifted_data[..., 1])
     assert not np.array_equal(shifted_data[..., 0], data[..., 0])
+
+    # Check that uneven n_TRs doesn't explode
+    _ = phase_randomize(data[:-1, ...])
 
     # Check that random_state returns same shifts
     shifted_data_ = phase_randomize(data, voxelwise=False, random_state=1)
@@ -334,6 +343,13 @@ def test_check_timeseries_input():
     assert n_voxels == 1
     assert n_subjects == 10
 
+    # Check if lists have mismatching size
+    list_bad = [list_2d[0][:-1, :]] + list_2d[1:]
+    try:
+        (data_list_bad, _, _, _) = _check_timeseries_input(list_bad)
+    except ValueError:
+        pass
+
     # List of 3-dimensional arrays
     list_3d = [vector[:, np.newaxis, np.newaxis]
                for _ in np.arange(10)]
@@ -351,6 +367,13 @@ def test_check_timeseries_input():
     assert n_TRs == 60
     assert n_voxels == 1
     assert n_subjects == 10
+
+    # Check that 4-dimensional input array throws error
+    array_4d = array_3d[..., np.newaxis]
+    try:
+        (data_array_4d, _, _, _) = _check_timeseries_input(array_4d)
+    except ValueError:
+        pass
 
     # Check they're the same
     for pair in combinations([data_list_1d, data_array_2d,

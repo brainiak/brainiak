@@ -827,13 +827,13 @@ def p_from_null(observed, distribution,
     logger.info("Assuming {0} resampling iterations".format(n_samples))
 
     if side == 'two-sided':
-        # numerator for two-sided test
+        # Numerator for two-sided test
         numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=axis)
     elif side == 'left':
-        # numerator for one-sided test in left tail
+        # Numerator for one-sided test in left tail
         numerator = np.sum(distribution <= observed, axis=axis)
     elif side == 'right':
-        # numerator for one-sided test in right tail
+        # Numerator for one-sided test in right tail
         numerator = np.sum(distribution >= observed, axis=axis)
 
     # If exact test all possible permutations and do not adjust
