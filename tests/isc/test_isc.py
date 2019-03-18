@@ -669,6 +669,62 @@ def test_isfc_options():
     isfcs, iscs_v = isfc(data, pairwise=True)
     assert np.allclose(iscs, iscs_v, rtol=1e-03)
 
+    # Generate 'targets' data and use for ISFC
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array')
+    n_targets = 15
+    targets_data = simulated_timeseries(n_subjects, n_TRs,
+                                        n_voxels=n_targets,
+                                        data_type='array')
+    isfcs = isfc(data, targets=targets_data, pairwise=False,
+                 vectorize_isfcs=False)
+    assert isfcs.shape == (n_subjects, n_voxels, n_targets)
+
+    # Ensure 'square' output enforced
+    isfcs = isfc(data, targets=targets_data, pairwise=False,
+                 vectorize_isfcs=True)
+    assert isfcs.shape == (n_subjects, n_voxels, n_targets)
+
+    # Check list input for targets
+    targets_data = simulated_timeseries(n_subjects, n_TRs,
+                                        n_voxels=n_targets,
+                                        data_type='list')
+    isfcs = isfc(data, targets=targets_data, pairwise=False,
+                 vectorize_isfcs=False)
+    assert isfcs.shape == (n_subjects, n_voxels, n_targets)
+
+    # Check that mismatching subjects / TRs breaks targets
+    targets_data = simulated_timeseries(n_subjects, n_TRs,
+                                        n_voxels=n_targets,
+                                        data_type='array')
+
+    try:
+        isfcs = isfc(data, targets=targets_data[..., :-1],
+                     pairwise=False, vectorize_isfcs=False)
+    except ValueError:
+        logging.info("Correctly caught mismatching n_subjects")
+    assert isfcs.shape == (n_subjects, n_voxels, n_targets)
+
+    try:
+        isfcs = isfc(data, targets=targets_data[:-1, ...],
+                     pairwise=False, vectorize_isfcs=False)
+    except ValueError:
+        logging.info("Correctly caught mismatching n_TRs")
+
+    # Check targets for only 2 subjects
+    isfcs = isfc(data[..., :2], targets=targets_data[..., :2],
+                 pairwise=False, summary_statistic=None)
+    assert isfcs.shape == (2, n_voxels, n_targets)
+
+    isfcs = isfc(data[..., :2], targets=targets_data[..., :2],
+                 pairwise=True, summary_statistic=None)
+    assert isfcs.shape == (2, n_voxels, n_targets)
+
+    # Check that supplying targets enforces leave-one-out
+    isfcs_pw = isfc(data, targets=targets_data, pairwise=True,
+                    vectorize_isfcs=False, tolerate_nans=False)
+    assert isfcs_pw.shape == (n_subjects, n_voxels, n_targets)
+
     logger.info("Finished testing ISFC options")
 
 
@@ -827,6 +883,28 @@ def test_isfc_nans():
     assert (np.sum(np.isnan(isfcs_pw_T)) ==
             np.sum(np.isnan(isfcs_pw_T)) ==
             11210)
+
+    # Check for NaN-handling in targets
+    n_targets = 15
+    data = simulated_timeseries(n_subjects, n_TRs,
+                                n_voxels=n_voxels, data_type='array',
+                                random_state=random_state)
+    targets_data = simulated_timeseries(n_subjects, n_TRs,
+                                        n_voxels=n_targets,
+                                        data_type='array')
+
+    # Inject NaNs into targets_data
+    targets_data[0, 0, 0] = np.nan
+
+    # Don't tolerate NaNs, should lose zeroeth voxel
+    isfcs_loo = isfc(data,  targets=targets_data, pairwise=False,
+                     vectorize_isfcs=False, tolerate_nans=False)
+    assert np.sum(np.isnan(isfcs_loo)) == (n_subjects - 1) * (n_targets * 2)
+
+    # Single NaN in targets will get averaged out with tolerate
+    isfcs_loo = isfc(data, targets=targets_data, pairwise=False,
+                     vectorize_isfcs=False, tolerate_nans=True)
+    assert np.sum(np.isnan(isfcs_loo)) == 0
 
 
 def test_squareform_isfc():

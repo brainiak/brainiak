@@ -195,7 +195,8 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
     the same number TRs and subjects as the input data. If pairwise is False
     (default), use the leave-one-out approach, where correlation is computed
     between each subject and the average of the other subjects. If pairwise is
-    True, compute correlations between all pairs of subjects. If
+    True, compute correlations between all pairs of subjects. If a targets
+    array is provided, only the leave-one-out approach is supported. If
     summary_statistic is None, return N ISFC values for N subjects (leave-one-
     out) or N(N-1)/2 ISFC values for each pair of N subjects, corresponding to
     the triangle of the correlation matrix (scipy.spatial.distance.squareform).
@@ -262,20 +263,12 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
 
     # Check response time series input format
     data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
-    if isinstance(targets, np.ndarray) or isinstance(targets, list):
-        targets, t_n_TRs, t_n_voxels, t_n_subjects = (
-            check_timeseries_input(targets))
-        if n_TRs != t_n_TRs:
-            raise ValueError("Targets array must have same number of TRs as"
-                             "input data")
-        if n_subjects != t_n_subjects:
-            raise ValueError("Targets array must have same number of subjects"
-                             "as input data")
-        symmetric = False
-    else:
-        targets = data
-        t_n_TRs, t_n_voxels, t_n_subjects = data.shape
-        symmetric = True
+
+    # Check for optional targets input array
+    targets, t_n_TRs, t_n_voxels, t_n_subejcts, symmetric = (
+        _check_targets_input(targets, data))
+    if not symmetric:
+        pairwise = False
 
     # Check tolerate_nans input and use either mean/nanmean and exclude voxels
     if tolerate_nans:
@@ -285,8 +278,8 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
     data, mask = _threshold_nans(data, tolerate_nans)
     targets, targets_mask = _threshold_nans(targets, tolerate_nans)
 
-    # Handle just two subjects properly
-    if n_subjects == 2:
+    # Handle just two subjects properly (for symmetric approach)
+    if symmetric and n_subjects == 2:
         isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
                                     np.ascontiguousarray(data[..., 1].T),
                                     return_nans=True)
@@ -295,24 +288,22 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
         summary_statistic = None
         logger.info("Only two subjects! Computing ISFC between them.")
 
-    # Compute all pairwise ISFCs
+    # Compute all pairwise ISFCs (only for symmetric approach)
     elif pairwise:
         isfcs = []
         for pair in it.combinations(np.arange(n_subjects), 2):
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
-                                                targeets[..., pair[1]].T),
+                                                targets[..., pair[1]].T),
                                             return_nans=True)
             if symmetric:
                 isfc_pair = (isfc_pair + isfc_pair.T) / 2
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
-        assert isfcs.shape == (n_voxels, t_n_voxels,
-                               n_subjects * (n_subjects - 1) / 2)
 
     # Compute ISFCs using leave-one-out approach
-    elif not pairwise:
+    else:
 
         # Roll subject axis for loop
         data = np.rollaxis(data, 2, 0)
@@ -330,7 +321,6 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
         isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2 if
                            symmetric else isfc_matrix for
                            isfc_matrix in isfcs])
-        assert isfcs.shape == (n_voxels, t_n_voxels, n_subjects)
 
     # Get ISCs back into correct shape after masking out NaNs
     isfcs_all = np.full((n_voxels, t_n_voxels, isfcs.shape[2]), np.nan)
@@ -408,6 +398,60 @@ def _check_isc_input(iscs, pairwise=False):
                                                                    n_voxels))
 
     return iscs, n_subjects, n_voxels
+
+
+def _check_targets_input(targets, data):
+
+    """Checks ISFC targets input array
+
+    For ISFC analysis, targets input array should either be a list
+    of n_TRs by n_targets arrays (where each array corresponds to
+    a subject), or an n_TRs by n_targets by n_subjects ndarray. This
+    function also checks the shape of the targets array against the
+    input data array.
+
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISFC
+
+    targets : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data to use as targets for ISFC
+
+    Returns
+    -------
+    targets : ndarray (n_TRs x n_voxels x n_subjects)
+        ISFC targets with standadized structure
+
+    n_TRs : int
+        Number of time points (TRs) for targets array
+
+    n_voxels : int
+        Number of voxels (or ROIs) for targets array
+
+    n_subjects : int
+        Number of subjects for targets array
+
+    symmetric : bool
+        Indicator for symmetric vs. asymmetric
+    """
+
+    if isinstance(targets, np.ndarray) or isinstance(targets, list):
+        targets, n_TRs, n_voxels, n_subjects = (
+            _check_timeseries_input(targets))
+        if data.shape[0] != n_TRs:
+            raise ValueError("Targets array must have same number of "
+                             "TRs as input data")
+        if data.shape[2] != n_subjects:
+            raise ValueError("Targets array must have same number of "
+                             "subjects as input data")
+        symmetric = False
+    else:
+        targets = data
+        n_TRs, n_voxels, n_subjects = data.shape
+        symmetric = True
+
+    return targets, n_TRs, n_voxels, n_subjects, symmetric
 
 
 def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
