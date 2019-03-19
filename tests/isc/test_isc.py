@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import pytest
 from brainiak.isc import (isc, isfc, bootstrap_isc, permutation_isc,
                           squareform_isfc, timeshift_isc,
                           phaseshift_isc)
@@ -129,10 +130,8 @@ def test_isc_options():
     isc_median = isc(data, pairwise=False, summary_statistic='median')
     assert isc_median.shape == (n_voxels,)
 
-    try:
+    with pytest.raises(ValueError):
         isc(data, pairwise=False, summary_statistic='min')
-    except ValueError:
-        logger.info("Correctly caught unexpected summary statistic")
 
     logger.info("Finished testing ISC options")
 
@@ -698,18 +697,14 @@ def test_isfc_options():
                                         n_voxels=n_targets,
                                         data_type='array')
 
-    try:
+    with pytest.raises(ValueError):
         isfcs = isfc(data, targets=targets_data[..., :-1],
                      pairwise=False, vectorize_isfcs=False)
-    except ValueError:
-        logging.info("Correctly caught mismatching n_subjects")
     assert isfcs.shape == (n_subjects, n_voxels, n_targets)
 
-    try:
+    with pytest.raises(ValueError):
         isfcs = isfc(data, targets=targets_data[:-1, ...],
                      pairwise=False, vectorize_isfcs=False)
-    except ValueError:
-        logging.info("Correctly caught mismatching n_TRs")
 
     # Check targets for only 2 subjects
     isfcs = isfc(data[..., :2], targets=targets_data[..., :2],

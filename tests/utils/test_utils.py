@@ -190,10 +190,8 @@ def test_p_from_null():
     observed = np.ceil(np.percentile(null, 97.5) * 1000) / 1000
 
     # Check that we catch improper side
-    try:
+    with pytest.raises(ValueError):
         _ = p_from_null(observed, null, side='wrong')
-    except ValueError:
-        pass
 
     # Check two-tailed p-value for observed
     p_ts = p_from_null(observed, null)
@@ -345,10 +343,8 @@ def test_check_timeseries_input():
 
     # Check if lists have mismatching size
     list_bad = [list_2d[0][:-1, :]] + list_2d[1:]
-    try:
+    with pytest.raises(ValueError):
         (data_list_bad, _, _, _) = _check_timeseries_input(list_bad)
-    except ValueError:
-        pass
 
     # List of 3-dimensional arrays
     list_3d = [vector[:, np.newaxis, np.newaxis]
@@ -370,10 +366,8 @@ def test_check_timeseries_input():
 
     # Check that 4-dimensional input array throws error
     array_4d = array_3d[..., np.newaxis]
-    try:
+    with pytest.raises(ValueError):
         (data_array_4d, _, _, _) = _check_timeseries_input(array_4d)
-    except ValueError:
-        pass
 
     # Check they're the same
     for pair in combinations([data_list_1d, data_array_2d,
