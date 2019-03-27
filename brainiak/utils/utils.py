@@ -17,9 +17,7 @@ import warnings
 import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
-from sklearn.utils import check_random_state
 from scipy.fftpack import fft, ifft
-import math
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,10 +29,8 @@ Some utility functions that can be used by different algorithms
 
 __all__ = [
     "center_mass_exp",
-    "compute_p_from_null_distribution",
     "concatenate_not_none",
     "cov2corr",
-    "ecdf",
     "from_tri_2_sym",
     "from_sym_2_tri",
     "gen_design",
@@ -697,25 +693,32 @@ def usable_cpu_count():
     return result
 
 
-def phase_randomize(D, random_state=0):
-    """Randomly shift signal phases
+def phase_randomize(data, voxelwise=False, random_state=None):
+    """Randomize phase of time series across subjects
 
-    For each timecourse (from each voxel and each subject), computes its DFT
-    and then randomly shifts the phase of each frequency before inverting
-    back into the time domain. This yields timecourses with the same power
-    spectrum (and thus the same autocorrelation) as the original timecourses,
-    but will remove any meaningful temporal relationships between the
-    timecourses.
+    For each subject, apply Fourier transform to voxel time series
+    and then randomly shift the phase of each frequency before inverting
+    back into the time domain. This yields time series with the same power
+    spectrum (and thus the same autocorrelation) as the original time series
+    but will remove any meaningful temporal relationships among time series
+    across subjects. By default (voxelwise=False), the same phase shift is
+    applied across all voxels; however if voxelwise=True, different random
+    phase shifts are applied to each voxel. The typical input is a time by
+    voxels by subjects ndarray. The first dimension is assumed to be the
+    time dimension and will be phase randomized. If a 2-dimensional ndarray
+    is provided, the last dimension is assumed to be subjects, and different
+    phase randomizations will be applied to each subject.
 
-    This procedure is described in:
-    Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
-    (2016) Dynamic reconfiguration of the default mode network during narrative
-    comprehension. Nat Commun 7.
+    The implementation is based on the work in [Lerner2011]_ and
+    [Simony2016]_.
 
     Parameters
     ----------
-    D : voxel by time by subject ndarray
-        fMRI data to be phase randomized
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        Data to be phase randomized (per subject)
+
+    voxelwise : bool, default: False
+        Apply same (False) or different (True) randomizations across voxels
 
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
@@ -723,123 +726,59 @@ def phase_randomize(D, random_state=0):
 
     Returns
     ----------
-    ndarray of same shape as D
-        phase randomized timecourses
+    shifted_data : ndarray (n_TRs x n_voxels x n_subjects)
+        Phase-randomized time series
     """
 
-    random_state = check_random_state(random_state)
+    # Check if input is 2-dimensional
+    data_ndim = data.ndim
 
-    F = fft(D, axis=1)
-    if D.shape[1] % 2 == 0:
-        pos_freq = np.arange(1, D.shape[1] // 2)
-        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
+    # Get basic shape of data
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+
+    # Random seed to be deterministically re-randomized at each iteration
+    if isinstance(random_state, np.random.RandomState):
+        prng = random_state
     else:
-        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
-        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
+        prng = np.random.RandomState(random_state)
 
-    shift = random_state.rand(D.shape[0], len(pos_freq),
-                              D.shape[2]) * 2 * math.pi
+    # Get randomized phase shifts
+    if n_TRs % 2 == 0:
+        # Why are we indexing from 1 not zero here? n_TRs / -1 long?
+        pos_freq = np.arange(1, data.shape[0] // 2)
+        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
+        neg_freq = np.arange(data.shape[0] - 1,
+                             (data.shape[0] - 1) // 2, -1)
+
+    if not voxelwise:
+        phase_shifts = (prng.rand(len(pos_freq), 1, n_subjects)
+                        * 2 * np.math.pi)
+    else:
+        phase_shifts = (prng.rand(len(pos_freq), n_voxels, n_subjects)
+                        * 2 * np.math.pi)
+
+    # Fast Fourier transform along time dimension of data
+    fft_data = fft(data, axis=0)
 
     # Shift pos and neg frequencies symmetrically, to keep signal real
-    F[:, pos_freq, :] *= np.exp(1j * shift)
-    F[:, neg_freq, :] *= np.exp(-1j * shift)
+    fft_data[pos_freq, :, :] *= np.exp(1j * phase_shifts)
+    fft_data[neg_freq, :, :] *= np.exp(-1j * phase_shifts)
 
-    return np.real(ifft(F, axis=1))
+    # Inverse FFT to put data back in time domain
+    shifted_data = np.real(ifft(fft_data, axis=0))
 
+    # Go back to 2-dimensions if input was 2-dimensional
+    if data_ndim == 2:
+        shifted_data = shifted_data[:, 0, :]
 
-def ecdf(x):
-    """Empirical cumulative distribution function
-
-    Given a 1D array of values, returns a function f(q) that outputs the
-    fraction of values less than or equal to q.
-
-    Parameters
-    ----------
-    x : 1D array
-        values for which to compute CDF
-
-    Returns
-    ----------
-    ecdf_fun: Callable[[float], float]
-        function that returns the value of the CDF at a given point
-    """
-    xp = np.sort(x)
-    yp = np.arange(len(xp) + 1) / len(xp)
-
-    def ecdf_fun(q):
-        return yp[np.searchsorted(xp, q, side="right")]
-
-    return ecdf_fun
+    return shifted_data
 
 
-def p_from_null(X, two_sided=False,
-                max_null_input=None, min_null_input=None):
-    """Compute p value of true result from null distribution
-
-    Given an array containing both a real result and a set of null results,
-    computes the fraction of null results larger than the real result (or,
-    if two_sided=True, the fraction of null results more extreme than the real
-    result in either the positive or negative direction).
-
-    Note that all real results are compared to a pooled null distribution,
-    which is the max/min over all null results, providing multiple
-    comparisons correction.
-
-    Parameters
-    ----------
-    X : ndarray with arbitrary number of dimensions
-        The last dimension of X should contain the real result in X[..., 0]
-        and the null results in X[..., 1:]
-        If max_null_input and min_null_input are provided,
-        X should contain only the real result
-
-    two_sided : bool, default:False
-        Whether the p value should be one-sided (testing only for being
-        above the null) or two-sided (testing for both significantly positive
-        and significantly negative values)
-
-    max_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
-        By default this array is derived from the X input array,
-        which can be very large and takes up huge memory space.
-        To save memory, the function which calls p_from_null
-        should provide this array as input.
-
-    min_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
-        See max_null_input
-
-    Returns
-    -------
-    p : ndarray the same shape as X, without the last dimension
-        p values for each true X value under the null distribution
-    """
-    if (min_null_input is None) or (max_null_input is None):
-        real_data = X[..., 0]
-        leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
-        # Compute maximum/minimum in each null dataset
-        max_null = np.max(X[..., 1:], axis=leading_dims)
-        min_null = np.min(X[..., 1:], axis=leading_dims)
-    else:
-        real_data = X
-        # maximum & minimum in each null dataset should be provided as input
-        max_null = max_null_input
-        min_null = min_null_input
-        # Compute where the true values fall on the null distribution
-    max_null_ecdf = ecdf(max_null)
-    if two_sided:
-        min_null_ecdf = ecdf(min_null)
-        p = 2 * np.minimum(1 - max_null_ecdf(real_data),
-                           min_null_ecdf(real_data))
-        p = np.minimum(p, 1)
-    else:
-        p = 1 - max_null_ecdf(real_data)
-
-    return p
-
-
-def compute_p_from_null_distribution(observed, distribution,
-                                     side='two-sided', exact=False,
-                                     axis=None):
-
+def p_from_null(observed, distribution,
+                side='two-sided', exact=False,
+                axis=None):
     """Compute p-value from null distribution
 
     Returns the p-value for an observed test statistic given a null
@@ -888,13 +827,13 @@ def compute_p_from_null_distribution(observed, distribution,
     logger.info("Assuming {0} resampling iterations".format(n_samples))
 
     if side == 'two-sided':
-        # numerator for two-sided test
+        # Numerator for two-sided test
         numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=axis)
     elif side == 'left':
-        # numerator for one-sided test in left tail
+        # Numerator for one-sided test in left tail
         numerator = np.sum(distribution <= observed, axis=axis)
     elif side == 'right':
-        # numerator for one-sided test in right tail
+        # Numerator for one-sided test in right tail
         numerator = np.sum(distribution >= observed, axis=axis)
 
     # If exact test all possible permutations and do not adjust
@@ -907,3 +846,66 @@ def compute_p_from_null_distribution(observed, distribution,
         p = (numerator + 1) / (n_samples + 1)
 
     return p
+
+
+def _check_timeseries_input(data):
+
+    """Checks response time series input data (e.g., for ISC analysis)
+
+    Input data should be a n_TRs by n_voxels by n_subjects ndarray
+    (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
+    item is a n_TRs by n_voxels ndarray for a given subject. Multiple
+    input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. This
+    function is generally intended to be used internally by other
+    functions module (e.g., isc, isfc in brainiak.isc).
+
+    Parameters
+    ----------
+    data : ndarray or list
+        Time series data
+
+    Returns
+    -------
+    data : ndarray
+        Input time series data with standardized structure
+
+    n_TRs : int
+        Number of time points (TRs)
+
+    n_voxels : int
+        Number of voxels (or ROIs)
+
+    n_subjects : int
+        Number of subjects
+
+    """
+
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
+
+    # Convert input ndarray to 3d and check shape
+    elif isinstance(data, np.ndarray):
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             "or 3 dimensions (got {0})!".format(data.ndim))
+
+    # Infer subjects, TRs, voxels and log for user to check
+    n_TRs, n_voxels, n_subjects = data.shape
+    logger.info("Assuming {0} subjects with {1} time points "
+                "and {2} voxel(s) or ROI(s) for ISC analysis.".format(
+                    n_subjects, n_TRs, n_voxels))
+
+    return data, n_TRs, n_voxels, n_subjects
