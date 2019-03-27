@@ -17,6 +17,8 @@ Features
 - fmrisim: Added fitting procedure for SFNR and SNR parameters. Updated AR to
   be ARMA, involving both the generation and estimation. (`#372
   <https://github.com/brainiak/brainiak/pull/372>`_)
+- isc: Revamped ISC/ISFC functionality with more statistical tests. (`#384
+  <https://github.com/brainiak/brainiak/pull/384>`_)
 - reprsimil: Added an option in BRSA to set the prior of SNR to be "equal"
   across all voxels. (`#387
   <https://github.com/brainiak/brainiak/pull/387>`_)
