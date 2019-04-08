@@ -7,8 +7,8 @@ import sys
 import setuptools
 from copy import deepcopy
 
-assert sys.version_info >= (3, 4), (
-    "Please use Python version 3.4 or higher, "
+assert sys.version_info >= (3, 5), (
+    "Please use Python version 3.5 or higher, "
     "lower versions are not supported"
 )
 
@@ -146,6 +146,6 @@ setup(
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
     package_data={'brainiak.utils': ['grey_matter_mask.npy']},
-    python_requires='>=3.4',
+    python_requires='>=3.5',
     zip_safe=False,
 )
