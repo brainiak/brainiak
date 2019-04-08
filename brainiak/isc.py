@@ -151,7 +151,7 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     if n_subjects == 2:
 
         # Perform analaysis on the two pairs
-        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T)
+        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T).T
 
     elif pairwise:
 
