@@ -505,7 +505,7 @@ def _corr_mat(mat_1, mat_2):
 
     # Find r
     r = sum_mean_diff / denominator
-    
+
     return r
 
 
