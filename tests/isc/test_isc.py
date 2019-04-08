@@ -153,6 +153,23 @@ def test_isc_output():
 
     logger.info("Finished testing ISC outputs")
 
+# Make sure that the corr_mat function works
+def test_isc_output():
+
+    logger.info("Testing _corr_mat")
+    
+    # How many voxels are there?
+    v = 100
+    
+    data = np.random.randn(200, v, 2)
+
+    # Perform the correlation
+    isc = corr_mat(data[:, :, 0].T, data[:, :, 1].T)
+    
+    # Check there are the right number of voxels in the output
+    assert len(isc) == v
+
+    logger.info("Finished testing _corr_mat")
 
 # Check for proper handling of NaNs in ISC
 def test_isc_nans():

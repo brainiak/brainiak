@@ -148,22 +148,35 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         mean = np.mean
     data, mask = _threshold_nans(data, tolerate_nans)
 
-    # Loop over each voxel or ROI
-    voxel_iscs = []
-    for v in np.arange(data.shape[1]):
-        voxel_data = data[:, v, :].T
-        if n_subjects == 2:
-            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
-        elif pairwise:
+    # Perform correlations across each row of the matrix for each ppt
+    if n_subjects == 2:
+
+        # Perform analaysis on the two pairs
+        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T)
+
+    elif pairwise:
+
+        voxel_iscs = []
+        for v in np.arange(data.shape[1]):
+            voxel_data = data[:, v, :].T
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
-        elif not pairwise:
-            iscs = np.array([pearsonr(subject,
-                                      mean(np.delete(voxel_data,
-                                                     s, axis=0),
-                                           axis=0))[0]
-                             for s, subject in enumerate(voxel_data)])
-        voxel_iscs.append(iscs)
-    iscs_stack = np.column_stack(voxel_iscs)
+            voxel_iscs.append(iscs)
+        iscs_stack = np.column_stack(voxel_iscs)
+
+    elif not pairwise:
+
+        # Preset array
+        iscs_stack = np.zeros((data.shape[2], data.shape[1])) 
+
+        # Leave one out loop    
+        for s in range(data.shape[2]):
+
+            # Get the individual and the average of the others
+            individual = data[:, :, s].T 
+            other = np.mean(np.delete(data, s, axis=2), axis=2).T
+
+            # Perform the row-wise correlation
+            iscs_stack[s, :] = _corr_mat(individual, other)
 
     # Get ISCs back into correct shape after masking out NaNs
     iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
@@ -452,6 +465,49 @@ def _check_targets_input(targets, data):
         symmetric = True
 
     return targets, n_TRs, n_voxels, n_subjects, symmetric
+
+
+def _corr_mat(mat_1, mat_2):
+    """Computes matrix-wise correlation values for ISC
+    
+    This takes in as input two matrices of voxel by time and returns 
+    a correlation value for each voxel (ISC values). This is an efficient 
+    computation to perform correlations across many voxels
+    
+    Parameters
+    ----------
+    mat_1 : 2D array
+        Voxel by time matrix of data
+
+    mat_2 : 2D array
+        Voxel by time matrix of data. The shape must be identical with mat_1
+
+    Returns
+    -------
+    isc : 1D array
+        ISC values for every individual voxel
+
+    """
+    
+    if mat_1.shape != mat_2.shape:
+        raise ValueError("Inputs are not the same shape, ISC not possible")
+    
+    # Calculate the row means
+    mat_1_mean = np.reshape(np.mean(mat_1, axis=1),(mat_1.shape[0], 1))
+    mat_2_mean = np.reshape(np.mean(mat_2, axis=1),(mat_2.shape[0], 1))
+    
+    # Calculate the mean difference in product
+    sum_mean_diff = np.sum((mat_1 - mat_1_mean) * (mat_2 - mat_2_mean), axis=1)
+    
+    # Calculate the SSE denominator
+    mat_1_SSE = np.sum((mat_1 - mat_1_mean)**2, axis=1)
+    mat_2_SSE = np.sum((mat_2 - mat_2_mean)**2, axis=1)
+    denominator = np.sqrt(mat_1_SSE * mat_2_SSE)
+
+    # Find r
+    r = sum_mean_diff / denominator
+    
+    return r
 
 
 def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
