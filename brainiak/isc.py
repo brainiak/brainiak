@@ -50,7 +50,6 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
-from scipy.stats import pearsonr
 import itertools as it
 from brainiak.fcma.util import compute_correlation
 from brainiak.utils.utils import (phase_randomize, p_from_null,
@@ -166,14 +165,14 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     elif not pairwise:
 
         # Preset array
-        iscs_stack = np.zeros((data.shape[2], data.shape[1])) 
+        iscs_stack = np.zeros((data.shape[2], data.shape[1]))
 
-        # Leave one out loop    
+        # Leave one out loop
         for s in range(data.shape[2]):
 
             # Get the individual and the average of the others
-            individual = data[:, :, s].T 
-            other = np.mean(np.delete(data, s, axis=2), axis=2).T
+            individual = data[:, :, s].T
+            other = mean(np.delete(data, s, axis=2), axis=2).T
 
             # Perform the row-wise correlation
             iscs_stack[s, :] = _corr_mat(individual, other)
@@ -469,11 +468,11 @@ def _check_targets_input(targets, data):
 
 def _corr_mat(mat_1, mat_2):
     """Computes matrix-wise correlation values for ISC
-    
-    This takes in as input two matrices of voxel by time and returns 
-    a correlation value for each voxel (ISC values). This is an efficient 
+
+    This takes in as input two matrices of voxel by time and returns
+    a correlation value for each voxel (ISC values). This is an efficient
     computation to perform correlations across many voxels
-    
+
     Parameters
     ----------
     mat_1 : 2D array
@@ -488,17 +487,17 @@ def _corr_mat(mat_1, mat_2):
         ISC values for every individual voxel
 
     """
-    
+
     if mat_1.shape != mat_2.shape:
         raise ValueError("Inputs are not the same shape, ISC not possible")
-    
+
     # Calculate the row means
-    mat_1_mean = np.reshape(np.mean(mat_1, axis=1),(mat_1.shape[0], 1))
-    mat_2_mean = np.reshape(np.mean(mat_2, axis=1),(mat_2.shape[0], 1))
-    
+    mat_1_mean = np.reshape(np.mean(mat_1, axis=1), (mat_1.shape[0], 1))
+    mat_2_mean = np.reshape(np.mean(mat_2, axis=1), (mat_2.shape[0], 1))
+
     # Calculate the mean difference in product
     sum_mean_diff = np.sum((mat_1 - mat_1_mean) * (mat_2 - mat_2_mean), axis=1)
-    
+
     # Calculate the SSE denominator
     mat_1_SSE = np.sum((mat_1 - mat_1_mean)**2, axis=1)
     mat_2_SSE = np.sum((mat_2 - mat_2_mean)**2, axis=1)
