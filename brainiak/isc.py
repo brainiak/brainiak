@@ -151,7 +151,10 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     if n_subjects == 2:
 
         # Perform analaysis on the two pairs
-        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T).T
+        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T)
+
+        # Reshape array to fit
+        iscs_stack = iscs_stack.reshape(1, n_voxels)
 
     elif pairwise:
 
