@@ -15,8 +15,8 @@
 
 import sys
 
-if sys.version_info < (3, 4):
+if sys.version_info < (3, 5):
     raise Exception(
-        "Please use Python version 3.4 or higher, "
+        "Please use Python version 3.5 or higher, "
         "lower versions are not supported"
     )

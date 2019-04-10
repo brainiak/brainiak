@@ -51,10 +51,10 @@ import numpy as np
 import logging
 from scipy.spatial.distance import squareform
 from scipy.stats import pearsonr
-from scipy.fftpack import fft, ifft
 import itertools as it
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import compute_p_from_null_distribution
+from brainiak.utils.utils import (phase_randomize, p_from_null,
+                                  _check_timeseries_input)
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,7 @@ __all__ = [
     "isc",
     "permutation_isc",
     "phaseshift_isc",
+    "squareform_isfc",
     "timeshift_isc",
 ]
 
@@ -72,7 +73,7 @@ __all__ = [
 MAX_RANDOM_SEED = 2**32 - 1
 
 
-def isc(data, pairwise=False, summary_statistic=None):
+def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     """Intersubject correlation
 
     For each voxel or ROI, compute the Pearson correlation between each
@@ -92,8 +93,22 @@ def isc(data, pairwise=False, summary_statistic=None):
     the last dimension is assumed to correspond to subjects. If only two
     subjects are supplied, simply compute Pearson correlation (precludes
     averaging in leave-one-out approach, and does not apply summary statistic).
-    Output is an ndarray where the first dimension is the number of subjects
-    or pairs and the second dimension is the number of voxels (or ROIs).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
 
     The implementation is based on the work in [Hasson2004]_.
 
@@ -102,11 +117,14 @@ def isc(data, pairwise=False, summary_statistic=None):
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISC
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : None or str, default:None
+    summary_statistic : None or str, default: None
         Return all ISCs or collapse using 'mean' or 'median'
+
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
 
     Returns
     -------
@@ -123,9 +141,16 @@ def isc(data, pairwise=False, summary_statistic=None):
         logger.info("Only two subjects! Simply computing Pearson correlation.")
         summary_statistic = None
 
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+
     # Loop over each voxel or ROI
     voxel_iscs = []
-    for v in np.arange(n_voxels):
+    for v in np.arange(data.shape[1]):
         voxel_data = data[:, v, :].T
         if n_subjects == 2:
             iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
@@ -133,12 +158,16 @@ def isc(data, pairwise=False, summary_statistic=None):
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
         elif not pairwise:
             iscs = np.array([pearsonr(subject,
-                                      np.mean(np.delete(voxel_data,
-                                                        s, axis=0),
-                                              axis=0))[0]
+                                      mean(np.delete(voxel_data,
+                                                     s, axis=0),
+                                           axis=0))[0]
                              for s, subject in enumerate(voxel_data)])
         voxel_iscs.append(iscs)
-    iscs = np.column_stack(voxel_iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
 
     # Summarize results (if requested)
     if summary_statistic:
@@ -146,22 +175,31 @@ def isc(data, pairwise=False, summary_statistic=None):
                                          summary_statistic=summary_statistic,
                                          axis=0)[np.newaxis, :]
 
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
+
     return iscs
 
 
-def isfc(data, pairwise=False, summary_statistic=None):
+def isfc(data, targets=None, pairwise=False, summary_statistic=None,
+         vectorize_isfcs=True, tolerate_nans=True):
 
     """Intersubject functional correlation (ISFC)
 
-    For each voxel or ROI, compute the Pearson correlation between each
-    subject's response time series and other subjects' response time series
-    for all voxels or ROIs. If pairwise is False (default), use the
-    leave-one-out approach, where correlation is computed between each
-    subject and the average of the other subjects. If pairwise is True,
-    compute correlations between all pairs of subjects. If summary_statistic
-    is None, return N ISFC values for N subjects (leave-one-out) or N(N-1)/2
-    ISFC values for each pair of N subjects, corresponding to the upper
-    triangle of the correlation matrix (see scipy.spatial.distance.squareform).
+    For each input voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and all input voxels or ROIs in other
+    subjects. If a targets array is provided, instead compute ISFCs between
+    each input voxel time series and each voxel time series in targets across
+    subjects (resulting in asymmetric ISFC values). The targets array must have
+    the same number TRs and subjects as the input data. If pairwise is False
+    (default), use the leave-one-out approach, where correlation is computed
+    between each subject and the average of the other subjects. If pairwise is
+    True, compute correlations between all pairs of subjects. If a targets
+    array is provided, only the leave-one-out approach is supported. If
+    summary_statistic is None, return N ISFC values for N subjects (leave-one-
+    out) or N(N-1)/2 ISFC values for each pair of N subjects, corresponding to
+    the triangle of the correlation matrix (scipy.spatial.distance.squareform).
     Alternatively, use either 'mean' or 'median' to compute summary statistic
     of ISFCs (Fisher Z is applied if using mean). Input should be n_TRs by
     n_voxels by n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData)
@@ -170,9 +208,28 @@ def isfc(data, pairwise=False, summary_statistic=None):
     the last dimension is assumed to correspond to subjects. If only two
     subjects are supplied, simply compute ISFC between these two subjects
     (precludes averaging in leave-one-out approach, and does not apply summary
-    statistic). Output is n_voxels by n_voxels array if summary_statistic is
-    supplied; otherwise output is n_voxels by n_voxels by n_subjects (or
-    n_pairs) array.
+    statistic). Returns vectorized upper triangle of ISFC matrices for each
+    subject or pair when vectorized_isfcs=True, or full (redundant) 2D ISFC
+    matrices when vectorized_isfcs=False. When using leave-one-out approach,
+    NaNs are ignored when computing mean time series of N-1 subjects (default:
+    tolerate_nans=True). Alternatively, you may supply a float between 0 and
+    1 indicating a threshold proportion of N subjects with non-NaN values
+    required when computing the average time series for a given voxel. For
+    example, if tolerate_nans=.8, ISCs will be computed for any voxel where
+    >= 80% of subjects have non-NaN values, while voxels with < 80% non-NaN
+    values will be assigned NaNs. If set to False, NaNs are not tolerated
+    and voxels with one or more NaNs among the N-1 subjects will be assigned
+    NaN. Setting tolerate_nans to True or False will not affect the pairwise
+    approach; however, if a threshold float is provided, voxels that do not
+    reach this threshold will be excluded. Note that accommodating NaNs may
+    be notably slower than setting tolerate_nans to False. Output is either
+    a tuple comprising condensed off-diagonal ISFC values and the diagonal
+    ISC values if vectorize_isfcs=True, or a single ndarray with shape
+    n_subjects (or n_pairs) by n_voxels by n_voxels 3D array if
+    vectorize_isfcs=False (see brainiak.isc.squareform_isfc). If targets array
+    is provided (yielding asymmetric ISFCs), output ISFCs are not vectorized,
+    resulting in an n_subjects by n_voxels by n_targets ISFC array. If
+    summary_statistic is supplied, output is collapsed along first dimension.
 
     The implementation is based on the work in [Simony2016]_.
 
@@ -181,133 +238,111 @@ def isfc(data, pairwise=False, summary_statistic=None):
     data : list or ndarray (n_TRs x n_voxels x n_subjects)
         fMRI data for which to compute ISFC
 
+    targets : list or ndarray (n_TRs x n_voxels x n_subjects), optional
+        fMRI data to use as targets for ISFC
+
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : None or str, default:None
+    summary_statistic : None or str, default: None
         Return all ISFCs or collapse using 'mean' or 'median'
+
+    vectorize_isfcs : bool, default: True
+        Return tuple of condensed ISFCs and ISCs (True) or square (redundant)
+        ISFCs (False)
+
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
 
     Returns
     -------
-    isfcs : subjects or pairs by voxels ndarray
-        ISFC for each subject or pair (or summary statistic) per voxel
+    isfcs : ndarray or tuple of ndarrays
+        ISFCs for each subject or pair (or summary statistic) per voxel pair
 
     """
 
     # Check response time series input format
     data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
 
-    # Handle just two subjects properly
-    if n_subjects == 2:
+    # Check for optional targets input array
+    targets, t_n_TRs, t_n_voxels, t_n_subejcts, symmetric = (
+        _check_targets_input(targets, data))
+    if not symmetric:
+        pairwise = False
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+    targets, targets_mask = _threshold_nans(targets, tolerate_nans)
+
+    # Handle just two subjects properly (for symmetric approach)
+    if symmetric and n_subjects == 2:
         isfcs = compute_correlation(np.ascontiguousarray(data[..., 0].T),
-                                    np.ascontiguousarray(data[..., 1].T))
+                                    np.ascontiguousarray(data[..., 1].T),
+                                    return_nans=True)
         isfcs = (isfcs + isfcs.T) / 2
-        assert isfcs.shape == (n_voxels, n_voxels)
+        isfcs = isfcs[..., np.newaxis]
         summary_statistic = None
         logger.info("Only two subjects! Computing ISFC between them.")
 
-    # Compute all pairwise ISFCs
+    # Compute all pairwise ISFCs (only for symmetric approach)
     elif pairwise:
         isfcs = []
         for pair in it.combinations(np.arange(n_subjects), 2):
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
-                                                data[..., pair[1]].T))
-            isfc_pair = (isfc_pair + isfc_pair.T) / 2
+                                                targets[..., pair[1]].T),
+                                            return_nans=True)
+            if symmetric:
+                isfc_pair = (isfc_pair + isfc_pair.T) / 2
             isfcs.append(isfc_pair)
         isfcs = np.dstack(isfcs)
-        assert isfcs.shape == (n_voxels, n_voxels,
-                               n_subjects * (n_subjects - 1) / 2)
 
     # Compute ISFCs using leave-one-out approach
-    elif not pairwise:
+    else:
 
         # Roll subject axis for loop
         data = np.rollaxis(data, 2, 0)
+        targets = np.rollaxis(targets, 2, 0)
 
         # Compute leave-one-out ISFCs
         isfcs = [compute_correlation(np.ascontiguousarray(subject.T),
-                                     np.ascontiguousarray(np.mean(
-                                         np.delete(data, s, axis=0),
-                                         axis=0).T))
+                                     np.ascontiguousarray(mean(
+                                         np.delete(targets, s, axis=0),
+                                         axis=0).T),
+                                     return_nans=True)
                  for s, subject in enumerate(data)]
 
         # Transpose and average ISFC matrices for both directions
-        isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2
-                           for isfc_matrix in isfcs])
-        assert isfcs.shape == (n_voxels, n_voxels, n_subjects)
+        isfcs = np.dstack([(isfc_matrix + isfc_matrix.T) / 2 if
+                           symmetric else isfc_matrix for
+                           isfc_matrix in isfcs])
+
+    # Get ISCs back into correct shape after masking out NaNs
+    isfcs_all = np.full((n_voxels, t_n_voxels, isfcs.shape[2]), np.nan)
+    isfcs_all[np.ix_(np.where(mask)[0], np.where(targets_mask)[0])] = isfcs
+    isfcs = np.moveaxis(isfcs_all, 2, 0)
 
     # Summarize results (if requested)
     if summary_statistic:
         isfcs = compute_summary_statistic(isfcs,
                                           summary_statistic=summary_statistic,
-                                          axis=2)
+                                          axis=0)
 
-    return isfcs
+    # Throw away first dimension if singleton
+    if isfcs.shape[0] == 1:
+        isfcs = isfcs[0]
 
-
-def _check_timeseries_input(data):
-
-    """Checks response time series input data for ISC analysis
-
-    Input data should be a n_TRs by n_voxels by n_subjects ndarray
-    (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
-    item is a n_TRs by n_voxels ndarray for a given subject. Multiple
-    input ndarrays must be the same shape. If a 2D array is supplied,
-    the last dimension is assumed to correspond to subjects. This
-    function is only intended to be used internally by other
-    functions in this module (e.g., isc, isfc).
-
-    Parameters
-    ----------
-    data : ndarray or list
-        Time series data
-
-    Returns
-    -------
-    iscs : ndarray
-        Array of ISC values
-
-    n_TRs : int
-        Number of time points (TRs)
-
-    n_voxels : int
-        Number of voxels (or ROIs)
-
-    n_subjects : int
-        Number of subjects
-
-    """
-
-    # Convert list input to 3d and check shapes
-    if type(data) == list:
-        data_shape = data[0].shape
-        for i, d in enumerate(data):
-            if d.shape != data_shape:
-                raise ValueError("All ndarrays in input list "
-                                 "must be the same shape!")
-            if d.ndim == 1:
-                data[i] = d[:, np.newaxis]
-        data = np.dstack(data)
-
-    # Convert input ndarray to 3d and check shape
-    elif isinstance(data, np.ndarray):
-        if data.ndim == 2:
-            data = data[:, np.newaxis, :]
-        elif data.ndim == 3:
-            pass
-        else:
-            raise ValueError("Input ndarray should have 2 "
-                             "or 3 dimensions (got {0})!".format(data.ndim))
-
-    # Infer subjects, TRs, voxels and log for user to check
-    n_TRs, n_voxels, n_subjects = data.shape
-    logger.info("Assuming {0} subjects with {1} time points "
-                "and {2} voxel(s) or ROI(s) for ISC analysis.".format(
-                    n_subjects, n_TRs, n_voxels))
-
-    return data, n_TRs, n_voxels, n_subjects
+    # Optionally squareform to vectorize ISFC matrices (only if symmetric)
+    if vectorize_isfcs and symmetric:
+        isfcs, iscs = squareform_isfc(isfcs)
+        return isfcs, iscs
+    else:
+        return isfcs
 
 
 def _check_isc_input(iscs, pairwise=False):
@@ -365,6 +400,60 @@ def _check_isc_input(iscs, pairwise=False):
     return iscs, n_subjects, n_voxels
 
 
+def _check_targets_input(targets, data):
+
+    """Checks ISFC targets input array
+
+    For ISFC analysis, targets input array should either be a list
+    of n_TRs by n_targets arrays (where each array corresponds to
+    a subject), or an n_TRs by n_targets by n_subjects ndarray. This
+    function also checks the shape of the targets array against the
+    input data array.
+
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISFC
+
+    targets : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data to use as targets for ISFC
+
+    Returns
+    -------
+    targets : ndarray (n_TRs x n_voxels x n_subjects)
+        ISFC targets with standadized structure
+
+    n_TRs : int
+        Number of time points (TRs) for targets array
+
+    n_voxels : int
+        Number of voxels (or ROIs) for targets array
+
+    n_subjects : int
+        Number of subjects for targets array
+
+    symmetric : bool
+        Indicator for symmetric vs. asymmetric
+    """
+
+    if isinstance(targets, np.ndarray) or isinstance(targets, list):
+        targets, n_TRs, n_voxels, n_subjects = (
+            _check_timeseries_input(targets))
+        if data.shape[0] != n_TRs:
+            raise ValueError("Targets array must have same number of "
+                             "TRs as input data")
+        if data.shape[2] != n_subjects:
+            raise ValueError("Targets array must have same number of "
+                             "subjects as input data")
+        symmetric = False
+    else:
+        targets = data
+        n_TRs, n_voxels, n_subjects = data.shape
+        symmetric = True
+
+    return targets, n_TRs, n_voxels, n_subjects, symmetric
+
+
 def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
 
     """Computes summary statistics for ISCs
@@ -385,7 +474,7 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
     iscs : list or ndarray
         ISC values
 
-    summary_statistic : str, default:'mean'
+    summary_statistic : str, default: 'mean'
         Summary statistic, 'mean' or 'median'
 
     axis : None or int or tuple of ints, optional
@@ -409,6 +498,126 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
         statistic = np.nanmedian(iscs, axis=axis)
 
     return statistic
+
+
+def squareform_isfc(isfcs, iscs=None):
+
+    """Converts square ISFCs to condensed ISFCs (and ISCs), and vice-versa
+
+    If input is a 2- or 3-dimensional array of square ISFC matrices, converts
+    this to the condensed off-diagonal ISFC values (i.e., the vectorized
+    triangle) and the diagonal ISC values. In this case, input must be a
+    single array of shape either n_voxels x n_voxels or n_subjects (or
+    n_pairs) x n_voxels x n_voxels. The condensed ISFC values are vectorized
+    according to scipy.spatial.distance.squareform, yielding n_voxels *
+    (n_voxels - 1) / 2 values comprising every voxel pair. Alternatively, if
+    input is an array of condensed off-diagonal ISFC values and an array of
+    diagonal ISC values, the square (redundant) ISFC values are returned.
+    This function mimics scipy.spatial.distance.squareform, but is intended
+    to retain the diagonal ISC values.
+
+    Parameters
+    ----------
+    isfcs : ndarray
+        Either condensed or redundant ISFC values
+
+    iscs: ndarray, optional
+        Diagonal ISC values, required when input is condensed
+
+    Returns
+    -------
+    isfcs : ndarray or tuple of ndarrays
+        If condensed ISFCs are passed, a single redundant ISFC array is
+        returned; if redundant ISFCs are passed, both a condensed off-
+        diagonal ISFC array and the diagonal ISC values are returned
+    """
+
+    # Check if incoming ISFCs are square (redundant)
+    if not type(iscs) == np.ndarray and isfcs.shape[-2] == isfcs.shape[-1]:
+        if isfcs.ndim == 2:
+            isfcs = isfcs[np.newaxis, ...]
+        if isfcs.ndim == 3:
+            iscs = np.diagonal(isfcs, axis1=1, axis2=2)
+            isfcs = np.vstack([squareform(isfc, checks=False)[np.newaxis, :]
+                               for isfc in isfcs])
+        else:
+            raise ValueError("Square (redundant) ISFCs must be square "
+                             "with multiple subjects or pairs of subjects "
+                             "indexed by the first dimension")
+        if isfcs.shape[0] == iscs.shape[0] == 1:
+            isfcs, iscs = isfcs[0], iscs[0]
+        return isfcs, iscs
+
+    # Otherwise, convert from condensed to redundant
+    else:
+        if isfcs.ndim == iscs.ndim == 1:
+            isfcs, iscs = isfcs[np.newaxis, :], iscs[np.newaxis, :]
+        isfcs_stack = []
+        for isfc, isc in zip(isfcs, iscs):
+            isfc_sq = squareform(isfc, checks=False)
+            np.fill_diagonal(isfc_sq, isc)
+            isfcs_stack.append(isfc_sq[np.newaxis, ...])
+        isfcs = np.vstack(isfcs_stack)
+        if isfcs.shape[0] == 1:
+            isfcs = isfcs[0]
+        return isfcs
+
+
+def _threshold_nans(data, tolerate_nans):
+
+    """Thresholds data based on proportion of subjects with NaNs
+
+    Takes in data and a threshold value (float between 0.0 and 1.0) determining
+    the permissible proportion of subjects with non-NaN values. For example, if
+    threshold=.8, any voxel where >= 80% of subjects have non-NaN values will
+    be left unchanged, while any voxel with < 80% non-NaN values will be
+    assigned all NaN values and included in the nan_mask output. Note that the
+    output data has not been masked and will be same shape as the input data,
+    but may have a different number of NaNs based on the threshold.
+
+    Parameters
+    ----------
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI time series data
+
+    tolerate_nans : bool or float (0.0 <= threshold <= 1.0)
+        Proportion of subjects with non-NaN values required to keep voxel
+
+    Returns
+    -------
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI time series data with adjusted NaNs
+
+    nan_mask : ndarray (n_voxels,)
+        Boolean mask array of voxels with too many NaNs based on threshold
+
+    """
+
+    nans = np.all(np.any(np.isnan(data), axis=0), axis=1)
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans is True:
+        logger.info("ISC computation will tolerate all NaNs when averaging")
+
+    elif type(tolerate_nans) is float:
+        if not 0.0 <= tolerate_nans <= 1.0:
+            raise ValueError("If threshold to tolerate NaNs is a float, "
+                             "it must be between 0.0 and 1.0; got {0}".format(
+                                tolerate_nans))
+        nans += ~(np.sum(~np.any(np.isnan(data), axis=0), axis=1) >=
+                  data.shape[-1] * tolerate_nans)
+        logger.info("ISC computation will tolerate voxels with at least "
+                    "{0} non-NaN values: {1} voxels do not meet "
+                    "threshold".format(tolerate_nans,
+                                       np.sum(nans)))
+
+    else:
+        logger.info("ISC computation will not tolerate NaNs when averaging")
+
+    mask = ~nans
+    data = data[:, mask, :]
+
+    return data, mask
 
 
 def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
@@ -445,19 +654,19 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     iscs : list or ndarray, ISCs by voxels array
         ISC values for one or more voxels
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs structure
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_bootstraps : int, default:1000
+    n_bootstraps : int, default: 1000
         Number of bootstrap samples (subject-level with replacement)
 
-    ci_percentile : int, default:95
+    ci_percentile : int, default: 95
          Percentile for computing confidence intervals
 
-    random_state = int or None, default:None
+    random_state = int or None, default: None
         Initial random seed
 
     Returns
@@ -486,7 +695,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     # Compute summary statistic for observed ISCs
     observed = compute_summary_statistic(iscs,
                                          summary_statistic=summary_statistic,
-                                         axis=0)[np.newaxis, :]
+                                         axis=0)
 
     # Set up an empty list to build our bootstrap distribution
     distribution = []
@@ -548,7 +757,6 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
-    assert distribution.shape == (n_bootstraps, n_voxels)
 
     # Compute CIs of median from bootstrap distribution (default: 95%)
     ci = (np.percentile(distribution, (100 - ci_percentile)/2, axis=0),
@@ -559,12 +767,9 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     shifted = distribution - observed
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, shifted,
-                                         side='two-sided', exact=False,
-                                         axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
+    p = p_from_null(observed, shifted,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, ci, p, distribution
 
@@ -685,16 +890,16 @@ def _permute_one_sample_iscs(iscs, group_parameters, i, pairwise=False,
     i : int
         Permutation iteration
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
     exact_permutations : list
         List of permutations
 
-    prng = None or np.random.RandomState, default:None
+    prng = None or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -753,16 +958,16 @@ def _permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
     i : int
         Permutation iteration
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
     exact_permutations : list
         List of permutations
 
-    prng = None or np.random.RandomState, default:None
+    prng = None or np.random.RandomState, default: None
         Initial random seed
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
@@ -861,16 +1066,16 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     group_assignment : list or ndarray, group labels
         Group labels matching order of ISC input
 
-    pairwise : bool, default:False
+    pairwise : bool, default: False
         Indicator of pairwise or leave-one-out, should match ISCs variable
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_permutations : int, default:1000
+    n_permutations : int, default: 1000
         Number of permutation iteration (randomizing group assignment)
 
-    random_state = int, None, or np.random.RandomState, default:None
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -949,7 +1154,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                              group_parameters['group_labels'][1], :],
                         summary_statistic=summary_statistic,
                         axis=0))
-        observed = np.array(observed)[np.newaxis, :]
+        observed = np.array(observed)
 
     # Set up an empty list to build our permutation distribution
     distribution = []
@@ -993,26 +1198,22 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
-    assert distribution.shape == (n_permutations, n_voxels)
 
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
-        p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=True,
-                                             axis=0)
+        p = p_from_null(observed, distribution,
+                        side='two-sided', exact=True,
+                        axis=0)
     else:
-        p = compute_p_from_null_distribution(observed, distribution,
-                                             side='two-sided', exact=False,
-                                             axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
+        p = p_from_null(observed, distribution,
+                        side='two-sided', exact=False,
+                        axis=0)
 
     return observed, p, distribution
 
 
 def timeshift_isc(data, pairwise=False, summary_statistic='median',
-                  n_shifts=1000, random_state=None):
+                  n_shifts=1000, tolerate_nans=True, random_state=None):
 
     """Circular time-shift randomization for one-sample ISC test
 
@@ -1026,7 +1227,19 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test), as well as
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on randomly time-shifted data.
 
     The implementation is based on the work in [Kauppi2010]_ and
@@ -1046,13 +1259,16 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_shifts : int, default:1000
+    n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    random_state = int, None, or np.random.RandomState, default:None
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -1072,7 +1288,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,
-                   summary_statistic=summary_statistic)
+                   summary_statistic=summary_statistic,
+                   tolerate_nans=tolerate_nans)
 
     # Roll axis to get subjects in first dimension for loop
     if pairwise:
@@ -1105,7 +1322,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=pairwise,
-                              summary_statistic=summary_statistic)
+                              summary_statistic=summary_statistic,
+                              tolerate_nans=tolerate_nans)
 
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
@@ -1117,7 +1335,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
                 nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)),
                               pairwise=False,
-                              summary_statistic=None)
+                              summary_statistic=None,
+                              tolerate_nans=tolerate_nans)
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
@@ -1133,21 +1352,17 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
-    assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False,
-                                         axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
+    p = p_from_null(observed, distribution,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, p, distribution
 
 
 def phaseshift_isc(data, pairwise=False, summary_statistic='median',
-                   n_shifts=1000, random_state=None):
+                   n_shifts=1000, tolerate_nans=True, random_state=None):
 
     """Phase randomization for one-sample ISC test
 
@@ -1161,7 +1376,19 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     each item is a time-points by voxels ndarray for a given subject.
     Multiple input ndarrays must be the same shape. If a single ndarray is
     supplied, the last dimension is assumed to correspond to subjects.
-    Returns the observed ISC and p-values (two-tailed test), as well as
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Returns the observed ISC and p-values (two-tailed test), as well as
     the null distribution of ISCs computed on phase-randomized data.
 
     The implementation is based on the work in [Lerner2011]_ and
@@ -1180,13 +1407,16 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     pairwise : bool, default: False
         Whether to use pairwise (True) or leave-one-out (False) approach
 
-    summary_statistic : str, default:'median'
+    summary_statistic : str, default: 'median'
         Summary statistic, either 'median' (default) or 'mean'
 
-    n_shifts : int, default:1000
+    n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    random_state = int, None, or np.random.RandomState, default:None
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+
+    random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
 
     Returns
@@ -1206,7 +1436,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get actual observed ISC
     observed = isc(data, pairwise=pairwise,
-                   summary_statistic=summary_statistic)
+                   summary_statistic=summary_statistic,
+                   tolerate_nans=tolerate_nans)
 
     # Iterate through randomized shifts to create null distribution
     distribution = []
@@ -1218,58 +1449,32 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         else:
             prng = np.random.RandomState(random_state)
 
-        # Get randomized phase shifts
-        if n_TRs % 2 == 0:
-            # Why are we indexing from 1 not zero here? n_TRs / -1 long?
-            pos_freq = np.arange(1, data.shape[0] // 2)
-            neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
-        else:
-            pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
-            neg_freq = np.arange(data.shape[0] - 1,
-                                 (data.shape[0] - 1) // 2, -1)
-
-        phase_shifts = prng.rand(len(pos_freq), 1, n_subjects) * 2 * np.math.pi
+        # Get shifted version of data
+        shifted_data = phase_randomize(data, random_state=prng)
 
         # In pairwise approach, apply all shifts then compute pairwise ISCs
         if pairwise:
 
-            # Fast Fourier transform along time dimension of data
-            fft_data = fft(data, axis=0)
-
-            # Shift pos and neg frequencies symmetrically, to keep signal real
-            fft_data[pos_freq, :, :] *= np.exp(1j * phase_shifts)
-            fft_data[neg_freq, :, :] *= np.exp(-1j * phase_shifts)
-
-            # Inverse FFT to put data back in time domain for ISC
-            shifted_data = np.real(ifft(fft_data, axis=0))
-
             # Compute null ISC on shifted data for pairwise approach
             shifted_isc = isc(shifted_data, pairwise=True,
-                              summary_statistic=summary_statistic)
+                              summary_statistic=summary_statistic,
+                              tolerate_nans=tolerate_nans)
 
         # In leave-one-out, apply shift only to each left-out participant
         elif not pairwise:
 
-            # Roll subject axis in phaseshifts for loop
-            phase_shifts = np.rollaxis(phase_shifts, 2, 0)
+            # Roll subject axis of phase-randomized data
+            shifted_data = np.rollaxis(shifted_data, 2, 0)
 
             shifted_isc = []
-            for s, shift in enumerate(phase_shifts):
-
-                # Apply FFT to left-out subject
-                fft_subject = fft(data[:, :, s], axis=0)
-
-                # Shift pos and neg frequencies symmetrically, keep signal real
-                fft_subject[pos_freq, :] *= np.exp(1j * shift)
-                fft_subject[neg_freq, :] *= np.exp(-1j * shift)
-
-                # Inverse FFT to put data back in time domain for ISC
-                shifted_subject = np.real(ifft(fft_subject, axis=0))
+            for s, shifted_subject in enumerate(shifted_data):
 
                 # ISC of shifted left-out subject vs mean of N-1 subjects
-                nonshifted_mean = np.mean(np.delete(data, s, 2), axis=2)
+                nonshifted_mean = np.mean(np.delete(data, s, axis=2),
+                                          axis=2)
                 loo_isc = isc(np.dstack((shifted_subject, nonshifted_mean)),
-                              pairwise=False, summary_statistic=None)
+                              pairwise=False, summary_statistic=None,
+                              tolerate_nans=tolerate_nans)
                 shifted_isc.append(loo_isc)
 
             # Get summary statistics across left-out subjects
@@ -1283,14 +1488,10 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
-    assert distribution.shape == (n_shifts, n_voxels)
 
     # Get p-value for actual median from shifted distribution
-    p = compute_p_from_null_distribution(observed, distribution,
-                                         side='two-sided', exact=False,
-                                         axis=0)
-
-    # Reshape p-values to fit with data shape
-    p = p[np.newaxis, :]
+    p = p_from_null(observed, distribution,
+                    side='two-sided', exact=False,
+                    axis=0)
 
     return observed, p, distribution

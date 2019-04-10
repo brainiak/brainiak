@@ -5,17 +5,17 @@ branches:
 matrix:
   include:
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       language: python
-      python: 3.4
+      python: 3.6
       addons: &linux_addons
         apt: &apt
           packages:
             - build-essential libgomp1 libmpich-dev mpich
 
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       language: python
       python: 3.5
@@ -36,7 +36,7 @@ matrix:
 
     # Build and test conda packages
     - os: linux
-      dist: trusty
+      dist: xenial
       install: ./.conda/bin/install-miniconda
       script: ./.conda/bin/build
 
