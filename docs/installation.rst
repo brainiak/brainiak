@@ -21,7 +21,7 @@ Source
 Requirements
 ============
 
-We support Linux and MacOS with Python version 3.4 or higher. Most of the
+We support Linux and MacOS with Python version 3.5 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 
