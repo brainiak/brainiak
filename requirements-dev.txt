@@ -8,9 +8,6 @@ setuptools_scm
 sphinx
 sphinx_rtd_theme
 towncrier
-joblib
-os
-glob
 
 # testing
 # Also add to .conda/meta.yaml
