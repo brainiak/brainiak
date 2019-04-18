@@ -80,23 +80,37 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=
         reduced data
     """
     if atlas is None and inv_atlas is None:
-        AssertionError("An atlas or the pseudo inverse of a probabilistic atlas should be provided")
+        raise ValueError("An atlas or the pseudo inverse of a probabilistic atlas should be provided")
 
     if inv_atlas is None and atlas is not None:
+        # this means that it is a deterministic atlas
+        n_voxels = atlas.shape[0]
         atlas_values = np.unique(atlas)
         if 0 in atlas_values:
             atlas_values = atlas_values[1:]
         data = np.load(img)
+
+        if data.shape[1] != n_voxels:
+            raise ValueError("%s have %i number of voxels and the atlas has %i number of voxels."
+                       "This is not compatible." % (img, data.shape[1], n_voxels))
+
         reduced_data = np.array([np.mean(data[:, atlas == c], axis=1) for c in atlas_values]).T
     else:
+        # this means that it is a deterministic atlas
+        n_voxels = inv_atlas.shape[0]
         data = np.load(img)
+
+        if data.shape[1] != n_voxels:
+            raise ValueError("%s have %i number of voxels and the atlas has %i number of voxels."
+                       "This is not compatible." % (img, data.shape[1], n_voxels))
+
         reduced_data = data.dot(inv_atlas)
 
     if low_ram:
         name = hashlib.md5(img.encode()).hexdigest()
         path = os.path.join(temp_dir, "reduced_data_" + name)
         np.save(path, reduced_data)
-        return path
+        return path + ".npy"
     else:
         return reduced_data
 
@@ -147,6 +161,8 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
     """
+    if type(atlas) != np.ndarray:
+        raise ValueError("atlas should be of type np.ndarray")
 
     if len(atlas.shape) == 2:
         A = None
@@ -169,8 +185,11 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
     if low_ram:
         reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions))
     else:
-        n_timeframes, n_voxels = reduced_data_list[0].shape
-        reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions, n_timeframes, n_voxels))
+        if len(np.array(reduced_data_list).shape) == 1:
+            reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions))
+        else:
+            n_timeframes, n_supervoxels = np.array(reduced_data_list).shape[1:]
+            reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions, n_timeframes, n_supervoxels))
 
     return reduced_data_list
 
@@ -209,15 +228,20 @@ def _reduced_space_compute_shared_response(reduced_data_list,
     n_subjects, n_sessions = reduced_data_list.shape[:2]
     if type(reduced_data_list[0, 0]) == np.ndarray:
         low_ram = False
-    elif type(reduced_data_list[0, 0]) == str:
+    elif (type(reduced_data_list[0, 0]) == str or
+          type(reduced_data_list[0, 0]) == np.str_ or
+          type(reduced_data_list[0, 0] == np.str)):
         low_ram = True
     else:
-        AssertionError("Reduced data are stored using type %s which is neither an ndarray or str"
-                       % type(reduced_data_list[0, 0]))
-        low_ram = False
+        print("data", reduced_data_list[0, 0])
+        print(type(reduced_data_list[0, 0]))
+        raise ValueError("Reduced data are stored using type %s which is neither np.ndarray or str"
+                         % type(reduced_data_list[0, 0]))
 
     s = [None] * n_sessions
 
+    # This is just to check that all subjects have same number of timeframes in a given session
+    list_n_timeframes = [None] * n_sessions
     for n in range(n_subjects):
         for m in range(n_sessions):
             if low_ram:
@@ -225,8 +249,22 @@ def _reduced_space_compute_shared_response(reduced_data_list,
             else:
                 data_nm = reduced_data_list[n, m]
 
+            n_timeframes, n_supervoxels = data_nm.shape
+
+            if n_supervoxels < n_components:
+                raise ValueError("The number of regions in the atlas %i is smaller than "
+                                 "the number of components %i of fastSRM" % (n_supervoxels, n_components))
+
+            if list_n_timeframes[m] is None:
+                list_n_timeframes[m] = n_timeframes
+            elif list_n_timeframes[m] != n_timeframes:
+                raise ValueError("Subject %i Session %i does not have the same number of timeframes "
+                                 "as Subject %i Session %i" % (n, m, 0, m))
+
+            if n_timeframes < n_components:
+                raise ValueError("Number of timeframes is shorter than number of components")
+
             if reduced_basis_list is None:
-                n_timeframes, n_supervoxels = data_nm.shape
                 reduced_basis_list = []
                 for subject in range(n_subjects):
                     q = np.eye(n_components, n_supervoxels)
@@ -236,10 +274,10 @@ def _reduced_space_compute_shared_response(reduced_data_list,
             if s[m] is None:
                 s[m] = data_nm.dot(basis_n.T)
             else:
-                s[m] = s + data_nm.dot(basis_n.T)
+                s[m] = s[m] + data_nm.dot(basis_n.T)
 
     for m in range(n_sessions):
-        s[m] = float(s[m]) / n_subjects
+        s[m] = s[m] / float(n_subjects)
 
     return s
 
@@ -308,7 +346,7 @@ def _compute_and_save_subject_basis(subject_number, sessions, temp_dir):
     else:
         path = os.path.join(temp_dir, "basis_" % subject_number)
         np.save(path, basis_i)
-        return path
+        return path + ".npy"
 
 
 def _compute_subject_basis(corr_mat):
@@ -369,13 +407,15 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
 
     if type(reduced_data_list[0, 0]) == np.ndarray:
         low_ram = False
-    elif type(reduced_data_list[0, 0]) == str:
+    elif (type(reduced_data_list[0, 0]) == str or
+          type(reduced_data_list[0, 0]) == np.str_ or
+          type(reduced_data_list[0, 0] == np.str)):
         low_ram = True
     else:
-        AssertionError("Reduced data are stored using type %s which is neither np.ndarray or str"
-                       % type(reduced_data_list[0, 0]))
-        low_ram = False
-
+        print("data", reduced_data_list[0, 0])
+        print(type(reduced_data_list[0, 0]))
+        raise ValueError("Reduced data are stored using type %s which is neither np.ndarray or str"
+                         % type(reduced_data_list[0, 0]))
 
     n_subjects, n_sessions = reduced_data_list.shape[:2]
     shared_response = _reduced_space_compute_shared_response(
@@ -611,11 +651,13 @@ class FastSRM(BaseEstimator, TransformerMixin):
                                "reconstructed data will therefore be kept in memory."
                                "This can lead to memory errors when the number of subjects "
                                "and/or sessions is large.")
+            self.temp_dir = None
+            self.low_ram = False
 
         if temp_dir is not None:
             if not os.path.exists(os.path.join(temp_dir, "fastsrm")):
                 os.mkdir(os.path.join(temp_dir, "fastsrm"))
-                self.temp_dir = os.path.join(temp_dir, "fastsrm")
+            self.temp_dir = os.path.join(temp_dir, "fastsrm")
 
             # Remove files in temp folder
             paths = glob.glob(os.path.join(self.temp_dir, "*.npy"))
@@ -646,18 +688,23 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         if self.temp_dir is not None:
             # Remove former basis in temp folder
-            paths = glob.glob(os.path.join(self.temp_dir, "basis") + "*")
+            paths = glob.glob(os.path.join(self.temp_dir, "*.npy"))
             for path in paths:
                 os.remove(path)
 
         if type(imgs) != np.ndarray:
-            AssertionError("imgs should be of type np.ndarray but is of type %s"
-                           % type(imgs))
+            raise ValueError("imgs should be of type np.ndarray but is of type %s"
+                             % type(imgs))
 
         if len(imgs.shape) != 2:
-            AssertionError("imgs should be an array of shape [n_subjects, n_sessions] "
-                           "but its shape is of size %i"
-                           % len(imgs.shape))
+            raise ValueError("imgs should be an array of shape [n_subjects, n_sessions] "
+                             "but its shape is of size %i"
+                             % len(imgs.shape))
+
+        n_subjects, n_sessions = imgs.shape
+
+        if n_subjects <= 1:
+            raise ValueError("The number of subjects should be greater than 1")
 
         if self.verbose is True:
             n_subjects, n_sessions = imgs.shape
@@ -675,7 +722,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
             temp_dir=self.temp_dir
         )
 
-        if self.verbose:
+        if self.verbose is True:
             logger.info("[FastSRM.fit] Finds shared response using reduced data")
 
         shared_response_list = fast_srm(
@@ -684,7 +731,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
             n_components=self.n_components,
         )
 
-        if self.verbose:
+        if self.verbose is True:
             print("[FastSRM.fit] Finds basis using full data and shared response")
 
         if self.n_jobs == 1:
@@ -696,7 +743,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
                 else:
                     path = os.path.join(self.temp_dir, "basis_%i" % i)
                     np.save(path, basis_i)
-                    basis.append(path)
+                    basis.append(path + ".npy")
                 del basis_i
         else:
             Parallel(n_jobs=self.n_jobs)(
@@ -760,6 +807,9 @@ class FastSRM(BaseEstimator, TransformerMixin):
         shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
             shared response, element i is the shared response during session i
         """
+        if self.basis_list is None:
+            raise NotFittedError("The model fit has not been run yet.")
+
         if subjects_indexes is None:
             subjects_indexes = np.arange(len(imgs))
         else:
