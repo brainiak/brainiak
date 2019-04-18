@@ -50,9 +50,11 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
-import itertools as it
+from itertools import combinations
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import (phase_randomize, p_from_null,
+from brainiak.utils.utils import (array_correlation,
+                                  phase_randomize,
+                                  p_from_null,
                                   _check_timeseries_input)
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,426 @@ __all__ = [
 
 
 MAX_RANDOM_SEED = 2**32 - 1
+
+
+def isc_bool(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
+    """Intersubject correlation
+    For each voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and other subjects' response time series.
+    If pairwise is False (default), use the leave-one-out approach, where
+    correlation is computed between each subject and the average of the other
+    subjects. If pairwise is True, compute correlations between all pairs of
+    subjects. If summary_statistic is None, return N ISC values for N subjects
+    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
+    corresponding to the upper triangle of the pairwise correlation matrix
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
+    be applied if using mean). Input data should be a n_TRs by n_voxels by
+    n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData) or a list
+    where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute Pearson correlation (precludes
+    averaging in leave-one-out approach, and does not apply summary statistic).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
+    The implementation is based on the work in [Hasson2004]_.
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISC
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
+    summary_statistic : None or str, default: None
+        Return all ISCs or collapse using 'mean' or 'median'
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+    Returns
+    -------
+    iscs : subjects or pairs by voxels ndarray
+        ISC for each subject or pair (or summary statistic) per voxel
+    """
+
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+    
+    # Get subject IDs for easier indexing
+    subject_ids = np.arange(n_subjects)
+
+    # No summary statistic if only two subjects
+    if n_subjects == 2:
+        logger.info("Only two subjects! Simply computing Pearson correlation.")
+        summary_statistic = None
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+
+    # Loop over each voxel or ROI
+    voxel_iscs = []
+    for v in np.arange(data.shape[1]):
+        voxel_data = data[:, v, :].T
+        if n_subjects == 2:
+            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
+        elif pairwise:
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+        elif not pairwise:
+            iscs = np.array([pearsonr(subject,
+                                      mean(voxel_data[subject_ids != s, :],
+                                           axis=0))[0]
+                             for s, subject in enumerate(voxel_data)])
+        voxel_iscs.append(iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
+
+    # Summarize results (if requested)
+    if summary_statistic:
+        iscs = compute_summary_statistic(iscs,
+                                         summary_statistic=summary_statistic,
+                                         axis=0)[np.newaxis, :]
+
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
+
+    return iscs
+
+
+def isc_fancy(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
+    """Intersubject correlation
+    For each voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and other subjects' response time series.
+    If pairwise is False (default), use the leave-one-out approach, where
+    correlation is computed between each subject and the average of the other
+    subjects. If pairwise is True, compute correlations between all pairs of
+    subjects. If summary_statistic is None, return N ISC values for N subjects
+    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
+    corresponding to the upper triangle of the pairwise correlation matrix
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
+    be applied if using mean). Input data should be a n_TRs by n_voxels by
+    n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData) or a list
+    where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute Pearson correlation (precludes
+    averaging in leave-one-out approach, and does not apply summary statistic).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
+    The implementation is based on the work in [Hasson2004]_.
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISC
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
+    summary_statistic : None or str, default: None
+        Return all ISCs or collapse using 'mean' or 'median'
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+    Returns
+    -------
+    iscs : subjects or pairs by voxels ndarray
+        ISC for each subject or pair (or summary statistic) per voxel
+    """
+
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+    
+    # Get subject IDs for easier indexing
+    subject_ids = np.arange(n_subjects)
+
+    # No summary statistic if only two subjects
+    if n_subjects == 2:
+        logger.info("Only two subjects! Simply computing Pearson correlation.")
+        summary_statistic = None
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+
+    # Loop over each voxel or ROI
+    voxel_iscs = []
+    for v in np.arange(data.shape[1]):
+        voxel_data = data[:, v, :].T
+        if n_subjects == 2:
+            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
+        elif pairwise:
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+        elif not pairwise:
+            iscs = np.array([pearsonr(subject,
+                                      mean(voxel_data[[sid for sid
+                                                       in subject_ids
+                                                       if sid != s]],
+                                           axis=0))[0]
+                             for s, subject in enumerate(voxel_data)])
+        voxel_iscs.append(iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
+
+    # Summarize results (if requested)
+    if summary_statistic:
+        iscs = compute_summary_statistic(iscs,
+                                         summary_statistic=summary_statistic,
+                                         axis=0)[np.newaxis, :]
+
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
+
+    return iscs
+
+
+def isc_cat(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
+    """Intersubject correlation
+    For each voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and other subjects' response time series.
+    If pairwise is False (default), use the leave-one-out approach, where
+    correlation is computed between each subject and the average of the other
+    subjects. If pairwise is True, compute correlations between all pairs of
+    subjects. If summary_statistic is None, return N ISC values for N subjects
+    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
+    corresponding to the upper triangle of the pairwise correlation matrix
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
+    be applied if using mean). Input data should be a n_TRs by n_voxels by
+    n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData) or a list
+    where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute Pearson correlation (precludes
+    averaging in leave-one-out approach, and does not apply summary statistic).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
+    The implementation is based on the work in [Hasson2004]_.
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISC
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
+    summary_statistic : None or str, default: None
+        Return all ISCs or collapse using 'mean' or 'median'
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+    Returns
+    -------
+    iscs : subjects or pairs by voxels ndarray
+        ISC for each subject or pair (or summary statistic) per voxel
+    """
+
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+    
+    # Get subject IDs for easier indexing
+    subject_ids = np.arange(n_subjects)
+
+    # No summary statistic if only two subjects
+    if n_subjects == 2:
+        logger.info("Only two subjects! Simply computing Pearson correlation.")
+        summary_statistic = None
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+
+    # Loop over each voxel or ROI
+    voxel_iscs = []
+    for v in np.arange(data.shape[1]):
+        voxel_data = data[:, v, :].T
+        if n_subjects == 2:
+            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
+        elif pairwise:
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+        elif not pairwise:
+            iscs = np.array([pearsonr(subject,
+                                      mean(np.concatenate((
+                                          voxel_data[:s],
+                                          voxel_data[s + 1:])),
+                                           axis=0))[0]
+                             for s, subject in enumerate(voxel_data)])
+        voxel_iscs.append(iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
+
+    # Summarize results (if requested)
+    if summary_statistic:
+        iscs = compute_summary_statistic(iscs,
+                                         summary_statistic=summary_statistic,
+                                         axis=0)[np.newaxis, :]
+
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
+
+    return iscs
+
+
+def isc_cat(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
+    """Intersubject correlation
+    For each voxel or ROI, compute the Pearson correlation between each
+    subject's response time series and other subjects' response time series.
+    If pairwise is False (default), use the leave-one-out approach, where
+    correlation is computed between each subject and the average of the other
+    subjects. If pairwise is True, compute correlations between all pairs of
+    subjects. If summary_statistic is None, return N ISC values for N subjects
+    (leave-one-out) or N(N-1)/2 ISC values for each pair of N subjects,
+    corresponding to the upper triangle of the pairwise correlation matrix
+    (see scipy.spatial.distance.squareform). Alternatively, use either
+    'mean' or 'median' to compute summary statistic of ISCs (Fisher Z will
+    be applied if using mean). Input data should be a n_TRs by n_voxels by
+    n_subjects array (e.g., brainiak.image.MaskedMultiSubjectData) or a list
+    where each item is a n_TRs by n_voxels ndarray for a given subject.
+    Multiple input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. If only two
+    subjects are supplied, simply compute Pearson correlation (precludes
+    averaging in leave-one-out approach, and does not apply summary statistic).
+    When using leave-one-out approach, NaNs are ignored when computing mean
+    time series of N-1 subjects (default: tolerate_nans=True). Alternatively,
+    you may supply a float between 0 and 1 indicating a threshold proportion
+    of N subjects with non-NaN values required when computing the average time
+    series for a given voxel. For example, if tolerate_nans=.8, ISCs will be
+    computed for any voxel where >= 80% of subjects have non-NaN values,
+    while voxels with < 80% non-NaN values will be assigned NaNs. If set to
+    False, NaNs are not tolerated and voxels with one or more NaNs among the
+    N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
+    will not affect the pairwise approach; however, if a threshold float is
+    provided, voxels that do not reach this threshold will be excluded. Note
+    that accommodating NaNs may be notably slower than setting tolerate_nans to
+    False. Output is an ndarray where the first dimension is the number of
+    subjects or pairs and the second dimension is the number of voxels (or
+    ROIs). If only two subjects are supplied or a summary statistic is invoked,
+    the output is a ndarray n_voxels long.
+    The implementation is based on the work in [Hasson2004]_.
+    Parameters
+    ----------
+    data : list or ndarray (n_TRs x n_voxels x n_subjects)
+        fMRI data for which to compute ISC
+    pairwise : bool, default: False
+        Whether to use pairwise (True) or leave-one-out (False) approach
+    summary_statistic : None or str, default: None
+        Return all ISCs or collapse using 'mean' or 'median'
+    tolerate_nans : bool or float, default: True
+        Accommodate NaNs (when averaging in leave-one-out approach)
+    Returns
+    -------
+    iscs : subjects or pairs by voxels ndarray
+        ISC for each subject or pair (or summary statistic) per voxel
+    """
+
+    # Check response time series input format
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+    
+    # Get subject IDs for easier indexing
+    subject_ids = np.arange(n_subjects)
+    
+    data = np.ma.array(data, mask=False)
+
+    # No summary statistic if only two subjects
+    if n_subjects == 2:
+        logger.info("Only two subjects! Simply computing Pearson correlation.")
+        summary_statistic = None
+
+    # Check tolerate_nans input and use either mean/nanmean and exclude voxels
+    if tolerate_nans:
+        mean = np.nanmean
+    else:
+        mean = np.mean
+    data, mask = _threshold_nans(data, tolerate_nans)
+
+    # Loop over each voxel or ROI
+    voxel_iscs = []
+    for v in np.arange(data.shape[1]):
+        voxel_data = data[:, v, :].T
+        if n_subjects == 2:
+            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
+        elif pairwise:
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+        elif not pairwise:
+            iscs = np.array([pearsonr(subject,
+                                      mean(np.concatenate((
+                                          voxel_data[:s],
+                                          voxel_data[s + 1:])),
+                                           axis=0))[0]
+                             for s, subject in enumerate(voxel_data)])
+        voxel_iscs.append(iscs)
+    iscs_stack = np.column_stack(voxel_iscs)
+
+    # Get ISCs back into correct shape after masking out NaNs
+    iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
+    iscs[:, np.where(mask)[0]] = iscs_stack
+
+    # Summarize results (if requested)
+    if summary_statistic:
+        iscs = compute_summary_statistic(iscs,
+                                         summary_statistic=summary_statistic,
+                                         axis=0)[np.newaxis, :]
+
+    # Throw away first dimension if singleton
+    if iscs.shape[0] == 1:
+        iscs = iscs[0]
+
+    return iscs
 
 
 def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
@@ -147,24 +569,60 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         mean = np.mean
     data, mask = _threshold_nans(data, tolerate_nans)
 
-    # Perform correlations across each row of the matrix for each ppt
+    # Compute correlation for only two participants
     if n_subjects == 2:
 
-        # Perform analaysis on the two pairs
-        iscs_stack = _corr_mat(data[:, :, 0].T, data[:, :, 1].T)
+        # Compute correlation for each corresponding voxel
+        iscs_stack = array_correlation(data[..., 0],
+                                       data[..., 1])[np.newaxis, :]
 
-        # Reshape array to fit
-        iscs_stack = iscs_stack.reshape(1, n_voxels)
-
+    # Compute pairwise ISCs using voxel loop and corrcoef for speed
     elif pairwise:
-
+        data = np.swapaxes(data, 2, 0)
         voxel_iscs = []
         for v in np.arange(data.shape[1]):
-            voxel_data = data[:, v, :].T
+            voxel_data = data[:, v, :]
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+            voxel_iscs.append(iscs)
+        iscs_stack = np.column_stack(voxel_iscs)
+        
+        
+        
+        isc_pairs = []
+        for pair in combinations(np.arange(n_subjects), 2):
+            isc_pair = array_correlation(data[..., pair[0]],
+                                         data[..., pair[1]])
+            isc_pairs.append(isc_pair)
+        isc_stack = np.array(isc_pairs)
+        
+        data = np.swapaxes(data, 2, 0)
+        voxel_iscs = []
+        for v in np.arange(data.shape[1]):
+            voxel_data = data[:, v, :]
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
             voxel_iscs.append(iscs)
         iscs_stack = np.column_stack(voxel_iscs)
 
+        
+    def old_pairwise(data):
+        data = np.swapaxes(data, 2, 0)
+        voxel_iscs = []
+        for v in np.arange(data.shape[1]):
+            voxel_data = data[:, v, :]
+            iscs = squareform(np.corrcoef(voxel_data), checks=False)
+            voxel_iscs.append(iscs)
+        iscs_stack = np.column_stack(voxel_iscs)
+        return iscs_stack
+        
+    def new_pairwise(data):
+        isc_pairs = []
+        for pair in combinations(np.arange(data.shape[-1]), 2):
+            isc_pair = array_correlation(data[..., pair[0]],
+                                         data[..., pair[1]])
+            isc_pairs.append(isc_pair)
+        iscs_stack = np.array(isc_pairs)
+        return iscs_stack
+        
     elif not pairwise:
 
         # Preset array
@@ -174,11 +632,76 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         for s in range(data.shape[2]):
 
             # Get the individual and the average of the others
-            individual = data[:, :, s].T
+            individual = data[..., s].T
             other = mean(np.delete(data, s, axis=2), axis=2).T
 
             # Perform the row-wise correlation
             iscs_stack[s, :] = _corr_mat(individual, other)
+            
+            
+    def cam_loo(data):
+        # Preset array
+        iscs_stack = np.zeros((data.shape[2], data.shape[1]))
+
+        # Leave one out loop
+        for s in range(data.shape[2]):
+
+            # Get the individual and the average of the others
+            individual = data[..., s]
+            other = np.mean(np.delete(data, s, axis=2), axis=2)
+
+            # Perform the row-wise correlation
+            iscs_stack[s, :] = array_correlation(individual, other)
+        return iscs_stack
+            
+    def old_loo(data):
+        data = np.swapaxes(data, 2, 0)
+        voxel_iscs = []
+        for v in np.arange(data.shape[1]):
+            voxel_data = data[:, v, :]
+            iscs = np.array([pearsonr(subject,
+                          np.mean(np.delete(voxel_data,
+                                         s, axis=0),
+                               axis=0))[0]
+                 for s, subject in enumerate(voxel_data)])
+            voxel_iscs.append(iscs)
+        iscs_stack = np.column_stack(voxel_iscs)
+        return iscs_stack
+    
+    def new_loo(data):
+        iscs_stack = []        
+        for s in np.arange(data.shape[2]):
+            iscs_stack.append(array_correlation(data[..., s],
+                                                np.mean(np.delete(
+                                                     data, s, axis=2), axis=2)))
+        return np.array(iscs_stack)
+    
+    def new_loo(data):
+        iscs_stack = []        
+        for s in np.arange(data.shape[2]):
+            
+            subject = data[..., s]
+            others = np.mean(np.delete(data, s, axis=2), axis=2)
+            iscs_stack.append(array_correlation(subject, others))
+            
+        return np.array(iscs_stack)
+            
+    def new_loo(data):
+        iscs_stack = np.zeros((data.shape[2], data.shape[1]))
+        for s in np.arange(data.shape[2]):
+            iscs_stack[s, :] = array_correlation(data[..., s],
+                                                np.mean(np.delete(
+                                                     data, s, axis=2), axis=2))
+        return np.array(iscs_stack)
+        
+        
+        iscs_stack = np.array([array_correlation(subject,
+                                                 np.mean(np.delete(data,
+                                                                   s, axis=0),
+                                                   axis=0))
+                         for s, subject in enumerate(data)])
+        return iscs_stack
+            
 
     # Get ISCs back into correct shape after masking out NaNs
     iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
@@ -306,7 +829,7 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
     # Compute all pairwise ISFCs (only for symmetric approach)
     elif pairwise:
         isfcs = []
-        for pair in it.combinations(np.arange(n_subjects), 2):
+        for pair in combinations(np.arange(n_subjects), 2):
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
@@ -467,49 +990,6 @@ def _check_targets_input(targets, data):
         symmetric = True
 
     return targets, n_TRs, n_voxels, n_subjects, symmetric
-
-
-def _corr_mat(mat_1, mat_2):
-    """Computes matrix-wise correlation values for ISC
-
-    This takes in as input two matrices of voxel by time and returns
-    a correlation value for each voxel (ISC values). This is an efficient
-    computation to perform correlations across many voxels
-
-    Parameters
-    ----------
-    mat_1 : 2D array
-        Voxel by time matrix of data
-
-    mat_2 : 2D array
-        Voxel by time matrix of data. The shape must be identical with mat_1
-
-    Returns
-    -------
-    isc : 1D array
-        ISC values for every individual voxel
-
-    """
-
-    if mat_1.shape != mat_2.shape:
-        raise ValueError("Inputs are not the same shape, ISC not possible")
-
-    # Calculate the row means
-    mat_1_mean = np.reshape(np.mean(mat_1, axis=1), (mat_1.shape[0], 1))
-    mat_2_mean = np.reshape(np.mean(mat_2, axis=1), (mat_2.shape[0], 1))
-
-    # Calculate the mean difference in product
-    sum_mean_diff = np.sum((mat_1 - mat_1_mean) * (mat_2 - mat_2_mean), axis=1)
-
-    # Calculate the SSE denominator
-    mat_1_SSE = np.sum((mat_1 - mat_1_mean)**2, axis=1)
-    mat_2_SSE = np.sum((mat_2 - mat_2_mean)**2, axis=1)
-    denominator = np.sqrt(mat_1_SSE * mat_2_SSE)
-
-    # Find r
-    r = sum_mean_diff / denominator
-
-    return r
 
 
 def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):

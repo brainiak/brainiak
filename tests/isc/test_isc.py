@@ -3,7 +3,7 @@ import logging
 import pytest
 from brainiak.isc import (isc, isfc, bootstrap_isc, permutation_isc,
                           squareform_isfc, timeshift_isc,
-                          phaseshift_isc, _corr_mat)
+                          phaseshift_isc)
 from scipy.spatial.distance import squareform
 
 logger = logging.getLogger(__name__)
