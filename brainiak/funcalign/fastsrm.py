@@ -17,18 +17,17 @@ The implementations are based on the following publications:
 """
 
 # Author: Hugo Richard (INRIA - Parietal)
-# under the supervision of Jonathan Pillow (Princeton Neuroscience Institute) and Bertrand Thirion (Inria - Parietal)
-# building upon code and work of Po-Hsuan Chen (Princeton Neuroscience Institute) and Javier Turek (Intel Labs)
+# under the supervision of Jonathan Pillow (Princeton Neuroscience Institute)
+# and Bertrand Thirion (Inria - Parietal)
+# building upon code and work of Po-Hsuan Chen (Princeton Neuroscience
+# Institute) and Javier Turek (Intel Labs)
 
 import logging
 
 import numpy as np
 import scipy
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
-from mpi4py import MPI
-import sys
 from joblib import Parallel, delayed
 import os
 import glob
@@ -41,7 +40,8 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=None):
+def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
+                       temp_dir=None):
     """Reduce data using given atlas
 
     Parameters
@@ -49,12 +49,14 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=
 
     img : str
         path to data.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Data are loaded with numpy.load and expected shape is
+         [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-    atlas :  array, shape=[n_supervoxels, n_voxels] or None or array, shape=[n_voxels]
+    atlas :  array, shape=[n_supervoxels, n_voxels]
+    or None or array, shape=[n_voxels]
         Probabilistic or deterministic atlas on which to project the data
         Deterministic atlas is an array of shape [n_voxels,] where values
         range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
@@ -70,7 +72,8 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=
 
     low_ram : bool
         if True and temp_dir is not None, reduced_data will be saved on disk
-        this increases the number of IO but reduces memory complexity when the number
+        this increases the number of IO but reduces memory complexity when the
+         number
         of subject and number of sessions are large
 
     Returns
@@ -80,7 +83,8 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=
         reduced data
     """
     if atlas is None and inv_atlas is None:
-        raise ValueError("An atlas or the pseudo inverse of a probabilistic atlas should be provided")
+        raise ValueError("An atlas or the pseudo inverse of"
+                         " a probabilistic atlas should be provided")
 
     if inv_atlas is None and atlas is not None:
         # this means that it is a deterministic atlas
@@ -91,18 +95,23 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False, temp_dir=
         data = np.load(img)
 
         if data.shape[1] != n_voxels:
-            raise ValueError("%s have %i number of voxels and the atlas has %i number of voxels."
-                       "This is not compatible." % (img, data.shape[1], n_voxels))
+            raise ValueError("%s have %i number of voxels and"
+                             " the atlas has %i number of voxels."
+                             "This is not compatible." % (img, data.shape[1],
+                                                          n_voxels))
 
-        reduced_data = np.array([np.mean(data[:, atlas == c], axis=1) for c in atlas_values]).T
+        reduced_data = np.array([np.mean(data[:, atlas == c], axis=1)
+                                 for c in atlas_values]).T
     else:
         # this means that it is a deterministic atlas
         n_voxels = inv_atlas.shape[0]
         data = np.load(img)
 
         if data.shape[1] != n_voxels:
-            raise ValueError("%s have %i number of voxels and the atlas has %i number of voxels."
-                       "This is not compatible." % (img, data.shape[1], n_voxels))
+            raise ValueError("%s have %i number of voxels and the atlas"
+                             " has %i number of voxels."
+                             "This is not compatible." % (img, data.shape[1],
+                                                          n_voxels))
 
         reduced_data = data.dot(inv_atlas)
 
@@ -123,8 +132,10 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
     ----------
 
     imgs : array of str, shape=[n_subjects, n_sessions]
-        Element i, j of the array is a path to the data of subject i collected during session j.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Element i, j of the array is a path to the data of subject i
+        collected during session j.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
@@ -146,18 +157,22 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
 
     low_ram : bool
         if True and temp_dir is not None, reduced_data will be saved on disk
-        this increases the number of IO but reduces memory complexity when the number
-        of subject and/or sessions is large
+        this increases the number of IO but reduces memory complexity when
+         the number of subject and/or sessions is large
 
     Returns
     -------
 
     reduced_data_list : array of str, shape=[n_subjects, n_sessions]
-    or array, shape=[n_subjects, n_sessions, n_timeframes, n_voxels]
-        Element i, j of the array is a path to the data of subject i collected during session j.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_supervoxels]
-        or Element i, j of the array is the data in array of shape=[n_timeframes, n_supervoxels]
-        n_timeframes and n_voxels are assumed to be the same across subjects
+    or array, shape=[n_subjects, n_sessions, n_timeframes, n_supervoxels]
+        Element i, j of the array is a path to the data of subject i collected
+         during session j.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_supervoxels]
+        or Element i, j of the array is the data in array of
+        shape=[n_timeframes, n_supervoxels]
+        n_timeframes and n_supervoxels
+         are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
     """
@@ -183,15 +198,78 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         ) for img in imgs.flatten())
 
     if low_ram:
-        reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions))
+        reduced_data_list = np.reshape(reduced_data_list,
+                                       (n_subjects, n_sessions))
     else:
         if len(np.array(reduced_data_list).shape) == 1:
-            reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions))
+            reduced_data_list = np.reshape(reduced_data_list,
+                                           (n_subjects, n_sessions))
         else:
             n_timeframes, n_supervoxels = np.array(reduced_data_list).shape[1:]
-            reduced_data_list = np.reshape(reduced_data_list, (n_subjects, n_sessions, n_timeframes, n_supervoxels))
+            reduced_data_list = np.reshape(reduced_data_list,
+                                           (n_subjects,
+                                            n_sessions,
+                                            n_timeframes,
+                                            n_supervoxels))
 
     return reduced_data_list
+
+
+def check_shapes(n_supervoxels, n_components, n_timeframes):
+    """
+    Check assumptions about input parameters
+
+    Parameters
+    ----------
+
+    n_supervoxels: int
+
+    n_components: int
+
+    n_timeframes: int
+
+    """
+
+    if n_supervoxels < n_components:
+        raise ValueError("The number of regions in the atlas "
+                         "%i is smaller than "
+                         "the number of components %i of fastSRM"
+                         % (n_supervoxels, n_components))
+
+    if n_timeframes < n_components:
+        raise ValueError("Number of timeframes %i is shorter than "
+                         "number of components %i" % (n_timeframes,
+                                                      n_components))
+
+
+def is_low_ram(reduced_data):
+    """
+    Depending on type of reduced_data infer if we are in low-ram mode or not
+    Parameters
+    ----------
+    reduced_data : str or array, shape=[n_timeframes, n_supervoxels]
+        Element i, j of the array is a path to the data of subject i
+        collected during session j.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_supervoxels]
+        or Element i, j of the array is the data in array of
+        shape=[n_timeframes, n_supervoxels]
+        n_timeframes and n_supervoxels are
+         assumed to be the same across subjects
+        n_timeframes can vary across sessions
+        Each voxel's timecourse is assumed to have mean 0 and variance 1
+    """
+    if type(reduced_data) == np.ndarray:
+        low_ram = False
+    elif (type(reduced_data) == str or
+          type(reduced_data) == np.str_ or
+          type(reduced_data == np.str)):
+        low_ram = True
+    else:
+        raise ValueError("Reduced data are stored using "
+                         "type %s which is neither np.ndarray or str"
+                         % type(reduced_data[0, 0]))
+    return low_ram
 
 
 def _reduced_space_compute_shared_response(reduced_data_list,
@@ -203,15 +281,20 @@ def _reduced_space_compute_shared_response(reduced_data_list,
     ----------
 
     reduced_data_list : array of str, shape=[n_subjects, n_sessions]
-    or array, shape=[n_subjects, n_sessions, n_timeframes, n_voxels]
-        Element i, j of the array is a path to the data of subject i collected during session j.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_supervoxels]
-        or Element i, j of the array is the data in array of shape=[n_timeframes, n_supervoxels]
-        n_timeframes and n_voxels are assumed to be the same across subjects
+    or array, shape=[n_subjects, n_sessions, n_timeframes, n_supervoxels]
+        Element i, j of the array is a path to the data of subject i
+        collected during session j.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_supervoxels]
+        or Element i, j of the array is the data in array of
+        shape=[n_timeframes, n_supervoxels]
+        n_timeframes and n_supervoxels are
+        assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-    reduced_basis_list : None or list of array, element i has shape=[n_components, n_supervoxels]
+    reduced_basis_list : None or list of array, element i has
+    shape=[n_components, n_supervoxels]
         each subject's reduced basis
         if None the basis will be generated on the fly
 
@@ -221,26 +304,18 @@ def _reduced_space_compute_shared_response(reduced_data_list,
     Returns
     -------
 
-    shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+    shared_response_list : list of array, element i has
+    shape=[n_timeframes, n_components]
         shared response, element i is the shared response during session i
 
     """
     n_subjects, n_sessions = reduced_data_list.shape[:2]
-    if type(reduced_data_list[0, 0]) == np.ndarray:
-        low_ram = False
-    elif (type(reduced_data_list[0, 0]) == str or
-          type(reduced_data_list[0, 0]) == np.str_ or
-          type(reduced_data_list[0, 0] == np.str)):
-        low_ram = True
-    else:
-        print("data", reduced_data_list[0, 0])
-        print(type(reduced_data_list[0, 0]))
-        raise ValueError("Reduced data are stored using type %s which is neither np.ndarray or str"
-                         % type(reduced_data_list[0, 0]))
+    low_ram = is_low_ram(reduced_data_list[0, 0])
 
     s = [None] * n_sessions
 
-    # This is just to check that all subjects have same number of timeframes in a given session
+    # This is just to check that all subjects have same number of
+    # timeframes in a given session
     list_n_timeframes = [None] * n_sessions
     for n in range(n_subjects):
         for m in range(n_sessions):
@@ -251,18 +326,14 @@ def _reduced_space_compute_shared_response(reduced_data_list,
 
             n_timeframes, n_supervoxels = data_nm.shape
 
-            if n_supervoxels < n_components:
-                raise ValueError("The number of regions in the atlas %i is smaller than "
-                                 "the number of components %i of fastSRM" % (n_supervoxels, n_components))
+            check_shapes(n_supervoxels, n_components, n_timeframes)
 
             if list_n_timeframes[m] is None:
                 list_n_timeframes[m] = n_timeframes
             elif list_n_timeframes[m] != n_timeframes:
-                raise ValueError("Subject %i Session %i does not have the same number of timeframes "
+                raise ValueError("Subject %i Session %i does not have the "
+                                 "same number of timeframes "
                                  "as Subject %i Session %i" % (n, m, 0, m))
-
-            if n_timeframes < n_components:
-                raise ValueError("Number of timeframes is shorter than number of components")
 
             if reduced_basis_list is None:
                 reduced_basis_list = []
@@ -289,7 +360,8 @@ def _compute_and_save_corr_mat(img, shared_response, temp_dir):
     ----------
     img : str
         path to data.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
@@ -310,11 +382,14 @@ def _compute_and_save_subject_basis(subject_number, sessions, temp_dir):
     ----------
 
     subject_number: int
-        Number that identifies the subject. Basis will be stored in [temp_dir]/basis_[subject_number].npy
+        Number that identifies the subject. Basis will be stored in
+         [temp_dir]/basis_[subject_number].npy
 
     sessions : array of str
-        Element i of the array is a path to the data collected during session i.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Element i of the array is a path to the data collected during
+        session i.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance
@@ -356,15 +431,19 @@ def _compute_subject_basis(corr_mat):
     Parameters
     ----------
 
-    corr_mat: array, shape=[n_component, n_voxels] or shape=[n_components, n_supervoxels]
-        correlation matrix between shared response and subject data or subject reduced data
-        element k, v is given by S.T.dot(X_i) where S is the shared response and
+    corr_mat: array, shape=[n_component, n_voxels]
+    or shape=[n_components, n_supervoxels]
+        correlation matrix between shared response and subject data or
+         subject reduced data
+        element k, v is given by S.T.dot(X_i) where S is the shared response
+         and
         X_i the data of subject i.
 
     Returns
     -------
-    
-    basis: array, shape=[n_components, n_voxels] or shape=[n_components, n_supervoxels]
+
+    basis: array, shape=[n_components, n_voxels]
+    or shape=[n_components, n_supervoxels]
         basis of subject or reduced_basis of subject
     """
     if corr_mat.shape[0] == corr_mat.shape[1]:
@@ -379,29 +458,34 @@ def _compute_subject_basis(corr_mat):
 
 def fast_srm(reduced_data_list, n_iter=10, n_components=None):
     """Computes shared response and basis in reduced space
-    
+
     Parameters
     ----------
-    
+
     reduced_data_list : array of str, shape=[n_subjects, n_sessions]
-    or array, shape=[n_subjects, n_sessions, n_timeframes, n_voxels]
-        Element i, j of the array is a path to the data of subject i collected during session j.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_supervoxels]
-        or Element i, j of the array is the data in array of shape=[n_timeframes, n_supervoxels]
-        n_timeframes and n_voxels are assumed to be the same across subjects
+    or array, shape=[n_subjects, n_sessions, n_timeframes, n_supervoxels]
+        Element i, j of the array is a path to the data of subject i
+        collected during session j.
+        Data are loaded with numpy.load and expected
+        shape is [n_timeframes, n_supervoxels]
+        or Element i, j of the array is the data in array of
+        shape=[n_timeframes, n_supervoxels]
+        n_timeframes and n_supervoxels are
+         assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
-        
+
     n_iter : int
         Number of iterations performed
-        
+
     n_components : int or None
         number of components
 
     Returns
     -------
-        
-    shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+
+    shared_response_list : list of array, element i has
+     shape=[n_timeframes, n_components]
         shared response, element i is the shared response during session i
     """
 
@@ -412,9 +496,8 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
           type(reduced_data_list[0, 0] == np.str)):
         low_ram = True
     else:
-        print("data", reduced_data_list[0, 0])
-        print(type(reduced_data_list[0, 0]))
-        raise ValueError("Reduced data are stored using type %s which is neither np.ndarray or str"
+        raise ValueError("Reduced data are stored using type"
+                         " %s which is neither np.ndarray or str"
                          % type(reduced_data_list[0, 0]))
 
     n_subjects, n_sessions = reduced_data_list.shape[:2]
@@ -450,20 +533,23 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
 
 def _compute_basis_subject_online(sessions, shared_response_list):
     """Computes subject's basis with shared response fixed
-    
+
     Parameters
     ----------
-    
+
     sessions : array of str
-        Element i of the array is a path to the data collected during session i.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Element i of the array is a path to the data
+        collected during session i.
+        Data are loaded with numpy.load and expected shape is
+         [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
-    
-    shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+
+    shared_response_list : list of array, element i has
+    shape=[n_timeframes, n_components]
         shared response, element i is the shared response during session i
-        
+
     Returns
     -------
 
@@ -484,27 +570,32 @@ def _compute_basis_subject_online(sessions, shared_response_list):
     return _compute_subject_basis(basis_i)
 
 
-def _compute_shared_response_online_single(subjects, basis_list, temp_dir, subjects_indexes):
+def _compute_shared_response_online_single(subjects, basis_list,
+                                           temp_dir, subjects_indexes):
     """Computes shared response during one session with basis fixed
-    
+
     Parameters
     ----------
-    
+
     subjects : array of str
         Element i of the array is a path to the data of subject i.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Data are loaded with numpy.load and expected shape is
+         [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
-        
-    basis_list : None or list of array, element i has shape=[n_components, n_voxels]
+
+    basis_list : None or list of array, element i has
+    shape=[n_components, n_voxels]
         basis of all subjects, element i is the basis of subject i
 
     temp_dir : None or str
-        path to basis folder where file basis_%i.npy contains the basis of subject i
+        path to basis folder where file basis_%i.npy contains the basis of
+        subject i
 
     subjects_indexes : list of int or None
-        list of indexes corresponding to the subjects to use to compute shared response
+        list of indexes corresponding to the subjects to use to compute
+        shared response
 
     Returns
     -------
@@ -531,36 +622,43 @@ def _compute_shared_response_online_single(subjects, basis_list, temp_dir, subje
     return shared_response / float(n)
 
 
-def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs, subjects_indexes):
+def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
+                                    subjects_indexes):
     """Computes shared response with basis fixed
 
     Parameters
     ----------
 
     imgs : array of str, shape=[n_subjects, n_sessions]
-        Element i, j of the array is a path to the data of subject i collected during session j.
-        Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
+        Element i, j of the array is a path to the data of subject i
+        collected during session j.
+        Data are loaded with numpy.load and expected shape is
+        [n_timeframes, n_voxels]
         n_timeframes and n_voxels are assumed to be the same across subjects
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-    basis_list : None or list of array, element i has shape=[n_components, n_voxels]
+    basis_list : None or list of array, element i has
+    shape=[n_components, n_voxels]
         basis of all subjects, element i is the basis of subject i
 
     temp_dir : None or str
-        path to basis folder where file basis_%i.npy contains the basis of subject i
+        path to basis folder where file basis_%i.npy contains the basis of
+        subject i
 
     n_jobs : integer, optional, default=1
             The number of CPUs to use to do the computation.
              -1 means all CPUs, -2 all CPUs but one, and so on.
 
     subjects_indexes : list or None
-        list of indexes corresponding to the subjects to use to compute shared response
+        list of indexes corresponding to the subjects to use to compute
+        shared response
 
     Returns
     -------
 
-    shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+    shared_response_list : list of array, element i has
+    shape=[n_timeframes, n_components]
         shared response, element i is the shared response during session i
     """
     shared_response_list = Parallel(n_jobs=n_jobs)(
@@ -574,8 +672,43 @@ def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs, subjects
     return shared_response_list
 
 
+def check_imgs(imgs):
+    """
+    Check input images
+
+    Parameters
+    ----------
+
+    imgs : array of str, shape=[n_subjects, n_sessions]
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_timeframes, n_voxels]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
+            n_timeframes can vary across sessions
+            Each voxel's timecourse is assumed to have mean 0 and variance 1
+    """
+    if type(imgs) != np.ndarray:
+        raise ValueError("imgs should be of type "
+                         "np.ndarray but is of type %s"
+                         % type(imgs))
+
+    if len(imgs.shape) != 2:
+        raise ValueError("imgs should be an array of shape "
+                         "[n_subjects, n_sessions] "
+                         "but its shape is of size %i"
+                         % len(imgs.shape))
+
+    n_subjects, n_sessions = imgs.shape
+
+    if n_subjects <= 1:
+        raise ValueError("The number of subjects should be greater than 1")
+
+
 class FastSRM(BaseEstimator, TransformerMixin):
-    """SRM decomposition using a very low amount of memory and computational power
+    """SRM decomposition using a very low amount of memory and
+    computational power
 
     Given multi-subject data, factorize it as a shared response S among all
     subjects and an orthogonal transform (basis) W per subject:
@@ -604,8 +737,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
     low_ram : bool
         if True and temp_dir is not None, reduced_data will be saved on disk
-        this increases the number of IO but reduces memory complexity when the number
-        of subject and / or sessions is large
+        this increases the number of IO but reduces memory complexity when
+        the number of subject and / or sessions is large
 
     random_state : int or RandomState
         Pseudo number generator state used for random sampling.
@@ -622,9 +755,11 @@ class FastSRM(BaseEstimator, TransformerMixin):
     Attributes
     ----------
 
-    `basis_list`: list of array, element i has shape=[n_components, n_voxels] or list of str
+    `basis_list`: list of array, element i has shape=[n_components, n_voxels]
+     or list of str
         basis of all subjects, element i is the basis of subject i
-        or path to basis of all subjects, element i is the path to the basis of subject i
+        or path to basis of all subjects, element i is the path to the
+        basis of subject i
     """
     def __init__(self,
                  atlas,
@@ -647,9 +782,11 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         if temp_dir is None:
             if self.verbose == "warn" or self.verbose is True:
-                logger.warning("temp_dir has value None. All basis (spatial maps) and "
-                               "reconstructed data will therefore be kept in memory."
-                               "This can lead to memory errors when the number of subjects "
+                logger.warning("temp_dir has value None. "
+                               "All basis (spatial maps) and reconstructed "
+                               "data will therefore be kept in memory."
+                               "This can lead to memory errors when the "
+                               "number of subjects "
                                "and/or sessions is large.")
             self.temp_dir = None
             self.low_ram = False
@@ -673,9 +810,12 @@ class FastSRM(BaseEstimator, TransformerMixin):
         ----------
 
         imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i collected during session j.
-            Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
-            n_timeframes and n_voxels are assumed to be the same across subjects
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_timeframes, n_voxels]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
             n_timeframes can vary across sessions
             Each voxel's timecourse is assumed to have mean 0 and variance 1
 
@@ -692,19 +832,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
             for path in paths:
                 os.remove(path)
 
-        if type(imgs) != np.ndarray:
-            raise ValueError("imgs should be of type np.ndarray but is of type %s"
-                             % type(imgs))
-
-        if len(imgs.shape) != 2:
-            raise ValueError("imgs should be an array of shape [n_subjects, n_sessions] "
-                             "but its shape is of size %i"
-                             % len(imgs.shape))
-
+        check_imgs(imgs)
         n_subjects, n_sessions = imgs.shape
-
-        if n_subjects <= 1:
-            raise ValueError("The number of subjects should be greater than 1")
 
         if self.verbose is True:
             n_subjects, n_sessions = imgs.shape
@@ -723,7 +852,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
         )
 
         if self.verbose is True:
-            logger.info("[FastSRM.fit] Finds shared response using reduced data")
+            logger.info("[FastSRM.fit] Finds shared "
+                        "response using reduced data")
 
         shared_response_list = fast_srm(
             reduced_data,
@@ -732,12 +862,16 @@ class FastSRM(BaseEstimator, TransformerMixin):
         )
 
         if self.verbose is True:
-            print("[FastSRM.fit] Finds basis using full data and shared response")
+            logger.info("[FastSRM.fit] Finds basis using "
+                        "full data and shared response")
 
         if self.n_jobs == 1:
             basis = []
             for i, sessions in enumerate(imgs):
-                basis_i = _compute_basis_subject_online(sessions, shared_response_list)
+                basis_i = _compute_basis_subject_online(
+                    sessions,
+                    shared_response_list
+                )
                 if self.temp_dir is None:
                     basis.append(basis_i)
                 else:
@@ -756,8 +890,17 @@ class FastSRM(BaseEstimator, TransformerMixin):
                 for subject in subjects
             )
 
-            basis = Parallel(n_jobs=self.n_jobs)(delayed(_compute_and_save_subject_basis)(i, sessions, self.temp_dir)
-                                                 for i, sessions in enumerate(imgs))
+            basis = Parallel(
+                n_jobs=self.n_jobs
+            )(delayed(
+                _compute_and_save_subject_basis
+            )(
+                i,
+                sessions,
+                self.temp_dir
+            )
+              for i, sessions in enumerate(imgs)
+              )
 
         self.basis_list = basis
         return self
@@ -769,15 +912,19 @@ class FastSRM(BaseEstimator, TransformerMixin):
         Parameters
         ----------
         imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i collected during session j.
-            Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
-            n_timeframes and n_voxels are assumed to be the same across subjects
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_timeframes, n_voxels]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
             n_timeframes can vary across sessions
             Each voxel's timecourse is assumed to have mean 0 and variance 1
 
         Returns
         --------
-        shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+        shared_response_list : list of array, element i has
+         shape=[n_timeframes, n_components]
             shared response, element i is the shared response during session i
         """
         self.fit(imgs)
@@ -791,20 +938,25 @@ class FastSRM(BaseEstimator, TransformerMixin):
         ----------
 
         imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i collected during session j.
-            Data are loaded with numpy.load and expected shape is [n_timeframes, n_voxels]
-            n_timeframes and n_voxels are assumed to be the same across subjects
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_timeframes, n_voxels]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
             n_timeframes can vary across sessions
             Each voxel's timecourse is assumed to have mean 0 and variance 1
 
 
         subjects_indexes : list or None:
             if None imgs[i] will be transformed using basis[i]
-            otherwise imgs[i] will be transformed using basis[subjects_index[i]]
+            otherwise imgs[i] will be transformed using
+            basis[subjects_index[i]]
 
         Returns
         -------
-        shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+        shared_response_list : list of array, element i has
+        shape=[n_timeframes, n_components]
             shared response, element i is the shared response during session i
         """
         if self.basis_list is None:
@@ -825,18 +977,22 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         return shared_response
 
-    def inverse_transform(self, shared_response_list, subjects_indexes=None, sessions_indexes=None):
-        """From shared response and basis from training data reconstruct subject's data
+    def inverse_transform(self, shared_response_list, subjects_indexes=None,
+                          sessions_indexes=None):
+        """From shared response and basis from training data
+        reconstruct subject's data
 
         Parameters
         ----------
 
-        shared_response_list : list of array, element i has shape=[n_timeframes, n_components]
+        shared_response_list : list of array, element i has
+        shape=[n_timeframes, n_components]
             shared response, element i is the shared response during session i
 
         subjects_indexes: list or None:
             if None reconstructs data of all subjects' used during train
-            otherwise reconstructs data using subject's specified by subjects_indexes
+            otherwise reconstructs data using subject's specified by
+            subjects_indexes
 
         sessions_indexes: list or None:
             if None reconstructs data using all sessions
@@ -844,7 +1000,9 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         Returns
         -------
-        reconstructed_data: array shape=[len(subjects_indexes), len(sessions_indexes), n_timeframes, n_voxels]
+        reconstructed_data: array
+         shape=[len(subjects_indexes), len(sessions_indexes),
+         n_timeframes, n_voxels]
             Reconstructed data for chosen subjects and sessions
         """
         n_subjects = len(self.basis_list)
@@ -865,7 +1023,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
             if self.temp_dir is None:
                 basis_i = self.basis_list[i]
             else:
-                basis_i = np.load(os.path.join(self.temp_dir, "basis_%i.npy" % i))
+                basis_i = np.load(os.path.join(self.temp_dir,
+                                               "basis_%i.npy" % i))
 
             for j in sessions_indexes:
                 data_.append(shared_response_list[j].dot(basis_i))
