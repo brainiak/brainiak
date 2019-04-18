@@ -50,7 +50,7 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
-from itertools import combinations
+from itertools import combinations, permutations, product
 from brainiak.fcma.util import compute_correlation
 from brainiak.utils.utils import (array_correlation,
                                   phase_randomize,
@@ -177,13 +177,13 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
     elif not pairwise:
 
         # Loop through left-out subjects
-        iscs_stack = [] 
+        iscs_stack = []
         for s in np.arange(n_subjects):
 
             # Correlation between left-out subject and mean of others
             iscs_stack.append(array_correlation(
                 data[..., s],
-                np.mean(np.delete(data, s, axis=2), axis=2)))
+                mean(np.delete(data, s, axis=2), axis=2)))
 
         iscs_stack = np.array(iscs_stack)
 
@@ -1138,7 +1138,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                         "sign-flipping procedure with 2**{0} "
                         "({1}) iterations.".format(n_subjects,
                                                    2**n_subjects))
-            exact_permutations = list(it.product([-1, 1], repeat=n_subjects))
+            exact_permutations = list(product([-1, 1], repeat=n_subjects))
             n_permutations = 2**n_subjects
 
     # Check for exact test for two groups
@@ -1153,7 +1153,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                         "({1}) iterations.".format(
                                 n_subjects,
                                 np.math.factorial(n_subjects)))
-            exact_permutations = list(it.permutations(
+            exact_permutations = list(permutations(
                 np.arange(len(group_assignment))))
             n_permutations = np.math.factorial(n_subjects)
 

@@ -949,11 +949,11 @@ def array_correlation(x, y, axis=0):
         x = np.asarray(x)
     if not isinstance(y, np.ndarray):
         y = np.asarray(y)
-    
-    # Check that inputs are same shape    
+
+    # Check that inputs are same shape
     if x.shape != y.shape:
         raise ValueError("Input arrays must be the same shape")
-        
+
     # Transpose if axis=1 requested (to avoid broadcasting
     # issues introduced by switching axis in mean and sum)
     if axis == 1:
@@ -963,11 +963,11 @@ def array_correlation(x, y, axis=0):
     x_demean = x - np.mean(x, axis=0)
     y_demean = y - np.mean(y, axis=0)
 
-    # Compute summed product of centered variables    
+    # Compute summed product of centered variables
     numerator = np.sum(x_demean * y_demean, axis=0)
-                       
+
     # Compute sum squared error
     denominator = np.sqrt(np.sum(x_demean ** 2, axis=0) *
                           np.sum(y_demean ** 2, axis=0))
-    
+
     return numerator / denominator
