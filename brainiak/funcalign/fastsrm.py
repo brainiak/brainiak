@@ -55,13 +55,13 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-    atlas :  array, shape=[n_supervoxels, n_voxels]
+    atlas :  array, shape=[n_supervoxels, n_voxels] or None
     or None or array, shape=[n_voxels]
         Probabilistic or deterministic atlas on which to project the data
         Deterministic atlas is an array of shape [n_voxels,] where values
         range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
 
-    inv_atlas : array, shape=[n_voxels, n_supervoxels]
+    inv_atlas : array, shape=[n_voxels, n_supervoxels] or None
         Pseudo inverse of the atlas (only for probabilistic atlases)
 
     temp_dir : str or None
@@ -87,7 +87,6 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
                          " a probabilistic atlas should be provided")
 
     if inv_atlas is None and atlas is not None:
-        # this means that it is a deterministic atlas
         n_voxels = atlas.shape[0]
         atlas_values = np.unique(atlas)
         if 0 in atlas_values:
@@ -103,7 +102,9 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
         reduced_data = np.array([np.mean(data[:, atlas == c], axis=1)
                                  for c in atlas_values]).T
     else:
-        # this means that it is a deterministic atlas
+        # this means that it is a probabilistic atlas
+        assert len(inv_atlas.shape) == 2
+
         n_voxels = inv_atlas.shape[0]
         data = np.load(img)
 
@@ -177,12 +178,17 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         Each voxel's timecourse is assumed to have mean 0 and variance 1
     """
     if type(atlas) != np.ndarray:
-        raise ValueError("atlas should be of type np.ndarray")
+        raise ValueError("atlas should be of type np.ndarray but has type %s"
+                         % (type(atlas)))
 
     if len(atlas.shape) == 2:
         A = None
         A_inv = atlas.T.dot(np.linalg.inv(atlas.dot(atlas.T)))
     else:
+        if len(atlas.shape) != 1:
+            raise ValueError("atlas should have shape of length 1 "
+                             "(deterministic) or 2 (probabilistic) but input"
+                             "atlas has shape of length %i" % len(atlas.shape))
         A = atlas
         A_inv = None
 
@@ -263,12 +269,12 @@ def is_low_ram(reduced_data):
         low_ram = False
     elif (type(reduced_data) == str or
           type(reduced_data) == np.str_ or
-          type(reduced_data == np.str)):
+          type(reduced_data) == np.str):
         low_ram = True
     else:
         raise ValueError("Reduced data are stored using "
                          "type %s which is neither np.ndarray or str"
-                         % type(reduced_data[0, 0]))
+                         % type(reduced_data))
     return low_ram
 
 
@@ -415,13 +421,9 @@ def _compute_and_save_subject_basis(subject_number, sessions, temp_dir):
         else:
             corr_mat += np.load(path)
     basis_i = _compute_subject_basis(corr_mat)
-
-    if temp_dir is None:
-        return basis_i
-    else:
-        path = os.path.join(temp_dir, "basis_" % subject_number)
-        np.save(path, basis_i)
-        return path + ".npy"
+    path = os.path.join(temp_dir, "basis_%i" % subject_number)
+    np.save(path, basis_i)
+    return path + ".npy"
 
 
 def _compute_subject_basis(corr_mat):
@@ -436,8 +438,7 @@ def _compute_subject_basis(corr_mat):
         correlation matrix between shared response and subject data or
          subject reduced data
         element k, v is given by S.T.dot(X_i) where S is the shared response
-         and
-        X_i the data of subject i.
+         and X_i the data of subject i.
 
     Returns
     -------
@@ -446,13 +447,7 @@ def _compute_subject_basis(corr_mat):
     or shape=[n_components, n_supervoxels]
         basis of subject or reduced_basis of subject
     """
-    if corr_mat.shape[0] == corr_mat.shape[1]:
-        U, _, V = scipy.linalg.svd(
-            corr_mat + 1.e-18 * np.eye(corr_mat.shape[0]),
-            full_matrices=False
-        )
-    else:
-        U, _, V = scipy.linalg.svd(corr_mat, full_matrices=False)
+    U, _, V = scipy.linalg.svd(corr_mat, full_matrices=False)
     return U.dot(V)
 
 
@@ -489,17 +484,11 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
         shared response, element i is the shared response during session i
     """
 
-    if type(reduced_data_list[0, 0]) == np.ndarray:
-        low_ram = False
-    elif (type(reduced_data_list[0, 0]) == str or
-          type(reduced_data_list[0, 0]) == np.str_ or
-          type(reduced_data_list[0, 0] == np.str)):
-        low_ram = True
-    else:
-        raise ValueError("Reduced data are stored using type"
-                         " %s which is neither np.ndarray or str"
-                         % type(reduced_data_list[0, 0]))
+    if type(reduced_data_list) != np.ndarray:
+        raise ValueError("reduced data must have type np.ndarray but"
+                         "has type %s" % type(reduced_data_list))
 
+    low_ram = is_low_ram(reduced_data_list[0, 0])
     n_subjects, n_sessions = reduced_data_list.shape[:2]
     shared_response = _reduced_space_compute_shared_response(
         reduced_data_list,
@@ -833,14 +822,11 @@ class FastSRM(BaseEstimator, TransformerMixin):
                 os.remove(path)
 
         check_imgs(imgs)
-        n_subjects, n_sessions = imgs.shape
 
         if self.verbose is True:
             n_subjects, n_sessions = imgs.shape
             logger.info("Fitting using %i subjects and %i sessions per subject"
                         % (n_subjects, n_sessions))
-
-        if self.verbose is True:
             logger.info("[FastSRM.fit] Reducing data")
 
         reduced_data = reduce_data(
@@ -880,27 +866,37 @@ class FastSRM(BaseEstimator, TransformerMixin):
                     basis.append(path + ".npy")
                 del basis_i
         else:
-            Parallel(n_jobs=self.n_jobs)(
-                delayed(_compute_and_save_corr_mat)(
-                    subject,
-                    shared_response_list[m],
+            if self.temp_dir is None:
+                basis = Parallel(
+                    n_jobs=self.n_jobs
+                )(delayed(
+                    _compute_basis_subject_online
+                )(
+                    sessions,
+                    shared_response_list
+                ) for sessions in imgs)
+            else:
+                Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_and_save_corr_mat)(
+                        subject,
+                        shared_response_list[m],
+                        self.temp_dir
+                    )
+                    for m, subjects in enumerate(imgs.T)
+                    for subject in subjects
+                )
+
+                basis = Parallel(
+                    n_jobs=self.n_jobs
+                )(delayed(
+                    _compute_and_save_subject_basis
+                )(
+                    i,
+                    sessions,
                     self.temp_dir
                 )
-                for m, subjects in enumerate(imgs.T)
-                for subject in subjects
-            )
-
-            basis = Parallel(
-                n_jobs=self.n_jobs
-            )(delayed(
-                _compute_and_save_subject_basis
-            )(
-                i,
-                sessions,
-                self.temp_dir
-            )
-              for i, sessions in enumerate(imgs)
-              )
+                  for i, sessions in enumerate(imgs)
+                  )
 
         self.basis_list = basis
         return self
