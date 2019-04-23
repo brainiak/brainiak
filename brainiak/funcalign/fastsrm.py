@@ -1,19 +1,4 @@
 """Fast Shared Response Model (FastSRM)
-
-The implementations are based on the following publications:
-
-.. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
-   P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
-   Advances in Neural Information Processing Systems (NIPS), 2015.
-   http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
-
-.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
-   Datasets",
-   Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
-   Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
-   Kenneth A. Norman,
-   IEEE International Conference on Big Data, 2016.
-   https://doi.org/10.1109/BigData.2016.7840719
 """
 
 # Author: Hugo Richard (INRIA - Parietal)
@@ -985,20 +970,20 @@ class FastSRM(BaseEstimator, TransformerMixin):
         shape=[n_timeframes, n_components]
             shared response, element i is the shared response during session i
 
-        subjects_indexes: list or None:
+        subjects_indexes : list or None
             if None reconstructs data of all subjects' used during train
             otherwise reconstructs data using subject's specified by
             subjects_indexes
 
-        sessions_indexes: list or None:
+        sessions_indexes : list or None
             if None reconstructs data using all sessions
             otherwise uses only specified sessions
 
         Returns
         -------
         reconstructed_data: array
-         shape=[len(subjects_indexes), len(sessions_indexes),
-         n_timeframes, n_voxels]
+        shape=[len(subjects_indexes), len(sessions_indexes),
+        n_timeframes, n_voxels]
             Reconstructed data for chosen subjects and sessions
         """
         n_subjects = len(self.basis_list)
