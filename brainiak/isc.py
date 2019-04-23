@@ -50,10 +50,11 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
-from scipy.stats import pearsonr
-import itertools as it
+from itertools import combinations, permutations, product
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import (phase_randomize, p_from_null,
+from brainiak.utils.utils import (array_correlation,
+                                  phase_randomize,
+                                  p_from_null,
                                   _check_timeseries_input)
 
 logger = logging.getLogger(__name__)
@@ -148,22 +149,43 @@ def isc(data, pairwise=False, summary_statistic=None, tolerate_nans=True):
         mean = np.mean
     data, mask = _threshold_nans(data, tolerate_nans)
 
-    # Loop over each voxel or ROI
-    voxel_iscs = []
-    for v in np.arange(data.shape[1]):
-        voxel_data = data[:, v, :].T
-        if n_subjects == 2:
-            iscs = pearsonr(voxel_data[0, :], voxel_data[1, :])[0]
-        elif pairwise:
+    # Compute correlation for only two participants
+    if n_subjects == 2:
+
+        # Compute correlation for each corresponding voxel
+        iscs_stack = array_correlation(data[..., 0],
+                                       data[..., 1])[np.newaxis, :]
+
+    # Compute pairwise ISCs using voxel loop and corrcoef for speed
+    elif pairwise:
+
+        # Swap axes for np.corrcoef
+        data = np.swapaxes(data, 2, 0)
+
+        # Loop through voxels
+        voxel_iscs = []
+        for v in np.arange(data.shape[1]):
+            voxel_data = data[:, v, :]
+
+            # Correlation matrix for all pairs of subjects (triangle)
             iscs = squareform(np.corrcoef(voxel_data), checks=False)
-        elif not pairwise:
-            iscs = np.array([pearsonr(subject,
-                                      mean(np.delete(voxel_data,
-                                                     s, axis=0),
-                                           axis=0))[0]
-                             for s, subject in enumerate(voxel_data)])
-        voxel_iscs.append(iscs)
-    iscs_stack = np.column_stack(voxel_iscs)
+            voxel_iscs.append(iscs)
+
+        iscs_stack = np.column_stack(voxel_iscs)
+
+    # Compute leave-one-out ISCs
+    elif not pairwise:
+
+        # Loop through left-out subjects
+        iscs_stack = []
+        for s in np.arange(n_subjects):
+
+            # Correlation between left-out subject and mean of others
+            iscs_stack.append(array_correlation(
+                data[..., s],
+                mean(np.delete(data, s, axis=2), axis=2)))
+
+        iscs_stack = np.array(iscs_stack)
 
     # Get ISCs back into correct shape after masking out NaNs
     iscs = np.full((iscs_stack.shape[0], n_voxels), np.nan)
@@ -291,7 +313,7 @@ def isfc(data, targets=None, pairwise=False, summary_statistic=None,
     # Compute all pairwise ISFCs (only for symmetric approach)
     elif pairwise:
         isfcs = []
-        for pair in it.combinations(np.arange(n_subjects), 2):
+        for pair in combinations(np.arange(n_subjects), 2):
             isfc_pair = compute_correlation(np.ascontiguousarray(
                                                 data[..., pair[0]].T),
                                             np.ascontiguousarray(
@@ -1116,7 +1138,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                         "sign-flipping procedure with 2**{0} "
                         "({1}) iterations.".format(n_subjects,
                                                    2**n_subjects))
-            exact_permutations = list(it.product([-1, 1], repeat=n_subjects))
+            exact_permutations = list(product([-1, 1], repeat=n_subjects))
             n_permutations = 2**n_subjects
 
     # Check for exact test for two groups
@@ -1131,7 +1153,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                         "({1}) iterations.".format(
                                 n_subjects,
                                 np.math.factorial(n_subjects)))
-            exact_permutations = list(it.permutations(
+            exact_permutations = list(permutations(
                 np.arange(len(group_assignment))))
             n_permutations = np.math.factorial(n_subjects)
 
