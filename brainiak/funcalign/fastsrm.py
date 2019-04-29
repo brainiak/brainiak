@@ -82,7 +82,7 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
             raise ValueError("%s have %i voxels and"
                              " the atlas has %i voxels."
                              "This is incompatible." % (img, data.shape[1],
-                                                          n_voxels))
+                                                        n_voxels))
 
         reduced_data = np.array([np.mean(data[:, atlas == c], axis=1)
                                  for c in atlas_values]).T
@@ -97,7 +97,7 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
             raise ValueError("%s have %i voxels and the atlas"
                              " has %i voxels."
                              "This is incompatible." % (img, data.shape[1],
-                                                          n_voxels))
+                                                        n_voxels))
 
         reduced_data = data.dot(inv_atlas)
 
