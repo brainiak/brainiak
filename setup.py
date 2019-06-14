@@ -126,7 +126,9 @@ setup(
         'nitime',
         'numpy',
         'scikit-learn[alldeps]>=0.18',
-        'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
+        # See https://github.com/scipy/scipy/pull/8082
+        # and https://github.com/pymanopt/pymanopt/issues/77
+        'scipy!=1.0.0,<1.3.0',
         'statsmodels',
         'pymanopt',
         'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
