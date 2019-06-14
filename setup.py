@@ -122,7 +122,9 @@ setup(
     ],
     install_requires=[
         'cython',
-        'mpi4py',
+        # Previous versions fail of the Anaconda package fail on MacOS:
+        # https://travis-ci.org/brainiak/brainiak/jobs/545838666
+        'mpi4py>=3',
         'nitime',
         'numpy',
         'scikit-learn[alldeps]>=0.18',
@@ -135,7 +137,6 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'typing'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
