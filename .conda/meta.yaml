@@ -49,7 +49,6 @@ requirements:
   run:
     - python
     - openmp
-    - mpich  # mpi4py breaks otherwise, could not find bug report
     {% for req in data.get('install_requires', [])
         if req not in conda_package_nonexistent -%}
     - {{req}}
