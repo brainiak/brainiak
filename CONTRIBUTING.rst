@@ -342,8 +342,9 @@ To make a release:
        anaconda upload -u brainiak \
        $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
 
-9. Build and push the Docker image::
+9. Build and push the Docker image (requires brainiak-tutorials checkout)::
 
+       cd tutorials && git pull --ff-only && cd -
        docker build --no-cache -t brainiak/brainiak .
        docker push brainiak/brainiak
 
