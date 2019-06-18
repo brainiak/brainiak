@@ -16,7 +16,7 @@ Features
   (`#397 <https://github.com/brainiak/brainiak/issues/397>`_)
 - isc: Analyses will now tolerate NaNs or tolerate a proportion of NaNs. (`#398
   <https://github.com/brainiak/brainiak/issues/398>`_)
-- isc: Output either vectorized triangle and diagonal of square matrices.
+- isc: Output either vectorized triangle and diagonal or square matrices.
   (`#399 <https://github.com/brainiak/brainiak/issues/399>`_)
 - isc: Asymmetric ISFC analysis can now be performed based on a targets array.
   (`#409 <https://github.com/brainiak/brainiak/issues/409>`_)
