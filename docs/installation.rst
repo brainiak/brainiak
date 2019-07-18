@@ -10,7 +10,7 @@ dependencies are not available in the default channels.
 
 Use our ``brainiak`` channel to install::
 
-    conda install -c brainiak brainiak
+    conda install -c brainiak -c defaults -c conda-forge brainiak
 
 Note that `~brainiak.funcalign.sssrm.SSSRM` currently uses Theano, which
 requires the Xcode Command Line Tools on `MacOS`_.
@@ -21,7 +21,7 @@ Source
 Requirements
 ============
 
-We support Linux and MacOS with Python version 3.4 or higher. Most of the
+We support Linux and MacOS with Python version 3.5 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 

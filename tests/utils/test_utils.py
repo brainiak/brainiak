@@ -101,7 +101,8 @@ def test_gen_design():
     import os.path
     files = {'FSL1': 'example_stimtime_1_FSL.txt',
              'FSL2': 'example_stimtime_2_FSL.txt',
-             'AFNI1': 'example_stimtime_1_AFNI.txt'}
+             'AFNI1': 'example_stimtime_1_AFNI.txt',
+             'AFNI2': 'example_stimtime_2_AFNI.txt'}
     for key in files.keys():
         files[key] = os.path.join(os.path.dirname(__file__), files[key])
     design1 = gen_design(stimtime_files=files['FSL1'], scan_duration=[48, 20],
@@ -130,6 +131,11 @@ def test_gen_design():
                          scan_duration=[48, 20], TR=2, style='AFNI')
     assert np.all(np.isclose(design1, design6)), (
         'design matrices generated from AFNI style and FSL style do not match')
+    design7 = gen_design(stimtime_files=[files['AFNI2']],
+                         scan_duration=[48], TR=2, style='AFNI')
+    assert np.all(design7 == 0.0), (
+        'A negative stimulus onset of AFNI style should result in an all-zero'
+        + ' design matrix')
 
 
 def test_center_mass_exp():
@@ -175,69 +181,275 @@ def test_center_mass_exp():
         'close to its mid-point'
 
 
+def test_p_from_null():
+    import numpy as np
+    from brainiak.utils.utils import p_from_null
+
+    # Create random null and observed value in tail
+    null = np.random.randn(10000)
+    observed = np.ceil(np.percentile(null, 97.5) * 1000) / 1000
+
+    # Check that we catch improper side
+    with pytest.raises(ValueError):
+        _ = p_from_null(observed, null, side='wrong')
+
+    # Check two-tailed p-value for observed
+    p_ts = p_from_null(observed, null)
+    assert np.isclose(p_ts, 0.05, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_right = p_from_null(observed, null, side='right')
+    assert np.isclose(p_right, 0.025, atol=1e-02)
+    assert np.isclose(p_right, p_ts / 2, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_left = p_from_null(observed, null, side='left')
+    assert np.isclose(p_left, 0.975, atol=1e-02)
+    assert np.isclose(1 - p_left, p_right, atol=1e-02)
+    assert np.isclose(1 - p_left, p_ts / 2, atol=1e-02)
+
+    # Check 2-dimensional input (i.e., samples by voxels)
+    null = np.random.randn(10000, 3)
+    observed = np.ceil(np.percentile(null, 97.5, axis=0) * 1000) / 1000
+
+    # Check two-tailed p-value for observed
+    p_ts = p_from_null(observed, null, axis=0)
+    assert np.allclose(p_ts, 0.05, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_right = p_from_null(observed, null, side='right', axis=0)
+    assert np.allclose(p_right, 0.025, atol=1e-02)
+    assert np.allclose(p_right, p_ts / 2, atol=1e-02)
+
+    # Check two-tailed p-value for observed
+    p_left = p_from_null(observed, null, side='left', axis=0)
+    assert np.allclose(p_left, 0.975, atol=1e-02)
+    assert np.allclose(1 - p_left, p_right, atol=1e-02)
+    assert np.allclose(1 - p_left, p_ts / 2, atol=1e-02)
+
+    # Check for exact test
+    p_ts = p_from_null(observed, null, exact=True, axis=0)
+    assert np.allclose(p_ts, 0.05, atol=1e-02)
+
+    # Check two-tailed p-value for exact
+    p_right = p_from_null(observed, null, side='right',
+                          exact=True, axis=0)
+    assert np.allclose(p_right, 0.025, atol=1e-02)
+    assert np.allclose(p_right, p_ts / 2, atol=1e-02)
+
+    # Check two-tailed p-value for exact
+    p_left = p_from_null(observed, null, side='left',
+                         exact=True, axis=0)
+    assert np.allclose(p_left, 0.975, atol=1e-02)
+    assert np.allclose(1 - p_left, p_right, atol=1e-02)
+    assert np.allclose(1 - p_left, p_ts / 2, atol=1e-02)
+
+
 def test_phase_randomize():
-    from brainiak.utils.utils import phase_randomize
     import numpy as np
     from scipy.fftpack import fft
-    import math
+    from scipy.stats import pearsonr
+    from brainiak.utils.utils import phase_randomize
+
+    data = np.repeat(np.repeat(np.random.randn(60)[:, np.newaxis, np.newaxis],
+                               30, axis=1),
+                     20, axis=2)
+    assert np.array_equal(data[..., 0], data[..., 1])
+
+    # Phase-randomize data across subjects (same across voxels)
+    shifted_data = phase_randomize(data, voxelwise=False, random_state=1)
+    assert shifted_data.shape == data.shape
+    assert not np.array_equal(shifted_data[..., 0], shifted_data[..., 1])
+    assert not np.array_equal(shifted_data[..., 0], data[..., 0])
+
+    # Check that uneven n_TRs doesn't explode
+    _ = phase_randomize(data[:-1, ...])
+
+    # Check that random_state returns same shifts
+    shifted_data_ = phase_randomize(data, voxelwise=False, random_state=1)
+    assert np.array_equal(shifted_data, shifted_data_)
+
+    shifted_data_ = phase_randomize(data, voxelwise=False, random_state=2)
+    assert not np.array_equal(shifted_data, shifted_data_)
+
+    # Phase-randomize subjects and voxels
+    shifted_data = phase_randomize(data, voxelwise=True, random_state=1)
+    assert shifted_data.shape == data.shape
+    assert not np.array_equal(shifted_data[..., 0], shifted_data[..., 1])
+    assert not np.array_equal(shifted_data[..., 0], data[..., 0])
+    assert not np.array_equal(shifted_data[:, 0, 0], shifted_data[:, 1, 0])
+
+    # Try with 2-dimensional input
+    shifted_data = phase_randomize(data[..., 0],
+                                   voxelwise=True,
+                                   random_state=1)
+    assert shifted_data.ndim == 2
+    assert not np.array_equal(shifted_data[:, 0], shifted_data[:, 1])
+
+    # Create correlated noisy data
+    corr_data = np.repeat(np.random.randn(60)[:, np.newaxis, np.newaxis],
+                          2, axis=2) + np.random.randn(60, 1, 2)
+
+    # Get correlation and frequency domain for data
+    corr_r = pearsonr(corr_data[:, 0, 0],
+                      corr_data[:, 0, 1])[0]
+    corr_freq = fft(corr_data, axis=0)
+
+    # Phase-randomize time series and get correlation/frequency
+    shifted_data = phase_randomize(corr_data)
+    shifted_r = pearsonr(shifted_data[:, 0, 0],
+                         shifted_data[:, 0, 1])[0]
+    shifted_freq = fft(shifted_data, axis=0)
+
+    # Check that phase-randomization reduces correlation
+    assert np.abs(shifted_r) < np.abs(corr_r)
+
+    # Check that amplitude spectrum is preserved
+    assert np.allclose(np.abs(shifted_freq), np.abs(corr_freq))
+
+
+def test_check_timeseries_input():
+    import numpy as np
+    from itertools import combinations
+    from brainiak.utils.utils import _check_timeseries_input
+
+    # Set a fixed vector for comparison
+    vector = np.random.randn(60)
+
+    # List of subjects with one voxel/ROI
+    list_1d = [vector for _ in np.arange(10)]
+    (data_list_1d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_1d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # Array of subjects with one voxel/ROI
+    array_2d = np.hstack([vector[:, np.newaxis]
+                          for _ in np.arange(10)])
+    (data_array_2d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_2d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # List of 2-dimensional arrays
+    list_2d = [vector[:, np.newaxis] for _ in np.arange(10)]
+    (data_list_2d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_2d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # Check if lists have mismatching size
+    list_bad = [list_2d[0][:-1, :]] + list_2d[1:]
+    with pytest.raises(ValueError):
+        (data_list_bad, _, _, _) = _check_timeseries_input(list_bad)
+
+    # List of 3-dimensional arrays
+    list_3d = [vector[:, np.newaxis, np.newaxis]
+               for _ in np.arange(10)]
+    (data_list_3d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_3d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # 3-dimensional array
+    array_3d = np.dstack([vector[:, np.newaxis]
+                          for _ in np.arange(10)])
+    (data_array_3d, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_3d)
+    assert n_TRs == 60
+    assert n_voxels == 1
+    assert n_subjects == 10
+
+    # Check that 4-dimensional input array throws error
+    array_4d = array_3d[..., np.newaxis]
+    with pytest.raises(ValueError):
+        (data_array_4d, _, _, _) = _check_timeseries_input(array_4d)
+
+    # Check they're the same
+    for pair in combinations([data_list_1d, data_array_2d,
+                              data_list_2d, data_list_3d,
+                              data_array_3d], 2):
+        assert np.array_equal(pair[0], pair[1])
+
+    # List of multivoxel arrays
+    matrix = np.random.randn(60, 30)
+    list_mv = [matrix
+               for _ in np.arange(10)]
+    (data_list_mv, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(list_mv)
+    assert n_TRs == 60
+    assert n_voxels == 30
+    assert n_subjects == 10
+
+    # 3-dimensional array with multiple voxels
+    array_mv = np.dstack([matrix for _ in np.arange(10)])
+    (data_array_mv, n_TRs,
+     n_voxels, n_subjects) = _check_timeseries_input(array_mv)
+    assert n_TRs == 60
+    assert n_voxels == 30
+    assert n_subjects == 10
+
+    assert np.array_equal(data_list_mv, data_array_mv)
+
+
+def test_array_correlation():
+    import numpy as np
+    from brainiak.utils.utils import array_correlation
     from scipy.stats import pearsonr
 
-    # Generate auto-correlated signals
-    nv = 2
-    T = 100
-    ns = 3
-    D = np.zeros((nv, T, ns))
-    for v in range(nv):
-        for s in range(ns):
-            D[v, :, s] = np.sin(np.linspace(0, math.pi * 5 * (v + 1), T)) + \
-                         np.sin(np.linspace(0, math.pi * 6 * (s + 1), T))
+    # Minimal array datasets
+    n_TRs = 30
+    n_voxels = 2
+    x, y = (np.random.randn(n_TRs, n_voxels),
+            np.random.randn(n_TRs, n_voxels))
 
-    freq = fft(D, axis=1)
-    D_pr = phase_randomize(D)
-    freq_pr = fft(D_pr, axis=1)
-    p_corr = pearsonr(np.angle(freq).flatten(), np.angle(freq_pr).flatten())[0]
+    # Perform the correlation
+    r = array_correlation(x, y)
 
-    assert np.isclose(abs(freq), abs(freq_pr)).all(), \
-        "Amplitude spectrum not preserved under phase randomization"
+    # Check there are the right number of voxels in the output
+    assert r.shape == (n_voxels,)
 
-    assert abs(p_corr) < 0.03, \
-        "Phases still correlated after randomization"
+    # Check that this (roughly) matches corrcoef
+    assert np.allclose(r, np.corrcoef(x.T, y.T)[[0, 1], [2, 3]])
 
+    # Check that this (roughly) matches pearsonr
+    assert np.allclose(r, np.array([pearsonr(x[:, 0], y[:, 0])[0],
+                                    pearsonr(x[:, 1], y[:, 1])[0]]))
 
-def test_ecdf():
-    from brainiak.utils.utils import ecdf
-    import numpy as np
+    # Try axis argument
+    assert np.allclose(array_correlation(x, y, axis=0),
+                       array_correlation(x.T, y.T, axis=1))
 
-    x = np.array([1, 4, 3])
-    cdf_fun = ecdf(x)
+    # Trigger shape mismatch error
+    with pytest.raises(ValueError):
+        array_correlation(x, y[:, 0])
 
-    assert np.isclose(cdf_fun(0), [0]), "Left side of cdf should be 0"
-    assert np.isclose(cdf_fun(5), [1]), "Right side of cdf should be 1"
-    assert np.isclose(cdf_fun(1.5), [1 / 3]), "CDF value incorrect"
-    assert np.isclose(cdf_fun(1), [1 / 3]), "CDF should be right-continuous"
+    with pytest.raises(ValueError):
+        array_correlation(x, y[:-1])
 
+    # Feed in lists
+    _ = array_correlation(x.tolist(), y)
+    _ = array_correlation(x, y.tolist())
+    _ = array_correlation(x.tolist(), y.tolist())
 
-def test_p_from_null():
-    from brainiak.utils.utils import p_from_null
-    import numpy as np
+    # Check 1D array input
+    x, y = (np.random.randn(n_TRs),
+            np.random.randn(n_TRs))
 
-    X = np.zeros((2, 5))  # One true value, 4 null values
-    X[0, 0] = 1
-    X[1, 0] = -2
-    X[0, 1:] = [-1.0, 0.00,  0.50, 2.00]
-    X[1, 1:] = [-1.5, 0.25, -0.25, 0.25]
+    assert type(array_correlation(x, y)) == np.float64
+    assert np.isclose(array_correlation(x, y),
+                      pearsonr(x, y)[0])
 
-    Y = X[:, 0]
-    Y_max = np.max(X[:, 1:], axis=0)
-    Y_min = np.min(X[:, 1:], axis=0)
+    # 1D list inputs
+    _ = array_correlation(x.tolist(), y)
+    _ = array_correlation(x, y.tolist())
+    _ = array_correlation(x.tolist(), y.tolist())
 
-    p_1side = p_from_null(X, two_sided=False)
-    assert np.isclose(p_1side, [0.25, 1]).all(), "One-sided p value incorrect"
-
-    p_2side = p_from_null(X, two_sided=True)
-    assert np.isclose(p_2side, [0.5, 0]).all(), "Two-sided p value incorrect"
-
-    p_2side_m = p_from_null(Y, two_sided=True,
-                            max_null_input=Y_max,
-                            min_null_input=Y_min)
-    assert np.isclose(p_2side, p_2side_m).all(), "p_null differs with max/min"
+    # Check integer inputs
+    x, y = (np.random.randint(0, 9, (n_TRs, n_voxels)),
+            np.random.randint(0, 9, (n_TRs, n_voxels)))
+    _ = array_correlation(x, y)

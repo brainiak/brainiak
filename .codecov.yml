@@ -3,4 +3,7 @@ coverage:
         project:
             default:
                 threshold: 1
+        patch:
+            default:
+                threshold: 1
 comment: false

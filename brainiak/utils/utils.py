@@ -17,15 +17,32 @@ import warnings
 import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
-from sklearn.utils import check_random_state
 from scipy.fftpack import fft, ifft
 import math
-import tensorflow as tf
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 """
 Some utility functions that can be used by different algorithms
 """
+
+__all__ = [
+    "array_correlation",
+    "center_mass_exp",
+    "concatenate_not_none",
+    "cov2corr",
+    "from_tri_2_sym",
+    "from_sym_2_tri",
+    "gen_design",
+    "phase_randomize",
+    "p_from_null",
+    "ReadDesign",
+    "sumexp_stable",
+    "usable_cpu_count",
+]
 
 
 def from_tri_2_sym(tri, dim):
@@ -301,12 +318,12 @@ class ReadDesign:
                         int(split_by_at[1])
                     curr_idx += n_this_cond
                 elif len(split_by_at) == 1 and \
-                        not re.search('\..', split_by_at[0]):
+                        not re.search(r'\..', split_by_at[0]):
                     # Just a number, and not the type like '1..4'
                     self.column_types[curr_idx] = int(split_by_at[0])
                     curr_idx += 1
                 else:  # must be a single stimulus condition
-                    split_by_dots = re.split('\..', CG)
+                    split_by_dots = re.split(r'\..', CG)
                     n_this_cond = int(split_by_dots[1])
                     self.column_types[curr_idx:curr_idx + n_this_cond] = 1
                     curr_idx += n_this_cond
@@ -332,7 +349,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
                          'undershoot_scale': 0.035}):
     """ Generate design matrix based on a list of names of stimulus
         timing files. The function will read each file, and generate
-        a numpy array of size [time_points \* condition], where
+        a numpy array of size [time_points \\* condition], where
         time_points equals duration / TR, and condition is the size of
         stimtime_filenames. Each column is the hypothetical fMRI response
         based on the stimulus timing in the corresponding file
@@ -387,14 +404,14 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
         Each line has a few triplets in the format of
         stim_onsets*weight:duration
         (or simpler, see below), separated by spaces.
-        For example, 3.2\*2.0:1.5 means that one event starts at 3.2s,
+        For example, 3.2\\*2.0:1.5 means that one event starts at 3.2s,
         modulated by weight of 2.0 and lasts for 1.5s.
         If some run does not include a single event
-        of a condition (stimulus type), then you can put \*,
+        of a condition (stimulus type), then you can put \\*,
         or a negative number, or a very large number in that line.
         Either duration or weight can be neglected. In such
         cases, they will default to 1.0.
-        For example, 3.0, 3.0\*1.0, 3.0:1.0 and 3.0\*1.0:1.0 all
+        For example, 3.0, 3.0\\*1.0, 3.0:1.0 and 3.0\\*1.0:1.0 all
         means an event starting at 3.0s, lasting for 1.0s, with
         amplitude modulation of 1.0.
 
@@ -428,10 +445,10 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
     n_C = len(stimtime_files)  # number of conditions
     n_S = np.size(scan_duration)  # number of scans
     if n_S > 1:
-        design = [np.empty([int(np.floor(duration / TR)), n_C])
+        design = [np.empty([int(np.round(duration / TR)), n_C])
                   for duration in scan_duration]
     else:
-        design = [np.empty([int(np.floor(scan_duration / TR)), n_C])]
+        design = [np.empty([int(np.round(scan_duration / TR)), n_C])]
     scan_onoff = np.insert(np.cumsum(scan_duration), 0, 0)
     if style == 'FSL':
         design_info = _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
@@ -446,21 +463,24 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
     # generate design matrix
     for i_s in range(n_S):
         for i_c in range(n_C):
-            stimfunction = generate_stimfunction(
-                onsets=design_info[i_s][i_c]['onset'],
-                event_durations=design_info[i_s][i_c]['duration'],
-                total_time=scan_duration[i_s],
-                weights=design_info[i_s][i_c]['weight'],
-                temporal_resolution=1.0/temp_res)
-            hrf = _double_gamma_hrf(response_delay=response_delay,
-                                    undershoot_delay=undershoot_delay,
-                                    response_dispersion=response_disp,
-                                    undershoot_dispersion=undershoot_disp,
-                                    undershoot_scale=undershoot_scale,
-                                    temporal_resolution=1.0/temp_res)
-            design[i_s][:, i_c] = convolve_hrf(
-                stimfunction, TR, hrf_type=hrf, scale_function=0,
-                temporal_resolution=1.0 / temp_res).transpose() * temp_res
+            if len(design_info[i_s][i_c]['onset']) > 0:
+                stimfunction = generate_stimfunction(
+                    onsets=design_info[i_s][i_c]['onset'],
+                    event_durations=design_info[i_s][i_c]['duration'],
+                    total_time=scan_duration[i_s],
+                    weights=design_info[i_s][i_c]['weight'],
+                    temporal_resolution=1.0/temp_res)
+                hrf = _double_gamma_hrf(response_delay=response_delay,
+                                        undershoot_delay=undershoot_delay,
+                                        response_dispersion=response_disp,
+                                        undershoot_dispersion=undershoot_disp,
+                                        undershoot_scale=undershoot_scale,
+                                        temporal_resolution=1.0/temp_res)
+                design[i_s][:, i_c] = convolve_hrf(
+                    stimfunction, TR, hrf_type=hrf, scale_function=False,
+                    temporal_resolution=1.0 / temp_res).transpose() * temp_res
+            else:
+                design[i_s][:, i_c] = 0.0
             # We multiply the resulting design matrix with
             # the temporal resolution to normalize it.
             # We do not use the internal normalization
@@ -472,7 +492,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
 def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
     """ Utility called by gen_design. It reads in one or more
         stimulus timing file comforming to FSL style,
-        and return a list (size of [#run \* #condition])
+        and return a list (size of [#run \\* #condition])
         of dictionary including onsets, durations and weights of each event.
 
     Parameters
@@ -540,7 +560,7 @@ def _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff):
 def _read_stimtime_AFNI(stimtime_files, n_C, n_S, scan_onoff):
     """ Utility called by gen_design. It reads in one or more stimulus timing
         file comforming to AFNI style, and return a list
-        (size of ``[number of runs \* number of conditions]``)
+        (size of ``[number of runs \\* number of conditions]``)
         of dictionary including onsets, durations and weights of each event.
 
     Parameters
@@ -676,25 +696,32 @@ def usable_cpu_count():
     return result
 
 
-def phase_randomize(D, random_state=0):
-    """Randomly shift signal phases
+def phase_randomize(data, voxelwise=False, random_state=None):
+    """Randomize phase of time series across subjects
 
-    For each timecourse (from each voxel and each subject), computes its DFT
-    and then randomly shifts the phase of each frequency before inverting
-    back into the time domain. This yields timecourses with the same power
-    spectrum (and thus the same autocorrelation) as the original timecourses,
-    but will remove any meaningful temporal relationships between the
-    timecourses.
+    For each subject, apply Fourier transform to voxel time series
+    and then randomly shift the phase of each frequency before inverting
+    back into the time domain. This yields time series with the same power
+    spectrum (and thus the same autocorrelation) as the original time series
+    but will remove any meaningful temporal relationships among time series
+    across subjects. By default (voxelwise=False), the same phase shift is
+    applied across all voxels; however if voxelwise=True, different random
+    phase shifts are applied to each voxel. The typical input is a time by
+    voxels by subjects ndarray. The first dimension is assumed to be the
+    time dimension and will be phase randomized. If a 2-dimensional ndarray
+    is provided, the last dimension is assumed to be subjects, and different
+    phase randomizations will be applied to each subject.
 
-    This procedure is described in:
-    Simony E, Honey CJ, Chen J, Lositsky O, Yeshurun Y, Wiesel A, Hasson U
-    (2016) Dynamic reconfiguration of the default mode network during narrative
-    comprehension. Nat Commun 7.
+    The implementation is based on the work in [Lerner2011]_ and
+    [Simony2016]_.
 
     Parameters
     ----------
-    D : voxel by time by subject ndarray
-        fMRI data to be phase randomized
+    data : ndarray (n_TRs x n_voxels x n_subjects)
+        Data to be phase randomized (per subject)
+
+    voxelwise : bool, default: False
+        Apply same (False) or different (True) randomizations across voxels
 
     random_state : RandomState or an int seed (0 by default)
         A random number generator instance to define the state of the
@@ -702,418 +729,246 @@ def phase_randomize(D, random_state=0):
 
     Returns
     ----------
-    ndarray of same shape as D
-        phase randomized timecourses
+    shifted_data : ndarray (n_TRs x n_voxels x n_subjects)
+        Phase-randomized time series
     """
 
-    random_state = check_random_state(random_state)
+    # Check if input is 2-dimensional
+    data_ndim = data.ndim
 
-    F = fft(D, axis=1)
-    if D.shape[1] % 2 == 0:
-        pos_freq = np.arange(1, D.shape[1] // 2)
-        neg_freq = np.arange(D.shape[1] - 1, D.shape[1] // 2, -1)
+    # Get basic shape of data
+    data, n_TRs, n_voxels, n_subjects = _check_timeseries_input(data)
+
+    # Random seed to be deterministically re-randomized at each iteration
+    if isinstance(random_state, np.random.RandomState):
+        prng = random_state
     else:
-        pos_freq = np.arange(1, (D.shape[1] - 1) // 2 + 1)
-        neg_freq = np.arange(D.shape[1] - 1, (D.shape[1] - 1) // 2, -1)
+        prng = np.random.RandomState(random_state)
 
-    shift = random_state.rand(D.shape[0], len(pos_freq),
-                              D.shape[2]) * 2 * math.pi
+    # Get randomized phase shifts
+    if n_TRs % 2 == 0:
+        # Why are we indexing from 1 not zero here? n_TRs / -1 long?
+        pos_freq = np.arange(1, data.shape[0] // 2)
+        neg_freq = np.arange(data.shape[0] - 1, data.shape[0] // 2, -1)
+    else:
+        pos_freq = np.arange(1, (data.shape[0] - 1) // 2 + 1)
+        neg_freq = np.arange(data.shape[0] - 1,
+                             (data.shape[0] - 1) // 2, -1)
+
+    if not voxelwise:
+        phase_shifts = (prng.rand(len(pos_freq), 1, n_subjects)
+                        * 2 * np.math.pi)
+    else:
+        phase_shifts = (prng.rand(len(pos_freq), n_voxels, n_subjects)
+                        * 2 * np.math.pi)
+
+    # Fast Fourier transform along time dimension of data
+    fft_data = fft(data, axis=0)
 
     # Shift pos and neg frequencies symmetrically, to keep signal real
-    F[:, pos_freq, :] *= np.exp(1j * shift)
-    F[:, neg_freq, :] *= np.exp(-1j * shift)
+    fft_data[pos_freq, :, :] *= np.exp(1j * phase_shifts)
+    fft_data[neg_freq, :, :] *= np.exp(-1j * phase_shifts)
 
-    return np.real(ifft(F, axis=1))
+    # Inverse FFT to put data back in time domain
+    shifted_data = np.real(ifft(fft_data, axis=0))
 
+    # Go back to 2-dimensions if input was 2-dimensional
+    if data_ndim == 2:
+        shifted_data = shifted_data[:, 0, :]
 
-def ecdf(x):
-    """Empirical cumulative distribution function
-
-    Given a 1D array of values, returns a function f(q) that outputs the
-    fraction of values less than or equal to q.
-
-    Parameters
-    ----------
-    x : 1D array
-        values for which to compute CDF
-
-    Returns
-    ----------
-    ecdf_fun: Callable[[float], float]
-        function that returns the value of the CDF at a given point
-    """
-    xp = np.sort(x)
-    yp = np.arange(len(xp) + 1) / len(xp)
-
-    def ecdf_fun(q):
-        return yp[np.searchsorted(xp, q, side="right")]
-
-    return ecdf_fun
+    return shifted_data
 
 
-def p_from_null(X, two_sided=False,
-                max_null_input=None, min_null_input=None):
-    """Compute p value of true result from null distribution
+def p_from_null(observed, distribution,
+                side='two-sided', exact=False,
+                axis=None):
+    """Compute p-value from null distribution
 
-    Given an array containing both a real result and a set of null results,
-    computes the fraction of null results larger than the real result (or,
-    if two_sided=True, the fraction of null results more extreme than the real
-    result in either the positive or negative direction).
+    Returns the p-value for an observed test statistic given a null
+    distribution. Performs either a 'two-sided' (i.e., two-tailed)
+    test (default) or a one-sided (i.e., one-tailed) test for either the
+    'left' or 'right' side. For an exact test (exact=True), does not adjust
+    for the observed test statistic; otherwise, adjusts for observed
+    test statistic (prevents p-values of zero). If a multidimensional
+    distribution is provided, use axis argument to specify which axis indexes
+    resampling iterations.
 
-    Note that all real results are compared to a pooled null distribution,
-    which is the max/min over all null results, providing multiple
-    comparisons correction.
+    The implementation is based on the work in [PhipsonSmyth2010]_.
+
+    .. [PhipsonSmyth2010] "Permutation p-values should never be zero:
+       calculating exact p-values when permutations are randomly drawn.",
+       B. Phipson, G. K., Smyth, 2010, Statistical Applications in Genetics
+       and Molecular Biology, 9, 1544-6115.
+       https://doi.org/10.2202/1544-6115.1585
 
     Parameters
     ----------
-    X : ndarray with arbitrary number of dimensions
-        The last dimension of X should contain the real result in X[..., 0]
-        and the null results in X[..., 1:]
-        If max_null_input and min_null_input are provided,
-        X should contain only the real result
+    observed : float
+        Observed test statistic
 
-    two_sided : bool, default:False
-        Whether the p value should be one-sided (testing only for being
-        above the null) or two-sided (testing for both significantly positive
-        and significantly negative values)
+    distribution : ndarray
+        Null distribution of test statistic
 
-    max_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
-        By default this array is derived from the X input array,
-        which can be very large and takes up huge memory space.
-        To save memory, the function which calls p_from_null
-        should provide this array as input.
+    side : str, default:'two-sided'
+        Perform one-sided ('left' or 'right') or 'two-sided' test
 
-    min_null_input : ndarray with num_perm (see `brainiak.isfc`) entries
-        See max_null_input
+    axis: None or int, default:None
+        Axis indicating resampling iterations in input distribution
 
     Returns
     -------
-    p : ndarray the same shape as X, without the last dimension
-        p values for each true X value under the null distribution
+    p : float
+        p-value for observed test statistic based on null distribution
     """
-    if (min_null_input is None) or (max_null_input is None):
-        real_data = X[..., 0]
-        leading_dims = tuple([int(d) for d in np.arange(X.ndim - 1)])
-        # Compute maximum/minimum in each null dataset
-        max_null = np.max(X[..., 1:], axis=leading_dims)
-        min_null = np.min(X[..., 1:], axis=leading_dims)
+
+    if side not in ('two-sided', 'left', 'right'):
+        raise ValueError("The value for 'side' must be either "
+                         "'two-sided', 'left', or 'right', got {0}".
+                         format(side))
+
+    n_samples = len(distribution)
+    logger.info("Assuming {0} resampling iterations".format(n_samples))
+
+    if side == 'two-sided':
+        # Numerator for two-sided test
+        numerator = np.sum(np.abs(distribution) >= np.abs(observed), axis=axis)
+    elif side == 'left':
+        # Numerator for one-sided test in left tail
+        numerator = np.sum(distribution <= observed, axis=axis)
+    elif side == 'right':
+        # Numerator for one-sided test in right tail
+        numerator = np.sum(distribution >= observed, axis=axis)
+
+    # If exact test all possible permutations and do not adjust
+    if exact:
+        p = numerator / n_samples
+
+    # If not exact test, adjust number of samples to account for
+    # observed statistic; prevents p-value from being zero
     else:
-        real_data = X
-        # maximum & minimum in each null dataset should be provided as input
-        max_null = max_null_input
-        min_null = min_null_input
-        # Compute where the true values fall on the null distribution
-    max_null_ecdf = ecdf(max_null)
-    if two_sided:
-        min_null_ecdf = ecdf(min_null)
-        p = 2 * np.minimum(1 - max_null_ecdf(real_data),
-                           min_null_ecdf(real_data))
-        p = np.minimum(p, 1)
-    else:
-        p = 1 - max_null_ecdf(real_data)
+        p = (numerator + 1) / (n_samples + 1)
 
     return p
 
 
-def tf_solve_lower_triangular_kron(L, y):
-    """ Tensor flow function to solve L x = y
-    where L = kron(L[0], L[1] .. L[n-1])
-    and L[i] are the lower triangular matrices
+def _check_timeseries_input(data):
 
-    Arguments
-    ---------
-    L : list of 2-D tensors
-        Each element of the list must be a tensorflow tensor and
-        must be a lower triangular matrix of dimension n_i x n_i
+    """Checks response time series input data (e.g., for ISC analysis)
 
-    y : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
+    Input data should be a n_TRs by n_voxels by n_subjects ndarray
+    (e.g., brainiak.image.MaskedMultiSubjectData) or a list where each
+    item is a n_TRs by n_voxels ndarray for a given subject. Multiple
+    input ndarrays must be the same shape. If a 2D array is supplied,
+    the last dimension is assumed to correspond to subjects. This
+    function is generally intended to be used internally by other
+    functions module (e.g., isc, isfc in brainiak.isc).
 
-    Returns
-    -------
-    x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
-
-    """
-    n = len(L)
-    if n == 1:
-        return tf.matrix_triangular_solve(L[0], y)
-    else:
-        x = y
-        na = L[0].get_shape().as_list()[0]
-        n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in L])
-        n_prod = tf.to_int32(tf.reduce_prod(n_list))
-        nb = tf.to_int32(n_prod/na)
-        col = tf.shape(x)[1]
-
-        for i in range(na):
-            xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
-            t = xinb / L[0][i, i]
-            xinb = tf_solve_lower_triangular_kron(L[1:], t)
-            xina = xina - tf.reshape(
-                tf.tile(tf.slice(L[0], [i+1, i], [na-i-1, 1]), [1, nb*col]),
-                [(na-i-1)*nb, col]) * \
-                tf.reshape(
-                  tf.tile(tf.reshape(t, [-1, 1]), [na-i-1, 1]),
-                  [(na-i-1)*nb, col])
-            x = tf.concat(axis=0, values=[xt, xinb, xina])
-
-        return x
-
-
-def tf_solve_upper_triangular_kron(L, y):
-    """ Tensor flow function to solve L^T x = y
-    where L = kron(L[0], L[1] .. L[n-1])
-    and L[i] are the lower triangular matrices
-
-    Arguments
-    ---------
-    L : list of 2-D tensors
-        Each element of the list must be a tensorflow tensor and
-        must be a lower triangular matrix of dimension n_i x n_i
-
-    y : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
+    Parameters
+    ----------
+    data : ndarray or list
+        Time series data
 
     Returns
     -------
-    x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
+    data : ndarray
+        Input time series data with standardized structure
+
+    n_TRs : int
+        Number of time points (TRs)
+
+    n_voxels : int
+        Number of voxels (or ROIs)
+
+    n_subjects : int
+        Number of subjects
 
     """
-    n = len(L)
-    if n == 1:
-        return tf.matrix_triangular_solve(L[0], y, adjoint=True)
-    else:
-        x = y
-        na = L[0].get_shape().as_list()[0]
-        n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in L])
-        n_prod = tf.to_int32(tf.reduce_prod(n_list))
-        nb = tf.to_int32(n_prod/na)
-        col = tf.shape(x)[1]
 
-        for i in range(na-1, -1, -1):
-            xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
-            t = xinb / L[0][i, i]
-            xinb = tf_solve_upper_triangular_kron(L[1:], t)
-            xt = (xt
-                  - tf.reshape(
-                      tf.tile(tf.transpose(tf.slice(L[0], [i, 0], [1, i])),
-                              [1, nb*col]),
-                      [i*nb, col])
-                  * tf.reshape(
-                      tf.tile(tf.reshape(t, [-1, 1]), [i, 1]), [i*nb, col]))
-            x = tf.concat(axis=0, values=[xt, xinb, xina])
+    # Convert list input to 3d and check shapes
+    if type(data) == list:
+        data_shape = data[0].shape
+        for i, d in enumerate(data):
+            if d.shape != data_shape:
+                raise ValueError("All ndarrays in input list "
+                                 "must be the same shape!")
+            if d.ndim == 1:
+                data[i] = d[:, np.newaxis]
+        data = np.dstack(data)
 
-        return x
+    # Convert input ndarray to 3d and check shape
+    elif isinstance(data, np.ndarray):
+        if data.ndim == 2:
+            data = data[:, np.newaxis, :]
+        elif data.ndim == 3:
+            pass
+        else:
+            raise ValueError("Input ndarray should have 2 "
+                             "or 3 dimensions (got {0})!".format(data.ndim))
+
+    # Infer subjects, TRs, voxels and log for user to check
+    n_TRs, n_voxels, n_subjects = data.shape
+    logger.info("Assuming {0} subjects with {1} time points "
+                "and {2} voxel(s) or ROI(s) for ISC analysis.".format(
+                    n_subjects, n_TRs, n_voxels))
+
+    return data, n_TRs, n_voxels, n_subjects
 
 
-def tf_kron_mult(L, x):
-    """ Tensorflow multiply with kronecker product matrix
-    Returs kron(L[0], L[1] ...) * x
+def array_correlation(x, y, axis=0):
 
-    Arguments
-    ---------
-    L : list of 2-D tensors
-        Each element of the list must be a tensorflow tensor and
-        must be a square matrix of dimension n_i x n_i
+    """Column- or row-wise Pearson correlation between two arrays
 
-    x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
+    Computes sample Pearson correlation between two 1D or 2D arrays (e.g.,
+    two n_TRs by n_voxels arrays). For 2D arrays, computes correlation
+    between each corresponding column (axis=0) or row (axis=1) where axis
+    indexes observations. If axis=0 (default), each column is considered to
+    be a variable and each row is an observation; if axis=1, each row is a
+    variable and each column is an observation (equivalent to transposing
+    the input arrays). Input arrays must be the same shape with corresponding
+    variables and observations. This is intended to be an efficient method
+    for computing correlations between two corresponding arrays with many
+    variables (e.g., many voxels).
+
+    Parameters
+    ----------
+    x : 1D or 2D ndarray
+        Array of observations for one or more variables
+
+    y : 1D or 2D ndarray
+        Array of observations for one or more variables (same shape as x)
+
+    axis : int (0 or 1), default: 0
+        Correlation between columns (axis=0) or rows (axis=1)
 
     Returns
     -------
-    y : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p
+    r : float or 1D ndarray
+        Pearson correlation values for input variables
     """
-    n = len(L)
-    if n == 1:
-        return tf.matmul(L[0], x)
-    else:
-        na = L[0].get_shape().as_list()[0]
-        n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in L])
-        n_prod = tf.to_int32(tf.reduce_prod(n_list))
-        nb = tf.to_int32(n_prod/na)
-        col = tf.shape(x)[1]
-        xt = tf_kron_mult(
-           L[1:],
-           tf.transpose(tf.reshape(tf.transpose(x), [-1, nb])))
-        y = tf.zeros_like(x)
-        for i in range(na):
-            ya, yb, yc = tf.split(y, [i*nb, nb, (na-i-1)*nb], 0)
-            yb = tf.reshape(tf.matmul(tf.reshape(xt, [nb*col, na]),
-                            tf.transpose(tf.slice(L[0], [i, 0], [1, na]))),
-                            [nb, col])
-            y = tf.concat(axis=0, values=[ya, yb, yc])
-        return y
+    # Accommodate array-like inputs
+    if not isinstance(x, np.ndarray):
+        x = np.asarray(x)
+    if not isinstance(y, np.ndarray):
+        y = np.asarray(y)
 
+    # Check that inputs are same shape
+    if x.shape != y.shape:
+        raise ValueError("Input arrays must be the same shape")
 
-def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
-    """ Tensor flow function to solve L x = y
-    where L is a lower triangular matrix with a mask
+    # Transpose if axis=1 requested (to avoid broadcasting
+    # issues introduced by switching axis in mean and sum)
+    if axis == 1:
+        x, y = x.T, y.T
 
-    Arguments
-    ---------
-    L : 2-D tensor
-        Must be a tensorflow tensor and
-        must be a triangular matrix of dimension n x n
+    # Center (de-mean) input variables
+    x_demean = x - np.mean(x, axis=0)
+    y_demean = y - np.mean(y, axis=0)
 
-    y : 1-D or 2-D tensor
-        Dimension n x p
+    # Compute summed product of centered variables
+    numerator = np.sum(x_demean * y_demean, axis=0)
 
-    mask : 1-D tensor
-        Dimension n x 1, should be 1 if element is valid, 0 if invalid
+    # Compute sum squared error
+    denominator = np.sqrt(np.sum(x_demean ** 2, axis=0) *
+                          np.sum(y_demean ** 2, axis=0))
 
-    lower : boolean (default : True)
-        True if L is lower triangular, False if upper triangular
-
-    adjoint : boolean (default : False)
-        True if solving for L^x = y, False if solving for Lx = y
-
-    Returns
-    -------
-    x : 1-D or 2-D tensor
-        Dimension n x p, values at rows for which mask == 0 are set to zero
-
-    """
-
-    zero = tf.constant(0, dtype=tf.int32)
-    mask_mat = tf.where(tf.not_equal(tf.matmul(tf.reshape(mask, [-1, 1]),
-                        tf.reshape(mask, [1, -1])), zero))
-    q = tf.to_int32(tf.sqrt(tf.to_double(tf.shape(mask_mat)[0])))
-    L_masked = tf.reshape(tf.gather_nd(L, mask_mat), [q, q])
-
-    maskindex = tf.where(tf.not_equal(mask, zero))
-    y_masked = tf.gather_nd(y, maskindex)
-
-    x_s1 = tf.matrix_triangular_solve(L_masked, y_masked,
-                                      lower=lower, adjoint=adjoint)
-    x = tf.scatter_nd(maskindex, x_s1, tf.to_int64(tf.shape(y)))
-    return x
-
-
-def tf_solve_lower_triangular_masked_kron(L, y, mask):
-    """ Tensor flow function to solve L x = y
-    where L = kron(L[0], L[1] .. L[n-1])
-    and L[i] are the lower triangular matrices
-
-    Arguments
-    ---------
-    L : list of 2-D tensors
-        Each element of the list must be a tensorflow tensor and
-        must be a lower triangular matrix of dimension n_i x n_i
-
-    y : 1-D or 2-D tensor
-        Dimension [n_0*n_1*..n_(m-1)), p]
-
-    mask: 1-D tensor
-        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows and 0
-        for don't care
-
-    Returns
-    -------
-    x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows
-        for which mask == 0 are set to zero
-
-    """
-    n = len(L)
-    if n == 1:
-        return tf_masked_triangular_solve(L[0], y, mask,
-                                          lower=True, adjoint=False)
-    else:
-        x = y
-        na = L[0].get_shape().as_list()[0]
-        n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in L])
-        n_prod = tf.to_int32(tf.reduce_prod(n_list))
-        nb = tf.to_int32(n_prod/na)
-        col = tf.shape(x)[1]
-
-        for i in range(na):
-            mask_b = tf.slice(mask, [i*nb], [nb])
-            xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
-            t = xinb / L[0][i, i]
-
-            if tf.reduce_sum(mask_b) != nb:
-                xinb = tf_solve_lower_triangular_masked_kron(L[1:], t, mask_b)
-                t_masked = tf_kron_mult(L[1:], xinb)
-
-            else:
-                # all valid - same as no mask
-                xinb = tf_solve_lower_triangular_kron(L[1:], t)
-                t_masked = t
-            xina = (xina
-                    - tf.reshape(
-                        tf.tile(tf.slice(L[0], [i+1, i], [na-i-1, 1]),
-                                [1, nb*col]),
-                        [(na-i-1)*nb, col])
-                    * tf.reshape(
-                        tf.tile(tf.reshape(t_masked, [-1, 1]), [na-i-1, 1]),
-                        [(na-i-1)*nb, col]))
-
-            x = tf.concat(axis=0, values=[xt, xinb, xina])
-
-        return x
-
-
-def tf_solve_upper_triangular_masked_kron(L, y, mask):
-    """ Tensor flow function to solve L^T x = y
-    where L = kron(L[0], L[1] .. L[n-1])
-    and L[i] are the lower triangular matrices
-
-    Arguments
-    ---------
-    L : list of 2-D tensors
-        Each element of the list must be a tensorflow tensor and
-        must be a lower triangular matrix of dimension n_i x n_i
-
-    y : 1-D or 2-D tensor
-        Dimension [n_0*n_1*..n_(m-1)), p]
-
-    mask: 1-D tensor
-        Dimension [n_0*n_1*...n_(m-1)] with 1 for valid rows
-        and 0 for don't care
-
-    Returns
-    -------
-    x : 1-D or 2-D tensor
-        Dimension (n_0*n_1*..n_(m-1)) x p, values at rows
-        for which mask == 0 are set to zero
-
-    """
-    n = len(L)
-    if n == 1:
-        return tf_masked_triangular_solve(L[0], y, mask,
-                                          lower=True, adjoint=True)
-    else:
-        x = y
-        na = L[0].get_shape().as_list()[0]
-        n_list = tf.stack([tf.to_double(tf.shape(mat)[0]) for mat in L])
-        n_prod = tf.to_int32(tf.reduce_prod(n_list))
-        nb = tf.to_int32(n_prod/na)
-        col = tf.shape(x)[1]
-        L1_end_tr = [tf.transpose(x) for x in L[1:]]
-
-        for i in range(na-1, -1, -1):
-            mask_b = tf.slice(mask, [i*nb], [nb])
-            xt, xinb, xina = tf.split(x, [i*nb, nb, (na-i-1)*nb], 0)
-            t = xinb / L[0][i, i]
-
-            if tf.reduce_sum(mask_b) != nb:
-                xinb = tf_solve_upper_triangular_masked_kron(L[1:], t, mask_b)
-                t_masked = tf_kron_mult(L1_end_tr, xinb)
-            else:
-                xinb = tf_solve_upper_triangular_kron(L[1:], t)
-                t_masked = t
-
-            xt = (xt
-                  - tf.reshape(
-                      tf.tile(tf.transpose(tf.slice(L[0], [i, 0], [1, i])),
-                              [1, nb*col]),
-                      [i*nb, col])
-                  * tf.reshape(
-                      tf.tile(tf.reshape(t_masked, [-1, 1]), [i, 1]),
-                      [i*nb, col]))
-            x = tf.concat(axis=0, values=[xt, xinb, xina])
-
-        return x
+    return numerator / denominator

@@ -15,10 +15,11 @@
 
 __all__ = [
     "ConditionSpec",
-    "SingleConditionSpec",
-    "mask_image",
     "MaskedMultiSubjectData",
+    "mask_image",
+    "mask_images",
     "multimask_images",
+    "SingleConditionSpec",
 ]
 
 import itertools
@@ -34,46 +35,49 @@ T = TypeVar("T", bound="MaskedMultiSubjectData")
 
 
 class MaskedMultiSubjectData(np.ndarray):
-    """Array in shape n_voxels, n_trs, n_subjects."""
+    """Array with shape n_TRs, n_voxels, n_subjects."""
     @classmethod
     def from_masked_images(cls: Type[T], masked_images: Iterable[np.ndarray],
-                           n_sub: int) -> T:
-        """Create a new instance from masked images.
+                           n_subjects: int) -> T:
+        """Create a new instance of MaskedMultiSubjecData from masked images.
 
         Parameters
         ----------
-        masked_images
-            Images to concatenate.
-        n_sub
-            Number of subjects. Must match the number of images.
+        masked_images : iterator
+            Images from multiple subjects to stack along 3rd dimension
+        n_subjects : int
+            Number of subjects; must match the number of images
 
         Returns
         -------
         T
-            A new instance.
+            A new instance of MaskedMultiSubjectData
 
         Raises
         ------
         ValueError
             Images have different shapes.
 
-            The number of images differs from n_sub.
+            The number of images differs from n_subjects.
         """
         images_iterator = iter(masked_images)
         first_image = next(images_iterator)
-        result = np.empty((first_image.shape[0], first_image.shape[1], n_sub))
+        first_image_shape = first_image.T.shape
+        result = np.empty((first_image_shape[0], first_image_shape[1],
+                           n_subjects))
         for n_images, image in enumerate(itertools.chain([first_image],
                                                          images_iterator)):
-            if image.shape != first_image.shape:
+            image = image.T
+            if image.shape != first_image_shape:
                 raise ValueError("Image {} has different shape from first "
                                  "image: {} != {}".format(n_images,
                                                           image.shape,
-                                                          first_image.shape))
+                                                          first_image_shape))
             result[:, :, n_images] = image
         n_images += 1
-        if n_images != n_sub:
-            raise ValueError("n_sub != number of images: {} != {}"
-                             .format(n_sub, n_images))
+        if n_images != n_subjects:
+            raise ValueError("n_subjects != number of images: {} != {}"
+                             .format(n_subjects, n_images))
         return result.view(cls)
 
 
