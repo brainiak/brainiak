@@ -43,7 +43,6 @@
 
 import logging
 import numpy as np
-from sklearn import linear_model
 from sklearn.base import BaseEstimator
 
 __all__ = [
@@ -108,7 +107,7 @@ class InvertedEncoding(BaseEstimator):
     channel responses, as in equation 3, then computes summed
     channel output and finds the argmax (within the stimulus
     feature space) associated with those responses.
-    
+
     Use score() to compute a measure of the error of the prediction
     based on known stimuli.
 
@@ -202,14 +201,6 @@ class InvertedEncoding(BaseEstimator):
             # Find channel activation for this feature value
             k_min = np.argmin((y[i_tr] - self.C_D_)**2)
             F[i_tr, :] = self.C_[:, k_min]
-
-        # clf = linear_model.LinearRegression(fit_intercept=False,
-        #                                     normalize=False)
-
-
-        # Do regression
-        # clf.fit(F, X)
-        # self.W_ = clf
 
         self.W_ = np.matmul(X.transpose(), np.linalg.pinv(F.transpose()))
         return self
@@ -370,7 +361,7 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            pred_direction: predicted direction from collective response across all
+            pred_direction: predicted direction from response across all
                 channels. Used to predict feature (direction).
         """
 
@@ -379,3 +370,4 @@ class InvertedEncoding(BaseEstimator):
         pred_direction = self.C_D_[dir_ind]
 
         return pred_direction
+    
