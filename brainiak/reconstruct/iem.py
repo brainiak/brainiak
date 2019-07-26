@@ -29,14 +29,13 @@
     Decoding and Reconstructing Color from Responses in Human Visual
     Cortex. J. Neurosci. 29, 13992–14003 (2009).
 
-    For instance, this implementation uses a set of sinusoidal
+    This implementation uses a set of sinusoidal
     basis functions to represent the set of possible feature values.
-    This code was written to give some flexibility compared to
-    the specific instances in Kok, 2013 & in Brouwer, 2009. For
-    instance, users can set the number of basis functions, or
-    channels, and the range of possible feature values. This
-    implementation also gives the option to normalize channel
-    weights and responses, if desired.
+    A feature value is some characteristic of a stimulus, e.g. the
+    angular location of a target along a horizontal line. This code was
+    written to give some flexibility compared to the specific instances
+    in Kok, 2013 & in Brouwer, 2009. Users can set the number of basis
+    functions, or channels, and the range of possible feature values.
 """
 
 # Authors: David Huberdeau (Yale University) &
@@ -69,12 +68,49 @@ class InvertedEncoding(BaseEstimator):
     rectified sinusoid functions raised to a power set by
     the user (e.g. 6).
 
-    To use this model, use fit() to estimate the weights of
-    the basis functions. predict() computes channel outputs
-    for new functional data via _predict_channel_responses()),
-    and associate those responses to a feature type.
-    score() computes a measure of the error of the prediction
-    based on known ground truth.
+    The model:
+    Inverted encoding models reconstruct a stimulus feature from
+    patterns of BOLD activity by relating the activity in each
+    voxel, B, to the values of hypothetical channels (or basis
+    functions), C, according to Equation 1 below.
+
+    (1)     B = W*C
+
+    where W is a weight matrix that represents the relationship
+    between BOLD activity and Channels. W must be estimated from
+    training data; this implementation (and most described in the
+    literature) uses linear regression to estimate W as in Equation
+    2 below [note: inv() represents matrix inverse or
+    pseudo-inverse].
+
+    (2)     W_est = B_train*inv(C_train)
+
+    The weights in W_est (short for "estimated") represent the
+    contributions of each channel to the response of each voxel.
+    Estimated channel responses can be computed given W_est and
+    new voxel activity represented in matrix B_exp (short for
+    "experiment") through inversion of Equation 1:
+
+    (3)     C_est = inv(W_est)*B_exp
+
+    Given estimated channel responses, C_est, it is straighforward
+    to obtain the reconstructed feature value by summing over
+    channels multiplied by their channel responses and taking the
+    argmax (i.e. the feature associated with the maximum value).
+
+    Using this model:
+    Use fit() to estimate the weights of the basis functions given
+    input data (e.g. beta values from fMRI data). This function
+    will execute equation 2 above.
+
+    Use predict() to compute predicted stimulus values
+    from new functional data. This function computes estimated
+    channel responses, as in equation 3, then computes summed
+    channel output and finds the argmax (within the stimulus
+    feature space) associated with those responses.
+    
+    Use score() to compute a measure of the error of the prediction
+    based on known stimuli.
 
     This implementation assumes a circular (or half-
     circular) feature domain. Future implementations might
@@ -83,23 +119,21 @@ class InvertedEncoding(BaseEstimator):
 
     Parameters
     ----------
-    n_channels: int, default 5, number of channels
+    n_channels: int, default 5. Number of channels
         The number of channels, or basis functions, to be used
-        in the inverted encoding model
+        in the inverted encoding model.
 
-    channel_exp: int, default 6, exponent to raise the
-        sinusoidal basis functions. Establishes the width of
-        basis functions.
+    channel_exp: int, default 6. Basis function exponent.
+        The exponent of the sinuoidal basis functions, which
+        establishes the width of the functions.
 
-    range_start: double, default 0, beginning of range of
-        independent variable (usually degrees)
+    range_start: double, default 0. Lowest value of domain.
+        Beginning value of range of independent variable
+        (usually degrees).
 
-    range_stop: double, default 180, end of range of
-        independent variable (usually degrees)
-
-    normalize: Boolean, default False. If True, normalizes
-        weights of basis functions and channel responses; if
-        False, does not normalize.
+    range_stop: double, default 180. Highest value of domain.
+        Ending value of range of independent variable
+        (usually degrees).
 
     Attributes
     ----------
@@ -118,8 +152,7 @@ class InvertedEncoding(BaseEstimator):
                  n_channels=5,
                  channel_exp=6,
                  range_start=0,
-                 range_stop=180,
-                 normalize=False):
+                 range_stop=180):
 
         # Check that range_start is less than range_stop
         if range_start >= range_stop:
@@ -128,7 +161,6 @@ class InvertedEncoding(BaseEstimator):
         self.channel_exp = channel_exp  # default = 6
         self.range_start = range_start  # in degrees, def=0
         self.range_stop = range_stop  # in degrees, def=180
-        self.normalize = normalize  # boolean, def=False
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -146,7 +178,7 @@ class InvertedEncoding(BaseEstimator):
             raise ValueError("Insufficient channels.")
 
         # Check that data matrix is well conditioned:
-        if np.linalg.cond(X) > 1000:
+        if np.linalg.cond(X) > 9000:
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
 
@@ -171,21 +203,19 @@ class InvertedEncoding(BaseEstimator):
             k_min = np.argmin((y[i_tr] - self.C_D_)**2)
             F[i_tr, :] = self.C_[:, k_min]
 
-        clf = linear_model.LinearRegression(fit_intercept=False,
-                                            normalize=False)
+        # clf = linear_model.LinearRegression(fit_intercept=False,
+        #                                     normalize=False)
+
 
         # Do regression
-        clf.fit(F, X)
-        # Normalize regression coefficients if indicated
-        if self.normalize:
-            clf.coef_ = (clf.coef_ - np.min(clf.coef_))\
-                / (np.max(clf.coef_) - np.min(clf.coef_))
+        # clf.fit(F, X)
+        # self.W_ = clf
 
-        self.W_ = clf
+        self.W_ = np.matmul(X.transpose(), np.linalg.pinv(F.transpose()))
         return self
 
     def predict(self, X):
-        """Use test data to predict feature
+        """Use test data to predict the feature
 
         Parameters
         ----------
@@ -198,7 +228,7 @@ class InvertedEncoding(BaseEstimator):
             pred_dir: numpy array of estimated feature values.
         """
         # Check that data matrix is well conditioned:
-        if np.linalg.cond(X) > 1000:
+        if np.linalg.cond(X) > 9000:
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
 
@@ -208,9 +238,8 @@ class InvertedEncoding(BaseEstimator):
             raise ValueError("Data matrix has too many or too few "
                              "dimensions.")
 
-        pred_response = self._predict_directions(X)
-        pred_indx = np.argmax(pred_response, axis=1)
-        pred_dir = self.C_D_[pred_indx]
+        pred_dir = self._predict_directions(X)
+
         return pred_dir
 
     def score(self, X, y):
@@ -289,7 +318,8 @@ class InvertedEncoding(BaseEstimator):
         # Check that channels provide sufficient coverage
         ch_sum_range = np.max(np.sum(channels, 0)) - \
             np.min(np.sum(channels, 0))
-        if ch_sum_range > np.deg2rad(self.range_stop - self.range_start)*0.1:
+        if ch_sum_range > \
+                np.deg2rad(self.range_stop - self.range_start)*0.1:
             # if range of channel sum > 10% channel domain size
             raise ValueError("Insufficient channel coverage.")
         return channels, channel_domain
@@ -305,20 +335,17 @@ class InvertedEncoding(BaseEstimator):
         -------
             channel_response: numpy matrix of channel responses
         """
-        clf = linear_model.LinearRegression(fit_intercept=False,
-                                            normalize=False)
-        clf.fit(self.W_.coef_, X.transpose())
+        # clf = linear_model.LinearRegression(fit_intercept=False,
+        #                                    normalize=False)
+        # clf.fit(self.W_.coef_, X.transpose())
 
-        if self.normalize:
-            channel_response = (clf.coef_ - np.min(clf.coef_))\
-                / (np.max(clf.coef_) - np.min(clf.coef_))
-        else:
-            channel_response = clf.coef_
+        channel_response = \
+            np.matmul(np.linalg.pinv(self.W_), X.transpose())
 
         return channel_response
 
-    def _predict_directions(self, X):
-        """Predicts feature value (direction) from data
+    def _predict_direction_responses(self, X):
+        """Predicts basis function response across channels from data in X
 
         Parameters
          ---------
@@ -329,5 +356,26 @@ class InvertedEncoding(BaseEstimator):
             pred_response: predict response from all channels. Used
                         to predict feature (direction).
         """
-        pred_response = self._predict_channel_responses(X).dot(self.C_)
+
+        pred_response = np.matmul(self.C_.transpose(),
+                                  self._predict_channel_responses(X))
         return pred_response
+
+    def _predict_directions(self, X):
+        """Predicts feature value (direction) from data in X
+
+        Parameters
+         ---------
+            X: numpy matrix of data. [observations, voxels]
+
+        Returns
+        -------
+            pred_direction: predicted direction from collective response across all
+                channels. Used to predict feature (direction).
+        """
+
+        pred_response = self._predict_direction_responses(X)
+        dir_ind = np.argmax(pred_response, 0)
+        pred_direction = self.C_D_[dir_ind]
+
+        return pred_direction

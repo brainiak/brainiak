@@ -14,7 +14,25 @@
 
 """
 
-    Inverted Encoding Model (IEM) Test with fabricated data
+    Inverted Encoding Model (IEM) Test with simulated data.
+
+    This example uses simulated data and the brainiak IEM implementation
+    to train an inverted encoding model, and then test reconstruction
+    from new simulated data.
+
+    To simulate the data, it is assumed that some feature is parameterized
+    along one dimension (e.g. this could be the appearance of a target at
+    four different locations along a horizontal line across someone's
+    visual field). It is assumed that there are N voxels that are each
+    selective to some weighting of these features. Four basis functions
+    span the feature space, and each voxel contains a unique weighting of
+    basis functions. Functional activity is simulated from each voxel by
+    sampling from the basis functions weighted by that voxel's unique
+    weight vector. (See README for more detailed description of how this
+    data is simulated.)
+
+    This example then trains and tests the IEM implementation given the
+    simulated data.
 
     author: David Huberdeau
 
@@ -26,62 +44,91 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Generate synthetic data with dimension 9 and is linearly separable
+# Define feature space, target locations, and basis functions
+k_exponent = 4
+feature_space = list(range(1, 150, 1))
+targets = list(range(30, 121, 30))
+basis_fcns = [[0]*len(feature_space)]*len(targets)
+for i_func in range(0, len(targets)):
+    x_ax = list(map(lambda x:x - targets[i_func], feature_space))
+    this_fcn = list(map(lambda x:pow(x,k_exponent),
+                         np.cos(np.deg2rad(x_ax))))
+    basis_fcns[i_func] = this_fcn
 
-n, dim = 90, 60
-n_ = int(n/3)
-np.random.seed(0)
-C = -.25 + .5*np.random.rand(dim, dim)  # covariance matrix
-centers_0 = np.linspace(-1, 1, dim)
-centers_60 = np.roll(centers_0,5)
-centers_120 = centers_0[::-1]
-X_ = np.vstack((np.dot(np.random.randn(n_, dim), C) + centers_0,
-          np.dot(np.random.randn(n_, dim), C) + centers_60,
-          np.dot(np.random.randn(n_, dim), C) + centers_120))
+# Define voxel weights for basis functions
+n,w = 5,4 # n - defines dimensions of ROI (assumed an nxn square
+# of voxels), w - number of weights
+weight_fcn = np.linspace(0, 1, n)
+voxel_def = []
+roll_amt_1 = list(range(0, w))
+roll_amt_2 = list(range(0, n))
+for i_wt in range(0, w):
+    this_wt_fcn = np.roll(weight_fcn, roll_amt_1[i_wt])
+    this_voxel_list = []
+    for i_vox1 in range(0, n):
+        this_vox_fcn = list(np.roll(this_wt_fcn, roll_amt_2[i_vox1]))
+        this_voxel_list.append(this_vox_fcn)
+    voxel_def.append(this_voxel_list)
 
-X = X_/np.max((np.max(X_), np.min(X_)))
+# define function that samples from voxels given the weights
+def sample_voxel_activations(stimulus_list, s_noise):
+    # function input:
+        # stimulus_list - 1-dimensional list of stimulus categories
+        # n - number of samples per stimulus desired
+        # s_noise - the standard deviation of the gaussian noise
+    voxel_sample = []
+    for i_stim in range(0, len(stimulus_list)):
+        for i_vox1 in range(0, n):
+            for i_vox2 in range(0, n):
+                voxel_sample.append(
+                    voxel_def[stimulus_list[i_stim]][i_vox1][i_vox2]\
+                    *basis_fcns[stimulus_list[i_stim]]\
+                        [targets[stimulus_list[i_stim]]]\
+                    + s_noise*np.random.normal())
 
-y = np.hstack((np.zeros(n_), 60*np.ones(n_), 120*np.ones(n_)))
+    voxel_sample_out = \
+        np.reshape(voxel_sample, (len(stimulus_list), n*n))
+    return voxel_sample_out
 
-# Create iem object
+# Simulate a sample of voxel activations for training:
+s_noise = 0.1
+n_samples_per_stim = 10
+stimulus_list_ = np.matlib.repmat(list(range(0, w)), 1,
+                                 n_samples_per_stim)
+stim_list_train = stimulus_list_[0]
+voxel_sample_train = sample_voxel_activations(
+    stim_list_train, s_noise)
 
+stim_direction_train = []
+for i_stim in range(0,len(stim_list_train)):
+    stim_direction_train.append(targets[stim_list_train[i_stim]])
+
+# Create IEM object
 Invt_model = brainiak.reconstruct.iem.InvertedEncoding(4, # channels
-                                                       6, # exponent
-                                                       -30, # start
-                                                       210, # stop
-                                                       True) #normlz
-Invt_model.fit(X, y)
+                                       4, # exponent
+                                       0, # initital feature value
+                                       150) # final feature value
 
-X2_0 = np.dot(np.random.randn(n_, dim), C) + centers_0
-X2_60 = np.dot(np.random.randn(n_, dim), C) + centers_60
-X2_120 = np.dot(np.random.randn(n_, dim), C) + centers_120
+# Train IEM object
+Invt_model.fit(voxel_sample_train, stim_direction_train)
 
-y2_0 = np.zeros(n_)
-y2_60 = 60*np.ones(n_)
-y2_120 = 120*np.ones(n_)
+# Simulate a sample of voxels activations for testing:
+s_noise = 0.1
+n_samples_per_stim = 10
+stimulus_list_ = np.matlib.repmat(list(range(0, w)), 1,
+                                 n_samples_per_stim)
+stim_list_test = stimulus_list_[0]
+voxel_sample_test = sample_voxel_activations(
+    stim_list_train, s_noise)
 
-r_hat_0 = Invt_model.predict(X2_0)
-r_hat_60 = Invt_model.predict(X2_60)
-r_hat_120 = Invt_model.predict(X2_120)
+stim_direction_test = []
+for i_stim in range(0, len(stim_list_test)):
+    stim_direction_test.append(targets[stim_list_test[i_stim]])
 
-y_hat_0 = Invt_model._predict_directions(X2_0)
-y_hat_60 = Invt_model._predict_directions(X2_60)
-y_hat_120 = Invt_model._predict_directions(X2_120)
+# Test reconstruction with simulated test voxels:
+c_predict = Invt_model._predict_channel_responses(voxel_sample_test)
+d_predict = Invt_model._predict_direction_responses(voxel_sample_test)
+s_predict = Invt_model.predict(voxel_sample_test)
+score = Invt_model.score(voxel_sample_test, stim_direction_test)
 
-m_reconstruct = [np.mean(r_hat_0), np.mean(r_hat_60), np.mean(r_hat_120)]
-logger.info('Reconstructed angles: ' + str(m_reconstruct))
-
-m0 = np.mean(y_hat_0, axis=0)
-m60 = np.mean(y_hat_60, axis=0)
-m120 = np.mean(y_hat_120, axis=0)
-
-d0 = np.argmax(m0)
-d60= np.argmax(m60)
-d120 = np.argmax(m120)
-
-X2_ = np.vstack((X2_0, X2_60, X2_120))
-y2_ = np.hstack((y2_0, y2_60, y2_120))
-
-score_ = Invt_model.score(X2_, y2_)
-
-logger.info('Scores: ' + str(score_))
+logger.info('Scores: ' + str(score))
