@@ -126,7 +126,8 @@ setup(
         # https://travis-ci.org/brainiak/brainiak/jobs/545838666
         'mpi4py>=3',
         'nitime',
-        'numpy',
+        # https://github.com/numpy/numpy/issues/14189
+        'numpy<1.17',
         'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         # and https://github.com/pymanopt/pymanopt/issues/77
