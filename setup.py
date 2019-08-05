@@ -82,7 +82,7 @@ class BuildExt(build_ext):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
-        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.9',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
