@@ -37,7 +37,6 @@ matrix:
       script: ./.conda/bin/build
 
     - os: osx
-      osx_image: xcode8
       install: ./.conda/bin/install-miniconda
       script: ./.conda/bin/build
 
