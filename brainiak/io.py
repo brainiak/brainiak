@@ -60,7 +60,7 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
 
     Examples
     --------
-    images = list(io.load_images_from_dir("face_scene", "bet.nii.gz"))
+    >>> images = list(io.load_images_from_dir("face_scene", "bet.nii.gz"))
     """
     if isinstance(in_dir, str):
         in_dir = Path(in_dir)
