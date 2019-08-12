@@ -256,22 +256,17 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            pred_dir: numpy array of estimated feature values.
+            model_prediction: numpy array of estimated feature values.
         """
-        # Check that data matrix is well conditioned:
-        if np.linalg.cond(X) > 9000:
-            logger.error("Data is singular.")
-            raise ValueError("Data matrix is nearly singular.")
-
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
         if len(shape_data) != 2:
             raise ValueError("Data matrix has too many or too few "
                              "dimensions.")
 
-        pred_dir = self._predict_directions(X)
+        model_prediction = self._predict_features(X)
 
-        return pred_dir
+        return model_prediction
 
     def score(self, X, y):
         """Calculate error measure of prediction.
@@ -356,7 +351,8 @@ class InvertedEncoding(BaseEstimator):
         return channels, channel_domain
 
     def _predict_channel_responses(self, X):
-        """Computes predicted basis function values from data
+        """Computes predicted channel responses from data
+        (e.g. C2 in Brouwer & Heeger 2009)
 
         Parameters
         ----------
@@ -366,17 +362,13 @@ class InvertedEncoding(BaseEstimator):
         -------
             channel_response: numpy matrix of channel responses
         """
-        # clf = linear_model.LinearRegression(fit_intercept=False,
-        #                                    normalize=False)
-        # clf.fit(self.W_.coef_, X.transpose())
-
-        channel_response = \
-            np.matmul(np.linalg.pinv(self.W_), X.transpose())
-
+        channel_response = np.matmul(np.linalg.pinv(self.W_),
+                                     X.transpose())
         return channel_response
 
-    def _predict_direction_responses(self, X):
-        """Predicts basis function response across channels from data in X
+    def _predict_feature_responses(self, X):
+        """Takes channel weights and transforms them into continuous
+        functions defined in the feature domain.
 
         Parameters
          ---------
@@ -385,15 +377,17 @@ class InvertedEncoding(BaseEstimator):
         Returns
         -------
             pred_response: predict response from all channels. Used
-                        to predict feature (direction).
+                to predict feature (e.g. direction).
         """
 
-        pred_response = np.matmul(self.C_.transpose(),
+        pred_response = np.matmul(self.channels_.transpose(),
                                   self._predict_channel_responses(X))
         return pred_response
 
-    def _predict_directions(self, X):
-        """Predicts feature value (direction) from data in X
+    def _predict_features(self, X):
+        """Predicts feature value (e.g. direction) from data in X.
+        Takes the maximum of the 'reconstructed' or predicted response
+        function.
 
         Parameters
          ---------
@@ -401,13 +395,12 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            pred_direction: predicted direction from response across all
-                channels. Used to predict feature (direction).
+            pred_features: predicted feature from response across all
+                channels.
         """
 
-        pred_response = self._predict_direction_responses(X)
-        dir_ind = np.argmax(pred_response, 0)
-        pred_direction = self.C_D_[dir_ind]
+        pred_response = self._predict_feature_responses(X)
+        feature_ind = np.argmax(pred_response, 0)
+        pred_features = self.channel_domain[feature_ind]
 
-        return pred_direction
-    
+        return pred_features
