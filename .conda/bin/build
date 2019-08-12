@@ -21,4 +21,10 @@ then
     CONDA_HOME="$HOME"/miniconda3
 fi
 
-"$CONDA_HOME"/bin/conda build --python=$python_version "$DIR"/..
+if [ $(which xcrun) ]
+then
+    sdk_path=$(xcrun --show-sdk-path)
+    variants="--variants {'CONDA_BUILD_SYSROOT': ['${sdk_path}']}"
+fi
+
+"$CONDA_HOME"/bin/conda build --python=$python_version $variants "$DIR"/..
