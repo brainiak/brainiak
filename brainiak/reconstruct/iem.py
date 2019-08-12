@@ -43,10 +43,12 @@
 
 import logging
 import numpy as np
+import scipy.stats
 from sklearn.base import BaseEstimator
+from ..utils.utils import circ_dist
 
 __all__ = [
-    "InvertedEncoding"
+    "InvertedEncoding",
 ]
 
 logger = logging.getLogger(__name__)
@@ -294,7 +296,7 @@ class InvertedEncoding(BaseEstimator):
 
         ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features))**2).sum()
         sstot = (circ_dist(np.deg2rad(y),
-                           np.ones(y.size)*circ_mean(np.deg2rad(y)))**2).sum()
+                           np.ones(y.size)*scipy.stats.circmean(np.deg2rad(y)))**2).sum()
         score_value = (1 - ssres/sstot)
 
         return score_value
@@ -411,45 +413,3 @@ class InvertedEncoding(BaseEstimator):
         pred_features = self.channel_domain[feature_ind]
 
         return pred_features
-
-
-def circ_dist(x, y):
-    """
-    Computes the pairwise circular distance between two arrays of
-    points (in radians).
-
-    Parameters
-    ----------
-        x: numpy vector of positions on a circle, in radians.
-        y: numpy vector of positions on a circle, in radians.
-
-    Returns
-    -------
-        r: numpy vector of distances between inputs.
-    """
-    if x.size != y.size:
-        raise ValueError("Input sizes must match to compute pairwise "
-                         "comparisons.")
-
-    r = np.angle(np.exp(x*1j) / np.exp(y*1j))
-
-    return r
-
-
-def circ_mean(x):
-    """
-    Computes the circular mean of an array. Assumes radians.
-
-    Parameters
-    ----------
-        x: numpy vector of positions on a circle, in radians.
-
-    Returns
-    -------
-        mu: the circular mean of the array, in radians.
-    """
-    w = np.ones(x.size)
-    # compute weighted sum of cos and sin of angles
-    r = np.sum(w*np.exp(1j*x))
-    mu = np.angle(r)
-    return mu
