@@ -272,7 +272,8 @@ class InvertedEncoding(BaseEstimator):
         return model_prediction
 
     def score(self, X, y):
-        """Calculate error measure of prediction.
+        """Calculate error measure of prediction. Default measurement
+        is R^2, the coefficient of determination.
 
         Parameters
         ----------
@@ -282,14 +283,21 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            rss: residual sum of squares of predicted
-                features compared to to actual features.
+            score_value: the error measurement between the actual
+                feature and predicted features.
         """
-        pred_dir = self.predict(X)
-        u = ((y - pred_dir)**2).sum()
-        v = ((y - np.mean(y))**2).sum()
-        rss = (1 - u/v)
-        return rss
+        pred_features = self.predict(X)
+        if self.stimulus_mode == 'halfcircular':
+            # multiply features by 2. otherwise doesn't wrap properly
+            pred_features = pred_features * 2
+            y = y * 2
+
+        ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features))**2).sum()
+        sstot = (circ_dist(np.deg2rad(y),
+                           np.ones(y.size)*circ_mean(np.deg2rad(y)))**2).sum()
+        score_value = (1 - ssres/sstot)
+
+        return score_value
 
     def get_params(self, deep=True):
         """Returns model parameters.
@@ -380,7 +388,6 @@ class InvertedEncoding(BaseEstimator):
             pred_response: predict response from all channels. Used
                 to predict feature (e.g. direction).
         """
-
         pred_response = np.matmul(self.channels_.transpose(),
                                   self._predict_channel_responses(X))
         return pred_response
@@ -399,9 +406,50 @@ class InvertedEncoding(BaseEstimator):
             pred_features: predicted feature from response across all
                 channels.
         """
-
         pred_response = self._predict_feature_responses(X)
         feature_ind = np.argmax(pred_response, 0)
         pred_features = self.channel_domain[feature_ind]
 
         return pred_features
+
+
+def circ_dist(x, y):
+    """
+    Computes the pairwise circular distance between two arrays of
+    points (in radians).
+
+    Parameters
+    ----------
+        x: numpy vector of positions on a circle, in radians.
+        y: numpy vector of positions on a circle, in radians.
+
+    Returns
+    -------
+        r: numpy vector of distances between inputs.
+    """
+    if x.size != y.size:
+        raise ValueError("Input sizes must match to compute pairwise "
+                         "comparisons.")
+
+    r = np.angle(np.exp(x*1j) / np.exp(y*1j))
+
+    return r
+
+
+def circ_mean(x):
+    """
+    Computes the circular mean of an array. Assumes radians.
+
+    Parameters
+    ----------
+        x: numpy vector of positions on a circle, in radians.
+
+    Returns
+    -------
+        mu: the circular mean of the array, in radians.
+    """
+    w = np.ones(x.size)
+    # compute weighted sum of cos and sin of angles
+    r = np.sum(w*np.exp(1j*x))
+    mu = np.angle(r)
+    return mu
