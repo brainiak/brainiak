@@ -200,7 +200,6 @@ class InvertedEncoding(BaseEstimator):
         # Check that there are channels specified
         if self.n_channels < 2:
             raise ValueError("Insufficient channels.")
-
         # Check that data matrix is well conditioned:
         if np.linalg.cond(X) > 9000:
             logger.error("Data is singular.")
@@ -225,14 +224,25 @@ class InvertedEncoding(BaseEstimator):
         self.channels_, _ = self._define_channels()
 
         # Create a matrix of channel activations for every observation.
-        # This is the C1 matrix in Brouwer, 2009.
-        F = np.empty((n_train, self.n_channels))
-        for i_tr in range(n_train):
-            # Find channel activation for this feature value
-            k_min = np.argmin((y[i_tr] - self.C_D_)**2)
-            F[i_tr, :] = self.C_[:, k_min]
+        # This is the C1 matrix in Brouwer & Heeger 2009.
+        one_hot = np.eye(self.stim_res)
+        if self.range_start > 0:
+            y = y + self.range_start
+        elif self.range_start < 0:
+            y = y - self.range_start
+        C = one_hot[y, :] @ self.channels_.transpose()
+        # C = C / np.max(C, axis=1)[:, None]
+        # Check that C is full rank
+        if np.linalg.matrix_rank(C) < self.n_channels:
+            print("Rank of stimulus matrix C is "
+                  "{}".format(np.linalg.matrix_rank(C)))
+            raise ValueError("Stimulus matrix is not full rank.")
+        # Solve for W in B = WC
+        self.W_ = X.transpose() @ np.linalg.pinv(C.transpose())
+        if np.linalg.cond(self.W_) > 9000:
+            logger.error("Weight matrix is nearly singular.")
+            raise ValueError("Weight matrix is nearly singular.")
 
-        self.W_ = np.matmul(X.transpose(), np.linalg.pinv(F.transpose()))
         return self
 
     def predict(self, X):
