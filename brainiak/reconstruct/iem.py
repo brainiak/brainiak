@@ -119,12 +119,15 @@ class InvertedEncoding(BaseEstimator):
     Parameters
     ----------
     n_channels: int, default 5. Number of channels
-        The number of channels, or basis functions, to be used
-        in the inverted encoding model.
+        The number of channels, or basis functions, to be used in
+        the inverted encoding model.
 
     channel_exp: int, default 6. Basis function exponent.
         The exponent of the sinuoidal basis functions, which
         establishes the width of the functions.
+
+    stimulus_mode: str, default 'halfcircular' (other option is
+        'circular'). Describes the feature domain.
 
     range_start: double, default 0. Lowest value of domain.
         Beginning value of range of independent variable
@@ -134,32 +137,54 @@ class InvertedEncoding(BaseEstimator):
         Ending value of range of independent variable
         (usually degrees).
 
+    channel_density: double, default 180. Number of points in the
+        feature domain.
+
     Attributes
     ----------
-    C_: [n_channels, channel density] NumPy 2D array
+    channels_: [n_channels, channel density] NumPy 2D array
         matrix defining channel values
-
-    C_D_: [n_channels, channel density] NumPy 2D array
-        matrix defining channel independent variable (usually
-        in degrees)
 
     W_: sklearn.linear_model model containing weight matrix that
         relates estimated channel responses to response amplitude
         data
     """
-    def __init__(self,
-                 n_channels=5,
-                 channel_exp=6,
-                 range_start=0,
-                 range_stop=180):
+    def __init__(self, n_channels=5, channel_exp=6,
+                 stimulus_mode='halfcircular', range_start=0,
+                 range_stop=180, channel_density=180,
+                 stimulus_resolution=None, verbose=False):
 
-        # Check that range_start is less than range_stop
+        # Input checks
         if range_start >= range_stop:
-            raise ValueError("range_start must be less than range_stop.")
-        self.n_channels = n_channels  # default = 5
-        self.channel_exp = channel_exp  # default = 6
-        self.range_start = range_start  # in degrees, def=0
-        self.range_stop = range_stop  # in degrees, def=180
+            raise ValueError("range_start {} must be less than "
+                             "{} range_stop.".format(range_start,
+                                                     range_stop))
+        if stimulus_mode == 'halfcircular':
+            if (range_stop - range_start) < 180:
+                raise ValueError("For half-circular feature spaces,"
+                                 "the range must be 180 degrees")
+        elif stimulus_mode == 'circular':
+            if (range_stop - range_start) < 180:
+                raise ValueError("For circular feature spaces, the"
+                                 " range must be 360 degrees")
+        if n_channels < 2:
+            raise ValueError("Insufficient number of channels.")
+        if not np.isin(stimulus_mode, ['circular', 'halfcircular']):
+            raise ValueError("Stimulus mode must be one of these: "
+                             "'circular', 'halfcircular'")
+
+        self.n_channels = n_channels
+        self.channel_exp = channel_exp
+        self.stimulus_mode = stimulus_mode
+        self.range_start = range_start
+        self.range_stop = range_stop
+        self.verbose = verbose
+        self.channel_domain = np.linspace(range_start, range_stop-1,
+                                          channel_density)
+        if stimulus_resolution is None:
+            self.stim_res = channel_density
+        else:
+            self.stim_res = stimulus_resolution
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -180,7 +205,11 @@ class InvertedEncoding(BaseEstimator):
         if np.linalg.cond(X) > 9000:
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
-
+        if X.shape[0] < self.n_channels:
+            logger.error("Not enough observations. Cannot calculate " 
+                         "pseudoinverse.")
+            raise ValueError("Fewer observations (trials) than "
+                             "channels. Cannot compute pseudoinverse.")
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
@@ -192,8 +221,9 @@ class InvertedEncoding(BaseEstimator):
                 raise ValueError(
                     "Mismatched data samples and label samples")
 
-        self.C_, self.C_D_ = self._define_channels()
-        n_train = len(y)
+        # Define the channels (or basis set)
+        self.channels_, _ = self._define_channels()
+
         # Create a matrix of channel activations for every observation.
         # This is the C1 matrix in Brouwer, 2009.
         F = np.empty((n_train, self.n_channels))
