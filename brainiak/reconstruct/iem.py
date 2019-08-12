@@ -221,7 +221,10 @@ class InvertedEncoding(BaseEstimator):
                     "Mismatched data samples and label samples")
 
         # Define the channels (or basis set)
-        self.channels_, _ = self._define_channels()
+        self.channels_, channel_centers = self._define_channels()
+        if self.verbose:
+            print("Defined channels centered at {} degrees."
+                  .format(np.rad2deg(channel_centers)))
 
         # Create a matrix of channel activations for every observation.
         # This is the C1 matrix in Brouwer & Heeger 2009.
@@ -321,34 +324,32 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            channels: numpy matrix of basis functions.
-                    [n_channels, function resolution].
-            channel_domain: numpy array of domain values.
+            channels: numpy matrix of basis functions. dimensions are
+                [n_channels, function resolution].
+            channel_centers: numpy array of the centers of each channel
         """
-        channel_density = 180
-        shifts_ = np.linspace(0,
-                              channel_density -
-                              channel_density/self.n_channels,
-                              self.n_channels)
-        shifts = [int(i) for i in shifts_]
-        channel_domain = np.linspace(self.range_start,
-                                     self.range_stop,
-                                     channel_density)
-        channel_0 = np.sin(np.linspace(0, np.pi, channel_density)
-                           ) ** self.channel_exp
-        channels = np.zeros((self.n_channels, channel_density))
-        for i in range(self.n_channels):
-            this_ch = np.roll(channel_0, shifts[i])
-            channels[i, :] = np.maximum(np.zeros(channel_density), this_ch)
+        channel_centers = np.linspace(np.deg2rad(self.range_start),
+                                      np.deg2rad(self.range_stop),
+                                      self.n_channels + 1)
+        channel_centers = channel_centers[0:-1]
+        # make sure channels are not bimodal if using 360 deg space
+        if self.stimulus_mode == 'circular':
+            domain = self.channel_domain * 0.5
+            centers = channel_centers * 0.5
+        elif self.stimulus_mode == 'halfcircular':
+            domain = self.channel_domain
+            centers = channel_centers
 
-        # Check that channels provide sufficient coverage
-        ch_sum_range = np.max(np.sum(channels, 0)) - \
-            np.min(np.sum(channels, 0))
-        if ch_sum_range > \
-                np.deg2rad(self.range_stop - self.range_start)*0.1:
-            # if range of channel sum > 10% channel domain size
-            raise ValueError("Insufficient channel coverage.")
-        return channels, channel_domain
+        # define exponentiated function
+        channels = np.asarray([np.cos(np.deg2rad(domain) - cx) **
+                               self.channel_exp
+                               for cx in centers])
+        # half-wave rectification in Brouwer & Heeger
+        # channels[channels < 0] = 0
+        # half-wave rectification preserving circularity
+        channels = abs(channels)
+
+        return channels, channel_centers
 
     def _predict_channel_responses(self, X):
         """Computes predicted channel responses from data
