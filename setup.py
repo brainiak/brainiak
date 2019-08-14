@@ -82,7 +82,7 @@ class BuildExt(build_ext):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
-        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.9',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
@@ -126,7 +126,8 @@ setup(
         # https://travis-ci.org/brainiak/brainiak/jobs/545838666
         'mpi4py>=3',
         'nitime',
-        'numpy',
+        # https://github.com/numpy/numpy/issues/14189
+        'numpy<1.17',
         'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         # and https://github.com/pymanopt/pymanopt/issues/77
