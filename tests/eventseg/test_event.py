@@ -35,6 +35,7 @@ def test_fit_shapes():
     es_invalid = EventSegment(K)
     with pytest.raises(ValueError):
         es_invalid.model_prior(K-1)
+        # ``with`` block is about to end with no error.
         pytest.fail("T < K should cause error")
     with pytest.raises(ValueError):
         es_invalid.set_event_patterns(np.zeros((V, K-1)))
