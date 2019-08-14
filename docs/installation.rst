@@ -95,6 +95,9 @@ upgrade to the latest version) using the following command::
 
     python3 -m pip install -U brainiak
 
+.. warning::
+    Running `python setup.py install` might fail. It is recommended to install using pip.
+
 Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 #61`_). Installation will proceed despite this failure. You can safely ignore it
 as long as you see ``Successfully installed`` at the end.
