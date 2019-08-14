@@ -1,5 +1,5 @@
 # This Bash script must be sourced, not executed
 # Customizations required for the server that currently runs Jenkins
 
-conda install --yes mpi4py tensorflow
+conda install --yes mpi4py tensorflow scipy\<1.3
 module unload gcc
