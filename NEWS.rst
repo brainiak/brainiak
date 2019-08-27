@@ -2,6 +2,15 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.9.1 (2019-08-27)
+===========================
+
+Features
+--------
+
+- Added Conda packages for Python 3.7.
+
+
 BrainIAK 0.9 (2019-06-18)
 =========================
 
