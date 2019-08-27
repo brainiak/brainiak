@@ -2,6 +2,12 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.9.1 (2019-08-27)
+===========================
+
+No significant changes.
+
+
 BrainIAK 0.9 (2019-06-18)
 =========================
 
