@@ -27,7 +27,8 @@ RUN apt-get update && apt-get install -y \
     man \
     vim \
     \
-    libssl-dev
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY dist/brainiak-* /mnt/brainiak
 
@@ -40,7 +41,8 @@ RUN set -e \
     && python3 -m pip install --user -U . \
     && python3 -m pip install --user -U -r tutorials/requirements.txt \
     && for example in examples/*/requirements.txt; \
-        do python3 -m pip install --user -U -r $example ; done
+        do python3 -m pip install --user -U -r $example ; done \
+    && rm -rf ~/.cache/pip
 
 RUN echo PATH=\"\$HOME/.local/bin:\$PATH\" >> $HOME/.profile \
     && echo "shell -bash" >> ~/.screenrc
