@@ -5,7 +5,10 @@
 BrainIAK 0.9.1 (2019-08-27)
 ===========================
 
-No significant changes.
+Features
+--------
+
+- Added Conda packages for Python 3.7.
 
 
 BrainIAK 0.9 (2019-06-18)
