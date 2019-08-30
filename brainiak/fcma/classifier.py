@@ -467,7 +467,7 @@ class Classifier(BaseEstimator):
                 and self.clf.kernel == 'precomputed'):
             if num_training_samples is not None:
                 num_training_samples = None
-                logger.warn(
+                logger.warning(
                     'num_training_samples should not be set for classifiers '
                     'other than SVM with precomputed kernels'
                 )
