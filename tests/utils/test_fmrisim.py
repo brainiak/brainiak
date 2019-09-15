@@ -675,7 +675,6 @@ def test_generate_noise_spatial():
 
     # Calculate the proportion of std relative to the mean
     std_proportion = np.nanstd(fwhm3) / np.nanmean(fwhm3)
-    print(fwhm3)
     assert std_proportion < 0.25, 'Variance is inconsistent across dim'
 
 
