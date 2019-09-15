@@ -2813,13 +2813,13 @@ def generate_noise(dimensions,
                                                tr_duration,
                                                )
         # Create a volume with the drift properties
-        volume = np.ones(dimensions_tr)
+        volume = np.ones(dimensions[:3])
 
         # Combine the volume and noise
         drift_noise = np.multiply.outer(volume, noise) * noise_dict[
             'drift_sigma']
     else:
-        # If there is no drift, then just make this zeros
+        # If there is no drift, then just make this zeros (in 4d)
         drift_noise = np.zeros(dimensions_tr)
 
     # Convert SFNR into the size of the standard deviation of temporal
