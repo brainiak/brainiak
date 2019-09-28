@@ -541,6 +541,13 @@ def test_generate_noise():
                                                period,
                                                )
 
+    # Check it gives a warning if the duration is too short
+    drift = sim._generate_noise_temporal_drift(300,
+                                               tr_duration,
+                                               'cos_power_drop',
+                                               period,
+                                               )
+
     # Test physiological noise (using unrealistic parameters so that it's easy)
     timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
     resp_freq = 0.2
