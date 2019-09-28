@@ -1612,7 +1612,7 @@ def _generate_noise_temporal_drift(trs,
         duration = trs * tr_duration
 
         # How bases do you have
-        basis_funcs = int(np.floor(2 * duration / period))
+        basis_funcs = int(np.floor(2 * duration))
 
         if basis_funcs == 0:
             err_msg = 'Too few timepoints (' + str(trs) + ') to accurately ' \
@@ -1636,8 +1636,8 @@ def _generate_noise_temporal_drift(trs,
         # Function to return the drop rate for the power of basis functions
         def power_drop(r, L, F):
             percent_retained = 0.99  # What is the percentage of drift retained
-            numerator = 1 - r ** (2 * L / F)
-            denominator = 1 - r ** (2 * L)
+            numerator = 1 - r ** (4 * L / F)
+            denominator = 1 - r ** (4 * L)
             return abs((numerator / denominator) - percent_retained)
 
         # Solve for power reduction rate.
