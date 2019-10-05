@@ -1614,11 +1614,6 @@ def _generate_noise_temporal_drift(trs,
         # How bases do you have
         basis_funcs = int(np.floor(2 * duration))
 
-        if basis_funcs == 0:
-            err_msg = 'Too few timepoints (' + str(trs) + ') to accurately ' \
-                                                          'model drift'
-            logger.warning(err_msg)
-            basis_funcs = 1
 
         noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
         for basis_counter in list(range(1, basis_funcs + 1)):
