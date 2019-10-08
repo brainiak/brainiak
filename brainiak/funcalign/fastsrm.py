@@ -1,11 +1,7 @@
 """Fast Shared Response Model (FastSRM)
 """
 
-# Author: Hugo Richard (INRIA - Parietal)
-# under the supervision of Jonathan Pillow (Princeton Neuroscience Institute)
-# and Bertrand Thirion (Inria - Parietal)
-# building upon code and work of Po-Hsuan Chen (Princeton Neuroscience
-# Institute) and Javier Turek (Intel Labs)
+# Author: Hugo Richard
 
 import logging
 
@@ -25,7 +21,123 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
-def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
+def check_imgs(imgs):
+    """
+    Check input images
+
+    Parameters
+    ----------
+
+    imgs : array of str, shape=[n_subjects, n_sessions]
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_timeframes, n_voxels]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
+            n_timeframes can vary across sessions
+            Each voxel's timecourse is assumed to have mean 0 and variance 1
+    """
+    if type(imgs) != np.ndarray:
+        raise ValueError("imgs should be of type "
+                         "np.ndarray but is of type %s" % type(imgs))
+
+    if len(imgs.shape) != 2:
+        raise ValueError("imgs should be an array of shape "
+                         "[n_subjects, n_sessions] "
+                         "but its shape is of size %i" % len(imgs.shape))
+
+    n_subjects, n_sessions = imgs.shape
+
+    if n_subjects <= 1:
+        raise ValueError("The number of subjects should be greater than 1")
+
+
+def check_n_components(n_supervoxels, n_components, n_timeframes):
+    """
+    Check that n_timeframes >= n_components and n_supervoxels >= n_components
+
+    Parameters
+    ----------
+
+    n_supervoxels: int
+
+    n_components: int
+
+    n_timeframes: int
+
+    """
+
+    if n_supervoxels < n_components:
+        raise ValueError("The number of regions in the atlas "
+                         "%i is smaller than "
+                         "the number of components %i of fastSRM" %
+                         (n_supervoxels, n_components))
+
+    if n_timeframes < n_components:
+        raise ValueError("Number of timeframes %i is shorter than "
+                         "number of components %i" %
+                         (n_timeframes, n_components))
+
+
+def check_reduced_data(reduced_data_list,
+                       n_components=None,
+                       return_low_ram=False):
+
+    if type(reduced_data_list) != np.ndarray:
+        raise ValueError("reduced data must have type np.ndarray but"
+                         "has type %s" % type(reduced_data_list))
+
+    low_ram = is_low_ram(reduced_data_list[0, 0])
+    n_subjects, n_sessions = reduced_data_list.shape[:2]
+
+    # Let us check that reduced data have same number of voxels and timeframes
+    n_timeframes = None
+    n_supervoxels = None
+    for n in range(n_subjects):
+        for m in range(n_sessions):
+            if low_ram:
+                data_nm = np.load(reduced_data_list[n, m])
+            else:
+                data_nm = reduced_data_list[n, m]
+
+            if n_timeframes is None and n_supervoxels is None:
+                n_timeframes, n_supervoxels = data_nm.shape
+            else:
+                if n_timeframes != data_nm.shape[0]:
+                    raise ValueError("Subject %i Session %i does not have the "
+                                     "same number of timeframes "
+                                     "as Subject %i Session %i" % (n, m, 0, 0))
+
+                if n_supervoxels != data_nm.shape[1]:
+                    raise ValueError(
+                        "Reduced data from Subject %i Session %i"
+                        " does not have the same number of supervoxels as "
+                        "Subject %i Session %i." % (n, m, 0, 0))
+
+    if n_components is not None:
+        check_n_components(n_supervoxels, n_components, n_timeframes)
+
+    if return_low_ram:
+        return low_ram
+
+
+def create_temp_dir(temp_dir):
+    """
+    This check whether temp_dir exists and creates dir otherwise
+    """
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
+    else:
+        raise ValueError("Path %s already exists. "
+                         "When a model is used, filesystem should be cleaned "
+                         "by using the .clean() method")
+
+
+def reduce_data_single(img,
+                       atlas=None,
+                       inv_atlas=None,
+                       low_ram=False,
                        temp_dir=None):
     """Reduce data using given atlas
 
@@ -81,11 +193,11 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
         if data.shape[1] != n_voxels:
             raise ValueError("%s have %i voxels and"
                              " the atlas has %i voxels."
-                             "This is incompatible." % (img, data.shape[1],
-                                                        n_voxels))
+                             "This is incompatible." %
+                             (img, data.shape[1], n_voxels))
 
-        reduced_data = np.array([np.mean(data[:, atlas == c], axis=1)
-                                 for c in atlas_values]).T
+        reduced_data = np.array(
+            [np.mean(data[:, atlas == c], axis=1) for c in atlas_values]).T
     else:
         # this means that it is a probabilistic atlas
         assert len(inv_atlas.shape) == 2
@@ -96,8 +208,8 @@ def reduce_data_single(img, atlas=None, inv_atlas=None, low_ram=False,
         if data.shape[1] != n_voxels:
             raise ValueError("%s have %i voxels and the atlas"
                              " has %i voxels."
-                             "This is incompatible." % (img, data.shape[1],
-                                                        n_voxels))
+                             "This is incompatible." %
+                             (img, data.shape[1], n_voxels))
 
         reduced_data = data.dot(inv_atlas)
 
@@ -163,8 +275,8 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         Each voxel's timecourse is assumed to have mean 0 and variance 1
     """
     if type(atlas) != np.ndarray:
-        raise ValueError("atlas should be of type np.ndarray but has type %s"
-                         % (type(atlas)))
+        raise ValueError("atlas should be of type np.ndarray but has type %s" %
+                         (type(atlas)))
 
     if len(atlas.shape) == 2:
         A = None
@@ -179,14 +291,9 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
 
     n_subjects, n_sessions = imgs.shape
 
-    reduced_data_list = Parallel(n_jobs=n_jobs)(
-        delayed(reduce_data_single)(
-            img,
-            atlas=A,
-            inv_atlas=A_inv,
-            low_ram=low_ram,
-            temp_dir=temp_dir
-        ) for img in imgs.flatten())
+    reduced_data_list = Parallel(n_jobs=n_jobs)(delayed(reduce_data_single)(
+        img, atlas=A, inv_atlas=A_inv, low_ram=low_ram, temp_dir=temp_dir)
+                                                for img in imgs.flatten())
 
     if low_ram:
         reduced_data_list = np.reshape(reduced_data_list,
@@ -197,40 +304,11 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
                                            (n_subjects, n_sessions))
         else:
             n_timeframes, n_supervoxels = np.array(reduced_data_list).shape[1:]
-            reduced_data_list = np.reshape(reduced_data_list,
-                                           (n_subjects,
-                                            n_sessions,
-                                            n_timeframes,
-                                            n_supervoxels))
+            reduced_data_list = np.reshape(
+                reduced_data_list,
+                (n_subjects, n_sessions, n_timeframes, n_supervoxels))
 
     return reduced_data_list
-
-
-def check_shapes(n_supervoxels, n_components, n_timeframes):
-    """
-    Check assumptions about input parameters
-
-    Parameters
-    ----------
-
-    n_supervoxels: int
-
-    n_components: int
-
-    n_timeframes: int
-
-    """
-
-    if n_supervoxels < n_components:
-        raise ValueError("The number of regions in the atlas "
-                         "%i is smaller than "
-                         "the number of components %i of fastSRM"
-                         % (n_supervoxels, n_components))
-
-    if n_timeframes < n_components:
-        raise ValueError("Number of timeframes %i is shorter than "
-                         "number of components %i" % (n_timeframes,
-                                                      n_components))
 
 
 def is_low_ram(reduced_data):
@@ -252,14 +330,13 @@ def is_low_ram(reduced_data):
     """
     if type(reduced_data) == np.ndarray:
         low_ram = False
-    elif (type(reduced_data) == str or
-          type(reduced_data) == np.str_ or
-          type(reduced_data) == np.str):
+    elif (type(reduced_data) == str or type(reduced_data) == np.str_
+          or type(reduced_data) == np.str):
         low_ram = True
     else:
         raise ValueError("Reduced data are stored using "
-                         "type %s which is neither np.ndarray or str"
-                         % type(reduced_data))
+                         "type %s which is neither np.ndarray or str" %
+                         type(reduced_data))
     return low_ram
 
 
@@ -307,7 +384,6 @@ def _reduced_space_compute_shared_response(reduced_data_list,
 
     # This is just to check that all subjects have same number of
     # timeframes in a given session
-    list_n_timeframes = [None] * n_sessions
     for n in range(n_subjects):
         for m in range(n_sessions):
             if low_ram:
@@ -316,15 +392,6 @@ def _reduced_space_compute_shared_response(reduced_data_list,
                 data_nm = reduced_data_list[n, m]
 
             n_timeframes, n_supervoxels = data_nm.shape
-
-            check_shapes(n_supervoxels, n_components, n_timeframes)
-
-            if list_n_timeframes[m] is None:
-                list_n_timeframes[m] = n_timeframes
-            elif list_n_timeframes[m] != n_timeframes:
-                raise ValueError("Subject %i Session %i does not have the "
-                                 "same number of timeframes "
-                                 "as Subject %i Session %i" % (n, m, 0, m))
 
             if reduced_basis_list is None:
                 reduced_basis_list = []
@@ -469,17 +536,13 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
         shared response, element i is the shared response during session i
     """
 
-    if type(reduced_data_list) != np.ndarray:
-        raise ValueError("reduced data must have type np.ndarray but"
-                         "has type %s" % type(reduced_data_list))
+    low_ram = check_reduced_data(reduced_data_list,
+                                 n_components=n_components,
+                                 return_low_ram=True)
 
-    low_ram = is_low_ram(reduced_data_list[0, 0])
     n_subjects, n_sessions = reduced_data_list.shape[:2]
     shared_response = _reduced_space_compute_shared_response(
-        reduced_data_list,
-        None,
-        n_components
-    )
+        reduced_data_list, None, n_components)
 
     reduced_basis = [None] * n_subjects
     for _ in range(n_iter):
@@ -497,10 +560,7 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None):
             reduced_basis[n] = _compute_subject_basis(cov)
 
         shared_response = _reduced_space_compute_shared_response(
-            reduced_data_list,
-            reduced_basis,
-            n_components
-        )
+            reduced_data_list, reduced_basis, n_components)
 
     return shared_response
 
@@ -544,8 +604,8 @@ def _compute_basis_subject_online(sessions, shared_response_list):
     return _compute_subject_basis(basis_i)
 
 
-def _compute_shared_response_online_single(subjects, basis_list,
-                                           temp_dir, subjects_indexes):
+def _compute_shared_response_online_single(subjects, basis_list, temp_dir,
+                                           subjects_indexes):
     """Computes shared response during one session with basis fixed
 
     Parameters
@@ -637,47 +697,10 @@ def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
     """
     shared_response_list = Parallel(n_jobs=n_jobs)(
         delayed(_compute_shared_response_online_single)(
-            subjects,
-            basis_list,
-            temp_dir,
-            subjects_indexes
-        ) for subjects in imgs.T)
+            subjects, basis_list, temp_dir, subjects_indexes)
+        for subjects in imgs.T)
 
     return shared_response_list
-
-
-def check_imgs(imgs):
-    """
-    Check input images
-
-    Parameters
-    ----------
-
-    imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i
-            collected during session j.
-            Data are loaded with numpy.load and expected
-            shape is [n_timeframes, n_voxels]
-            n_timeframes and n_voxels are assumed to be the same across
-            subjects
-            n_timeframes can vary across sessions
-            Each voxel's timecourse is assumed to have mean 0 and variance 1
-    """
-    if type(imgs) != np.ndarray:
-        raise ValueError("imgs should be of type "
-                         "np.ndarray but is of type %s"
-                         % type(imgs))
-
-    if len(imgs.shape) != 2:
-        raise ValueError("imgs should be an array of shape "
-                         "[n_subjects, n_sessions] "
-                         "but its shape is of size %i"
-                         % len(imgs.shape))
-
-    n_subjects, n_sessions = imgs.shape
-
-    if n_subjects <= 1:
-        raise ValueError("The number of subjects should be greater than 1")
 
 
 class FastSRM(BaseEstimator, TransformerMixin):
@@ -734,16 +757,24 @@ class FastSRM(BaseEstimator, TransformerMixin):
         basis of all subjects, element i is the basis of subject i
         or path to basis of all subjects, element i is the path to the
         basis of subject i
+
+    Notes
+    -----
+    **References:**
+    H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019: Fast
+    shared response model for fMRI data (https://arxiv.org/pdf/1909.12537.pdf)
     """
-    def __init__(self,
-                 atlas,
-                 n_components=20,
-                 n_iter=100,
-                 temp_dir=None,
-                 low_ram=False,
-                 random_state=None,
-                 n_jobs=1,
-                 verbose="warn",):
+    def __init__(
+            self,
+            atlas,
+            n_components=20,
+            n_iter=100,
+            temp_dir=None,
+            low_ram=False,
+            random_state=None,
+            n_jobs=1,
+            verbose="warn",
+    ):
 
         self.random_state = random_state
         self.n_jobs = n_jobs
@@ -766,16 +797,17 @@ class FastSRM(BaseEstimator, TransformerMixin):
             self.low_ram = False
 
         if temp_dir is not None:
-            if not os.path.exists(os.path.join(temp_dir, "fastsrm")):
-                os.mkdir(os.path.join(temp_dir, "fastsrm"))
             self.temp_dir = os.path.join(temp_dir, "fastsrm")
-
-            # Remove files in temp folder
-            paths = glob.glob(os.path.join(self.temp_dir, "*.npy"))
-            for path in paths:
-                os.remove(path)
-
             self.low_ram = low_ram
+
+    def clean(self):
+        if self.temp_dir is not None:
+            if os.path.exists(self.temp_dir):
+                for root, dirs, files in os.walk(self.temp_dir, topdown=False):
+                    for name in files:
+                        os.remove(os.path.join(root, name))
+                    for name in dirs:
+                        os.rmdir(os.path.join(root, name))
 
     def fit(self, imgs):
         """Computes basis across subjects from input imgs
@@ -800,27 +832,21 @@ class FastSRM(BaseEstimator, TransformerMixin):
            at the object level.
         """
 
-        if self.temp_dir is not None:
-            # Remove former basis in temp folder
-            paths = glob.glob(os.path.join(self.temp_dir, "*.npy"))
-            for path in paths:
-                os.remove(path)
-
+        create_temp_dir(self.temp_dir)
         check_imgs(imgs)
 
         if self.verbose is True:
             n_subjects, n_sessions = imgs.shape
-            logger.info("Fitting using %i subjects and %i sessions per subject"
-                        % (n_subjects, n_sessions))
+            logger.info(
+                "Fitting using %i subjects and %i sessions per subject" %
+                (n_subjects, n_sessions))
             logger.info("[FastSRM.fit] Reducing data")
 
-        reduced_data = reduce_data(
-            imgs,
-            atlas=self.atlas,
-            n_jobs=self.n_jobs,
-            low_ram=self.low_ram,
-            temp_dir=self.temp_dir
-        )
+        reduced_data = reduce_data(imgs,
+                                   atlas=self.atlas,
+                                   n_jobs=self.n_jobs,
+                                   low_ram=self.low_ram,
+                                   temp_dir=self.temp_dir)
 
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds shared "
@@ -840,9 +866,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
             basis = []
             for i, sessions in enumerate(imgs):
                 basis_i = _compute_basis_subject_online(
-                    sessions,
-                    shared_response_list
-                )
+                    sessions, shared_response_list)
                 if self.temp_dir is None:
                     basis.append(basis_i)
                 else:
@@ -852,36 +876,20 @@ class FastSRM(BaseEstimator, TransformerMixin):
                 del basis_i
         else:
             if self.temp_dir is None:
-                basis = Parallel(
-                    n_jobs=self.n_jobs
-                )(delayed(
-                    _compute_basis_subject_online
-                )(
-                    sessions,
-                    shared_response_list
-                ) for sessions in imgs)
+                basis = Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_basis_subject_online)(
+                        sessions, shared_response_list) for sessions in imgs)
             else:
                 Parallel(n_jobs=self.n_jobs)(
                     delayed(_compute_and_save_corr_mat)(
-                        subject,
-                        shared_response_list[m],
-                        self.temp_dir
-                    )
+                        subject, shared_response_list[m], self.temp_dir)
                     for m, subjects in enumerate(imgs.T)
-                    for subject in subjects
-                )
+                    for subject in subjects)
 
-                basis = Parallel(
-                    n_jobs=self.n_jobs
-                )(delayed(
-                    _compute_and_save_subject_basis
-                )(
-                    i,
-                    sessions,
-                    self.temp_dir
-                )
-                  for i, sessions in enumerate(imgs)
-                  )
+                basis = Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_and_save_subject_basis)(i, sessions,
+                                                             self.temp_dir)
+                    for i, sessions in enumerate(imgs))
 
         self.basis_list = basis
         return self
@@ -949,16 +957,14 @@ class FastSRM(BaseEstimator, TransformerMixin):
             subjects_indexes = np.array(subjects_indexes)
 
         shared_response = _compute_shared_response_online(
-            imgs,
-            self.basis_list,
-            self.temp_dir,
-            self.n_jobs,
-            subjects_indexes
-        )
+            imgs, self.basis_list, self.temp_dir, self.n_jobs,
+            subjects_indexes)
 
         return shared_response
 
-    def inverse_transform(self, shared_response_list, subjects_indexes=None,
+    def inverse_transform(self,
+                          shared_response_list,
+                          subjects_indexes=None,
                           sessions_indexes=None):
         """From shared response and basis from training data
         reconstruct subject's data
@@ -1004,8 +1010,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
             if self.temp_dir is None:
                 basis_i = self.basis_list[i]
             else:
-                basis_i = np.load(os.path.join(self.temp_dir,
-                                               "basis_%i.npy" % i))
+                basis_i = np.load(
+                    os.path.join(self.temp_dir, "basis_%i.npy" % i))
 
             for j in sessions_indexes:
                 data_.append(shared_response_list[j].dot(basis_i))
