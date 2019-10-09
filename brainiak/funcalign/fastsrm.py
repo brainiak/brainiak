@@ -1,4 +1,23 @@
 """Fast Shared Response Model (FastSRM)
+
+The implementations are based on the following publications:
+
+.. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
+   P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
+   Advances in Neural Information Processing Systems (NIPS), 2015.
+   http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
+
+.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
+   Datasets",
+   Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
+   Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
+   Kenneth A. Norman,
+   IEEE International Conference on Big Data, 2016.
+   https://doi.org/10.1109/BigData.2016.7840719
+
+.. [Richard2019] "Fast Shared Response Model for fMRI data"
+    H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019
+    https://arxiv.org/pdf/1909.12537.pdf
 """
 
 # Author: Hugo Richard
@@ -11,7 +30,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.exceptions import NotFittedError
 from joblib import Parallel, delayed
 import os
-import glob
 import hashlib
 
 __all__ = [
