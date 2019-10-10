@@ -14,30 +14,27 @@
 #  limitations under the License.
 """ Bayesian Representational Similarity Analysis (BRSA)
 
-    This implementation is based the work in [Cai2016]_.
+    This implementation is based on [Cai2016]_ and [Cai2019]_:
 
  .. [Cai2016] "A Bayesian method for reducing bias in neural
     representational similarity analysis",
-    M.B. Cai, N. Schuck, J. Pillow, Y. Niv,
+    M.B. Cai, N.W. Schuck, J.W. Pillow, Y. Niv,
     Advances in Neural Information Processing Systems 29, 2016, 4952--4960
     Available at:
     http://papers.nips.cc/paper/6131-a-bayesian-method-for-reducing-bias-in-neural-representational-similarity-analysis.pdf
-    Some extensions beyond the paper have been made here.
-    More specifically:
-    (1) spatial noise correlation (or alternatively
-    considered as signals of intrinsic fluctuation not related to tasks);
-    (2) new fitting procedure which marginalizes all voxel-specific
-    parameters such as pseudo-SNR, noise variance, auto-regressive
-    coefficients, in `.GBRSA` class;
-    (3) capacity to jointly fit to data of multiple participants,
-    in `.GBRSA` class;
-    (4) cross-validation score between a full model and a null model
-    in `.BRSA.score` and `.GBRSA.score`;
-    (5) capability of decoding task-related signals and intrinsic
-    fluctuation from new data based on model fitted from training data
-    in `.BRSA.transform` and `.GBRSA.transform`.
-    `.GBRSA` may perform better than `.BRSA` due to (2). It can be
-    use for single participant as well.
+
+ .. [Cai2019] "Representational structure or task structure?
+    Bias in neural representational similarity analysis and
+    a Bayesian method for reducing bias",
+    M.B. Cai, N.W. Schuck, J.W. Pillow, Y. Niv,
+    PLoS computational biology 15.5 (2019): e1006299.
+    https://doi.org/10.1371/journal.pcbi.1006299
+
+    `.BRSA` is based on [Cai2016] with additional consideration
+    of spatial noise correlation proposed in [Cai2019].
+    `.GBRSA` is based on [Cai2019].
+    `.GBRSA` may perform better than `.BRSA` due to marginalization of all
+    voxel-wise parameters. It can be use for single participant as well.
 """
 
 # Authors: Mingbo Cai
@@ -62,8 +59,11 @@ import copy
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "BRSA", "GBRSA", "prior_GP_var_inv_gamma", "prior_GP_var_half_cauchy",
-    "Ncomp_SVHT_MG_DLD_approx"
+    "BRSA",
+    "GBRSA",
+    "Ncomp_SVHT_MG_DLD_approx",
+    "prior_GP_var_inv_gamma",
+    "prior_GP_var_half_cauchy",
 ]
 
 
@@ -311,7 +311,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         A time course of constant 1 will be included to the nuisance
         regressor regardless of whether the user requests.
         If baseline_single is set to False, one such regressor is included
-        for each fMRI run, but a single component in beta0\_ will be
+        for each fMRI run, but a single component in beta0\\_ will be
         computed as the average of the weight maps corresponding to
         these regressors. This might cause underestimation of noise variance.
         If baseline_single is True, only one regressor of constant 1 will be
@@ -455,15 +455,15 @@ class BRSA(BaseEstimator, TransformerMixin):
         The correlation matrix derived from the shared covariance matrix.
         This is the estimated similarity matrix between neural patterns
         to your task conditions. Notice that it is recommended that
-        you also check U\_, which is the covariance matrix underlying
+        you also check U\\_, which is the covariance matrix underlying
         this correlation matrix. In cases there is almost no response
-        to your task conditions, the diagonal values of U\_ would become
-        very small and C\_ might contain many correlation coefficients
+        to your task conditions, the diagonal values of U\\_ would become
+        very small and C\\_ might contain many correlation coefficients
         close to 1 or -1. This might not reflect true strong correlation
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
         true neural response, or not enough data.
-        It is also recommended to check nSNR\_ after mapping it back to
+        It is also recommended to check nSNR\\_ after mapping it back to
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : numpy array, shape=[voxels,].
@@ -497,10 +497,10 @@ class BRSA(BaseEstimator, TransformerMixin):
         The estimated time course that is shared across voxels but
         unrelated to the events of interest (design matrix).
     beta0_null_: numpy array, shape=[n_nureg + n_base, voxels]
-        The equivalent of beta0\_ in a null model which does not
+        The equivalent of beta0\\_ in a null model which does not
         include the design matrix and response pattern beta.
     X0_null_: numpy array, shape=[time_points, n_nureg + n_base]
-        The equivalent of X0\_ in a null model which does not
+        The equivalent of X0\\_ in a null model which does not
         include the design matrix and response pattern beta
     n_nureg_: int
         Number of nuisance regressor in addition to such
@@ -727,7 +727,7 @@ class BRSA(BaseEstimator, TransformerMixin):
                 _, ts_base, _ = self._merge_DC_to_base(
                     ts_dc, nuisance, False)
                 ts_reg = np.concatenate((ts_base, design), axis=1)
-                beta_hat = np.linalg.lstsq(ts_reg, X)[0]
+                beta_hat = np.linalg.lstsq(ts_reg, X, rcond=None)[0]
                 residuals = X - np.dot(ts_reg, beta_hat)
                 self.n_nureg_ = np.max(
                     [1, Ncomp_SVHT_MG_DLD_approx(residuals,
@@ -1048,7 +1048,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             It will only take effect if X_base is not None.
         """
         X_DC = self._gen_X_DC(run_TRs)
-        reg_sol = np.linalg.lstsq(X_DC, X)
+        reg_sol = np.linalg.lstsq(X_DC, X, rcond=None)
         if np.any(np.isclose(reg_sol[1], 0)):
             raise ValueError('Your design matrix appears to have '
                              'included baseline time series.'
@@ -1077,7 +1077,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             X_DC is always in the first few columns of X_base.
         """
         if X_base is not None:
-            reg_sol = np.linalg.lstsq(X_DC, X_base)
+            reg_sol = np.linalg.lstsq(X_DC, X_base, rcond=None)
             if not no_DC:
                 if not np.any(np.isclose(reg_sol[1], 0)):
                     # No columns in X_base can be explained by the
@@ -1784,7 +1784,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         logger.info('Initial fitting assuming single parameter of '
                     'noise for all voxels')
         X_joint = np.concatenate((X0, X), axis=1)
-        beta_hat = np.linalg.lstsq(X_joint, Y)[0]
+        beta_hat = np.linalg.lstsq(X_joint, Y, rcond=None)[0]
         residual = Y - np.dot(X_joint, beta_hat)
         # point estimates of betas and fitting residuals without assuming
         # the Bayesian model underlying RSA.
@@ -1819,8 +1819,8 @@ class BRSA(BaseEstimator, TransformerMixin):
             residual[1:, :] - residual[0:-1, :] * rho1, axis=0))
         # log of estimates of the variance of the "innovation" noise
         # of AR(1) process at each time point.
-        param0 = np.empty(np.sum(np.size(v)
-                                 for v in idx_param_sing.values()))
+        param0 = np.empty(np.sum(np.fromiter(
+            (np.size(v) for v in idx_param_sing.values()), int)))
         # Initial parameter
         # Then we fill each part of the original guess of parameters
         param0[idx_param_sing['Cholesky']] = current_vec_U_chlsk_l
@@ -1862,8 +1862,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                     ' for {} times'.format(init_iter))
 
         # Initial parameters
-        param0_fitU = np.empty(
-            np.sum(np.size(v) for v in idx_param_fitU.values()))
+        param0_fitU = np.empty(np.sum(np.fromiter(
+            (np.size(v) for v in idx_param_fitU.values()), int)))
         param0_fitV = np.empty(np.size(idx_param_fitV['log_SNR2']))
         # We cannot use the same logic as the line above because
         # idx_param_fitV also includes entries for GP parameters.
@@ -1990,8 +1990,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                     ' for maximum {} times'.format(n_iter))
 
         # Initial parameters
-        param0_fitU = np.empty(
-            np.sum(np.size(v) for v in idx_param_fitU.values()))
+        param0_fitU = np.empty(np.sum(np.fromiter(
+            (np.size(v) for v in idx_param_fitU.values()), int)))
         param0_fitV = np.empty(np.size(idx_param_fitV['log_SNR2'])
                                + np.size(idx_param_fitV['c_both']))
         # We cannot use the same logic as the line above because
@@ -2743,7 +2743,7 @@ class GBRSA(BRSA):
         you might want to start with specifying a lower rank and use metrics
         such as AIC or BIC to decide the optimal rank. The log likelihood
         for the fitted data can be retrieved through private attributes
-        _LL_train\_. Note that this log likelihood score is only used
+        _LL_train\\_. Note that this log likelihood score is only used
         here for selecting hyperparameters such as rank. For any formal
         model comparison, we recommend using score() function on left-out
         data.
@@ -2795,7 +2795,7 @@ class GBRSA(BRSA):
         A time course of constant 1 will be included to the nuisance
         regressor for each participant. If baseline_single is set to False,
         one such regressor is included for each fMRI run, but at the end of
-        fitting, a single component in beta0\_ will be computed as the average
+        fitting, a single component in beta0\\_ will be computed as the average
         of the weight maps corresponding to these regressors. This might
         cause underestimation of noise variance.
         If baseline_single is True, only one regressor of constant 1 will be
@@ -2818,11 +2818,13 @@ class GBRSA(BRSA):
         In this case, the standard deviation of log(SNR) is set
         by the parameter logS_range.
         If set to 'unif', a uniform prior in [0,1] is imposed.
-        In all these cases, SNR is numerically
+        In all above cases, SNR is numerically
         marginalized on a grid of parameters. So the parameter SNR_bins
         determines how accurate the numerical integration is. The more
         number of bins are used, the more accurate the numerical
         integration becomes.
+        If set to 'equal', all voxels are assumed to have the same fixed
+        SNR. Pseudo-SNR is 1.0 for all voxels.
         In all the cases, the grids used for pseudo-SNR do not really
         set an upper bound for SNR, because the real SNR is determined
         by both pseudo-SNR and U, the shared covariance structure.
@@ -2907,21 +2909,21 @@ class GBRSA(BRSA):
         The correlation matrix derived from the shared covariance matrix.
         This is the estimated similarity matrix between neural patterns
         to your task conditions. Notice that it is recommended that
-        you also check U\_, which is the covariance matrix underlying
+        you also check U\\_, which is the covariance matrix underlying
         this correlation matrix. In cases there is almost no response
-        to your task conditions, the diagonal values of U\_ would become
-        very small and C\_ might contain many correlation coefficients
+        to your task conditions, the diagonal values of U\\_ would become
+        very small and C\\_ might contain many correlation coefficients
         close to 1 or -1. This might not reflect true strong correlation
         or strong negative correlation, but a result of lack of
         task-related neural activity, design matrix that does not match
         true neural response, or not enough data.
-        It is also recommended to check nSNR\_ after mapping it back to
+        It is also recommended to check nSNR\\_ after mapping it back to
         the brain. A "reasonable" map should at least have higher values
         in gray matter in than white matter.
     nSNR_ : list of numpy arrays, shape=[voxels,] for each subject in the list.
         The pseuso-SNR of all voxels. If SNR_prior='lognormal',
-        the geometric mean of nSNR\_ would be approximately 1.
-        If SNR_prior='unif', all nSNR\_ would be in the range of (0,1).
+        the geometric mean of nSNR\\_ would be approximately 1.
+        If SNR_prior='unif', all nSNR\\_ would be in the range of (0,1).
         If SNR_prior='exp' (default), the range of values would vary
         depending on the data and SNR_bins, but many should have low
         values with few voxels with high values.
@@ -2949,11 +2951,11 @@ class GBRSA(BRSA):
         unrelated to the events of interest (design matrix).
     beta0_null_: list of numpy arrays, shape=[n_nureg + n_base, voxels]
         for each subject.
-        The equivalent of beta0\_ in a null model which does not
+        The equivalent of beta0\\_ in a null model which does not
         include the design matrix and response pattern beta
     X0_null_: list of numpy arrays, shape=[time_points, n_nureg + n_base]
         for each subject.
-        The equivalent of X0\_ in a null model which does not
+        The equivalent of X0\\_ in a null model which does not
         include the design matrix and response pattern beta
     n_nureg_: 1-d numpy array
         Number of nuisance regressor used to model the spatial noise
@@ -3003,11 +3005,14 @@ class GBRSA(BRSA):
         if type(logS_range) is int:
             logS_range = float(logS_range)
         self.logS_range = logS_range
-        assert SNR_prior in ['unif', 'lognorm', 'exp'], \
+        assert SNR_prior in ['unif', 'lognorm', 'exp', 'equal'], \
             'SNR_prior can only be chosen from ''unif'', ''lognorm''' \
-            ' and ''exp'''
+            ' ''exp'' and ''equal'''
         self.SNR_prior = SNR_prior
-        self.SNR_bins = SNR_bins
+        if self.SNR_prior == 'equal':
+            self.SNR_bins = 1
+        else:
+            self.SNR_bins = SNR_bins
         self.rho_bins = rho_bins
         self.tol = tol
         self.optimizer = optimizer
@@ -3094,9 +3099,14 @@ class GBRSA(BRSA):
         # However, in fit(), we keep the scikit-learn API that
         # X is the input data to fit and y, a reserved name not used, is
         # the label to map to from X.
-        assert self.SNR_bins >= 10 and self.rho_bins >= 10, \
+        assert self.SNR_bins >= 10 and self.SNR_prior != 'equal' or \
+            self.SNR_bins == 1 and self.SNR_prior == 'equal', \
             'At least 10 bins are required to perform the numerical'\
-            ' integration over SNR and rho'
+            ' integration over SNR, unless choosing SNR_prior=''equal'','\
+            ' in which case SNR_bins should be 1.'
+        assert self.rho_bins >= 10, \
+            'At least 10 bins are required to perform the numerical'\
+            ' integration over rho'
         assert self.logS_range * 6 / self.SNR_bins < 0.5 \
             or self.SNR_prior != 'lognorm', \
             'The minimum grid of log(SNR) should not be larger than 0.5 '\
@@ -3125,7 +3135,7 @@ class GBRSA(BRSA):
                     _, ts_base, _ = self._merge_DC_to_base(
                         ts_dc, nuisance[s_id], False)
                     ts_reg = np.concatenate((ts_base, design[s_id]), axis=1)
-                    beta_hat = np.linalg.lstsq(ts_reg, X[s_id])[0]
+                    beta_hat = np.linalg.lstsq(ts_reg, X[s_id], rcond=None)[0]
                     residuals = X[s_id] - np.dot(ts_reg, beta_hat)
 
                     n_comps[s_id] = np.min(
@@ -3477,7 +3487,7 @@ class GBRSA(BRSA):
                     run_TRs[subj], no_DC=False)
 
             X_joint = np.concatenate((X0[subj], X[subj]), axis=1)
-            beta_hat = np.linalg.lstsq(X_joint, Y[subj])[0]
+            beta_hat = np.linalg.lstsq(X_joint, Y[subj], rcond=None)[0]
             residual = Y[subj] - np.dot(X_joint, beta_hat)
             # point estimates of betas and fitting residuals without assuming
             # the Bayesian model underlying RSA.
@@ -4128,9 +4138,12 @@ class GBRSA(BRSA):
             # Center of mass of each segment between consecutive
             # bounds are set as the grids for SNR.
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
-        else:  # SNR_prior == 'exp'
+        elif self.SNR_prior == 'exp':
             SNR_grids = self._bin_exp(self.SNR_bins)
             SNR_weights = np.ones(self.SNR_bins) / self.SNR_bins
+        else:
+            SNR_grids = np.ones(1)
+            SNR_weights = np.ones(1)
         SNR_weights = SNR_weights / np.sum(SNR_weights)
         return SNR_grids, SNR_weights
 

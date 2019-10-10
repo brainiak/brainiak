@@ -30,11 +30,11 @@ from ..image import mask_images, multimask_images
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "RandomType",
-    "prepare_fcma_data",
     "generate_epochs_info",
+    "prepare_fcma_data",
     "prepare_mvpa_data",
     "prepare_searchlight_mvpa_data",
+    "RandomType",
 ]
 
 
@@ -237,7 +237,7 @@ def generate_epochs_info(epoch_list):
 
     Parameters
     ----------
-    epoch\_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
+    epoch_list: list of 3D (binary) array in shape [condition, nEpochs, nTRs]
         Contains specification of epochs and conditions, assuming
         1. all subjects have the same number of epochs;
         2. len(epoch_list) equals the number of subjects;

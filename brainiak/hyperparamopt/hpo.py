@@ -38,6 +38,10 @@ import scipy.stats as st
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "fmin",
+]
+
 
 def get_sigma(x, min_limit=-np.inf, max_limit=np.inf):
     """Compute the standard deviations around the points for a 1D GMM.
