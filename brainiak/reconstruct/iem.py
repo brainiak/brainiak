@@ -40,13 +40,16 @@
 
 # Authors: David Huberdeau (Yale University) &
 # Peter Kok (Yale University), 2018
+# Vy Vo (Intel Corp., UCSD), 2019
 
 import logging
 import numpy as np
+import scipy.stats
 from sklearn.base import BaseEstimator
+from ..utils.utils import circ_dist
 
 __all__ = [
-    "InvertedEncoding"
+    "InvertedEncoding",
 ]
 
 logger = logging.getLogger(__name__)
@@ -119,12 +122,15 @@ class InvertedEncoding(BaseEstimator):
     Parameters
     ----------
     n_channels: int, default 5. Number of channels
-        The number of channels, or basis functions, to be used
-        in the inverted encoding model.
+        The number of channels, or basis functions, to be used in
+        the inverted encoding model.
 
     channel_exp: int, default 6. Basis function exponent.
         The exponent of the sinuoidal basis functions, which
         establishes the width of the functions.
+
+    stimulus_mode: str, default 'halfcircular' (other option is
+        'circular'). Describes the feature domain.
 
     range_start: double, default 0. Lowest value of domain.
         Beginning value of range of independent variable
@@ -134,32 +140,56 @@ class InvertedEncoding(BaseEstimator):
         Ending value of range of independent variable
         (usually degrees).
 
+    channel_density: double, default 180. Number of points in the
+        feature domain.
+
     Attributes
     ----------
-    C_: [n_channels, channel density] NumPy 2D array
+    channels_: [n_channels, channel density] NumPy 2D array
         matrix defining channel values
-
-    C_D_: [n_channels, channel density] NumPy 2D array
-        matrix defining channel independent variable (usually
-        in degrees)
 
     W_: sklearn.linear_model model containing weight matrix that
         relates estimated channel responses to response amplitude
         data
     """
-    def __init__(self,
-                 n_channels=5,
-                 channel_exp=6,
-                 range_start=0,
-                 range_stop=180):
+    def __init__(self, n_channels=6, channel_exp=5,
+                 stimulus_mode='halfcircular', range_start=0,
+                 range_stop=180, channel_density=180,
+                 stimulus_resolution=None, verbose=False):
+        self.n_channels = n_channels
+        self.channel_exp = channel_exp
+        self.stimulus_mode = stimulus_mode
+        self.range_start = range_start
+        self.range_stop = range_stop
+        self.verbose = verbose
+        self.channel_density = channel_density
+        self.channel_domain = np.linspace(range_start, range_stop-1,
+                                          channel_density)
+        if stimulus_resolution is None:
+            self.stim_res = channel_density
+        else:
+            self.stim_res = stimulus_resolution
+        self._check_params()
 
-        # Check that range_start is less than range_stop
-        if range_start >= range_stop:
-            raise ValueError("range_start must be less than range_stop.")
-        self.n_channels = n_channels  # default = 5
-        self.channel_exp = channel_exp  # default = 6
-        self.range_start = range_start  # in degrees, def=0
-        self.range_stop = range_stop  # in degrees, def=180
+    def _check_params(self):
+        if self.range_start >= self.range_stop:
+            raise ValueError("range_start {} must be less than "
+                             "{} range_stop.".format(self.range_start,
+                                                     self.range_stop))
+        if self.stimulus_mode == 'halfcircular':
+            if (self.range_stop - self.range_start) < 180:
+                raise ValueError("For half-circular feature spaces,"
+                                 "the range must be 180 degrees")
+        elif self.stimulus_mode == 'circular':
+            if (self.range_stop - self.range_start) < 180:
+                raise ValueError("For circular feature spaces, the"
+                                 " range must be 360 degrees")
+        if self.n_channels < 2:
+            raise ValueError("Insufficient number of channels.")
+        if not np.isin(self.stimulus_mode, ['circular',
+                                            'halfcircular']):
+            raise ValueError("Stimulus mode must be one of these: "
+                             "'circular', 'halfcircular'")
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -172,15 +202,15 @@ class InvertedEncoding(BaseEstimator):
         y: numpy array of response variable. [observations]
             Should contain the feature for each observation in X.
         """
-        # Check that there are channels specified
-        if self.n_channels < 2:
-            raise ValueError("Insufficient channels.")
-
         # Check that data matrix is well conditioned:
         if np.linalg.cond(X) > 9000:
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
-
+        if X.shape[0] < self.n_channels:
+            logger.error("Not enough observations. Cannot calculate " 
+                         "pseudoinverse.")
+            raise ValueError("Fewer observations (trials) than "
+                             "channels. Cannot compute pseudoinverse.")
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
@@ -192,17 +222,20 @@ class InvertedEncoding(BaseEstimator):
                 raise ValueError(
                     "Mismatched data samples and label samples")
 
-        self.C_, self.C_D_ = self._define_channels()
-        n_train = len(y)
+        # Define the channels (or basis set)
+        self.channels_, channel_centers = self._define_channels()
+        if self.verbose:
+            print("Defined channels centered at {} degrees."
+                  .format(np.rad2deg(channel_centers)))
         # Create a matrix of channel activations for every observation.
-        # This is the C1 matrix in Brouwer, 2009.
-        F = np.empty((n_train, self.n_channels))
-        for i_tr in range(n_train):
-            # Find channel activation for this feature value
-            k_min = np.argmin((y[i_tr] - self.C_D_)**2)
-            F[i_tr, :] = self.C_[:, k_min]
+        # (i.e., C1 in Brouwer & Heeger 2009.)
+        C = self._define_trial_activations(y)
+        # Solve for W in B = WC
+        self.W_ = X.transpose() @ np.linalg.pinv(C.transpose())
+        if np.linalg.cond(self.W_) > 9000:
+            logger.error("Weight matrix is nearly singular.")
+            raise ValueError("Weight matrix is nearly singular.")
 
-        self.W_ = np.matmul(X.transpose(), np.linalg.pinv(F.transpose()))
         return self
 
     def predict(self, X):
@@ -216,25 +249,21 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            pred_dir: numpy array of estimated feature values.
+            model_prediction: numpy array of estimated feature values.
         """
-        # Check that data matrix is well conditioned:
-        if np.linalg.cond(X) > 9000:
-            logger.error("Data is singular.")
-            raise ValueError("Data matrix is nearly singular.")
-
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
         if len(shape_data) != 2:
             raise ValueError("Data matrix has too many or too few "
                              "dimensions.")
 
-        pred_dir = self._predict_directions(X)
+        model_prediction = self._predict_features(X)
 
-        return pred_dir
+        return model_prediction
 
     def score(self, X, y):
-        """Calculate error measure of prediction.
+        """Calculate error measure of prediction. Default measurement
+        is R^2, the coefficient of determination.
 
         Parameters
         ----------
@@ -244,14 +273,21 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            rss: residual sum of squares of predicted
-                features compared to to actual features.
+            score_value: the error measurement between the actual
+                feature and predicted features.
         """
-        pred_dir = self.predict(X)
-        u = ((y - pred_dir)**2).sum()
-        v = ((y - np.mean(y))**2).sum()
-        rss = (1 - u/v)
-        return rss
+        pred_features = self.predict(X)
+        if self.stimulus_mode == 'halfcircular':
+            # multiply features by 2. otherwise doesn't wrap properly
+            pred_features = pred_features * 2
+            y = y * 2
+
+        ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features))**2).sum()
+        sstot = (circ_dist(np.deg2rad(y),
+                           np.ones(y.size)*scipy.stats.circmean(np.deg2rad(y)))**2).sum()
+        score_value = (1 - ssres/sstot)
+
+        return score_value
 
     def get_params(self, deep=True):
         """Returns model parameters.
@@ -267,18 +303,27 @@ class InvertedEncoding(BaseEstimator):
         """
         return{"n_channels": self.n_channels,
                "channel_exp": self.channel_exp,
+               "stimulus_mode": self.stimulus_mode,
                "range_start": self.range_start,
-               "range_stop": self.range_stop}
+               "range_stop": self.range_stop,
+               "channel_domain": self.channel_domain,
+               "stim_res": self.stim_res,
+               "verbose": self.verbose}
 
     def set_params(self, **parameters):
         """Sets model parameters after initialization.
 
         Parameters
         ----------
-            params: structure with parameters and change values
+            parameters: structure with parameters and change values
         """
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
+
+        setattr(self, "channel_domain",
+                np.linspace(self.range_start, self.range_stop - 1,
+                            self.channel_density))
+        self._check_params()
         return self
 
     def _define_channels(self):
@@ -286,37 +331,72 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            channels: numpy matrix of basis functions.
-                    [n_channels, function resolution].
-            channel_domain: numpy array of domain values.
+            channels: numpy matrix of basis functions. dimensions are
+                [n_channels, function resolution].
+            channel_centers: numpy array of the centers of each channel
         """
-        channel_density = 180
-        shifts_ = np.linspace(0,
-                              channel_density -
-                              channel_density/self.n_channels,
-                              self.n_channels)
-        shifts = [int(i) for i in shifts_]
-        channel_domain = np.linspace(self.range_start,
-                                     self.range_stop,
-                                     channel_density)
-        channel_0 = np.sin(np.linspace(0, np.pi, channel_density)
-                           ) ** self.channel_exp
-        channels = np.zeros((self.n_channels, channel_density))
-        for i in range(self.n_channels):
-            this_ch = np.roll(channel_0, shifts[i])
-            channels[i, :] = np.maximum(np.zeros(channel_density), this_ch)
+        channel_centers = np.linspace(np.deg2rad(self.range_start),
+                                      np.deg2rad(self.range_stop),
+                                      self.n_channels + 1)
+        channel_centers = channel_centers[0:-1]
+        # make sure channels are not bimodal if using 360 deg space
+        if self.stimulus_mode == 'circular':
+            domain = self.channel_domain * 0.5
+            centers = channel_centers * 0.5
+        elif self.stimulus_mode == 'halfcircular':
+            domain = self.channel_domain
+            centers = channel_centers
 
-        # Check that channels provide sufficient coverage
-        ch_sum_range = np.max(np.sum(channels, 0)) - \
-            np.min(np.sum(channels, 0))
-        if ch_sum_range > \
-                np.deg2rad(self.range_stop - self.range_start)*0.1:
-            # if range of channel sum > 10% channel domain size
-            raise ValueError("Insufficient channel coverage.")
-        return channels, channel_domain
+        # define exponentiated function
+        channels = np.asarray([np.cos(np.deg2rad(domain) - cx) **
+                               self.channel_exp
+                               for cx in centers])
+        # half-wave rectification in Brouwer & Heeger
+        # channels[channels < 0] = 0
+        # half-wave rectification preserving circularity
+        channels = abs(channels)
+
+        return channels, channel_centers
+
+    def _define_trial_activations(self, stimuli):
+        """Defines a numpy matrix of predicted channel responses for
+        each trial/observation.
+
+        Parameters
+        ----------
+            stimuli: numpy array of the feature values for each
+                observation (e.g., [0, 5, 15, 30, ...] degrees)
+
+        Returns
+        -------
+            C: matrix of predicted channel responses. dimensions are
+                number of observations by stimulus resolution
+        """
+        stim_axis = np.linspace(self.range_start, self.range_stop-1,
+                                self.stim_res)
+        if self.range_start > 0:
+            stimuli = stimuli + self.range_start
+        elif self.range_start < 0:
+            stimuli = stimuli - self.range_start
+        one_hot = np.eye(self.stim_res)
+        indices = [np.argmin(abs(stim_axis - x)) for x in stimuli]
+        stimulus_mask = one_hot[indices, :]
+
+        C = stimulus_mask @ self.channels_.transpose()
+        # optional normalization
+        # C = C / np.max(C, axis=1)[:, None]
+        # Check that C is full rank
+        if np.linalg.matrix_rank(C) < self.n_channels:
+            print("Rank of stimulus matrix C is "
+                  "{}".format(np.linalg.matrix_rank(C)))
+            raise RuntimeWarning("Stimulus matrix is not full rank."
+                                 "May cause issues with stimulus "
+                                 "prediction/reconstruction.")
+        return C
 
     def _predict_channel_responses(self, X):
-        """Computes predicted basis function values from data
+        """Computes predicted channel responses from data
+        (e.g. C2 in Brouwer & Heeger 2009)
 
         Parameters
         ----------
@@ -326,17 +406,13 @@ class InvertedEncoding(BaseEstimator):
         -------
             channel_response: numpy matrix of channel responses
         """
-        # clf = linear_model.LinearRegression(fit_intercept=False,
-        #                                    normalize=False)
-        # clf.fit(self.W_.coef_, X.transpose())
-
-        channel_response = \
-            np.matmul(np.linalg.pinv(self.W_), X.transpose())
-
+        channel_response = np.matmul(np.linalg.pinv(self.W_),
+                                     X.transpose())
         return channel_response
 
-    def _predict_direction_responses(self, X):
-        """Predicts basis function response across channels from data in X
+    def _predict_feature_responses(self, X):
+        """Takes channel weights and transforms them into continuous
+        functions defined in the feature domain.
 
         Parameters
          ---------
@@ -345,15 +421,16 @@ class InvertedEncoding(BaseEstimator):
         Returns
         -------
             pred_response: predict response from all channels. Used
-                        to predict feature (direction).
+                to predict feature (e.g. direction).
         """
-
-        pred_response = np.matmul(self.C_.transpose(),
+        pred_response = np.matmul(self.channels_.transpose(),
                                   self._predict_channel_responses(X))
         return pred_response
 
-    def _predict_directions(self, X):
-        """Predicts feature value (direction) from data in X
+    def _predict_features(self, X):
+        """Predicts feature value (e.g. direction) from data in X.
+        Takes the maximum of the 'reconstructed' or predicted response
+        function.
 
         Parameters
          ---------
@@ -361,13 +438,11 @@ class InvertedEncoding(BaseEstimator):
 
         Returns
         -------
-            pred_direction: predicted direction from response across all
-                channels. Used to predict feature (direction).
+            pred_features: predicted feature from response across all
+                channels.
         """
+        pred_response = self._predict_feature_responses(X)
+        feature_ind = np.argmax(pred_response, 0)
+        pred_features = self.channel_domain[feature_ind]
 
-        pred_response = self._predict_direction_responses(X)
-        dir_ind = np.argmax(pred_response, 0)
-        pred_direction = self.C_D_[dir_ind]
-
-        return pred_direction
-    
+        return pred_features
