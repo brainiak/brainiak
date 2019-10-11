@@ -3060,7 +3060,7 @@ def generate_1d_rf_responses(rfs, trial_list, feature_resolution,
     Returns
     ----------
 
-    trial_data : 1d numpy array (float)
+    trial_data : 2d numpy array (float)
         The synthetic data for each voxel and trial. Dimensions are n_voxels by
         n_trials.
 
