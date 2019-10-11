@@ -3077,6 +3077,6 @@ def generate_1d_rf_responses(rfs, trial_list, feature_resolution,
     stimulus_mask = one_hot[:, indices]
     trial_data = rfs @ stimulus_mask
     trial_data += np.random.rand(rfs.shape[0], trial_list.size) * \
-                  (trial_noise * np.max(trial_data))
+        (trial_noise * np.max(trial_data))
 
     return trial_data

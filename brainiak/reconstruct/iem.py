@@ -43,6 +43,7 @@
 # Vy Vo (Intel Corp., UCSD), 2019
 
 import logging
+import warnings
 import numpy as np
 import scipy.stats
 from sklearn.base import BaseEstimator
@@ -140,8 +141,14 @@ class InvertedEncoding(BaseEstimator):
         Ending value of range of independent variable
         (usually degrees).
 
-    channel_density: double, default 180. Number of points in the
+    channel_density: int, default 180. Number of points in the
         feature domain.
+
+    stimulus_resolution: double, default None will set the stimulus
+        resolution to be identical to the channel density. This sets
+        the resolution at which the stimuli were presented (e.g. a
+        spatial position with some width has a lower stimulus
+        resolution).
 
     Attributes
     ----------
@@ -153,15 +160,14 @@ class InvertedEncoding(BaseEstimator):
         data
     """
     def __init__(self, n_channels=6, channel_exp=5,
-                 stimulus_mode='halfcircular', range_start=0,
-                 range_stop=180, channel_density=180,
-                 stimulus_resolution=None, verbose=False):
+                 stimulus_mode='halfcircular', range_start=0.,
+                 range_stop=180., channel_density=180,
+                 stimulus_resolution=None):
         self.n_channels = n_channels
         self.channel_exp = channel_exp
         self.stimulus_mode = stimulus_mode
         self.range_start = range_start
         self.range_stop = range_stop
-        self.verbose = verbose
         self.channel_density = channel_density
         self.channel_domain = np.linspace(range_start, range_stop-1,
                                           channel_density)
@@ -177,13 +183,17 @@ class InvertedEncoding(BaseEstimator):
                              "{} range_stop.".format(self.range_start,
                                                      self.range_stop))
         if self.stimulus_mode == 'halfcircular':
-            if (self.range_stop - self.range_start) < 180:
+            if (self.range_stop - self.range_start) != 180.:
                 raise ValueError("For half-circular feature spaces,"
-                                 "the range must be 180 degrees")
+                                 "the range must be 180 degrees, "
+                                 "not {}".format(self.range_stop
+                                                 - self.range_start))
         elif self.stimulus_mode == 'circular':
-            if (self.range_stop - self.range_start) < 180:
+            if (self.range_stop - self.range_start) != 360.:
                 raise ValueError("For circular feature spaces, the"
-                                 " range must be 360 degrees")
+                                 " range must be 360 degrees"
+                                 "not {}".format(self.range_stop
+                                                 - self.range_start))
         if self.n_channels < 2:
             raise ValueError("Insufficient number of channels.")
         if not np.isin(self.stimulus_mode, ['circular',
@@ -207,7 +217,7 @@ class InvertedEncoding(BaseEstimator):
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
         if X.shape[0] < self.n_channels:
-            logger.error("Not enough observations. Cannot calculate " 
+            logger.error("Not enough observations. Cannot calculate "
                          "pseudoinverse.")
             raise ValueError("Fewer observations (trials) than "
                              "channels. Cannot compute pseudoinverse.")
@@ -224,9 +234,8 @@ class InvertedEncoding(BaseEstimator):
 
         # Define the channels (or basis set)
         self.channels_, channel_centers = self._define_channels()
-        if self.verbose:
-            print("Defined channels centered at {} degrees."
-                  .format(np.rad2deg(channel_centers)))
+        logger.info("Defined channels centered at {} degrees."
+                    .format(np.rad2deg(channel_centers)))
         # Create a matrix of channel activations for every observation.
         # (i.e., C1 in Brouwer & Heeger 2009.)
         C = self._define_trial_activations(y)
@@ -284,7 +293,8 @@ class InvertedEncoding(BaseEstimator):
 
         ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features))**2).sum()
         sstot = (circ_dist(np.deg2rad(y),
-                           np.ones(y.size)*scipy.stats.circmean(np.deg2rad(y)))**2).sum()
+                           np.ones(y.size)*scipy.stats.circmean(np.deg2rad(y))
+                           ) ** 2).sum()
         score_value = (1 - ssres/sstot)
 
         return score_value
@@ -307,8 +317,7 @@ class InvertedEncoding(BaseEstimator):
                "range_start": self.range_start,
                "range_stop": self.range_stop,
                "channel_domain": self.channel_domain,
-               "stim_res": self.stim_res,
-               "verbose": self.verbose}
+               "stim_res": self.stim_res}
 
     def set_params(self, **parameters):
         """Sets model parameters after initialization.
@@ -363,7 +372,7 @@ class InvertedEncoding(BaseEstimator):
         each trial/observation.
 
         Parameters
-        ----------
+
             stimuli: numpy array of the feature values for each
                 observation (e.g., [0, 5, 15, 30, ...] degrees)
 
@@ -381,17 +390,26 @@ class InvertedEncoding(BaseEstimator):
         one_hot = np.eye(self.stim_res)
         indices = [np.argmin(abs(stim_axis - x)) for x in stimuli]
         stimulus_mask = one_hot[indices, :]
+        if self.channel_density != self.stim_res:
+            if self.channel_density % self.stim_res == 0:
+                stimulus_mask = np.repeat(stimulus_mask, self.channel_density /
+                                          self.stim_res)
+            else:
+                raise NotImplementedError("This code doesn't currently support"
+                                          " stimuli which are not square "
+                                          "functions in the feature domain, or"
+                                          " stimulus widths that are not even"
+                                          "divisors of the number of points in"
+                                          " the feature domain.")
 
         C = stimulus_mask @ self.channels_.transpose()
         # optional normalization
         # C = C / np.max(C, axis=1)[:, None]
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
-            print("Rank of stimulus matrix C is "
-                  "{}".format(np.linalg.matrix_rank(C)))
-            raise RuntimeWarning("Stimulus matrix is not full rank."
-                                 "May cause issues with stimulus "
-                                 "prediction/reconstruction.")
+            warnings.warn("Stimulus matrix is {}, not full rank. May cause "
+                          "issues with stimulus prediction/reconstruction."
+                          .format(np.linalg.matrix_rank(C)), RuntimeWarning)
         return C
 
     def _predict_channel_responses(self, X):
