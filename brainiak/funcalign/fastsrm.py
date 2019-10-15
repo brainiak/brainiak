@@ -127,6 +127,21 @@ def assert_array_2axis(array, name_array):
                          "but has %i axes" % (name_array, len(array.shape)))
 
 
+def assert_valid_index(indexes, max_value, name_indexes):
+    """
+    Check that indexes are between 0 and max_value and number
+    of indexes is less than max_value
+    """
+    if len(indexes) > max_value:
+        raise ValueError("The length of %s should \
+        be less than %i but is %i" % (name_indexes, max_value, len(indexes)))
+    for i, ind_i in enumerate(indexes):
+        if ind_i < 0 or ind_i >= len(max_value):
+            raise ValueError("Index %i of %s has value %i \
+            whereas value should be between 0 and %i" %
+                             (i, name_indexes, ind_i, max_value))
+
+
 def _check_imgs_list(imgs):
     """
     Checks that imgs is a non empty list of elements of the same type
@@ -444,47 +459,113 @@ def check_imgs(imgs, n_components=None, atlas_shape=None):
     return reshaped_input, new_imgs, shapes
 
 
-def check_reduced_data(reduced_data_list,
-                       n_components=None,
-                       return_low_ram=False):
+def _check_shared_response_list_of_list(shared_response, n_components,
+                                        input_shapes):
 
-    if type(reduced_data_list) != np.ndarray:
-        raise ValueError("reduced data must have type np.ndarray but"
-                         "has type %s" % type(reduced_data_list))
+    # Check that shared_response is indeed a list of list of arrays
+    n_subjects = len(shared_response)
+    n_sessions = None
+    for i in range(len(shared_response)):
+        if not isinstance(shared_response[i], list):
+            raise ValueError("shared_response[0] is a list but\
+            shared_response[%i] is not a list this is incompatible." % i)
+        assert_non_empty_list(shared_response[i], "shared_response[i]" % i)
+        if n_sessions is None:
+            n_sessions = len(shared_response[i])
+        elif n_sessions != len(shared_response[i]):
+            raise ValueError(
+                "shared_response[%i] has len %i whereas \
+            shared_response[0] has len %i. They should have same length" %
+                (i, len(shared_response[i]), len(shared_response[0])))
+        for j in range(len(shared_response[i])):
+            assert_array_2axis(shared_response[i][j],
+                               "shared_response[%i][%i]" % (i, j))
 
-    low_ram = is_low_ram(reduced_data_list[0, 0])
-    n_subjects, n_sessions = reduced_data_list.shape[:2]
+    return _check_shared_response_list_sessions([
+        np.mean([shared_response[i][j] for i in range(n_subjects)], axis=0)
+        for j in range(n_sessions)
+    ], n_components, input_shapes)
 
-    # Let us check that reduced data have compatible shapes
-    n_timeframes_list = [None] * n_sessions
-    n_supervoxels = None
-    for n in range(n_subjects):
-        for m in range(n_sessions):
-            data_nm = safe_load(reduced_data_list[n, m], low_ram)
 
-            if n_timeframes_list[m] is None:
-                n_timeframes_list[m] = data_nm.shape[0]
-
-            if n_supervoxels is None:
-                n_supervoxels = data_nm.shape[1]
-
-            if n_timeframes_list[m] != data_nm.shape[0]:
-                raise ValueError("Subject %i Session %i does not have the "
-                                 "same number of timeframes "
-                                 "as Subject %i Session %i" % (n, m, 0, m))
-
-            if n_supervoxels != data_nm.shape[1]:
+def _check_shared_response_list_sessions(shared_response, n_components,
+                                         input_shapes):
+    for j in range(len(shared_response)):
+        assert_array_2axis(shared_response[j], "shared_response[%i]" % j)
+        if input_shapes is not None:
+            if shared_response[j].shape[1] != input_shapes[0][j][1]:
                 raise ValueError(
-                    "Reduced data from Subject %i Session %i"
-                    " does not have the same number of supervoxels as "
-                    "Subject %i Session %i." % (n, m, 0, 0))
+                    "Number of timeframes in input images during \
+                session %i does not match the number of \
+                timeframes during session %i of shared_response (%i != %i)" %
+                    (j, j, shared_response[j].shape[1], input_shapes[0, j, 1]))
+        if n_components is not None:
+            if shared_response[j].shape[0] != n_components:
+                raise ValueError(
+                    "Number of components in \
+                shared_response during session %i is different than\
+                    the number of components of the model (%i != %i)" %
+                    (j, shared_response[j].shape[0], n_components))
+    return shared_response
 
-    n_timeframes = np.sum(n_timeframes_list)
-    if n_components is not None:
-        check_n_components(n_supervoxels, n_components, n_timeframes)
 
-    if return_low_ram:
-        return low_ram
+def _check_shared_response_list_subjects(shared_response, n_components,
+                                         input_shapes):
+    for i in range(len(shared_response)):
+        assert_array_2axis(shared_response[i], "shared_response[%i]" % i)
+
+    return _check_shared_response_array(np.mean(shared_response, axis=0),
+                                        n_components, input_shapes)
+
+
+def _check_shared_response_array(shared_response, n_components, input_shapes):
+    assert_array_2axis(shared_response, "shared_response")
+    return _check_shared_response_list_sessions([shared_response],
+                                                n_components, input_shapes)
+
+
+def check_shared_response(shared_response,
+                          aggregate="mean",
+                          n_components=None,
+                          input_shapes=None):
+    """
+    Check that shared response has valid input and turn it into
+    a session-wise shared response
+
+    Returns
+    -------
+    added_session: bool
+        True if an artificial sessions was added to match the list of
+        session input type for shared_response
+    reshaped_shared_response: list of arrays
+        shared response (reshaped to match the list of session input)
+    """
+    # Depending on aggregate and shape of input we infer what to do
+    if isinstance(shared_response, list):
+        assert_non_empty_list(shared_response, "shared_response")
+        if isinstance(shared_response[0], list):
+            if aggregate == "mean":
+                raise ValueError("self.aggregate has value 'mean' but\
+                shared response is a list of list. This is\
+                incompatible")
+            return False, _check_shared_response_list_of_list(
+                shared_response, n_components, input_shapes)
+        elif isinstance(shared_response[0], np.ndarray):
+            if aggregate == "mean":
+                return False, _check_shared_response_list_sessions(
+                    shared_response, n_components, input_shapes)
+            else:
+                return True, _check_shared_response_list_subjects(
+                    shared_response, n_components, input_shapes)
+        else:
+            raise ValueError("shared_response is a list but\
+            shared_response[0] is neither a list or an array.\
+            This is invalid.")
+    elif isinstance(shared_response, np.ndarray):
+        return True, _check_shared_response_array(shared_response,
+                                                  n_components, input_shapes)
+    else:
+        raise ValueError("shared_response should be either\
+        a list or an array but is of type %s" % type(shared_response))
 
 
 def create_temp_dir(temp_dir):
@@ -817,6 +898,7 @@ def _compute_and_save_subject_basis(subject_number, sessions, temp_dir):
             corr_mat = np.load(path)
         else:
             corr_mat += np.load(path)
+        os.remove(path)
     basis_i = _compute_subject_basis(corr_mat)
     path = os.path.join(temp_dir, "basis_%i" % subject_number)
     np.save(path, basis_i)
@@ -848,7 +930,11 @@ def _compute_subject_basis(corr_mat):
     return U.dot(V)
 
 
-def fast_srm(reduced_data_list, n_iter=10, n_components=None, low_ram=False):
+def fast_srm(reduced_data_list,
+             n_iter=10,
+             n_components=None,
+             low_ram=False,
+             seed=0):
     """Computes shared response and basis in reduced space
 
     Parameters
@@ -898,7 +984,7 @@ def fast_srm(reduced_data_list, n_iter=10, n_components=None, low_ram=False):
             for i in range(n_subjects)
         ]
 
-        srm = DetSRM(n_iter=n_iter, features=n_components)
+        srm = DetSRM(n_iter=n_iter, features=n_components, rand_seed=seed)
         srm.fit(X)
 
         # SRM gives a list of data projected in shared space
@@ -1001,7 +1087,7 @@ def _compute_basis_subject_online(sessions, shared_response_list):
 
 
 def _compute_shared_response_online_single(subjects, basis_list, temp_dir,
-                                           subjects_indexes):
+                                           subjects_indexes, aggregate):
     """Computes shared response during one session with basis fixed
 
     Parameters
@@ -1027,33 +1113,50 @@ def _compute_shared_response_online_single(subjects, basis_list, temp_dir,
         list of indexes corresponding to the subjects to use to compute
         shared response
 
+    aggregate: str or None, default="mean"
+        if "mean": returns the mean shared response S from all subjects
+        if None: returns the subject-specific response in shared space S_i
+
     Returns
     -------
 
-    shared_response : array, shape=[n_timeframes, n_components]
+    shared_response : array, shape=[n_timeframes, n_components] or list
         shared response
     """
     n = 0
-    shared_response = None
+    if aggregate == "mean":
+        shared_response = None
+    if aggregate is None:
+        shared_response = []
+
     for k, i in enumerate(subjects_indexes):
         subject = subjects[k]
-        data = np.load(subject)
+        # Transpose to be consistent with paper
+        data = safe_load(subject).T
         if temp_dir is None:
             basis_i = basis_list[i]
         else:
             basis_i = np.load(os.path.join(temp_dir, "basis_%i.npy" % i))
 
-        if shared_response is None:
-            shared_response = data.dot(basis_i.T)
-        else:
-            shared_response += data.dot(basis_i.T)
+        if aggregate == "mean":
+            if shared_response is None:
+                shared_response = data.dot(basis_i.T)
+            else:
+                shared_response += data.dot(basis_i.T)
+            n += 1
 
-        n += 1
-    return shared_response / float(n)
+        if aggregate is None:
+            shared_response.append(data.dot(basis_i.T))
+
+    if aggregate is None:
+        return shared_response
+
+    if aggregate == "mean":
+        return shared_response / float(n)
 
 
 def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
-                                    subjects_indexes):
+                                    subjects_indexes, aggregate):
     """Computes shared response with basis fixed
 
     Parameters
@@ -1072,10 +1175,6 @@ def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
         the array is a numpy array of shape [n_voxels, n_timeframes] that
         contains the data of subject i collected during session j.
 
-        imgs can also be a list of arrays where element i of the array is
-        a numpy array of shape [n_voxels, n_timeframes] that contains the
-        data of subject i (number of sessions is implicitly 1)
-
     basis_list : None or list of array, element i has
     shape=[n_components, n_voxels]
         basis of all subjects, element i is the basis of subject i
@@ -1092,17 +1191,35 @@ def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
         list of indexes corresponding to the subjects to use to compute
         shared response
 
+    aggregate: str or None, default="mean"
+        if "mean": returns the mean shared response S from all subjects
+        if None: returns the subject-specific response in shared space S_i
+
     Returns
     -------
 
-    shared_response_list : list of array, element i has
-    shape=[n_timeframes, n_components]
+    shared_response_list : list of array or list of list of array
         shared response, element i is the shared response during session i
+        or element i, j is the shared response of subject i during session j
     """
+
+    n_subjects = len(subjects_indexes)
+    n_sessions = len(imgs[0])
+
     shared_response_list = Parallel(n_jobs=n_jobs)(
-        delayed(_compute_shared_response_online_single)(
-            subjects, basis_list, temp_dir, subjects_indexes)
-        for subjects in imgs.T)
+        delayed(_compute_shared_response_online_single)
+        ([imgs[i, j] for i in range(n_subjects)], basis_list, temp_dir,
+         subjects_indexes, aggregate) for j in range(n_sessions))
+
+    if aggregate is None:
+        shared_response_list = [[
+            shared_response_list[j][i].T for i in range(n_subjects)
+        ] for j in range(n_sessions)]
+
+    if aggregate == "mean":
+        shared_response_list = [
+            shared_response_list[j].T for j in range(n_sessions)
+        ]
 
     return shared_response_list
 
@@ -1145,8 +1262,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
         this increases the number of IO but reduces memory complexity when
         the number of subject and / or sessions is large
 
-    random_state : int or RandomState
-        Pseudo number generator state used for random sampling.
+    seed : int
+        Seed used for random sampling.
 
     n_jobs : int, optional, default=1
         The number of CPUs to use to do the computation.
@@ -1157,15 +1274,21 @@ class FastSRM(BaseEstimator, TransformerMixin):
         if False, logs are disabled.
         if "warn" only warnings are printed.
 
+    aggregate: str or None, default="mean"
+        if "mean": shared_response is the mean shared response S
+        from all subjects
+        if None: shared_response contains all subject-specific responses
+        in shared space S_i
+
     Attributes
     ----------
 
-    `basis_list`: list of array, element i has shape=[n_voxels, n_components]
+    `basis_list`: list of array, element i has shape=[n_components, n_voxels]
      or list of str
         - if basis is a list of array, element i is the basis of subject i
         - if basis is a list of str, element i is the path to the basis
             of subject i that is loaded with np.load yielding an array of
-            shape [n_voxels, n_components].
+            shape [n_components, n_voxels].
         Note that any call to clean erases this attribute
 
     Notes
@@ -1174,25 +1297,28 @@ class FastSRM(BaseEstimator, TransformerMixin):
     H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019: Fast
     shared response model for fMRI data (https://arxiv.org/pdf/1909.12537.pdf)
     """
+    def __init__(self,
+                 atlas,
+                 n_components=20,
+                 n_iter=100,
+                 temp_dir=None,
+                 low_ram=False,
+                 seed=None,
+                 n_jobs=1,
+                 verbose="warn",
+                 aggregate="mean"):
 
-    def __init__(
-            self,
-            atlas,
-            n_components=20,
-            n_iter=100,
-            temp_dir=None,
-            low_ram=False,
-            random_state=None,
-            n_jobs=1,
-            verbose="warn",
-    ):
-
-        self.random_state = random_state
+        self.seed = seed
         self.n_jobs = n_jobs
         self.verbose = verbose
         self.n_components = n_components
         self.n_iter = n_iter
         self.atlas = atlas
+
+        if aggregate is not None and aggregate != "mean":
+            raise ValueError("aggregate can have only value mean or None")
+
+        self.aggregate = aggregate
 
         self.basis_list = None
 
@@ -1283,7 +1409,8 @@ class FastSRM(BaseEstimator, TransformerMixin):
         shared_response_list = fast_srm(reduced_data,
                                         n_iter=self.n_iter,
                                         n_components=self.n_components,
-                                        low_ram=self.low_ram)
+                                        low_ram=self.low_ram,
+                                        seed=self.seed)
 
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds basis using "
@@ -1321,7 +1448,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
         self.basis_list = basis
         return self
 
-    def fit_transform(self, imgs, subjects_indexes=None, aggregate="mean"):
+    def fit_transform(self, imgs, subjects_indexes=None):
         """Computes basis across subjects and shared response from input imgs
         return shared response.
 
@@ -1345,22 +1472,26 @@ class FastSRM(BaseEstimator, TransformerMixin):
             a numpy array of shape [n_voxels, n_timeframes] that contains the
             data of subject i (number of sessions is implicitly 1)
 
-        aggregate: str or None, default="mean"
-            if "mean": returns the mean shared response S from all subjects
-            if None: returns the subject-specific response in shared space S_i
-
         Returns
         --------
-        shared_response_list : list of array, element i has
-         shape=[n_timeframes, n_components]
-            shared response, element i is the shared response during session i
+        shared_response : list of arrays, list of list of array or arrays
+            - if imgs is a list of array and self.aggregate="mean", shared
+            response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None, shared
+            response is a list of array, element i is the projection of data of
+            subject i in shared space.
+            - if imgs is an array or a list of list of array and
+            self.aggregate="mean", shared response is a list of array,
+            element j is the shared response during session j
+            - if imgs is an array or a list of list of array and
+            self.aggregate=None, shared response is a list of list of array,
+            element i, j is the projection of data of subject i collected
+            during session j in shared space.
         """
         self.fit(imgs)
-        return self.transform(imgs,
-                              subjects_indexes=subjects_indexes,
-                              aggregate=aggregate)
+        return self.transform(imgs, subjects_indexes=subjects_indexes)
 
-    def transform(self, imgs, subjects_indexes=None, aggregate="mean"):
+    def transform(self, imgs, subjects_indexes=None):
         """From data in imgs and basis from training data,
         computes shared response.
 
@@ -1390,43 +1521,85 @@ class FastSRM(BaseEstimator, TransformerMixin):
             otherwise imgs[i] will be transformed using
             basis[subjects_index[i]]
 
-        aggregate: str or None, default="mean"
-            if "mean": returns the mean shared response S from all subjects
-            if None: returns the subject-specific response in shared space S_i
-
         Returns
-        -------
-        shared_response_list : list of array, element i has
-        shape=[n_components, n_timeframes]
-            shared response, element i is the shared response during session i
-        """
+        --------
+        shared_response : list of arrays, list of list of array or arrays
+            - if imgs is a list of array and self.aggregate="mean", shared
+            response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None, shared
+            response is a list of array, element i is the projection of data of
+            subject i in shared space.
+            - if imgs is an array or a list of list of array and
+            self.aggregate="mean", shared response is a list of array,
+            element j is the shared response during session j
+            - if imgs is an array or a list of list of array and
+            self.aggregate=None, shared response is a list of list of array,
+            element i, j is the projection of data of subject i collected
+            during session j in shared space.
+         """
+        aggregate = self.aggregate
         if self.basis_list is None:
             raise NotFittedError("The model fit has not been run yet.")
+
+        atlas_shape = check_atlas(self.atlas)
+        reshaped_input, imgs, shapes = check_imgs(
+            imgs, n_components=self.n_components, atlas_shape=atlas_shape)
 
         if subjects_indexes is None:
             subjects_indexes = np.arange(len(imgs))
         else:
             subjects_indexes = np.array(subjects_indexes)
 
+        # Transform specific checks
+        if len(subjects_indexes) < len(imgs):
+            raise ValueError("Input data imgs has len %i whereas \
+            subject_indexes has len %i. The number of basis used to compute \
+            the shared response should be equal to the number of subjects in \
+            imgs" % (len(imgs), len(subjects_indexes)))
+
+        assert_valid_index(subjects_indexes, len(self.basis_list),
+                           "subjects_indexes")
+
         shared_response = _compute_shared_response_online(
             imgs, self.basis_list, self.temp_dir, self.n_jobs,
-            subjects_indexes)
+            subjects_indexes, aggregate)
+
+        # If shared response has only 1 session we need to reshape it
+        if reshaped_input:
+            if aggregate == "mean":
+                shared_response = shared_response[0]
+            if aggregate is None:
+                shared_response = [
+                    shared_response[i][0] for i in range(len(subjects_indexes))
+                ]
 
         return shared_response
 
-    def inverse_transform(self,
-                          shared_response_list,
-                          subjects_indexes=None,
-                          sessions_indexes=None):
+    def inverse_transform(
+            self,
+            shared_response,
+            subjects_indexes=None,
+            sessions_indexes=None,
+    ):
         """From shared response and basis from training data
         reconstruct subject's data
 
         Parameters
         ----------
 
-        shared_response_list : list of array, element i has
-        shape=[n_components, n_timeframes]
-            shared response, element i is the shared response during session i
+        shared_response : list of arrays, list of list of array or arrays
+            - if imgs is a list of array and self.aggregate="mean", shared
+            response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None, shared
+            response is a list of array, element i is the projection of data of
+            subject i in shared space.
+            - if imgs is an array or a list of list of array and
+            self.aggregate="mean", shared response is a list of array,
+            element j is the shared response during session j
+            - if imgs is an array or a list of list of array and
+            self.aggregate=None, shared response is a list of list of array,
+            element i, j is the projection of data of subject i collected
+            during session j in shared space.
 
         subjects_indexes : list or None
             if None reconstructs data of all subjects' used during train
@@ -1444,29 +1617,119 @@ class FastSRM(BaseEstimator, TransformerMixin):
         n_timeframes, n_voxels]
             Reconstructed data for chosen subjects and sessions
         """
+        added_session, shared = check_shared_response(
+            shared_response, self.aggregate, n_components=self.n_components)
         n_subjects = len(self.basis_list)
+        n_sessions = len(shared)
+
+        for j in range(n_sessions):
+            assert_array_2axis(shared[j])
 
         if subjects_indexes is None:
             subjects_indexes = np.arange(n_subjects)
         else:
             subjects_indexes = np.array(subjects_indexes)
 
+        assert_valid_index(subjects_indexes, n_subjects, "subjects_indexes")
+
         if sessions_indexes is None:
-            sessions_indexes = np.arange(len(shared_response_list))
+            sessions_indexes = np.arange(len(shared))
         else:
             sessions_indexes = np.array(sessions_indexes)
+
+        assert_valid_index(sessions_indexes, n_sessions, "sessions_indexes")
 
         data = []
         for i in subjects_indexes:
             data_ = []
-            if self.temp_dir is None:
-                basis_i = self.basis_list[i]
+            basis_i = safe_load(self.basis_list[i])
+            if added_session:
+                data.append(basis_i.T.dot(shared[0]))
             else:
-                basis_i = np.load(
-                    os.path.join(self.temp_dir, "basis_%i.npy" % i))
-
-            for j in sessions_indexes:
-                data_.append(shared_response_list[j].dot(basis_i))
-
-            data.append(np.array(data_))
+                for j in sessions_indexes:
+                    data_.append(basis_i.T.dot(shared[j]))
+                data.append(np.array(data_))
         return np.array(data)
+
+    def add_subjects(self, imgs, shared_response):
+        """ Add subjects to the current fit
+        Each new basis will be appended at the end of the list of basis
+        (which can be accessed using self.basis)
+        imgs : array of str, shape=[n_subjects, n_sessions]
+            Element i, j of the array is a path to the data of subject i
+            collected during session j.
+            Data are loaded with numpy.load and expected
+            shape is [n_voxels, n_timeframes]
+            n_timeframes and n_voxels are assumed to be the same across
+            subjects
+            n_timeframes can vary across sessions
+            Each voxel's timecourse is assumed to have mean 0 and variance 1
+
+            imgs can also be a list of list of arrays where element i, j of
+            the array is a numpy array of shape [n_voxels, n_timeframes] that
+            contains the data of subject i collected during session j.
+
+            imgs can also be a list of arrays where element i of the array is
+            a numpy array of shape [n_voxels, n_timeframes] that contains the
+            data of subject i (number of sessions is implicitly 1)
+
+        shared_response : list of arrays, list of list of array or arrays
+            - if imgs is a list of array and self.aggregate="mean", shared
+            response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None, shared
+            response is a list of array, element i is the projection of data of
+            subject i in shared space.
+            - if imgs is an array or a list of list of array and
+            self.aggregate="mean", shared response is a list of array,
+            element j is the shared response during session j
+            - if imgs is an array or a list of list of array and
+            self.aggregate=None, shared response is a list of list of array,
+            element i, j is the projection of data of subject i collected
+            during session j in shared space.
+        """
+        atlas_shape = check_atlas(self.atlas)
+        reshaped_input, imgs, shapes = check_imgs(
+            imgs, n_components=self.n_components, atlas_shape=atlas_shape)
+
+        _, shared_response_list = check_shared_response(
+            shared_response,
+            n_components=self.n_components,
+            aggregate=self.aggregate,
+            input_shapes=shapes)
+
+        # we need to transpose shared_response_list to be consistent with
+        # other functions
+        shared_response_list = [
+            shared_response_list[j].T for j in range(len(shared_response_list))
+        ]
+
+        if self.n_jobs == 1:
+            basis = []
+            for i, sessions in enumerate(imgs):
+                basis_i = _compute_basis_subject_online(
+                    sessions, shared_response_list)
+                if self.temp_dir is None:
+                    basis.append(basis_i)
+                else:
+                    path = os.path.join(self.temp_dir, "basis_%i" % i)
+                    np.save(path, basis_i)
+                    basis.append(path + ".npy")
+                del basis_i
+        else:
+            if self.temp_dir is None:
+                basis = Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_basis_subject_online)(
+                        sessions, shared_response_list) for sessions in imgs)
+            else:
+                Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_and_save_corr_mat)(
+                        subject, shared_response_list[m], self.temp_dir)
+                    for m, subjects in enumerate(imgs.T)
+                    for subject in subjects)
+
+                basis = Parallel(n_jobs=self.n_jobs)(
+                    delayed(_compute_and_save_subject_basis)(
+                        len(self.basis_list) + i, sessions, self.temp_dir)
+                    for i, sessions in enumerate(imgs))
+
+        self.basis_list += basis
