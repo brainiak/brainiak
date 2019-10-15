@@ -362,7 +362,7 @@ def check_atlas(atlas):
     Parameters
     ----------
     atlas :  array, shape=[n_supervoxels, n_voxels] or array, shape=[n_voxels]
-     or str
+     or str or None
         Probabilistic or deterministic atlas on which to project the data
         Deterministic atlas is an array of shape [n_voxels,] where values
         range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
@@ -372,9 +372,11 @@ def check_atlas(atlas):
 
     Returns
     -------
-    shape : array
+    shape : array or None
         atlas shape
     """
+    if atlas is None:
+        return None
 
     if not (isinstance(atlas, np.ndarray) or isinstance(atlas, str)
             or isinstance(atlas, np.str_) or isinstance(atlas, np.str)):
@@ -654,9 +656,11 @@ def reduce_data_single(subject_index,
 
         reduced_data = np.array(
             [np.mean(data[:, atlas == c], axis=1) for c in atlas_values]).T
-    else:
+    elif inv_atlas is not None and atlas is None:
         # this means that it is a probabilistic atlas
         reduced_data = data.dot(inv_atlas)
+    else:
+        reduced_data = data
 
     if low_ram:
         name = hashlib.md5(img.encode()).hexdigest()
@@ -692,6 +696,7 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         data of subject i (number of sessions is implicitly 1)
 
     atlas :  array, shape=[n_supervoxels, n_voxels] or array, shape=[n_voxels]
+        or None
         Probabilistic or deterministic atlas on which to project the data
         Deterministic atlas is an array of shape [n_voxels,] where values
         range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
@@ -727,15 +732,18 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         n_timeframes can vary across sessions
         Each voxel's timecourse is assumed to have mean 0 and variance 1
     """
-    loaded_atlas = safe_load(atlas)
-
-    if len(loaded_atlas.shape) == 2:
+    if atlas is None:
         A = None
-        A_inv = loaded_atlas.T.dot(
-            np.linalg.inv(loaded_atlas.dot(loaded_atlas.T)))
-    else:
-        A = loaded_atlas
         A_inv = None
+    else:
+        loaded_atlas = safe_load(atlas)
+        if len(loaded_atlas.shape) == 2:
+            A = None
+            A_inv = loaded_atlas.T.dot(
+                np.linalg.inv(loaded_atlas.dot(loaded_atlas.T)))
+        else:
+            A = loaded_atlas
+            A_inv = None
 
     n_subjects = len(imgs)
     n_sessions = len(imgs[0])
@@ -1237,7 +1245,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
     ----------
 
     atlas :  array, shape=[n_supervoxels, n_voxels] or array, shape=[n_voxels]
-     or str
+     or str or None, default=None
         Probabilistic or deterministic atlas on which to project the data
         Deterministic atlas is an array of shape [n_voxels,] where values
         range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
@@ -1298,7 +1306,7 @@ class FastSRM(BaseEstimator, TransformerMixin):
     shared response model for fMRI data (https://arxiv.org/pdf/1909.12537.pdf)
     """
     def __init__(self,
-                 atlas,
+                 atlas=None,
                  n_components=20,
                  n_iter=100,
                  temp_dir=None,
