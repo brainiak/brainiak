@@ -16,6 +16,7 @@
 *.pkl
 
 data
+tutorials
 
 brainiak.egg-info
 build

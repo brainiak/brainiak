@@ -82,7 +82,7 @@ class BuildExt(build_ext):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
-        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.9',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
@@ -122,18 +122,22 @@ setup(
     ],
     install_requires=[
         'cython',
-        'mpi4py',
+        # Previous versions fail of the Anaconda package fail on MacOS:
+        # https://travis-ci.org/brainiak/brainiak/jobs/545838666
+        'mpi4py>=3',
         'nitime',
-        'numpy',
+        # https://github.com/numpy/numpy/issues/14189
+        'numpy<1.17',
         'scikit-learn[alldeps]>=0.18',
-        'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
+        # See https://github.com/scipy/scipy/pull/8082
+        # and https://github.com/pymanopt/pymanopt/issues/77
+        'scipy!=1.0.0,<1.3.0',
         'statsmodels',
         'pymanopt',
         'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'typing',
         'joblib'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
