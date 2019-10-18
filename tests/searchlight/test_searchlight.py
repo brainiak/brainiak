@@ -206,7 +206,10 @@ def voxel_test_sfn(l, msk, myrad, bcast):
 def block_test_sfn(l, msk, myrad, bcast_var, extra_params):
     outmat = l[0][:, :, :, 0]
     outmat[~msk] = None
-    return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
+    if myrad == 0:
+        return outmat
+    else:
+        return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
 
 
 def test_correctness():  # noqa: C901
@@ -262,7 +265,7 @@ def test_correctness():  # noqa: C901
         sl.distribute(data, mask)
         sl.broadcast(mask)
         global_outputs = sl.run_block_function(block_test_sfn)
-
+        print(global_outputs)
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):
                 for d1 in range(rad, global_outputs.shape[1]-rad):
@@ -286,6 +289,7 @@ def test_correctness():  # noqa: C901
         block_test(data, mask, max_blk_edge, rad)
 
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=1)
+    do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=0)
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=1, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=0, dim1=10, dim2=8, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
