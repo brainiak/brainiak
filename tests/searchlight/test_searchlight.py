@@ -265,7 +265,6 @@ def test_correctness():  # noqa: C901
         sl.distribute(data, mask)
         sl.broadcast(mask)
         global_outputs = sl.run_block_function(block_test_sfn)
-        print(global_outputs)
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):
                 for d1 in range(rad, global_outputs.shape[1]-rad):
