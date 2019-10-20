@@ -1,18 +1,16 @@
-import numpy as np
-import tempfile
-from brainiak.funcalign.fastsrm import FastSRM, reduce_data,\
-    _reduced_space_compute_shared_response, create_temp_dir,\
-    check_atlas
-from brainiak.funcalign.fastsrm import _compute_basis_subject_online, fast_srm
-from brainiak.funcalign.fastsrm import _compute_and_save_corr_mat
-from brainiak.funcalign.fastsrm import _compute_and_save_subject_basis
-from brainiak.funcalign.fastsrm import check_shared_response
-from sklearn.exceptions import NotFittedError
-from brainiak.funcalign.fastsrm import check_imgs
-from brainiak.funcalign.fastsrm import safe_load
 import os
+import tempfile
+
+import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal
+from sklearn.exceptions import NotFittedError
+
+from brainiak.funcalign.fastsrm import (
+    FastSRM, _compute_and_save_corr_mat, _compute_and_save_subject_basis,
+    _compute_basis_subject_online, _reduced_space_compute_shared_response,
+    check_atlas, check_imgs, check_shared_response, create_temp_dir, fast_srm,
+    reduce_data, safe_load)
 
 
 def to_path(X, dirpath):
@@ -106,8 +104,8 @@ def test_generated_data():
 
         # We authorize different timeframes for different sessions
         # but they should be the same across subject
-        n_voxels = 100
-        n_timeframes = [250, 245]
+        n_voxels = 10
+        n_timeframes = [25, 24]
         n_subjects = 2
         n_components = 3  # number of components used for SRM model
         n_sessions = len(n_timeframes)
@@ -146,13 +144,13 @@ def test_check_atlas():
                               "which is neither np.ndarray or str")):
         check_atlas([])
 
-    A = np.random.rand(100, 1000)
-    assert check_atlas(A) == (100, 1000)
+    A = np.random.rand(10, 100)
+    assert check_atlas(A) == (10, 100)
 
     with tempfile.TemporaryDirectory() as datadir:
         f = os.path.join(datadir, "atlas")
         np.save(f, A)
-        assert check_atlas(f + ".npy") == (100, 1000)
+        assert check_atlas(f + ".npy") == (10, 100)
 
     A = np.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 5, 5])
     assert check_atlas(A) == (5, 11)
@@ -389,10 +387,10 @@ def test_check_shared():
 def test_reduce_data_dummyatlases():
     n_jobs = 1
     with tempfile.TemporaryDirectory() as datadir:
-        for n_timeframes in ([250, 245], [250, 250]):
+        for n_timeframes in ([25, 24], [25, 25]):
             # We authorize different timeframes for different sessions
             # but they should be the same across subject
-            n_voxels = 100
+            n_voxels = 10
             n_subjects = 2
             n_components = 3  # number of components used for SRM model
             n_sessions = len(n_timeframes)
@@ -428,13 +426,13 @@ def test_reduce_data_dummyatlases():
 def test_reduce_data_outputshapes():
     n_jobs = 1
     with tempfile.TemporaryDirectory() as datadir:
-        for n_timeframes in ([250, 245], [250, 250]):
+        for n_timeframes in ([25, 24], [25, 25]):
             # We authorize different timeframes for different sessions
             # but they should be the same across subject
-            n_voxels = 100
+            n_voxels = 10
             n_subjects = 2
             n_components = 3  # number of components used for SRM model
-            n_supervoxels = 10  # number of components of the atlas
+            n_supervoxels = 5  # number of components of the atlas
             n_sessions = len(n_timeframes)
 
             np.random.seed(0)
@@ -481,8 +479,8 @@ def test_reduced_data_srm():
 
         # We authorize different timeframes for different sessions but
         # they should be the same across subject
-        n_voxels = 100
-        n_timeframes = [250, 245]
+        n_voxels = 10
+        n_timeframes = [25, 24]
         n_subjects = 5
         n_components = 3  # number of components used for SRM model
         n_sessions = len(n_timeframes)
@@ -545,8 +543,8 @@ def test_reduced_data_srm():
 def test_compute_and_save():
     with tempfile.TemporaryDirectory() as datadir:
         np.random.seed(0)
-        n_voxels = 100
-        n_timeframes = [250, 245]
+        n_voxels = 10
+        n_timeframes = [25, 24]
         n_subjects = 5
         n_components = 3  # number of components used for SRM model
 
@@ -570,8 +568,8 @@ def test_fastsrm_class():
 
         # We authorize different timeframes for different sessions
         # but they should be the same across subject
-        n_voxels = 100
-        n_timeframes = [250, 245]
+        n_voxels = 10
+        n_timeframes = [25, 24]
         n_subjects = 5
         n_components = 3  # number of components used for SRM model
 
@@ -685,16 +683,13 @@ def apply_input_format(X, input_format):
     return XX, n_sessions
 
 
-@pytest.mark.parametrize("input_format",
-                         ["array", "list_of_list", "list_of_array"])
-@pytest.mark.parametrize("low_ram", [True, False])
-@pytest.mark.parametrize("tempdir", [True, False])
 @pytest.mark.parametrize(
-    "atlas", [None, np.arange(1, n_voxels + 1),
-              np.eye(n_voxels)])
-@pytest.mark.parametrize("n_jobs", [1, 2])
-@pytest.mark.parametrize("n_timeframes", [[25, 25], [25, 24]])
-@pytest.mark.parametrize("aggregate", ["mean", None])
+    "input_format, low_ram, tempdir, atlas, n_jobs, n_timeframes, aggregate",
+    [("array", True, True, None, 1, [25, 25], "mean"),
+     ("list_of_list", False, False, np.arange(1, n_voxels + 1), 1, [25, 24
+                                                                    ], None),
+     ("list_of_array", True, False, np.eye(n_voxels), 1, [25, 25], None),
+     ("list_of_array", False, True, None, 1, [25, 24], "mean")])
 def test_fastsrm_class_correctness(input_format, low_ram, tempdir, atlas,
                                    n_jobs, n_timeframes, aggregate):
     with tempfile.TemporaryDirectory() as datadir:
@@ -759,16 +754,13 @@ def test_fastsrm_class_correctness(input_format, low_ram, tempdir, atlas,
                                   safe_load(srm.basis_list[-1]))
 
 
-@pytest.mark.parametrize("input_format",
-                         ["array", "list_of_list", "list_of_array"])
-@pytest.mark.parametrize("low_ram", [True, False])
-@pytest.mark.parametrize("tempdir", [True, False])
 @pytest.mark.parametrize(
-    "atlas", [None, np.arange(1, n_voxels + 1),
-              np.eye(n_voxels)])
-@pytest.mark.parametrize("n_jobs", [1, 2])
-@pytest.mark.parametrize("n_timeframes", [[25, 25], [25, 24]])
-@pytest.mark.parametrize("aggregate", ["mean", None])
+    "input_format, low_ram, tempdir, atlas, n_jobs, n_timeframes, aggregate",
+    [("array", True, True, None, 1, [25, 25], "mean"),
+     ("list_of_list", False, False, np.arange(1, n_voxels + 1), 1, [25, 24
+                                                                    ], None),
+     ("list_of_array", True, False, np.eye(n_voxels), 1, [25, 25], None),
+     ("list_of_array", False, True, None, 1, [25, 24], "mean")])
 def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
                                      n_jobs, n_timeframes, aggregate):
 

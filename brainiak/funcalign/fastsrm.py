@@ -1,19 +1,6 @@
 """Fast Shared Response Model (FastSRM)
 
-The implementations are based on the following publications:
-
-.. [Chen2015] "A Reduced-Dimension fMRI Shared Response Model",
-   P.-H. Chen, J. Chen, Y. Yeshurun-Dishon, U. Hasson, J. Haxby, P. Ramadge
-   Advances in Neural Information Processing Systems (NIPS), 2015.
-   http://papers.nips.cc/paper/5855-a-reduced-dimension-fmri-shared-response-model
-
-.. [Anderson2016] "Enabling Factor Analysis on Thousand-Subject Neuroimaging
-   Datasets",
-   Michael J. Anderson, Mihai Capotă, Javier S. Turek, Xia Zhu, Theodore L.
-   Willke, Yida Wang, Po-Hsuan Chen, Jeremy R. Manning, Peter J. Ramadge,
-   Kenneth A. Norman,
-   IEEE International Conference on Big Data, 2016.
-   https://doi.org/10.1109/BigData.2016.7840719
+The implementation is based on the following publications:
 
 .. [Richard2019] "Fast Shared Response Model for fMRI data"
     H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019
@@ -1238,25 +1225,27 @@ def _compute_shared_response_online(imgs, basis_list, temp_dir, n_jobs,
 
 
 class FastSRM(BaseEstimator, TransformerMixin):
-    """SRM decomposition using a very low amount of memory and
-    computational power
+    """SRM decomposition using a very low amount of memory and \
+computational power thanks to the use of an atlas \
+as described in [Richard2019]_.
 
-    Given multi-subject data, factorize it as a shared response S among all
-    subjects and an orthogonal transform (basis) W per subject:
+    Given multi-subject data, factorize it as a shared response S \
+among all subjects and an orthogonal transform (basis) W per subject:
 
     .. math:: X_i \\approx W_i S, \\forall i=1 \\dots N
 
     Parameters
     ----------
 
-    atlas :  array, shape=[n_supervoxels, n_voxels] or array, shape=[n_voxels]
-     or str or None, default=None
-        Probabilistic or deterministic atlas on which to project the data
-        Deterministic atlas is an array of shape [n_voxels,] where values
-        range from 1 to n_supervoxels. Voxels labelled 0 will be ignored.
-        If atlas is a str the corresponding array is loaded with numpy.load
-        and expected shape is (n_voxels,) for a deterministic atlas and
-        (n_supervoxels, n_voxels) for a probabilistic atlas.
+    atlas :  array, shape=[n_supervoxels, n_voxels] or array,\
+shape=[n_voxels] or str or None, default=None
+        Probabilistic or deterministic atlas on which to project the data. \
+Deterministic atlas is an array of shape [n_voxels,] \
+where values range from 1 \
+to n_supervoxels. Voxels labelled 0 will be ignored. If atlas is a str the \
+corresponding array is loaded with numpy.load and expected shape \
+is (n_voxels,) for a deterministic atlas and \
+(n_supervoxels, n_voxels) for a probabilistic atlas.
 
     n_components : int
         Number of timecourses of the shared coordinates
@@ -1265,50 +1254,50 @@ class FastSRM(BaseEstimator, TransformerMixin):
         Number of iterations to perform
 
     temp_dir : str or None
-        path to dir where temporary results are stored
-        if None temporary results will be stored in memory. This
-        can results in memory errors when the number of subjects
-        and / or sessions is large
+        Path to dir where temporary results are stored. If None \
+temporary results will be stored in memory. This can results in memory \
+errors when the number of subjects and/or sessions is large
 
     low_ram : bool
-        if True and temp_dir is not None, reduced_data will be saved on disk
-        this increases the number of IO but reduces memory complexity when
-        the number of subject and / or sessions is large
+        If True and temp_dir is not None, reduced_data will be saved on \
+disk. This increases the number of IO but reduces memory complexity when \
+the number of subject and/or sessions is large
 
     seed : int
         Seed used for random sampling.
 
     n_jobs : int, optional, default=1
-        The number of CPUs to use to do the computation.
-         -1 means all CPUs, -2 all CPUs but one, and so on.
+        The number of CPUs to use to do the computation. \
+-1 means all CPUs, -2 all CPUs but one, and so on.
 
     verbose : bool or "warn"
-        if True, logs are enabled.
-        if False, logs are disabled.
-        if "warn" only warnings are printed.
+        If True, logs are enabled. If False, logs are disabled. \
+If "warn" only warnings are printed.
 
     aggregate: str or None, default="mean"
-        if "mean": shared_response is the mean shared response S
-        from all subjects
-        if None: shared_response contains all subject-specific responses
-        in shared space S_i
+        If "mean", shared_response is the mean shared response \
+from all subjects. If None, shared_response contains all \
+subject-specific responses in shared space
 
     Attributes
     ----------
 
-    `basis_list`: list of array, element i has shape=[n_components, n_voxels]
-     or list of str
+    `basis_list`: list of array, element i has \
+shape=[n_components, n_voxels] or list of str
         - if basis is a list of array, element i is the basis of subject i
-        - if basis is a list of str, element i is the path to the basis
-            of subject i that is loaded with np.load yielding an array of
-            shape [n_components, n_voxels].
-        Note that any call to clean erases this attribute
+        - if basis is a list of str, element i is the path to the basis \
+of subject i that is loaded with np.load yielding an array of \
+shape [n_components, n_voxels].
 
-    Notes
+        Note that any call to the clean method erases this attribute
+
+    Note
     -----
-    **References:**
-    H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019: Fast
-    shared response model for fMRI data (https://arxiv.org/pdf/1909.12537.pdf)
+
+        **References:**
+        H. Richard, L. Martin, A. Pinho, J. Pillow, B. Thirion, 2019: \
+Fast shared response model for fMRI data (https://arxiv.org/pdf/1909.12537.pdf)
+
     """
     def __init__(self,
                  atlas=None,
@@ -1352,8 +1341,9 @@ class FastSRM(BaseEstimator, TransformerMixin):
             self.low_ram = low_ram
 
     def clean(self):
-        """This erases temporary files and basis_list attribute to free memory.
-        This method should be called when fitted model is not needed anymore.
+        """This erases temporary files and basis_list attribute to \
+free memory. This method should be called when fitted model \
+is not needed anymore.
         """
         if self.temp_dir is not None:
             if os.path.exists(self.temp_dir):
@@ -1370,30 +1360,27 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
+        imgs : array of str, shape=[n_subjects, n_sessions] or \
+list of list of arrays or list of arrays
+            Element i, j of the array is a path to the data of subject i \
+collected during session j. Data are loaded with numpy.load and expected \
+shape is [n_voxels, n_timeframes] n_timeframes and n_voxels are assumed \
+to be the same across subjects n_timeframes can vary across sessions. \
+Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-        imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i
-            collected during session j.
-            Data are loaded with numpy.load and expected
-            shape is [n_voxels, n_timeframes]
-            n_timeframes and n_voxels are assumed to be the same across
-            subjects
-            n_timeframes can vary across sessions
-            Each voxel's timecourse is assumed to have mean 0 and variance 1
+            imgs can also be a list of list of arrays where element i, j \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i collected during session j.
 
-            imgs can also be a list of list of arrays where element i, j of
-            the array is a numpy array of shape [n_voxels, n_timeframes] that
-            contains the data of subject i collected during session j.
-
-            imgs can also be a list of arrays where element i of the array is
-            a numpy array of shape [n_voxels, n_timeframes] that contains the
-            data of subject i (number of sessions is implicitly 1)
+            imgs can also be a list of arrays where element i \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i (number of sessions is implicitly 1)
 
         Returns
         -------
         self : object
-           Returns the instance itself. Contains attributes listed
-           at the object level.
+           Returns the instance itself. Contains attributes listed \
+at the object level.
         """
         atlas_shape = check_atlas(self.atlas, self.n_components)
         reshaped_input, imgs, shapes = check_imgs(
@@ -1461,39 +1448,41 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
-        imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i
-            collected during session j.
-            Data are loaded with numpy.load and expected
-            shape is [n_voxels, n_timeframes]
-            n_timeframes and n_voxels are assumed to be the same across
-            subjects
-            n_timeframes can vary across sessions
-            Each voxel's timecourse is assumed to have mean 0 and variance 1
+        imgs : array of str, shape=[n_subjects, n_sessions] or \
+list of list of arrays or list of arrays
+            Element i, j of the array is a path to the data of subject i \
+collected during session j. Data are loaded with numpy.load and expected \
+shape is [n_voxels, n_timeframes] n_timeframes and n_voxels are assumed \
+to be the same across subjects n_timeframes can vary across sessions. \
+Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-            imgs can also be a list of list of arrays where element i, j of
-            the array is a numpy array of shape [n_voxels, n_timeframes] that
-            contains the data of subject i collected during session j.
+            imgs can also be a list of list of arrays where element i, j \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i collected during session j.
 
-            imgs can also be a list of arrays where element i of the array is
-            a numpy array of shape [n_voxels, n_timeframes] that contains the
-            data of subject i (number of sessions is implicitly 1)
+            imgs can also be a list of arrays where element i \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i (number of sessions is implicitly 1)
+
+        subjects_indexes : list or None:
+            if None imgs[i] will be transformed using basis_list[i]. \
+Otherwise imgs[i] will be transformed using basis_list[subjects_index[i]]
 
         Returns
         --------
-        shared_response : list of arrays, list of list of array or arrays
-            - if imgs is a list of array and self.aggregate="mean", shared
-            response is an array of shape (n_components, n_timeframes)
-            - if imgs is a list of array and self.aggregate=None, shared
-            response is a list of array, element i is the projection of data of
-            subject i in shared space.
-            - if imgs is an array or a list of list of array and
-            self.aggregate="mean", shared response is a list of array,
-            element j is the shared response during session j
-            - if imgs is an array or a list of list of array and
-            self.aggregate=None, shared response is a list of list of array,
-            element i, j is the projection of data of subject i collected
-            during session j in shared space.
+        shared_response : list of arrays, list of list of arrays or array
+            - if imgs is a list of array and self.aggregate="mean": shared \
+response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None: shared \
+response is a list of array, element i is the projection of data of \
+subject i in shared space.
+            - if imgs is an array or a list of list of array and \
+self.aggregate="mean": shared response is a list of array, \
+element j is the shared response during session j
+            - if imgs is an array or a list of list of array and \
+self.aggregate=None: shared response is a list of list of array, \
+element i, j is the projection of data of subject i collected \
+during session j in shared space.
         """
         self.fit(imgs)
         return self.transform(imgs, subjects_indexes=subjects_indexes)
@@ -1504,45 +1493,41 @@ class FastSRM(BaseEstimator, TransformerMixin):
 
         Parameters
         ----------
+        imgs : array of str, shape=[n_subjects, n_sessions] or \
+list of list of arrays or list of arrays
+            Element i, j of the array is a path to the data of subject i \
+collected during session j. Data are loaded with numpy.load and expected \
+shape is [n_voxels, n_timeframes] n_timeframes and n_voxels are assumed \
+to be the same across subjects n_timeframes can vary across sessions. \
+Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-        imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i
-            collected during session j.
-            Data are loaded with numpy.load and expected
-            shape is [n_voxels, n_timeframes]
-            n_timeframes and n_voxels are assumed to be the same across
-            subjects
-            n_timeframes can vary across sessions
-            Each voxel's timecourse is assumed to have mean 0 and variance 1
+            imgs can also be a list of list of arrays where element i, j \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i collected during session j.
 
-            imgs can also be a list of list of arrays where element i, j of
-            the array is a numpy array of shape [n_voxels, n_timeframes] that
-            contains the data of subject i collected during session j.
-
-            imgs can also be a list of arrays where element i of the array is
-            a numpy array of shape [n_voxels, n_timeframes] that contains the
-            data of subject i (number of sessions is implicitly 1)
+            imgs can also be a list of arrays where element i \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i (number of sessions is implicitly 1)
 
         subjects_indexes : list or None:
-            if None imgs[i] will be transformed using basis[i]
-            otherwise imgs[i] will be transformed using
-            basis[subjects_index[i]]
+            if None imgs[i] will be transformed using basis_list[i]. \
+Otherwise imgs[i] will be transformed using basis[subjects_index[i]]
 
         Returns
         --------
-        shared_response : list of arrays, list of list of array or arrays
-            - if imgs is a list of array and self.aggregate="mean", shared
-            response is an array of shape (n_components, n_timeframes)
-            - if imgs is a list of array and self.aggregate=None, shared
-            response is a list of array, element i is the projection of data of
-            subject i in shared space.
-            - if imgs is an array or a list of list of array and
-            self.aggregate="mean", shared response is a list of array,
-            element j is the shared response during session j
-            - if imgs is an array or a list of list of array and
-            self.aggregate=None, shared response is a list of list of array,
-            element i, j is the projection of data of subject i collected
-            during session j in shared space.
+        shared_response : list of arrays, list of list of arrays or array
+            - if imgs is a list of array and self.aggregate="mean": shared \
+response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None: shared \
+response is a list of array, element i is the projection of data of \
+subject i in shared space.
+            - if imgs is an array or a list of list of array and \
+self.aggregate="mean": shared response is a list of array, \
+element j is the shared response during session j
+            - if imgs is an array or a list of list of array and \
+self.aggregate=None: shared response is a list of list of array, \
+element i, j is the projection of data of subject i collected \
+during session j in shared space.
          """
         aggregate = self.aggregate
         if self.basis_list is None:
@@ -1596,38 +1581,39 @@ class FastSRM(BaseEstimator, TransformerMixin):
         Parameters
         ----------
 
-        shared_response : list of arrays, list of list of array or arrays
-            - if imgs is a list of array and self.aggregate="mean", shared
-            response is an array of shape (n_components, n_timeframes)
-            - if imgs is a list of array and self.aggregate=None, shared
-            response is a list of array, element i is the projection of data of
-            subject i in shared space.
-            - if imgs is an array or a list of list of array and
-            self.aggregate="mean", shared response is a list of array,
-            element j is the shared response during session j
-            - if imgs is an array or a list of list of array and
-            self.aggregate=None, shared response is a list of list of array,
-            element i, j is the projection of data of subject i collected
-            during session j in shared space.
+        shared_response : list of arrays, list of list of arrays or array
+            - if imgs is a list of array and self.aggregate="mean": shared \
+response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None: shared \
+response is a list of array, element i is the projection of data of \
+subject i in shared space.
+            - if imgs is an array or a list of list of array and \
+self.aggregate="mean": shared response is a list of array, \
+element j is the shared response during session j
+            - if imgs is an array or a list of list of array and \
+self.aggregate=None: shared response is a list of list of array, \
+element i, j is the projection of data of subject i collected \
+during session j in shared space.
 
         subjects_indexes : list or None
-            if None reconstructs data of all subjects' used during train
-            otherwise reconstructs data using subject's specified by
-            subjects_indexes
+            if None reconstructs data of all subjects used during train. \
+Otherwise reconstructs data of subjects specified by subjects_indexes.
 
         sessions_indexes : list or None
-            if None reconstructs data using all sessions
-            otherwise uses only specified sessions
+            if None reconstructs data of all sessions. \
+Otherwise uses reconstructs data of sessions specified by sessions_indexes.
 
         Returns
         -------
         reconstructed_data: list of list of arrays or list of arrays
-            if list of list element i, j is the reconstructed data
-            for subject subjects_indexes[i] and session sessions_indexes[j]
-            as an np array of shape n_voxels, n_timeframes
-            if list element i is the reconstructed data
-            for subject subject_indexes[i]
-            as an np array of shape n_voxels, n_timeframes
+            - if reconstructed_data is a list of list : element i, j is \
+the reconstructed data for subject subjects_indexes[i] and \
+session sessions_indexes[j] as an np array of shape n_voxels, \
+n_timeframes
+            - if reconstructed_data is a list : element i is the \
+reconstructed data for subject \
+subject_indexes[i] as an np array of shape n_voxels, n_timeframes
+
         """
         added_session, shared = check_shared_response(
             shared_response, self.aggregate, n_components=self.n_components)
@@ -1667,40 +1653,42 @@ class FastSRM(BaseEstimator, TransformerMixin):
         return data
 
     def add_subjects(self, imgs, shared_response):
-        """ Add subjects to the current fit
-        Each new basis will be appended at the end of the list of basis
-        (which can be accessed using self.basis)
-        imgs : array of str, shape=[n_subjects, n_sessions]
-            Element i, j of the array is a path to the data of subject i
-            collected during session j.
-            Data are loaded with numpy.load and expected
-            shape is [n_voxels, n_timeframes]
-            n_timeframes and n_voxels are assumed to be the same across
-            subjects
-            n_timeframes can vary across sessions
-            Each voxel's timecourse is assumed to have mean 0 and variance 1
+        """ Add subjects to the current fit. Each new basis will be \
+appended at the end of the list of basis (which can \
+be accessed using self.basis)
 
-            imgs can also be a list of list of arrays where element i, j of
-            the array is a numpy array of shape [n_voxels, n_timeframes] that
-            contains the data of subject i collected during session j.
+        Parameters
+        ----------
 
-            imgs can also be a list of arrays where element i of the array is
-            a numpy array of shape [n_voxels, n_timeframes] that contains the
-            data of subject i (number of sessions is implicitly 1)
+        imgs : array of str, shape=[n_subjects, n_sessions] or \
+list of list of arrays or list of arrays
+            Element i, j of the array is a path to the data of subject i \
+collected during session j. Data are loaded with numpy.load and expected \
+shape is [n_voxels, n_timeframes] n_timeframes and n_voxels are assumed \
+to be the same across subjects n_timeframes can vary across sessions. \
+Each voxel's timecourse is assumed to have mean 0 and variance 1
 
-        shared_response : list of arrays, list of list of array or arrays
-            - if imgs is a list of array and self.aggregate="mean", shared
-            response is an array of shape (n_components, n_timeframes)
-            - if imgs is a list of array and self.aggregate=None, shared
-            response is a list of array, element i is the projection of data of
-            subject i in shared space.
-            - if imgs is an array or a list of list of array and
-            self.aggregate="mean", shared response is a list of array,
-            element j is the shared response during session j
-            - if imgs is an array or a list of list of array and
-            self.aggregate=None, shared response is a list of list of array,
-            element i, j is the projection of data of subject i collected
-            during session j in shared space.
+            imgs can also be a list of list of arrays where element i, j \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i collected during session j.
+
+            imgs can also be a list of arrays where element i \
+of the array is a numpy array of shape [n_voxels, n_timeframes] \
+that contains the data of subject i (number of sessions is implicitly 1)
+
+        shared_response : list of arrays, list of list of arrays or array
+            - if imgs is a list of array and self.aggregate="mean": shared \
+response is an array of shape (n_components, n_timeframes)
+            - if imgs is a list of array and self.aggregate=None: shared \
+response is a list of array, element i is the projection of data of \
+subject i in shared space.
+            - if imgs is an array or a list of list of array and \
+self.aggregate="mean": shared response is a list of array, \
+element j is the shared response during session j
+            - if imgs is an array or a list of list of array and \
+self.aggregate=None: shared response is a list of list of array, \
+element i, j is the projection of data of subject i collected \
+during session j in shared space.
         """
         atlas_shape = check_atlas(self.atlas, self.n_components)
         reshaped_input, imgs, shapes = check_imgs(
