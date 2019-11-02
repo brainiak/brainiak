@@ -3,3 +3,5 @@ curl --location --create-dirs -o data/label.mat https://www.dropbox.com/s/ogd26q
 curl --location --create-dirs -o data/image_data.mat https://www.dropbox.com/s/l818vr6o8huatxj/image_data.mat?dl=0
 curl --location --create-dirs -o data/sl_movie_data.mat https://www.dropbox.com/s/2ahgqgu5ljmqbw5/movie_data.mat?dl=0
 curl --location --create-dirs -o data/MNI152_T1_3mm_brain_mask.nii https://www.dropbox.com/s/3zk78ok9wtd3v3o/MNI152_T1_3mm_brain_mask.nii?dl=0
+curl --location --create-dirs -o data/multi_dataset.json https://www.dropbox.com/s/9lzqt4fybngqynm/multi_dataset.json?dl=0
+curl --location --create-dirs -o data/multi_dataset.pickle https://www.dropbox.com/s/8l9qgazux8t44cu/multi_dataset.pickle?dl=0
