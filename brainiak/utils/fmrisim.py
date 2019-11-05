@@ -1605,13 +1605,13 @@ def _generate_noise_temporal_drift(trs,
 
     elif basis == 'cos_power_drop':
 
-        # Specify when each
+        # Make a vector counting each TR
         timepoints = np.linspace(0, trs - 1, trs) * tr_duration
 
         # Specify the other timing information
         duration = trs * tr_duration
 
-        # How bases do you have
+        # How bases do you have?
         basis_funcs = int(np.floor(2 * duration))
 
         noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
@@ -1627,12 +1627,21 @@ def _generate_noise_temporal_drift(trs,
             # Store the drift from this basis func
             noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
 
-        # Function to return the drop rate for the power of basis functions
         def power_drop(r, L, F):
+        	# Function to return the drop rate for the power of basis functions
+        	# In other words, how much should the weight of each basis function 
+        	# reduce in order to make the power you retain be above a 0.99
+        	# r is the power reduction rate which should be between 0 and 1
+        	# L is the duration of the run in seconds
+        	# F is period of the cycle in seconds
+        	
             percent_retained = 0.99  # What is the percentage of drift retained
-            numerator = 1 - r ** (4 * L / F)
-            denominator = 1 - r ** (4 * L)
-            return abs((numerator / denominator) - percent_retained)
+            numerator = 1 - r ** (4 * L / F)  # Power of this period
+            denominator = 1 - r ** (4 * L)  # Power of all periods
+            
+            # Calculate the retained power
+            power_drop = abs((numerator / denominator) - percent_retained) 
+            return power_drop
 
         # Solve for power reduction rate.
         # This assumes that r is between 0 and 1
