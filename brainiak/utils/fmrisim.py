@@ -1628,19 +1628,19 @@ def _generate_noise_temporal_drift(trs,
             noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
 
         def power_drop(r, L, F):
-        	# Function to return the drop rate for the power of basis functions
-        	# In other words, how much should the weight of each basis function 
-        	# reduce in order to make the power you retain be above a 0.99
-        	# r is the power reduction rate which should be between 0 and 1
-        	# L is the duration of the run in seconds
-        	# F is period of the cycle in seconds
-        	
+            # Function to return the drop rate for the power of basis functions
+            # In other words, how much should the weight of each basis function
+            # reduce in order to make the power you retain be above a 0.99
+            # r is the power reduction rate which should be between 0 and 1
+            # L is the duration of the run in seconds
+            # F is period of the cycle in seconds
+
             percent_retained = 0.99  # What is the percentage of drift retained
             numerator = 1 - r ** (4 * L / F)  # Power of this period
             denominator = 1 - r ** (4 * L)  # Power of all periods
-            
+
             # Calculate the retained power
-            power_drop = abs((numerator / denominator) - percent_retained) 
+            power_drop = abs((numerator / denominator) - percent_retained)
             return power_drop
 
         # Solve for power reduction rate.
