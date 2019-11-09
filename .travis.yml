@@ -34,11 +34,11 @@ matrix:
     - os: linux
       dist: xenial
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: travis_wait 40 .conda/bin/build
 
     - os: osx
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: travis_wait 40 .conda/bin/build
 
 install:
     - python3 -m pip install -U pip codecov
