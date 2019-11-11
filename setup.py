@@ -138,6 +138,7 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
+        'joblib'
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
