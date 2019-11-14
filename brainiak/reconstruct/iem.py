@@ -56,6 +56,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 MAX_CONDITION_CHECK = 9000
 
+
 class InvertedEncoding(BaseEstimator):
     """Basis function-based reconstruction method
 
@@ -241,7 +242,7 @@ class InvertedEncoding(BaseEstimator):
         C = self._define_trial_activations(y)
         # Solve for W in B = WC
         self.W_ = X.transpose() @ np.linalg.pinv(C.transpose())
-        if np.linalg.cond(self.W_) > MAX_CONDITION_CHECK: 
+        if np.linalg.cond(self.W_) > MAX_CONDITION_CHECK:
             logger.error("Weight matrix is nearly singular.")
             raise ValueError("Weight matrix is nearly singular.")
 
