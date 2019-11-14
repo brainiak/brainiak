@@ -155,6 +155,8 @@ class Searchlight:
     """
     def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
                  min_active_voxels_proportion=0):
+        assert sl_rad >= 0, 'sl_rad should not be negative'
+        assert max_blk_edge > 0, 'max_blk_edge should be positive'
         self.sl_rad = sl_rad
         self.max_blk_edge = max_blk_edge
         self.min_active_voxels_proportion = min_active_voxels_proportion
@@ -534,9 +536,11 @@ def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
     voxel_fn = extra_params[0]
     shape_mask = extra_params[1]
     min_active_voxels_proportion = extra_params[2]
-    outmat = np.empty(msk.shape, dtype=np.object)[mysl_rad:-mysl_rad,
-                                                  mysl_rad:-mysl_rad,
-                                                  mysl_rad:-mysl_rad]
+    outmat = np.empty(msk.shape, dtype=np.object)
+    if mysl_rad > 0:
+        outmat = outmat[mysl_rad:-mysl_rad,
+                        mysl_rad:-mysl_rad,
+                        mysl_rad:-mysl_rad]
     for i in range(0, outmat.shape[0]):
         for j in range(0, outmat.shape[1]):
             for k in range(0, outmat.shape[2]):
