@@ -39,7 +39,7 @@
 """
 
 # Authors: David Huberdeau (Yale University) &
-# Peter Kok (Yale University), 2018
+# Peter Kok (Yale University), 2018 &
 # Vy Vo (Intel Corp., UCSD), 2019
 
 import logging
@@ -54,7 +54,7 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
+MAX_CONDITION_CHECK = 9000
 
 class InvertedEncoding(BaseEstimator):
     """Basis function-based reconstruction method
@@ -213,7 +213,7 @@ class InvertedEncoding(BaseEstimator):
             Should contain the feature for each observation in X.
         """
         # Check that data matrix is well conditioned:
-        if np.linalg.cond(X) > 9000:
+        if np.linalg.cond(X) > MAX_CONDITION_CHECK:
             logger.error("Data is singular.")
             raise ValueError("Data matrix is nearly singular.")
         if X.shape[0] < self.n_channels:
@@ -241,7 +241,7 @@ class InvertedEncoding(BaseEstimator):
         C = self._define_trial_activations(y)
         # Solve for W in B = WC
         self.W_ = X.transpose() @ np.linalg.pinv(C.transpose())
-        if np.linalg.cond(self.W_) > 9000:
+        if np.linalg.cond(self.W_) > MAX_CONDITION_CHECK: 
             logger.error("Weight matrix is nearly singular.")
             raise ValueError("Weight matrix is nearly singular.")
 
@@ -299,13 +299,8 @@ class InvertedEncoding(BaseEstimator):
 
         return score_value
 
-    def get_params(self, deep=True):
+    def get_params(self):
         """Returns model parameters.
-
-        Parameters
-        ----------
-        deep: boolean. default true.
-            if true, returns params of sub-objects
 
         Returns
         -------
@@ -360,8 +355,6 @@ class InvertedEncoding(BaseEstimator):
         channels = np.asarray([np.cos(np.deg2rad(domain) - cx) **
                                self.channel_exp
                                for cx in centers])
-        # half-wave rectification in Brouwer & Heeger
-        # channels[channels < 0] = 0
         # half-wave rectification preserving circularity
         channels = abs(channels)
 
@@ -403,8 +396,6 @@ class InvertedEncoding(BaseEstimator):
                                           " the feature domain.")
 
         C = stimulus_mask @ self.channels_.transpose()
-        # optional normalization
-        # C = C / np.max(C, axis=1)[:, None]
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
             warnings.warn("Stimulus matrix is {}, not full rank. May cause "
