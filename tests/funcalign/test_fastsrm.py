@@ -12,6 +12,8 @@ from brainiak.funcalign.fastsrm import (
     check_atlas, check_imgs, check_shared_response, create_temp_dir, fast_srm,
     reduce_data, safe_load)
 
+from brainiak.funcalign.srm import DetSRM
+
 
 def to_path(X, dirpath):
     """
@@ -80,11 +82,11 @@ def generate_data(n_voxels,
 
     # create paths such that paths[i, j] contains data
     # of subject i during session j
-    paths = to_path(X, datadir)
     S = [(S[:, s] - np.mean(S[:, s], axis=1, keepdims=True))
          for s in slices_timeframes]
 
     if input_format == "array":
+        paths = to_path(X, datadir)
         return paths, W, S
 
     elif input_format == "list_of_list":
@@ -816,3 +818,45 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
                 for j in range(len(X[i])):
                     assert_array_almost_equal(reconstructed_data[i][j],
                                               safe_load(X[i][j]))
+
+
+def test_fastsrm_identity():
+    # In this function we test whether fastsrm and DetSRM have identical behavior when atlas=None
+
+    # We authorize different timeframes for different sessions
+    # but they should be the same across subject
+    n_voxels = 8
+    n_timeframes = [4, 5]
+    n_subjects = 2
+    n_components = 3  # number of components used for SRM model
+
+    np.random.seed(0)
+    paths, W, S = generate_data(n_voxels,
+                                n_timeframes,
+                                n_subjects,
+                                n_components,
+                                None,
+                                input_format="list_of_array")
+
+    # Test if generated data has the good shape
+    for subject in range(n_subjects):
+        assert paths[subject].shape == (n_voxels, np.sum([n_timeframes]))
+
+    srm = DetSRM(n_iter=11, features=3, rand_seed=0)
+    srm.fit(paths)
+    shared = srm.transform(paths)
+
+    fastsrm = FastSRM(atlas=None,
+                      n_components=3,
+                      verbose=True,
+                      seed=0,
+                      n_jobs=1,
+                      n_iter=10)
+    fastsrm.fit(paths)
+    shared_fast = fastsrm.transform(paths)
+
+    assert_array_almost_equal(shared_fast, np.mean(shared, axis=0))
+
+    for i in range(n_subjects):
+        assert_array_almost_equal(safe_load(fastsrm.basis_list[i]),
+                                  srm.w_[i].T)

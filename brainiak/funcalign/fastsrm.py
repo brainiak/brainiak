@@ -926,7 +926,9 @@ def _compute_subject_basis(corr_mat):
     or shape=[n_components, n_supervoxels]
         basis of subject or reduced_basis of subject
     """
-    U, _, V = scipy.linalg.svd(corr_mat, full_matrices=False)
+    perturbation = np.zeros(corr_mat.shape)
+    np.fill_diagonal(perturbation, 0.001)
+    U, _, V = scipy.linalg.svd(corr_mat + perturbation, full_matrices=False)
     return U.dot(V)
 
 
@@ -1391,6 +1393,7 @@ at the object level.
         if self.verbose is True:
             logger.info("[FastSRM.fit] Reducing data")
 
+        self.data = imgs
         reduced_data = reduce_data(imgs,
                                    atlas=self.atlas,
                                    n_jobs=self.n_jobs,
@@ -1400,13 +1403,13 @@ at the object level.
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds shared "
                         "response using reduced data")
-
+        self.reduced_data = reduced_data
         shared_response_list = fast_srm(reduced_data,
                                         n_iter=self.n_iter,
                                         n_components=self.n_components,
                                         low_ram=self.low_ram,
                                         seed=self.seed)
-
+        self.shared = shared_response_list
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds basis using "
                         "full data and shared response")
