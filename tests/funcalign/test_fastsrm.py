@@ -821,12 +821,73 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
 
 
 def test_fastsrm_identity():
+    # In this function we test whether fastsrm and DetSRM have identical behavior when atlas=None
+
+    # We authorize different timeframes for different sessions
+    # but they should be the same across subject
+    n_voxels = 8
+    n_timeframes = [4, 5, 6]
+    n_subjects = 2
+    n_components = 3  # number of components used for SRM model
+
+    np.random.seed(0)
+    paths, W, S = generate_data(n_voxels,
+                                n_timeframes,
+                                n_subjects,
+                                n_components,
+                                None,
+                                input_format="list_of_array")
+
+    # Test if generated data has the good shape
+    for subject in range(n_subjects):
+        assert paths[subject].shape == (n_voxels, np.sum([n_timeframes]))
+
+    srm = DetSRM(n_iter=11, features=3, rand_seed=0)
+    srm.fit(paths)
+    shared = srm.transform(paths)
+
+    fastsrm = FastSRM(atlas=None,
+                      n_components=3,
+                      verbose=True,
+                      seed=0,
+                      n_jobs=1,
+                      n_iter=10)
+    fastsrm.fit(paths)
+    shared_fast = fastsrm.transform(paths)
+
+    assert_array_almost_equal(shared_fast, np.mean(shared, axis=0))
+
+    for i in range(n_subjects):
+        assert_array_almost_equal(safe_load(fastsrm.basis_list[i]),
+                                  srm.w_[i].T)
+
+
+def load_and_concat(paths):
+    """
+    Take list of path and yields input data for ProbSRM
+    Parameters
+    ----------
+    paths
+    Returns
+    -------
+    X
+    """
+    X = []
+    for i in range(len(paths)):
+        X_i = np.concatenate(
+            [np.load(paths[i, j]) for j in range(len(paths[i]))], axis=1)
+        X.append(X_i)
+    return X
+
+
+def test_consistency_paths_data():
+    with tempfile.TemporaryDirectory() as datadir:
         # In this function we test whether fastsrm and DetSRM have identical behavior when atlas=None
 
         # We authorize different timeframes for different sessions
         # but they should be the same across subject
         n_voxels = 8
-        n_timeframes = [4, 5]
+        n_timeframes = [4, 5, 6]
         n_subjects = 2
         n_components = 3  # number of components used for SRM model
 
@@ -835,27 +896,25 @@ def test_fastsrm_identity():
                                     n_timeframes,
                                     n_subjects,
                                     n_components,
-                                    None,
-                                    input_format="list_of_array")
+                                    datadir,
+                                    input_format="array")
 
-        # Test if generated data has the good shape
-        for subject in range(n_subjects):
-            assert paths[subject].shape == (n_voxels, np.sum([n_timeframes]))
+        print()
+        print("shape", paths.shape)
 
-        srm = DetSRM(n_iter=11, features=3, rand_seed=0)
-        srm.fit(paths)
-        shared = srm.transform(paths)
+        fastsrm = FastSRM(
+            n_components=3,
+            atlas=None,
+            verbose=True,
+            seed=0,
+            n_jobs=1,
+            n_iter=10,
+        )
 
-        fastsrm = FastSRM(atlas=None,
-                          n_components=3,
-                          verbose=True,
-                          seed=0,
-                          n_jobs=1,
-                          n_iter=10)
         fastsrm.fit(paths)
-        shared_fast = fastsrm.transform(paths)
+        b0 = fastsrm.basis_list[0]
 
-        assert_array_almost_equal(shared_fast, np.mean(shared, axis=0))
+        fastsrm.fit(load_and_concat(paths))
+        b1 = fastsrm.basis_list[0]
 
-        for i in range(n_subjects):
-            assert_array_almost_equal(safe_load(fastsrm.basis_list[i]), srm.w_[i].T)
+        assert_array_almost_equal(b0, b1)

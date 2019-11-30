@@ -979,7 +979,7 @@ def fast_srm(reduced_data_list,
         for j in range(n_sessions):
             timeframes_slices.append(
                 slice(current_j, current_j + len(reduced_data_list[0, j])))
-            current_j = len(reduced_data_list[0][j])
+            current_j += len(reduced_data_list[0][j])
         # Now we can concatenate everything
         X = [
             np.concatenate(reduced_data_list[i], axis=0).T
