@@ -821,7 +821,8 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
 
 
 def test_fastsrm_identity():
-    # In this function we test whether fastsrm and DetSRM have identical behavior when atlas=None
+    # In this function we test whether fastsrm and DetSRM have
+    # identical behavior when atlas=None
 
     # We authorize different timeframes for different sessions
     # but they should be the same across subject
@@ -882,10 +883,9 @@ def load_and_concat(paths):
 
 def test_consistency_paths_data():
     with tempfile.TemporaryDirectory() as datadir:
-        # In this function we test whether fastsrm and DetSRM have identical behavior when atlas=None
+        # In this function we test that input format
+        # does not change the results
 
-        # We authorize different timeframes for different sessions
-        # but they should be the same across subject
         n_voxels = 8
         n_timeframes = [4, 5, 6]
         n_subjects = 2
