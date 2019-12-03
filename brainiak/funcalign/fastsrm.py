@@ -1393,7 +1393,6 @@ at the object level.
         if self.verbose is True:
             logger.info("[FastSRM.fit] Reducing data")
 
-        self.data = imgs
         reduced_data = reduce_data(imgs,
                                    atlas=self.atlas,
                                    n_jobs=self.n_jobs,
@@ -1403,13 +1402,11 @@ at the object level.
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds shared "
                         "response using reduced data")
-        self.reduced_data = reduced_data
         shared_response_list = fast_srm(reduced_data,
                                         n_iter=self.n_iter,
                                         n_components=self.n_components,
                                         low_ram=self.low_ram,
                                         seed=self.seed)
-        self.shared = shared_response_list
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds basis using "
                         "full data and shared response")

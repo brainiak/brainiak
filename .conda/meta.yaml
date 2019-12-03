@@ -36,6 +36,7 @@ requirements:
     - python
     - setuptools
     - pip
+    - mpich
     - openmp
     {% for req in data.get('setup_requires', [])
         if req not in conda_package_nonexistent -%}
@@ -48,6 +49,7 @@ requirements:
 
   run:
     - python
+    - mpich
     - openmp
     {% for req in data.get('install_requires', [])
         if req not in conda_package_nonexistent -%}

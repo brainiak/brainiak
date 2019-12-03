@@ -43,6 +43,27 @@ __all__ = [
 ]
 
 
+def circ_dist(x, y):
+    """
+    Computes the pairwise circular distance between two arrays of
+    points (in radians).
+
+    Parameters
+    ----------
+        x: numpy vector of positions on a circle, in radians.
+        y: numpy vector of positions on a circle, in radians.
+
+    Returns
+    -------
+        r: numpy vector of distances between inputs.
+    """
+    if x.size != y.size:
+        raise ValueError("Input sizes must match to compute pairwise "
+                         "comparisons.")
+    r = np.angle(np.exp(x*1j) / np.exp(y*1j))
+    return r
+
+
 def from_tri_2_sym(tri, dim):
     """convert a upper triangular matrix in 1D format
        to 2D symmetric matrix
