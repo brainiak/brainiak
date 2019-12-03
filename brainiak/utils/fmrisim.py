@@ -1630,7 +1630,8 @@ def _generate_noise_temporal_drift(trs,
         def power_drop(r, L, F):
             # Function to return the drop rate for the power of basis functions
             # In other words, how much should the weight of each basis function
-            # reduce in order to make the power you retain be above a 0.99
+            # reduce in order to make the power you retain of the period's
+            # frequency be 99% of the total power of the highest frequency
             # r is the power reduction rate which should be between 0 and 1
             # L is the duration of the run in seconds
             # F is period of the cycle in seconds
