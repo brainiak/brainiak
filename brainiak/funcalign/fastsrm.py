@@ -1535,7 +1535,10 @@ during session j in shared space.
 
         atlas_shape = check_atlas(self.atlas, self.n_components)
         reshaped_input, imgs, shapes = check_imgs(
-            imgs, n_components=self.n_components, atlas_shape=atlas_shape)
+            imgs,
+            n_components=self.n_components,
+            atlas_shape=atlas_shape,
+            ignore_nsubjects=True)
         check_indexes(subjects_indexes, "subjects_indexes")
         if subjects_indexes is None:
             subjects_indexes = np.arange(len(imgs))
