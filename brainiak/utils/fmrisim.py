@@ -1627,18 +1627,38 @@ def _generate_noise_temporal_drift(trs,
             # Store the drift from this basis func
             noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
 
-        def power_drop(r, L, F):
+        def power_drop(r, L, F, tr_duration):
             # Function to return the drop rate for the power of basis functions
             # In other words, how much should the weight of each basis function
             # reduce in order to make the power you retain of the period's
-            # frequency be 99% of the total power of the highest frequency
+            # frequency be 99% of the total power of the highest frequency, as
+            # defined by the DCT.
+            # For an example where there are 20 time points, there will be 20
+            # basis functions in the DCT. If the period of the signal you wish
+            # to simulate is such that 99% of the power should drop off after
+            # the equivalent of 5 of these basis functions, then the way this
+            # code works is it finds the rate at which power must drop off for
+            # all of the 20 basis functions such that by the 5th one, there is
+            # only 1% of the power remaining.
             # r is the power reduction rate which should be between 0 and 1
             # L is the duration of the run in seconds
-            # F is period of the cycle in seconds
+            # F is period of the cycle in seconds It is assumed that this will
+            # be greater than the tr_duration, or else this will not work
+            # tr_duration is the duration of each TR in seconds
 
-            percent_retained = 0.99  # What is the percentage of drift retained
+            # Check the TR duration
+            if F < tr_duration:
+                msg = 'Period length %0.1f is less than TR duration %0.1f' % (
+                (F, tr_duration))
+                raise ValueError(msg)
+
+            percent_retained = 0.99  # What is the percentage of power retained
+
+            # Compare the power at the period frequency (in the numerator) with
+            # the power at the frequency of the DCT, AKA the highest possible
+            # frequency in the data (in the denominator)
             numerator = 1 - r ** (2 * L / F)  # Power of this period
-            denominator = 1 - r ** (2 * L)  # Power of all periods
+            denominator = 1 - r ** (2 * L / tr_duration)  # Power of DCT freq.
 
             # Calculate the retained power
             power_drop = abs((numerator / denominator) - percent_retained)
@@ -1650,7 +1670,7 @@ def _generate_noise_temporal_drift(trs,
         sol = optimize.minimize_scalar(power_drop,
                                        bounds=(0, 1),
                                        method='Bounded',
-                                       args=(duration, period))
+                                       args=(duration, period, tr_duration))
 
         # Pull out the solution
         r = sol.x
