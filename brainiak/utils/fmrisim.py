@@ -1611,8 +1611,8 @@ def _generate_noise_temporal_drift(trs,
         # Specify the other timing information
         duration = trs * tr_duration
 
-        # How bases do you have?
-        basis_funcs = int(np.floor(2 * duration))
+        # How bases do you have? This is to adhere to Nyquist
+        basis_funcs = int(trs)
 
         noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
         for basis_counter in list(range(1, basis_funcs + 1)):
@@ -1637,8 +1637,8 @@ def _generate_noise_temporal_drift(trs,
             # F is period of the cycle in seconds
 
             percent_retained = 0.99  # What is the percentage of drift retained
-            numerator = 1 - r ** (4 * L / F)  # Power of this period
-            denominator = 1 - r ** (4 * L)  # Power of all periods
+            numerator = 1 - r ** (2 * L / F)  # Power of this period
+            denominator = 1 - r ** (2 * L)  # Power of all periods
 
             # Calculate the retained power
             power_drop = abs((numerator / denominator) - percent_retained)
