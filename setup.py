@@ -138,6 +138,8 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
+        'joblib',
+        'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
