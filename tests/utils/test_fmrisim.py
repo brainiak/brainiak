@@ -548,9 +548,9 @@ def test_generate_noise():
                                                period,
                                                )
 
-	# Check that when the TR is greater than the period it errors
+    # Check that when the TR is greater than the period it errors
     with pytest.raises(ValueError):
-        sim._generate_noise_temporal_drift(30, 10,'cos_power_drop', 5)
+        sim._generate_noise_temporal_drift(30, 10, 'cos_power_drop', 5)
 
     # Test physiological noise (using unrealistic parameters so that it's easy)
     timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
