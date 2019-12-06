@@ -1648,8 +1648,7 @@ def _generate_noise_temporal_drift(trs,
 
             # Check the TR duration
             if F < tr_duration:
-                msg = 'Period length %0.1f is less than TR duration %0.1f' % (
-                (F, tr_duration))
+                msg = 'Period %0.0f > TR duration %0.0f' % ((F, tr_duration))
                 raise ValueError(msg)
 
             percent_retained = 0.99  # What is the percentage of power retained
