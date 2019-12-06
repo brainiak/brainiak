@@ -866,3 +866,39 @@ def test_calc_noise():
                                 sample_num=2,
                                 )
     assert len(arma) == 2, "Two outputs not given by ARMA"
+
+
+def test_gen_1D_gauss_shape():
+    n_vox = 10
+    res = 180
+    rfs, centers = sim.generate_1d_gaussian_rfs(n_vox, res, (0, res-1))
+    assert rfs.shape == (n_vox, res)
+    assert centers.size == n_vox
+
+    sim_data = sim.generate_1d_rf_responses(rfs, np.array([0, 10, 20]), res,
+                                            (0, res-1))
+    assert sim_data.shape == (n_vox, 3)
+
+
+def test_gen_1d_gauss_range():
+    res = 180
+    range_values = (-10, res-11)
+    rfs, centers = sim.generate_1d_gaussian_rfs(1, res, range_values,
+                                                random_tuning=False)
+    sim_data = sim.generate_1d_rf_responses(rfs, np.array([-10]), res,
+                                            range_values, 0)
+    assert sim_data[0, ] > 0
+    range_values = (10, res+10)
+    rfs, centers = sim.generate_1d_gaussian_rfs(1, res, range_values,
+                                                random_tuning=False)
+    sim_data = sim.generate_1d_rf_responses(rfs, np.array([10]), res,
+                                            range_values, 0)
+    assert sim_data[0, ] > 0
+
+
+def test_gen_1D_gauss_even_spacing():
+    n_vox = 9
+    res = 180
+    rfs, centers = sim.generate_1d_gaussian_rfs(n_vox, res, (0, res-1),
+                                                random_tuning=False)
+    assert np.all(centers == np.array([0, 19, 39, 59, 79, 99, 119, 139, 159]))

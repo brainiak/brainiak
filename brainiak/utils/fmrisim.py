@@ -103,6 +103,8 @@ __all__ = [
     "generate_stimfunction",
     "generate_noise",
     "mask_brain",
+    "generate_1d_gaussian_rfs",
+    "generate_1d_rf_responses",
 ]
 
 logger = logging.getLogger(__name__)
@@ -3064,3 +3066,121 @@ def compute_signal_change(signal_function,
 
     # Return the scaled time course
     return signal_function_scaled
+
+
+def generate_1d_gaussian_rfs(n_voxels, feature_resolution, feature_range,
+                             rf_size=15, random_tuning=True, rf_noise=0.):
+    """
+    Creates a numpy matrix of Gaussian-shaped voxel receptive fields (RFs)
+    along one dimension. Can specify whether they are evenly tiled or randomly
+    tuned along the axis. RF range will be between 0 and 1.
+
+    Parameters
+    ----------
+
+    n_voxels : int
+        Number of voxel RFs to create.
+
+    feature_resolution : int
+        Number of points along the feature axis.
+
+    feature_range : tuple (numeric)
+        A tuple indicating the start and end values of the feature range. e.g.
+        (0, 359) for motion directions.
+
+    rf_size : numeric
+        Width of the Gaussian receptive field. Should be given in units of the
+        feature dimension. e.g., 15 degrees wide in motion direction space.
+
+    random_tuning : boolean [default True]
+        Indicates whether or not the voxels are randomly tuned along the 1D
+        feature axis or whether tuning is evenly spaced.
+
+    rf_noise : float [default 0.]
+        Amount of uniform noise to add to the Gaussian RF. This will cause the
+        generated responses to be distorted by the same uniform noise for a
+        given voxel.
+
+    Returns
+    ----------
+
+    voxel_rfs : 2d numpy array (float)
+        The receptive fields in feature space. Dimensions are n_voxels by
+        feature_resolution.
+
+    voxel_tuning : 1d numpy array (float)
+        The centers of the voxel RFs, in feature space.
+
+    """
+    range_start, range_stop = feature_range
+    if random_tuning:
+        # Voxel selectivity is random
+        voxel_tuning = np.floor((np.random.rand(n_voxels) * range_stop)
+                                + range_start).astype(int)
+    else:
+        # Voxel selectivity is evenly spaced along the feature axis
+        voxel_tuning = np.linspace(range_start, range_stop, n_voxels + 1)
+        voxel_tuning = voxel_tuning[0:-1]
+        voxel_tuning = np.floor(voxel_tuning).astype(int)
+    gaussian = signal.gaussian(feature_resolution, rf_size)
+    voxel_rfs = np.zeros((n_voxels, feature_resolution))
+    for i in range(0, n_voxels):
+        voxel_rfs[i, :] = np.roll(gaussian, voxel_tuning[i] -
+                                  ((feature_resolution // 2) - 1))
+    voxel_rfs += np.random.rand(n_voxels, feature_resolution) * rf_noise
+    voxel_rfs = voxel_rfs / np.max(voxel_rfs, axis=1)[:, None]
+
+    return voxel_rfs, voxel_tuning
+
+
+def generate_1d_rf_responses(rfs, trial_list, feature_resolution,
+                             feature_range, trial_noise=0.25):
+    """
+    Generates trial-wise data for a given set of receptive fields (RFs) and
+    a 1d array of features presented across trials.
+
+    Parameters
+    ----------
+
+    voxel_rfs : 2d numpy array (float)
+        The receptive fields in feature space. Dimensions must be n_voxels
+        by feature_resolution.
+
+    trial_list : 1d numpy array (numeric)
+        The feature value of the stimulus presented on individual trials.
+        Array size be n_trials.
+
+    feature_resolution : int
+        Number of points along the feature axis.
+
+    feature_range : tuple (numeric)
+        A tuple indicating the start and end values of the feature range. e.g.
+        (0, 359) for motion directions.
+
+    trial_noise : float [default 0.25]
+        Amount of uniform noise to inject into the synthetic data. This is
+        generated independently for every trial and voxel.
+
+    Returns
+    ----------
+
+    trial_data : 2d numpy array (float)
+        The synthetic data for each voxel and trial. Dimensions are n_voxels by
+        n_trials.
+
+    """
+    range_start, range_stop = feature_range
+    stim_axis = np.linspace(range_start, range_stop,
+                            feature_resolution)
+    if range_start > 0:
+        trial_list = trial_list + range_start
+    elif range_start < 0:
+        trial_list = trial_list - range_start
+    one_hot = np.eye(feature_resolution)
+    indices = [np.argmin(abs(stim_axis - x)) for x in trial_list]
+    stimulus_mask = one_hot[:, indices]
+    trial_data = rfs @ stimulus_mask
+    trial_data += np.random.rand(rfs.shape[0], trial_list.size) * \
+        (trial_noise * np.max(trial_data))
+
+    return trial_data
