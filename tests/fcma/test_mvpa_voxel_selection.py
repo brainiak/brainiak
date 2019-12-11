@@ -40,10 +40,12 @@ def test_mvpa_voxel_selection():
         output = []
         for tuple in results:
             if tuple[1] > 0:
-                output.append(tuple[1])
+                output.append(int(8*tuple[1]))
+        expected_output = [6, 6, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4,
+                           4, 4, 4, 3, 3, 3, 3, 3, 2, 2, 2, 1]
 
         # Check that the mean accuracy with noise is close to chance
-        assert np.allclose(np.mean(output), 0.5, atol=0.1), \
+        assert np.allclose(output, expected_output, atol=1), \
             'voxel selection via SVM does not provide correct results'
 
 
