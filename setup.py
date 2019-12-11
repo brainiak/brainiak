@@ -116,7 +116,7 @@ setup(
     use_scm_version=True,
     setup_requires=[
         'cython',
-        'numpy',
+        'numpy<1.17',
         'pybind11>=1.7',
         'setuptools_scm',
     ],
@@ -128,7 +128,7 @@ setup(
         'nitime',
         # https://github.com/numpy/numpy/issues/14189
         'numpy<1.17',
-        'scikit-learn[alldeps]>=0.18',
+        'scikit-learn[alldeps]>=0.18,<0.22',
         # See https://github.com/scipy/scipy/pull/8082
         # and https://github.com/pymanopt/pymanopt/issues/77
         'scipy!=1.0.0,<1.3.0',
@@ -138,6 +138,8 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
+        'joblib',
+        'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
