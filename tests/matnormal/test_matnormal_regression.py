@@ -1,9 +1,11 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-from brainiak.matnormal.covs import (CovIdentity,
-                                     CovUnconstrainedCholesky,
-                                     CovUnconstrainedInvCholesky,
-                                     CovDiagonal)
+from brainiak.matnormal.covs import (
+    CovIdentity,
+    CovUnconstrainedCholesky,
+    CovUnconstrainedInvCholesky,
+    CovDiagonal,
+)
 from brainiak.matnormal.regression import MatnormRegression
 from brainiak.matnormal.utils import rmn
 import logging
@@ -25,7 +27,7 @@ def test_matnorm_regression_unconstrained():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
@@ -36,7 +38,7 @@ def test_matnorm_regression_unconstrained():
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_unconstrainedprec():
@@ -47,7 +49,7 @@ def test_matnorm_regression_unconstrainedprec():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
@@ -58,7 +60,7 @@ def test_matnorm_regression_unconstrainedprec():
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_optimizerChoice():
@@ -69,7 +71,7 @@ def test_matnorm_regression_optimizerChoice():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
@@ -81,7 +83,7 @@ def test_matnorm_regression_optimizerChoice():
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_scaledDiag():
@@ -104,4 +106,4 @@ def test_matnorm_regression_scaledDiag():
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol

@@ -8,7 +8,7 @@ from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 import logging
 
-__all__ = ['MNRSA']
+__all__ = ["MNRSA"]
 
 
 class MNRSA(BaseEstimator):
@@ -60,8 +60,8 @@ class MNRSA(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, n_nureg=5,
-                 optimizer='L-BFGS-B', optCtrl=None):
+    def __init__(self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B",
+                 optCtrl=None):
 
         self.n_T = time_cov.size
         self.n_V = space_cov.size
@@ -73,8 +73,9 @@ class MNRSA(BaseEstimator):
         self.X = tf.placeholder(tf.float64, [self.n_T, None], name="Design")
         self.Y = tf.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
 
-        self.X_0 = tf.Variable(tf.random_normal([self.n_T, n_nureg],
-                                                dtype=tf.float64), name="X_0")
+        self.X_0 = tf.Variable(
+            tf.random_normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
+        )
 
         self.train_variables = [self.X_0]
 
@@ -124,33 +125,36 @@ class MNRSA(BaseEstimator):
         self.L_full = tf.Variable(naiveRSA_L, name="L_full", dtype="float64")
 
         L_indeterminate = tf.matrix_band_part(self.L_full, -1, 0)
-        self.L = tf.matrix_set_diag(L_indeterminate,
-                                    tf.exp(tf.matrix_diag_part(
-                                           L_indeterminate)))
+        self.L = tf.matrix_set_diag(
+            L_indeterminate, tf.exp(tf.matrix_diag_part(L_indeterminate))
+        )
 
         self.train_variables.extend([self.L_full])
 
         self.x_stack = tf.concat([tf.matmul(self.X, self.L), self.X_0], 1)
         self.sess.run(tf.global_variables_initializer(), feed_dict=feed_dict)
 
-        optimizer = ScipyOptimizerInterface(-self.logp(),
-                                            var_list=self.train_variables,
-                                            method=self.optMethod,
-                                            options=self.optCtrl)
+        optimizer = ScipyOptimizerInterface(
+            -self.logp(),
+            var_list=self.train_variables,
+            method=self.optMethod,
+            options=self.optCtrl,
+        )
 
         if logging.getLogger().isEnabledFor(logging.INFO):
             optimizer._packed_loss_grad = tf.Print(
-                                                optimizer._packed_loss_grad,
-                                                [tf.reduce_min(
-                                                 optimizer._packed_loss_grad)],
-                                                'mingrad')
+                optimizer._packed_loss_grad,
+                [tf.reduce_min(optimizer._packed_loss_grad)],
+                "mingrad",
+            )
             optimizer._packed_loss_grad = tf.Print(
-                                                optimizer._packed_loss_grad,
-                                                [tf.reduce_max(
-                                                 optimizer._packed_loss_grad)],
-                                                'maxgrad')
-            optimizer._packed_loss_grad = tf.Print(optimizer._packed_loss_grad,
-                                                   [self.logp()], 'logp')
+                optimizer._packed_loss_grad,
+                [tf.reduce_max(optimizer._packed_loss_grad)],
+                "maxgrad",
+            )
+            optimizer._packed_loss_grad = tf.Print(
+                optimizer._packed_loss_grad, [self.logp()], "logp"
+            )
 
         optimizer.minimize(session=self.sess, feed_dict=feed_dict)
 
@@ -164,9 +168,15 @@ class MNRSA(BaseEstimator):
 
         rsa_cov = CovIdentity(size=self.n_c + self.n_nureg)
 
-        return self.time_cov.logp + \
-            self.space_cov.logp + \
-            rsa_cov.logp + \
-            matnorm_logp_marginal_row(self.Y, row_cov=self.time_cov,
-                                      col_cov=self.space_cov,
-                                      marg=self.x_stack, marg_cov=rsa_cov)
+        return (
+            self.time_cov.logp
+            + self.space_cov.logp
+            + rsa_cov.logp
+            + matnorm_logp_marginal_row(
+                self.Y,
+                row_cov=self.time_cov,
+                col_cov=self.space_cov,
+                marg=self.x_stack,
+                marg_cov=rsa_cov,
+            )
+        )

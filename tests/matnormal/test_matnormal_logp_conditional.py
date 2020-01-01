@@ -4,8 +4,9 @@ from scipy.stats import wishart, multivariate_normal
 import tensorflow as tf
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import (
-                       matnorm_logp_conditional_col,
-                       matnorm_logp_conditional_row)
+    matnorm_logp_conditional_col,
+    matnorm_logp_conditional_row,
+)
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
 import logging
 
@@ -24,7 +25,7 @@ def test_against_scipy_mvn_col_conditional():
 
     # have to be careful for constructing everything as a submatrix of a big
     # PSD matrix, else no guarantee that anything's invertible.
-    cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
+    cov_np = wishart.rvs(df=m + p + 2, scale=np.eye(m + p))
 
     # rowcov = CovConstant(cov_np[0:m, 0:m])
     rowcov = CovUnconstrainedCholesky(Sigma=cov_np[0:m, 0:m])
@@ -36,8 +37,8 @@ def test_against_scipy_mvn_col_conditional():
 
     X = rmn(np.eye(m), np.eye(n))
 
-    A_tf = tf.constant(A, 'float64')
-    X_tf = tf.constant(X, 'float64')
+    A_tf = tf.constant(A, "float64")
+    X_tf = tf.constant(X, "float64")
 
     with tf.Session() as sess:
 
@@ -45,11 +46,11 @@ def test_against_scipy_mvn_col_conditional():
 
         Q_np = Q._cov.eval(session=sess)
 
-        rowcov_np = rowcov._cov.eval(session=sess) - \
+        rowcov_np = rowcov._cov.eval(session=sess) -\
             A.dot(np.linalg.inv(Q_np)).dot((A.T))
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]),
-                              rowcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(
+            X.T, np.zeros([m]), rowcov_np))
 
         tf_answer = matnorm_logp_conditional_row(X_tf, rowcov, colcov, A_tf, Q)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
@@ -59,7 +60,7 @@ def test_against_scipy_mvn_row_conditional():
 
     # have to be careful for constructing everything as a submatrix of a big
     # PSD matrix, else no guarantee that anything's invertible.
-    cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
+    cov_np = wishart.rvs(df=m + p + 2, scale=np.eye(m + p))
 
     rowcov = CovIdentity(size=m)
     colcov = CovUnconstrainedCholesky(Sigma=cov_np[0:n, 0:n])
@@ -69,8 +70,8 @@ def test_against_scipy_mvn_row_conditional():
 
     X = rmn(np.eye(m), np.eye(n))
 
-    A_tf = tf.constant(A, 'float64')
-    X_tf = tf.constant(X, 'float64')
+    A_tf = tf.constant(A, "float64")
+    X_tf = tf.constant(X, "float64")
 
     with tf.Session() as sess:
 
@@ -78,11 +79,11 @@ def test_against_scipy_mvn_row_conditional():
 
         Q_np = Q._cov.eval(session=sess)
 
-        colcov_np = colcov._cov.eval(session=sess) - \
+        colcov_np = colcov._cov.eval(session=sess) -\
             A.T.dot(np.linalg.inv(Q_np)).dot((A))
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]),
-                                                         colcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(
+            X, np.zeros([n]), colcov_np))
 
         tf_answer = matnorm_logp_conditional_col(X_tf, rowcov, colcov, A_tf, Q)
 

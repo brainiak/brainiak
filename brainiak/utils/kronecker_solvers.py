@@ -5,6 +5,7 @@ __all__ = [
     "tf_masked_triangular_solve",
 ]
 
+
 def tf_solve_lower_triangular_kron(L, y):
     """ Tensor flow function to solve L x = y
     where L = kron(L[0], L[1] .. L[n-1])
@@ -132,7 +133,9 @@ def tf_kron_mult(L, x):
         for i in range(na):
             ya, yb, yc = tf.split(y, [i*nb, nb, (na-i-1)*nb], 0)
             yb = tf.reshape(tf.matmul(tf.reshape(xt, [nb*col, na]),
-                            tf.transpose(tf.slice(L[0], [i, 0], [1, na]))),
+                                      tf.transpose(tf.slice(L[0],
+                                                            [i, 0],
+                                                            [1, na]))),
                             [nb, col])
             y = tf.concat(axis=0, values=[ya, yb, yc])
         return y
@@ -169,7 +172,8 @@ def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
 
     zero = tf.constant(0, dtype=tf.int32)
     mask_mat = tf.where(tf.not_equal(tf.matmul(tf.reshape(mask, [-1, 1]),
-                        tf.reshape(mask, [1, -1])), zero))
+                                               tf.reshape(mask, [1, -1])),
+                                     zero))
     q = tf.to_int32(tf.sqrt(tf.to_double(tf.shape(mask_mat)[0])))
     L_masked = tf.reshape(tf.gather_nd(L, mask_mat), [q, q])
 
