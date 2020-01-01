@@ -66,26 +66,6 @@ class CovBase(object):
         return tf.linalg.inv(self._prec)
 
 
-# class CovTFWrap(CovBase):
-#     """ thin wrapper around a TF tensor
-#     """
-#     def __init__(self, Sigma):
-
-#         self.L = tf.cholesky(Sigma)
-#         self.logdet = 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.L)))
-
-#     def get_optimize_vars(self):
-#         """ Returns a list of tf variables that need to get optimized to fit
-#             this covariance
-#         """
-#         return []
-
-#     def solve(self, X):
-#         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
-#         """
-#         return tf.cholesky_solve(self.L, X)
-
-
 class CovIdentity(CovBase):
     """Identity noise covariance.
     """
