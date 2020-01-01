@@ -27,12 +27,12 @@ def test_against_scipy_mvn_col_conditional():
     cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
 
     # rowcov = CovConstant(cov_np[0:m, 0:m])
-    rowcov = CovUnconstrainedCholesky(size=m, Sigma=cov_np[0:m, 0:m])
+    rowcov = CovUnconstrainedCholesky(Sigma=cov_np[0:m, 0:m])
     A = cov_np[0:m, m:]
 
     colcov = CovIdentity(size=n)
 
-    Q = CovUnconstrainedCholesky(size=p, Sigma=cov_np[m:, m:])
+    Q = CovUnconstrainedCholesky(Sigma=cov_np[m:, m:])
 
     X = rmn(np.eye(m), np.eye(n))
 
@@ -43,9 +43,9 @@ def test_against_scipy_mvn_col_conditional():
 
         sess.run(tf.global_variables_initializer())
 
-        Q_np = Q.Sigma.eval(session=sess)
+        Q_np = Q._cov.eval(session=sess)
 
-        rowcov_np = rowcov.Sigma.eval(session=sess) - \
+        rowcov_np = rowcov._cov.eval(session=sess) - \
             A.dot(np.linalg.inv(Q_np)).dot((A.T))
 
         scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]),
@@ -62,10 +62,10 @@ def test_against_scipy_mvn_row_conditional():
     cov_np = wishart.rvs(df=m+p+2, scale=np.eye(m+p))
 
     rowcov = CovIdentity(size=m)
-    colcov = CovUnconstrainedCholesky(size=n, Sigma=cov_np[0:n, 0:n])
+    colcov = CovUnconstrainedCholesky(Sigma=cov_np[0:n, 0:n])
     A = cov_np[n:, 0:n]
 
-    Q = CovUnconstrainedCholesky(size=p, Sigma=cov_np[n:, n:])
+    Q = CovUnconstrainedCholesky(Sigma=cov_np[n:, n:])
 
     X = rmn(np.eye(m), np.eye(n))
 
@@ -76,9 +76,9 @@ def test_against_scipy_mvn_row_conditional():
 
         sess.run(tf.global_variables_initializer())
 
-        Q_np = Q.Sigma.eval(session=sess)
+        Q_np = Q._cov.eval(session=sess)
 
-        colcov_np = colcov.Sigma.eval(session=sess) - \
+        colcov_np = colcov._cov.eval(session=sess) - \
             A.T.dot(np.linalg.inv(Q_np)).dot((A))
 
         scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]),

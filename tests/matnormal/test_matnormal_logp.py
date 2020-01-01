@@ -17,7 +17,6 @@ p = 3
 
 rtol = 1e-7
 
-
 def test_against_scipy_mvn_row():
 
     with tf.Session() as sess:
@@ -29,7 +28,8 @@ def test_against_scipy_mvn_row():
 
         sess.run(tf.global_variables_initializer())
 
-        rowcov_np = rowcov.Sigma.eval(session=sess)
+
+        rowcov_np = rowcov._cov.eval(session=sess)
 
         scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]),
                               rowcov_np))
@@ -48,7 +48,7 @@ def test_against_scipy_mvn_col():
 
         sess.run(tf.global_variables_initializer())
 
-        colcov_np = colcov.Sigma.eval(session=sess)
+        colcov_np = colcov._cov.eval(session=sess)
 
         scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]),
                               colcov_np))

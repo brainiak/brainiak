@@ -87,9 +87,9 @@ class MatnormRegression(BaseEstimator):
 
         # initialize to the least squares solution (basically all
         # we need now is the cov)
-        sigma_inv_x = self.time_cov.Sigma_inv_x(self.X)\
+        sigma_inv_x = self.time_cov.solve(self.X)\
             .eval(session=self.sess, feed_dict=feed_dict)
-        sigma_inv_y = self.time_cov.Sigma_inv_x(self.Y)\
+        sigma_inv_y = self.time_cov.solve(self.Y)\
             .eval(session=self.sess, feed_dict=feed_dict)
 
         beta_init = np.linalg.solve((X.T).dot(sigma_inv_x),
@@ -142,7 +142,7 @@ class MatnormRegression(BaseEstimator):
                                 cannot decode.")
 
         # Sigma_s^{-1} B'
-        Sigma_s_btrp = self.space_cov.Sigma_inv_x(tf.transpose(
+        Sigma_s_btrp = self.space_cov.solve(tf.transpose(
                                                         self.beta))
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
