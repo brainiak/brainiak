@@ -82,7 +82,7 @@ class BuildExt(build_ext):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
-        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.9',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
@@ -116,7 +116,7 @@ setup(
     use_scm_version=True,
     setup_requires=[
         'cython',
-        'numpy',
+        'numpy<1.17',
         'pybind11>=1.7',
         'setuptools_scm',
     ],
@@ -126,8 +126,9 @@ setup(
         # https://travis-ci.org/brainiak/brainiak/jobs/545838666
         'mpi4py>=3',
         'nitime',
-        'numpy',
-        'scikit-learn[alldeps]>=0.18',
+        # https://github.com/numpy/numpy/issues/14189
+        'numpy<1.17',
+        'scikit-learn[alldeps]>=0.18,<0.22',
         # See https://github.com/scipy/scipy/pull/8082
         # and https://github.com/pymanopt/pymanopt/issues/77
         'scipy!=1.0.0,<1.3.0',
@@ -139,6 +140,8 @@ setup(
         'nibabel',
         'typing',
         'tensorflow' 
+        'joblib',
+        'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',

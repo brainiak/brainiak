@@ -90,6 +90,7 @@ from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage
 import copy
+from scipy import optimize
 
 __all__ = [
     "apply_signal",
@@ -102,6 +103,8 @@ __all__ = [
     "generate_stimfunction",
     "generate_noise",
     "mask_brain",
+    "generate_1d_gaussian_rfs",
+    "generate_1d_rf_responses",
 ]
 
 logger = logging.getLogger(__name__)
@@ -1521,7 +1524,7 @@ def _generate_noise_temporal_task(stimfunction_tr,
 
 def _generate_noise_temporal_drift(trs,
                                    tr_duration,
-                                   basis="discrete_cos",
+                                   basis="cos_power_drop",
                                    period=150,
                                    ):
 
@@ -1542,10 +1545,17 @@ def _generate_noise_temporal_drift(trs,
     basis : str
         What is the basis function for the drift. Could be made of discrete
         cosines (for longer run durations, more basis functions are
-        created) or a sine wave.
+        created) that either have equal power ('discrete_cos') or the power
+        diminishes such that 99% of the power is below a specified frequency
+        ('cos_power_drop'). Alternatively, this drift could simply be a sine
+        wave ('sine')
 
     period : int
-        How many seconds is the period of oscillation of the drift
+        When the basis function is 'cos_power_drop' this is the period over
+        which no power of the drift exceeds (i.e. the power of the drift
+        asymptotes at this period). However for the other basis functions,
+        this is simply how many seconds is the period of oscillation of the
+        drift
 
     Returns
     ----------
@@ -1594,6 +1604,86 @@ def _generate_noise_temporal_drift(trs,
         phaseshift = np.pi * 2 * np.random.random()
         phase = (timepoints / (trs - 1) * cycles * 2 * np.pi) + phaseshift
         noise_drift = np.sin(phase)
+
+    elif basis == 'cos_power_drop':
+
+        # Make a vector counting each TR
+        timepoints = np.linspace(0, trs - 1, trs) * tr_duration
+
+        # Specify the other timing information
+        duration = trs * tr_duration
+
+        # How bases do you have? This is to adhere to Nyquist
+        basis_funcs = int(trs)
+
+        noise_drift = np.zeros((timepoints.shape[0], basis_funcs))
+        for basis_counter in list(range(1, basis_funcs + 1)):
+            # What steps do you want to take for this basis function
+            random_phase = np.random.rand() * np.pi * 2
+
+            timepoint_phase = (timepoints / duration * np.pi * basis_counter)
+
+            # In radians, what is the value for each time point
+            timepoints_basis = timepoint_phase + random_phase
+
+            # Store the drift from this basis func
+            noise_drift[:, basis_counter - 1] = np.cos(timepoints_basis)
+
+        def power_drop(r, L, F, tr_duration):
+            # Function to return the drop rate for the power of basis functions
+            # In other words, how much should the weight of each basis function
+            # reduce in order to make the power you retain of the period's
+            # frequency be 99% of the total power of the highest frequency, as
+            # defined by the DCT.
+            # For an example where there are 20 time points, there will be 20
+            # basis functions in the DCT. If the period of the signal you wish
+            # to simulate is such that 99% of the power should drop off after
+            # the equivalent of 5 of these basis functions, then the way this
+            # code works is it finds the rate at which power must drop off for
+            # all of the 20 basis functions such that by the 5th one, there is
+            # only 1% of the power remaining.
+            # r is the power reduction rate which should be between 0 and 1
+            # L is the duration of the run in seconds
+            # F is period of the cycle in seconds It is assumed that this will
+            # be greater than the tr_duration, or else this will not work
+            # tr_duration is the duration of each TR in seconds
+
+            # Check the TR duration
+            if F < tr_duration:
+                msg = 'Period %0.0f > TR duration %0.0f' % ((F, tr_duration))
+                raise ValueError(msg)
+
+            percent_retained = 0.99  # What is the percentage of power retained
+
+            # Compare the power at the period frequency (in the numerator) with
+            # the power at the frequency of the DCT, AKA the highest possible
+            # frequency in the data (in the denominator)
+            numerator = 1 - r ** (2 * L / F)  # Power of this period
+            denominator = 1 - r ** (2 * L / tr_duration)  # Power of DCT freq.
+
+            # Calculate the retained power
+            power_drop = abs((numerator / denominator) - percent_retained)
+            return power_drop
+
+        # Solve for power reduction rate.
+        # This assumes that r is between 0 and 1
+        # Takes the duration and period as arguments
+        sol = optimize.minimize_scalar(power_drop,
+                                       bounds=(0, 1),
+                                       method='Bounded',
+                                       args=(duration, period, tr_duration))
+
+        # Pull out the solution
+        r = sol.x
+
+        # Weight the basis functions based on the power drop off
+        basis_weights = r ** np.arange(basis_funcs)
+
+        # Weigh the basis functions
+        weighted_basis_funcs = np.multiply(noise_drift, basis_weights)
+
+        # Average the drift
+        noise_drift = np.mean(weighted_basis_funcs, 1)
 
     # Normalize so the sigma is 1
     noise_drift = stats.zscore(noise_drift)
@@ -2010,19 +2100,6 @@ def _generate_noise_temporal(stimfunction_tr,
     # Preset the volume
     noise_volume = np.zeros((dimensions[0], dimensions[1], dimensions[2], trs))
 
-    # Generate the drift noise
-    if noise_dict['drift_sigma'] != 0:
-        # Calculate the drift time course
-        noise = _generate_noise_temporal_drift(trs,
-                                               tr_duration,
-                                               )
-        # Create a volume with the drift properties
-        volume = np.ones(dimensions)
-
-        # Combine the volume and noise
-        noise_volume += np.multiply.outer(volume, noise) * noise_dict[
-            'drift_sigma']
-
     # Generate the physiological noise
     if noise_dict['physiological_sigma'] != 0:
 
@@ -2283,6 +2360,7 @@ def _noise_dict_update(noise_dict):
 
 def _fit_spatial(noise,
                  noise_temporal,
+                 drift_noise,
                  mask,
                  template,
                  spatial_sd,
@@ -2303,6 +2381,9 @@ def _fit_spatial(noise,
 
         noise_temporal : multidimensional array, float
             The temporal noise that was generated by _generate_temporal_noise
+
+        drift_noise : multidimensional array, float
+            The drift noise generated by _generate_noise_temporal_drift
 
         tr_duration : float
             What is the duration, in seconds, of each TR?
@@ -2398,7 +2479,8 @@ def _fit_spatial(noise,
                                               )
 
         # Sum up the noise of the brain
-        noise = base + (noise_temporal * temporal_sd) + noise_system
+        noise = base + drift_noise + noise_system
+        noise += (noise_temporal * temporal_sd)  # Add the brain specific noise
 
         # Reject negative values (only happens outside of the brain)
         noise[noise < 0] = 0
@@ -2421,6 +2503,7 @@ def _fit_temporal(noise,
                   spatial_sd,
                   temporal_proportion,
                   temporal_sd,
+                  drift_noise,
                   noise_dict,
                   fit_thresh,
                   fit_delta,
@@ -2463,6 +2546,9 @@ def _fit_temporal(noise,
         temporal_sd : float
             What is the standard deviation in time of the noise volume to be
             generated
+
+        drift_noise : multidimensional array, float
+            The drift noise generated by _generate_noise_temporal_drift
 
         noise_dict : dict
             A dictionary specifying the types of noise in this experiment. The
@@ -2579,7 +2665,8 @@ def _fit_temporal(noise,
                                               )
 
         # Sum up the noise of the brain
-        noise = base + (noise_temporal * temporal_sd) + noise_system
+        noise = base + drift_noise + noise_system
+        noise += (noise_temporal * temporal_sd)  # Add the brain specific noise
 
         # Reject negative values (only happens outside of the brain)
         noise[noise < 0] = 0
@@ -2735,7 +2822,7 @@ def generate_noise(dimensions,
     # What is the mean signal of the non masked voxels in this template?
     mean_signal = (base[mask > 0]).mean()
 
-    # Generate the noise
+    # Generate the temporal noise
     noise_temporal = _generate_noise_temporal(stimfunction_tr=stimfunction_tr,
                                               tr_duration=tr_duration,
                                               dimensions=dimensions,
@@ -2743,6 +2830,22 @@ def generate_noise(dimensions,
                                               mask=mask,
                                               noise_dict=noise_dict,
                                               )
+
+    # Generate the drift noise
+    if noise_dict['drift_sigma'] != 0:
+        # Calculate the drift time course
+        noise = _generate_noise_temporal_drift(len(stimfunction_tr),
+                                               tr_duration,
+                                               )
+        # Create a volume with the drift properties
+        volume = np.ones(dimensions[:3])
+
+        # Combine the volume and noise
+        drift_noise = np.multiply.outer(volume, noise) * noise_dict[
+            'drift_sigma']
+    else:
+        # If there is no drift, then just make this zeros (in 4d)
+        drift_noise = np.zeros(dimensions_tr)
 
     # Convert SFNR into the size of the standard deviation of temporal
     # variability
@@ -2763,7 +2866,8 @@ def generate_noise(dimensions,
                                           )
 
     # Sum up the noise of the brain
-    noise = base + (noise_temporal * temporal_sd) + noise_system
+    noise = base + drift_noise + noise_system
+    noise += (noise_temporal * temporal_sd)  # Add the brain specific noise
 
     # Reject negative values (only happens outside of the brain)
     noise[noise < 0] = 0
@@ -2771,6 +2875,7 @@ def generate_noise(dimensions,
     # Fit the SNR
     noise, spatial_sd = _fit_spatial(noise,
                                      noise_temporal,
+                                     drift_noise,
                                      mask,
                                      template,
                                      spatial_sd,
@@ -2790,6 +2895,7 @@ def generate_noise(dimensions,
                           spatial_sd,
                           temporal_proportion,
                           temporal_sd,
+                          drift_noise,
                           noise_dict,
                           fit_thresh,
                           fit_delta,
@@ -2960,3 +3066,121 @@ def compute_signal_change(signal_function,
 
     # Return the scaled time course
     return signal_function_scaled
+
+
+def generate_1d_gaussian_rfs(n_voxels, feature_resolution, feature_range,
+                             rf_size=15, random_tuning=True, rf_noise=0.):
+    """
+    Creates a numpy matrix of Gaussian-shaped voxel receptive fields (RFs)
+    along one dimension. Can specify whether they are evenly tiled or randomly
+    tuned along the axis. RF range will be between 0 and 1.
+
+    Parameters
+    ----------
+
+    n_voxels : int
+        Number of voxel RFs to create.
+
+    feature_resolution : int
+        Number of points along the feature axis.
+
+    feature_range : tuple (numeric)
+        A tuple indicating the start and end values of the feature range. e.g.
+        (0, 359) for motion directions.
+
+    rf_size : numeric
+        Width of the Gaussian receptive field. Should be given in units of the
+        feature dimension. e.g., 15 degrees wide in motion direction space.
+
+    random_tuning : boolean [default True]
+        Indicates whether or not the voxels are randomly tuned along the 1D
+        feature axis or whether tuning is evenly spaced.
+
+    rf_noise : float [default 0.]
+        Amount of uniform noise to add to the Gaussian RF. This will cause the
+        generated responses to be distorted by the same uniform noise for a
+        given voxel.
+
+    Returns
+    ----------
+
+    voxel_rfs : 2d numpy array (float)
+        The receptive fields in feature space. Dimensions are n_voxels by
+        feature_resolution.
+
+    voxel_tuning : 1d numpy array (float)
+        The centers of the voxel RFs, in feature space.
+
+    """
+    range_start, range_stop = feature_range
+    if random_tuning:
+        # Voxel selectivity is random
+        voxel_tuning = np.floor((np.random.rand(n_voxels) * range_stop)
+                                + range_start).astype(int)
+    else:
+        # Voxel selectivity is evenly spaced along the feature axis
+        voxel_tuning = np.linspace(range_start, range_stop, n_voxels + 1)
+        voxel_tuning = voxel_tuning[0:-1]
+        voxel_tuning = np.floor(voxel_tuning).astype(int)
+    gaussian = signal.gaussian(feature_resolution, rf_size)
+    voxel_rfs = np.zeros((n_voxels, feature_resolution))
+    for i in range(0, n_voxels):
+        voxel_rfs[i, :] = np.roll(gaussian, voxel_tuning[i] -
+                                  ((feature_resolution // 2) - 1))
+    voxel_rfs += np.random.rand(n_voxels, feature_resolution) * rf_noise
+    voxel_rfs = voxel_rfs / np.max(voxel_rfs, axis=1)[:, None]
+
+    return voxel_rfs, voxel_tuning
+
+
+def generate_1d_rf_responses(rfs, trial_list, feature_resolution,
+                             feature_range, trial_noise=0.25):
+    """
+    Generates trial-wise data for a given set of receptive fields (RFs) and
+    a 1d array of features presented across trials.
+
+    Parameters
+    ----------
+
+    voxel_rfs : 2d numpy array (float)
+        The receptive fields in feature space. Dimensions must be n_voxels
+        by feature_resolution.
+
+    trial_list : 1d numpy array (numeric)
+        The feature value of the stimulus presented on individual trials.
+        Array size be n_trials.
+
+    feature_resolution : int
+        Number of points along the feature axis.
+
+    feature_range : tuple (numeric)
+        A tuple indicating the start and end values of the feature range. e.g.
+        (0, 359) for motion directions.
+
+    trial_noise : float [default 0.25]
+        Amount of uniform noise to inject into the synthetic data. This is
+        generated independently for every trial and voxel.
+
+    Returns
+    ----------
+
+    trial_data : 2d numpy array (float)
+        The synthetic data for each voxel and trial. Dimensions are n_voxels by
+        n_trials.
+
+    """
+    range_start, range_stop = feature_range
+    stim_axis = np.linspace(range_start, range_stop,
+                            feature_resolution)
+    if range_start > 0:
+        trial_list = trial_list + range_start
+    elif range_start < 0:
+        trial_list = trial_list - range_start
+    one_hot = np.eye(feature_resolution)
+    indices = [np.argmin(abs(stim_axis - x)) for x in trial_list]
+    stimulus_mask = one_hot[:, indices]
+    trial_data = rfs @ stimulus_mask
+    trial_data += np.random.rand(rfs.shape[0], trial_list.size) * \
+        (trial_noise * np.max(trial_data))
+
+    return trial_data

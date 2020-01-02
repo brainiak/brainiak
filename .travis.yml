@@ -1,7 +1,3 @@
-branches:
-  only:
-    - master
-
 matrix:
   include:
     - os: linux
@@ -38,12 +34,11 @@ matrix:
     - os: linux
       dist: xenial
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: travis_wait 40 .conda/bin/build
 
     - os: osx
-      osx_image: xcode8
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: travis_wait 40 .conda/bin/build
 
 install:
     - python3 -m pip install -U pip codecov
