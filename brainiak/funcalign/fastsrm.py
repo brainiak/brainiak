@@ -926,6 +926,9 @@ def _compute_subject_basis(corr_mat):
     or shape=[n_components, n_supervoxels]
         basis of subject or reduced_basis of subject
     """
+    # The perturbation is only here to be
+    # consistent with current implementation
+    # of DetSRM.
     perturbation = np.zeros(corr_mat.shape)
     np.fill_diagonal(perturbation, 0.001)
     U, _, V = scipy.linalg.svd(corr_mat + perturbation, full_matrices=False)
@@ -972,6 +975,9 @@ def fast_srm(reduced_data_list,
         return lowram_srm(reduced_data_list, n_iter, n_components)
     else:
         # We need to switch data to DetSRM format
+        # Indeed in DetSRM all sessions are concatenated.
+        # Whereas in FastSRM multiple sessions are supported.
+
         n_subjects, n_sessions = reduced_data_list.shape[:2]
         # We store the correspondence between timeframes and session
         timeframes_slices = []
