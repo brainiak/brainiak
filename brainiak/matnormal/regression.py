@@ -20,8 +20,11 @@ class MatnormRegression(BaseEstimator):
         TR noise covariance class following CovBase interface.
     space_cov : subclass of CovBase
         Voxel noise covariance class following CovBase interface.
-    learnRate : real, default=0.01
-        Step size for the Adam optimizer
+    optimizer : string, default="L-BFGS-B"
+        Scipy optimizer to use. For other options, see "method" argument
+        in https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize
+    optCtrl: dict, default=None
+        Additional arguments to pass to scipy.optimize.minimize.
 
     """
 
@@ -59,26 +62,6 @@ class MatnormRegression(BaseEstimator):
             Design matrix
         Y : np.array, TRs by voxels.
             fMRI data
-        voxel_pos: np.array, n_voxels by 3, default: None
-            Spatial positions of voxels (optional).
-            If provided, and if space_cov is a CovGP, the positions
-            for computing the GP covaraince matrix. Otherwise CovGP
-            defaults to distances of 1 unit between all voxels.
-            Ignored by non-GP noise covariances.
-        times : np.array, TRs by 1, default:None
-            Timestamps of observations (optional).
-            If provided, and if time_cov is a CovGP, the the times
-            for computing the GP covaraince matrix. Otherwise CovGP
-            defaults to distances of 1 unit between all times.
-            Ignored by non-GP noise covariances.
-        max_iter: int, default=1000
-            Maximum number of iterations to run
-        step: int, default=100
-            Number of steps between optimizer status outputs.
-        restart: bool, default=True
-            If this is true, optimizer is restarted (e.g. for a new dataset).
-            Otherwise optimizer will continue from where it is now (for example
-            for running more iterations if the initial number was not enough).
         """
 
         self.n_c = X.shape[1]

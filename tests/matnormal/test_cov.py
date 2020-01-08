@@ -108,7 +108,7 @@ def test_CovIsotropic():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = cov.sigma.eval(session=sess) * np.eye(cov.size)
+        cov_np = cov._cov.eval(session=sess) * np.eye(cov.size)
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
         assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
@@ -135,7 +135,7 @@ def test_CovDiagonal():
 def test_CovDiagonal_initialized():
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
-    cov = CovDiagonal(size=m, sigma=np.diag(cov_np))
+    cov = CovDiagonal(size=m, diag_var=np.diag(cov_np))
 
     with tf.Session() as sess:
         # initialize the random covariance

@@ -58,8 +58,8 @@ is :math:`m\\times m` and :math:`\\C` is :math:`n\\times n`.
 
 The `brainiak.matnormal` package provides structure to infer models that
 can be stated in the matrix-normal notation that are useful for fMRI analysis.
-It provides a few interfaces. `MatnormModelBase` is intended to be subclasses
-from by matrix-variate models. It provides a wrapper for the tensorflow
+It provides a few interfaces. `MatnormModelBase` is intended is intended as a
+base class for matrix-variate models. It provides a wrapper for the tensorflow
 optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
 for noise covariances (`CovBase`). Any class that follows the interface

@@ -28,9 +28,9 @@ __all__ = [
 
 class CovBase(abc.ABC):
     """Base metaclass for residual covariances.
-    For more on abstract classes, see 
+    For more on abstract classes, see
     https://docs.python.org/3/library/abc.html
-    
+
     Parameters
     ----------
 
@@ -101,6 +101,20 @@ class CovIdentity(CovBase):
         """
         return X
 
+    @property
+    def _prec(self):
+        """Expose the precision explicitly (mostly for testing /
+        visualization, materializing large covariances may be intractable)
+        """
+        return tf.eye(self.size, dtype=tf.float64)
+
+    @property
+    def _cov(self):
+        """Expose the covariance explicitly (mostly for testing /
+        visualization, materializing large covariances may be intractable)
+        """
+        return tf.eye(self.size, dtype=tf.float64)
+
 
 class CovAR1(CovBase):
     """AR(1) covariance parameterized by autoregressive parameter rho
@@ -160,7 +174,8 @@ class CovAR1(CovBase):
                 tf.random_normal([1], dtype=tf.float64), name="rho"
             )
         else:
-            self.rho_unc = tf.Variable(np.log(rho), name="rho")
+            self.rho_unc = tf.Variable(
+                2 * tf.sigmoid(self.rho_unc) - 1, name="rho")
 
     @property
     def logdet(self):
@@ -178,7 +193,7 @@ class CovAR1(CovBase):
     @property
     def _prec(self):
         """Precision matrix corresponding to this AR(1) covariance.
-        Unlike BRSA we assume stationarity within block so no special case
+        We assume stationarity within block so no special case
         for first/last element of a block. This makes constructing this
         matrix easier.
         reprsimil.BRSA says (I - rho1 * D + rho1**2 * F) / sigma**2 and we
@@ -209,30 +224,30 @@ class CovIsotropic(CovBase):
     ----------
     size: int
         size of covariance matrix
-    sigma: float or None
-        initial value of new noise parameter (if None, initialize randomly)
+    var: float or None
+        initial value of new variance parameter (if None, initialize randomly)
 
     """
 
-    def __init__(self, size, sigma=None):
+    def __init__(self, size, var=None):
         super(CovIsotropic, self).__init__(size)
-        if sigma is None:
-            self.log_sigma = tf.Variable(
+        if var is None:
+            self.log_var = tf.Variable(
                 tf.random_normal([1], dtype=tf.float64), name="sigma"
             )
         else:
-            self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
-        self.sigma = tf.exp(self.log_sigma)
+            self.log_var = tf.Variable(np.log(var), name="sigma")
+        self.var = tf.exp(self.log_var)
 
     @property
     def logdet(self):
-        return self.size * self.log_sigma
+        return self.size * self.log_var
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
             this covariance
         """
-        return [self.log_sigma]
+        return [self.log_var]
 
     def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
@@ -243,22 +258,31 @@ class CovIsotropic(CovBase):
             Tensor to multiply by inverse of this covariance
 
         """
-        return X / self.sigma
+        return X / self.var
 
 
 class CovDiagonal(CovBase):
     """Uncorrelated (diagonal) noise covariance
+
+    Parameters
+    ----------
+    size: int
+        size of covariance matrix
+    diag_var: float or None
+        initial value of (diagonal) variance vector (if None, initialize
+        randomly)
+
     """
 
-    def __init__(self, size, sigma=None):
+    def __init__(self, size, diag_var=None):
         super(CovDiagonal, self).__init__(size)
-        if sigma is None:
+        if diag_var is None:
             self.logprec = tf.Variable(
                 tf.random_normal([size], dtype=tf.float64), name="precisions"
             )
         else:
             self.logprec = tf.Variable(
-                np.log(1 / sigma), name="log-precisions")
+                np.log(1 / diag_var), name="log-precisions")
 
         self.prec = tf.exp(self.logprec)
         self.prec_dimaugmented = tf.expand_dims(self.prec, -1)
@@ -347,7 +371,9 @@ class CovUnconstrainedCholesky(CovBase):
 
     @property
     def logdet(self):
-        return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.L)))
+
+        # We save a log here by using the diag of L_full
+        return 2 * tf.reduce_sum((tf.matrix_diag_part(self.L_full)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit

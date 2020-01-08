@@ -21,7 +21,7 @@ p = 3
 rtol = 1e-7
 
 
-def test_against_scipy_mvn_col_conditional():
+def test_against_scipy_mvn_row_conditional():
 
     # have to be careful for constructing everything as a submatrix of a big
     # PSD matrix, else no guarantee that anything's invertible.
@@ -56,7 +56,7 @@ def test_against_scipy_mvn_col_conditional():
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
 
 
-def test_against_scipy_mvn_row_conditional():
+def test_against_scipy_mvn_col_conditional():
 
     # have to be careful for constructing everything as a submatrix of a big
     # PSD matrix, else no guarantee that anything's invertible.

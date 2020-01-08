@@ -7,7 +7,7 @@ __all__ = [
 
 
 def tf_solve_lower_triangular_kron(L, y):
-    """ Tensor flow function to solve L x = y
+    """ Tensorflow function to solve L x = y
     where L = kron(L[0], L[1] .. L[n-1])
     and L[i] are the lower triangular matrices
 
@@ -53,7 +53,7 @@ def tf_solve_lower_triangular_kron(L, y):
 
 
 def tf_solve_upper_triangular_kron(L, y):
-    """ Tensor flow function to solve L^T x = y
+    """ Tensorflow function to solve L^T x = y
     where L = kron(L[0], L[1] .. L[n-1])
     and L[i] are the lower triangular matrices
 
@@ -142,7 +142,7 @@ def tf_kron_mult(L, x):
 
 
 def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
-    """ Tensor flow function to solve L x = y
+    """ Tensorflow function to solve L x = y
     where L is a lower triangular matrix with a mask
 
     Arguments
@@ -161,7 +161,7 @@ def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
         True if L is lower triangular, False if upper triangular
 
     adjoint : boolean (default : False)
-        True if solving for L^x = y, False if solving for Lx = y
+        True if solving for L^T x = y, False if solving for Lx = y
 
     Returns
     -------
@@ -187,9 +187,10 @@ def tf_masked_triangular_solve(L, y, mask, lower=True, adjoint=False):
 
 
 def tf_solve_lower_triangular_masked_kron(L, y, mask):
-    """ Tensor flow function to solve L x = y
-    where L = kron(L[0], L[1] .. L[n-1])
-    and L[i] are the lower triangular matrices
+    """ Tensorflow function to solve L x = y
+    where L = kron(L[0], L[1] .. L[n-1]),
+    L[i] are the lower triangular matrices,
+    and mask is a binary elementwise mask on the full L
 
     Arguments
     ---------
@@ -251,7 +252,7 @@ def tf_solve_lower_triangular_masked_kron(L, y, mask):
 
 
 def tf_solve_upper_triangular_masked_kron(L, y, mask):
-    """ Tensor flow function to solve L^T x = y
+    """ Tensorflow function to solve L^T x = y
     where L = kron(L[0], L[1] .. L[n-1])
     and L[i] are the lower triangular matrices
 

@@ -15,26 +15,19 @@ class MNRSA(BaseEstimator):
     """ Matrix normal version of RSA.
 
     The goal of this analysis is to find the covariance of the mapping from
-    some design matrixX to the fMRI signal Y. It does so by marginalizing over
+    some design matrix X to the fMRI signal Y. It does so by marginalizing over
     the actual mapping (i.e. averaging over the uncertainty in it), which
     happens to correct a bias imposed by structure in the design matrix on the
     RSA estimate (see Cai et al., NIPS 2016).
 
-    This implementation makes different choices about two things relative to
-    `brainiak.reprsimil.BRSA`:
-
-    1. The noise covariance is assumed to be kronecker-separable. Informally,
-    this means that all voxels has the same temporal covariance, and all time
-    points have the same spatialcovariance. This is in contrast to BRSA, which
-    allows different temporal covariance for each voxel. On the other hand,
-    computational efficiencies enabled by this choice allow MNRSA to
-    support a richer class of space and time covariances (anything in
-    `brainiak.matnormal.covs`).
-
-    2. MNRSA does not estimate the nuisance timecourse X_0. Instead,
-    we expect the temporal noise covariance to capture the same property
-    (because when marginalizing over B_0 gives a low-rank component
-    to the noise covariance, something we hope to have available soon.
+    This implementation makes different choices about residual covariance
+    relative to `brainiak.reprsimil.BRSA`: Here, the noise covariance is
+    assumed to be kronecker-separable. Informally, this means that all voxels
+    have the same temporal covariance, and all time points have the same
+    spatial covariance. This is in contrast to BRSA, which allows different
+    temporal covariance for each voxel. On the other hand, computational
+    efficiencies enabled by this choice allow MNRSA to support a richer class
+    of space and time covariances (anything in `brainiak.matnormal.covs`).
 
     For users: in general, if you are worried about voxels each having
     different temporal noise structure,you should use
@@ -94,9 +87,9 @@ class MNRSA(BaseEstimator):
         Parameters
         ----------
         X: 2d array
-            Brain data matrix (voxels by TRs). Y in the math
+            Brain data matrix (TRs by voxels). Y in the math
         y: 2d array or vector
-            Behavior data matrix (behavioral obsevations by TRs). X in the math
+            Behavior data matrix (TRs by behavioral obsevations). X in the math
         max_iter: int, default=1000
             Maximum number of iterations to run
         step: int, default=100
