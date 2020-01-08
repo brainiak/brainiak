@@ -26,11 +26,18 @@ __all__ = [
 ]
 
 
-class CovBase(object):
-    """Base metaclass for noise covariances
-    """
+class CovBase(abc.ABC):
+    """Base metaclass for residual covariances.
+    For more on abstract classes, see 
+    https://docs.python.org/3/library/abc.html
+    
+    Parameters
+    ----------
 
-    __metaclass__ = abc.ABCMeta
+    size: int
+        The size of the covariance matrix.
+
+    """
 
     def __init__(self, size):
         self.size = size
@@ -45,8 +52,9 @@ class CovBase(object):
         """
         pass
 
+    @property
     def logdet(self):
-        """ log|Sigma|
+        """ log determinant of this covariance
         """
         pass
 
@@ -59,14 +67,14 @@ class CovBase(object):
     @property
     def _prec(self):
         """Expose the precision explicitly (mostly for testing /
-        visualization)
+        visualization, materializing large covariances may be intractable)
         """
         return self.solve(tf.eye(self.size, dtype=tf.float64))
 
     @property
     def _cov(self):
         """Expose the covariance explicitly (mostly for testing /
-        visualization)
+        visualization, materializing large covariances may be intractable)
         """
         return tf.linalg.inv(self._prec)
 
@@ -77,10 +85,13 @@ class CovIdentity(CovBase):
 
     def __init__(self, size):
         super(CovIdentity, self).__init__(size)
-        self.logdet = tf.constant(0.0, "float64")
+
+    @property
+    def logdet(self):
+        return tf.constant(0.0, "float64")
 
     def get_optimize_vars(self):
-        """ Returns a list of tf variables that need to get optimized to
+        """Returns a list of tf variables that need to get optimized to
             fit this covariance
         """
         return []
@@ -92,7 +103,19 @@ class CovIdentity(CovBase):
 
 
 class CovAR1(CovBase):
-    """AR1 covariance
+    """AR(1) covariance parameterized by autoregressive parameter rho
+    and new noise sigma.
+
+    Parameters
+    ----------
+    size: int
+        size of covariance matrix
+    rho: float or None
+        initial value of autoregressive parameter (if None, initialize
+        randomly)
+    sigma: float or None
+        initial value of new noise parameter (if None, initialize randomly)
+
     """
 
     def __init__(self, size, rho=None, sigma=None, scan_onsets=None):
@@ -139,28 +162,33 @@ class CovAR1(CovBase):
         else:
             self.rho_unc = tf.Variable(np.log(rho), name="rho")
 
-        # make logdet, first unconstrain rho and sigma
+    @property
+    def logdet(self):
+        """ log-determinant of this covariance
+        """
+        # first, unconstrain rho and sigma
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         sigma = tf.exp(self.log_sigma)
         # now compute logdet
-        self.logdet = tf.reduce_sum(
+        return tf.reduce_sum(
             2 * tf.constant(self.run_sizes, dtype=tf.float64) * tf.log(sigma)
             - tf.log(1 - tf.square(rho))
         )
 
-        # precompute sigma_inv op
-        # Unlike BRSA we assume stationarity within block so no special case
-        # for first/last element of a block. This makes constructing this
-        # matrix easier.
-        # reprsimil.BRSA says (I - rho1 * D + rho1**2 * F) / sigma**2
-
+    @property
+    def _prec(self):
+        """Precision matrix corresponding to this AR(1) covariance.
+        Unlike BRSA we assume stationarity within block so no special case
+        for first/last element of a block. This makes constructing this
+        matrix easier.
+        reprsimil.BRSA says (I - rho1 * D + rho1**2 * F) / sigma**2 and we
+        use the same trick
+        """
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         sigma = tf.exp(self.log_sigma)
-        self.Sigma_inv = (
-            self._identity_mat
-            - rho * self.offdiag_template
-            + rho ** 2 * self.diag_template
-        ) / tf.square(sigma)
+
+        return (self._identity_mat - rho * self.offdiag_template +
+                rho ** 2 * self.diag_template) / tf.square(sigma)
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to
@@ -171,11 +199,19 @@ class CovAR1(CovBase):
     def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
         """
-        return tf.matmul(self.Sigma_inv, X)
+        return tf.matmul(self._prec, X)
 
 
 class CovIsotropic(CovBase):
     """Scaled identity (isotropic) noise covariance.
+
+    Parameters
+    ----------
+    size: int
+        size of covariance matrix
+    sigma: float or None
+        initial value of new noise parameter (if None, initialize randomly)
+
     """
 
     def __init__(self, size, sigma=None):
@@ -186,10 +222,11 @@ class CovIsotropic(CovBase):
             )
         else:
             self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
-
-        self.logdet = self.size * self.log_sigma
-
         self.sigma = tf.exp(self.log_sigma)
+
+    @property
+    def logdet(self):
+        return self.size * self.log_sigma
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -199,6 +236,12 @@ class CovIsotropic(CovBase):
 
     def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+
+        Parameters
+        ----------
+        X: tf.Tensor
+            Tensor to multiply by inverse of this covariance
+
         """
         return X / self.sigma
 
@@ -217,9 +260,12 @@ class CovDiagonal(CovBase):
             self.logprec = tf.Variable(
                 np.log(1 / sigma), name="log-precisions")
 
-        self.logdet = -tf.reduce_sum(self.logprec)
         self.prec = tf.exp(self.logprec)
         self.prec_dimaugmented = tf.expand_dims(self.prec, -1)
+
+    @property
+    def logdet(self):
+        return -tf.reduce_sum(self.logprec)
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -229,6 +275,12 @@ class CovDiagonal(CovBase):
 
     def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+
+        Parameters
+        ----------
+        X: tf.Tensor
+            Tensor to multiply by inverse of this covariance
+
         """
         return tf.multiply(self.prec_dimaugmented, X)
 
@@ -293,7 +345,9 @@ class CovUnconstrainedCholesky(CovBase):
             L_indeterminate, tf.exp(tf.matrix_diag_part(L_indeterminate))
         )
 
-        self.logdet = 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.L)))
+    @property
+    def logdet(self):
+        return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.L)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -302,9 +356,13 @@ class CovUnconstrainedCholesky(CovBase):
         return [self.L_full]
 
     def solve(self, X):
-        """
-        Given this Sigma and some X, compute :math:`Sigma^{-1} * x` using
-        cholesky solve
+        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        using cholesky solve
+        Parameters
+        ----------
+        X: tf.Tensor
+            Tensor to multiply by inverse of this covariance
+
         """
         return tf.cholesky_solve(self.L, X)
 
@@ -314,6 +372,13 @@ class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
        cholesky factor.
        Regularized using the trick from Chung et al. 2015 such that as the
        covariance approaches singularity, the likelihood goes to 0.
+
+    References
+    ----------
+    Chung, Y., Gelman, A., Rabe-Hesketh, S., Liu, J., & Dorie, V. (2015).
+    Weakly Informative Prior for Point Estimation of Covariance Matrices
+    in Hierarchical Models. Journal of Educational and Behavioral Statistics,
+    40(2), 136–157. https://doi.org/10.3102/1076998615570945
     """
 
     def __init__(self, size, Sigma=None):
@@ -331,7 +396,7 @@ class CovUnconstrainedInvCholesky(CovBase):
     """Unconstrained noise covariance parameterized
        in terms of its precision cholesky. Use this over the
        regular cholesky unless you have a good reason not to, since
-       you save a solve on every step.
+       this saves a cholesky solve on every step of optimization
     """
 
     def __init__(self, size, invSigma=None):
@@ -356,8 +421,10 @@ class CovUnconstrainedInvCholesky(CovBase):
         self.Linv = tf.matrix_set_diag(
             L_indeterminate, tf.exp(tf.matrix_diag_part(L_indeterminate))
         )
-        self.logdet = -2 * \
-            tf.reduce_sum(tf.log(tf.matrix_diag_part(self.Linv)))
+
+    @property
+    def logdet(self):
+        return -2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(self.Linv)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -369,6 +436,12 @@ class CovUnconstrainedInvCholesky(CovBase):
         """
         Given this Sigma and some X, compute :math:`Sigma^{-1} * x` using
         matmul (since we're parameterized by L_inv)
+
+        Parameters
+        ----------
+        X: tf.Tensor
+            Tensor to multiply by inverse of this covariance
+
         """
         return tf.matmul(x_tx(self.Linv), X)
 
@@ -434,15 +507,14 @@ class CovKroneckerFactored(CovBase):
             for mat in L_indeterminate
         ]
 
-        self.logdet = self._make_logdet()
-
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized
             to fit this covariance
         """
         return self.L_full
 
-    def _make_logdet(self):
+    @property
+    def logdet(self):
         """ log|Sigma| using the diagonals of the cholesky factors.
         """
         if self.mask is None:
@@ -470,6 +542,12 @@ class CovKroneckerFactored(CovBase):
         """ Given this Sigma and some X, compute Sigma^{-1} * x using
         traingular solves with the cholesky factors.
         Do 2 triangular solves - L L^T x = y as L z = y and L^T x = z
+
+        Parameters
+        ----------
+        X: tf.Tensor
+            Tensor to multiply by inverse of this covariance
+
         """
         if self.mask is None:
             z = tf_solve_lower_triangular_kron(self.L, X)
