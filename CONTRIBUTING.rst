@@ -72,8 +72,10 @@ step-by-step description of our recommended workflow:
      git push --set-upstream origin new-feature  # only for the first push
      git push  # for all subsequent pushes
 
-9. When your feature is ready, make a pull request on GitHub. After your
-   feature is accepted, update your ``master`` branch and delete your feature
+9. When your feature is ready, make a PR on GitHub. If you collaborate with
+   others on the code, credit them using Co-authored-by_; if you are merging a
+   PR, credit all authors using Co-authored-by_ in the PR squash message. After
+   your PR is merged, update your ``master`` branch and delete your feature
    branch::
 
      git checkout master
@@ -88,6 +90,8 @@ requests`_ for more information.
    https://pip.pypa.io/en/latest/development/#adding-a-news-entry
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
+.. _Co-authored-by:
+   https://help.github.com/en/github/committing-changes-to-your-project/creating-a-commit-with-multiple-authors
 
 All pull requests are automatically tested using the ``pr-check.sh`` script.
 You should test you contributions yourself on your computer using
@@ -342,8 +346,9 @@ To make a release:
        anaconda upload -u brainiak \
        $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
 
-9. Build and push the Docker image::
+9. Build and push the Docker image (requires brainiak-tutorials checkout)::
 
+       cd tutorials && git pull --ff-only && cd -
        docker build --no-cache -t brainiak/brainiak .
        docker push brainiak/brainiak
 

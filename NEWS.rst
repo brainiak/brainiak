@@ -2,6 +2,44 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.9.1 (2019-08-27)
+===========================
+
+Features
+--------
+
+- Added Conda packages for Python 3.7.
+
+
+BrainIAK 0.9 (2019-06-18)
+=========================
+
+Features
+--------
+
+- isc: Revamped ISC/ISFC functionality with more statistical tests. (`#384
+  <https://github.com/brainiak/brainiak/issues/384>`_)
+- utils: phase_randomize outputs phase-scrambled input data, not tied to
+  ISC/ISFC. (`#396 <https://github.com/brainiak/brainiak/issues/396>`_)
+- utils: p_from_null no longer estimates distribution, simply returns p-value.
+  (`#397 <https://github.com/brainiak/brainiak/issues/397>`_)
+- isc: Analyses will now tolerate NaNs or tolerate a proportion of NaNs. (`#398
+  <https://github.com/brainiak/brainiak/issues/398>`_)
+- isc: Output either vectorized triangle and diagonal or square matrices.
+  (`#399 <https://github.com/brainiak/brainiak/issues/399>`_)
+- isc: Asymmetric ISFC analysis can now be performed based on a targets array.
+  (`#409 <https://github.com/brainiak/brainiak/issues/409>`_)
+- Added tutorials to Docker image. (`#425
+  <https://github.com/brainiak/brainiak/pull/425>`_)
+
+Deprecations and removals
+-------------------------
+
+- isfc: ISC/ISFC have a new API and are available in `brainiak.isc`, not
+  ``brainiak.isfc``. (`#384
+  <https://github.com/brainiak/brainiak/issues/384>`_)
+
+
 BrainIAK 0.8 (2018-11-06)
 =========================
 
@@ -17,6 +55,8 @@ Features
 - fmrisim: Added fitting procedure for SFNR and SNR parameters. Updated AR to
   be ARMA, involving both the generation and estimation. (`#372
   <https://github.com/brainiak/brainiak/pull/372>`_)
+- searchlight: Halved memory usage when ``pool_size=1``. (`#386
+  <https://github.com/brainiak/brainiak/pull/386>`_)
 - reprsimil: Added an option in BRSA to set the prior of SNR to be "equal"
   across all voxels. (`#387
   <https://github.com/brainiak/brainiak/pull/387>`_)
