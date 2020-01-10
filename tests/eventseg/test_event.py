@@ -33,13 +33,10 @@ def test_fit_shapes():
         "Segmentation from find_events not correctly normalized"
 
     es_invalid = EventSegment(K)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, message="T < K should cause error"):
         es_invalid.model_prior(K-1)
-        # ``with`` block is about to end with no error.
-        pytest.fail("T < K should cause error")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, message="#Events < K should cause error"):
         es_invalid.set_event_patterns(np.zeros((V, K-1)))
-        pytest.fail("#Events < K should cause error")
 
 
 def test_simple_boundary():
@@ -63,13 +60,11 @@ def test_event_transfer():
     es = EventSegment(2)
     sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
 
-    with pytest.raises(NotFittedError):
+    with pytest.raises(NotFittedError, message="Should need to set variance"):
         seg = es.find_events(sample_data.T)[0]
-        pytest.fail("Should need to set variance")
 
-    with pytest.raises(NotFittedError):
+    with pytest.raises(NotFittedError, message="Should need to set patterns"):
         seg = es.find_events(sample_data.T, np.asarray([1, 1]))[0]
-        pytest.fail("Should need to set patterns")
 
     es.set_event_patterns(np.asarray([[1, 0], [0, 1]]))
     seg = es.find_events(sample_data.T, np.asarray([1, 1]))[0]
@@ -120,10 +115,14 @@ def test_sym():
 
 def test_chains():
     es = EventSegment(5, event_chains=np.array(['A', 'A', 'B', 'B', 'B']))
+    sample_data = np.array([[0, 0, 0], [1, 1, 1]])
+
+    with pytest.raises(RuntimeError,
+                       message="Shouldn't allow fit() with event chains"):
+        seg = es.fit(sample_data.T)[0]
 
     es.set_event_patterns(np.array([[1, 1, 0, 0, 0],
                                     [0, 0, 1, 1, 1]]))
-    sample_data = np.array([[0, 0, 0], [1, 1, 1]])
     seg = es.find_events(sample_data.T, 0.1)[0]
 
     ev = np.nonzero(seg > 0.99)[1]
@@ -158,3 +157,21 @@ def test_prior():
 
     assert np.all(np.isclose(mp, mp_gt)),\
         "Prior does not match analytic solution"
+
+
+def test_split_merge():
+    ev = np.array(
+        [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+         3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+    random_state = np.random.RandomState(0)
+    ev_pat = random_state.rand(5, 10)
+    D = np.zeros((len(ev), 10))
+    for t in range(len(ev)):
+        D[t, :] = ev_pat[ev[t], :] + 0.1*random_state.rand(10)
+
+    hmm_sm = EventSegment(5, merge_split=True, merge_split_proposals=2)
+    hmm_sm.fit(D)
+    hmm_events = np.argmax(hmm_sm.segments_[0], axis=1)
+
+    assert np.all(ev == hmm_events),\
+        "Merge/split fails to find highly uneven events"
