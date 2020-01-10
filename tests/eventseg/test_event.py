@@ -33,9 +33,9 @@ def test_fit_shapes():
         "Segmentation from find_events not correctly normalized"
 
     es_invalid = EventSegment(K)
-    with pytest.raises(ValueError, message="T < K should cause error"):
+    with pytest.raises(ValueError):
         es_invalid.model_prior(K-1)
-    with pytest.raises(ValueError, message="#Events < K should cause error"):
+    with pytest.raises(ValueError):
         es_invalid.set_event_patterns(np.zeros((V, K-1)))
 
 
@@ -60,10 +60,10 @@ def test_event_transfer():
     es = EventSegment(2)
     sample_data = np.asarray([[1, 1, 1, 0, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1]])
 
-    with pytest.raises(NotFittedError, message="Should need to set variance"):
+    with pytest.raises(NotFittedError):
         seg = es.find_events(sample_data.T)[0]
 
-    with pytest.raises(NotFittedError, message="Should need to set patterns"):
+    with pytest.raises(NotFittedError):
         seg = es.find_events(sample_data.T, np.asarray([1, 1]))[0]
 
     es.set_event_patterns(np.asarray([[1, 0], [0, 1]]))
@@ -117,8 +117,7 @@ def test_chains():
     es = EventSegment(5, event_chains=np.array(['A', 'A', 'B', 'B', 'B']))
     sample_data = np.array([[0, 0, 0], [1, 1, 1]])
 
-    with pytest.raises(RuntimeError,
-                       message="Shouldn't allow fit() with event chains"):
+    with pytest.raises(RuntimeError):
         seg = es.fit(sample_data.T)[0]
 
     es.set_event_patterns(np.array([[1, 1, 0, 0, 0],
