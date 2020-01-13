@@ -174,7 +174,7 @@ def test_split_merge():
     for t in range(len(ev)):
         D[t, :] = ev_pat[ev[t], :] + 0.1*random_state.rand(10)
 
-    hmm_sm = EventSegment(5, merge_split=True, merge_split_proposals=2)
+    hmm_sm = EventSegment(5, split_merge=True, split_merge_proposals=2)
     hmm_sm.fit(D)
     hmm_events = np.argmax(hmm_sm.segments_[0], axis=1)
 

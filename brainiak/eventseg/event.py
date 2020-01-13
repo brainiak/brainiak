@@ -35,9 +35,9 @@ belong to each chain, define event patterns using set_event_patterns(),
 then fit to a new dataset with find_events.
 
 2) To obtain better fits when the underlying event structure contains
-events that vary substantially in length, the merge_split option allows
+events that vary substantially in length, the split_merge option allows
 the fit() function to re-distribute events during fitting. The number of
-merge/split proposals is controlled by merge_split_proposals, which
+merge/split proposals is controlled by split_merge_proposals, which
 controls how thorough versus fast the fitting process is.
 """
 
@@ -80,12 +80,12 @@ class EventSegment(BaseEstimator):
         Array with unique value for each separate chain of events, each linked
         in the order they appear in the array
 
-    merge_split: bool, default: False
+    split_merge: bool, default: False
         Determines whether merge/split proposals are used during fitting with
         fit(). This can improve fitting performance when events are highly
         uneven in size, but requires additional time
 
-    merge_split_proposals: int, default: 1
+    split_merge_proposals: int, default: 1
         Number of merges and splits to consider at each step. Computation time
         scales as O(proposals^2) so this should usually be a small value
 
@@ -116,12 +116,12 @@ class EventSegment(BaseEstimator):
     def __init__(self, n_events=2,
                  step_var=_default_var_schedule,
                  n_iter=500, event_chains=None,
-                 merge_split=False, merge_split_proposals=1):
+                 split_merge=False, split_merge_proposals=1):
         self.n_events = n_events
         self.step_var = step_var
         self.n_iter = n_iter
-        self.merge_split = merge_split
-        self.merge_split_proposals = merge_split_proposals
+        self.split_merge = split_merge
+        self.split_merge_proposals = split_merge_proposals
         if event_chains is None:
             self.event_chains = np.zeros(n_events)
         else:
@@ -215,10 +215,10 @@ class EventSegment(BaseEstimator):
                 logprob = self._logprob_obs(X[i], mean_pat, iteration_var)
                 log_gamma[i], self.ll_[-1, i] = self._forward_backward(logprob)
 
-            if step > 1 and self.merge_split:
+            if step > 1 and self.split_merge:
                 curr_ll = np.mean(self.ll_[-1, :])
                 self.ll_[-1, :], log_gamma, mean_pat = \
-                    self._merge_split(X, log_gamma, iteration_var, curr_ll)
+                    self._split_merge(X, log_gamma, iteration_var, curr_ll)
 
             # If log-likelihood has started decreasing, undo last step and stop
             if np.mean(self.ll_[-1, :]) < best_ll:
@@ -539,7 +539,7 @@ class EventSegment(BaseEstimator):
 
         return segments, test_ll
 
-    def _merge_split(self, X, log_gamma, iteration_var, curr_ll):
+    def _split_merge(self, X, log_gamma, iteration_var, curr_ll):
         """Attempt to improve log-likelihood with a merge/split
 
         The simulated annealing used in fit() is susceptible to getting
@@ -550,7 +550,7 @@ class EventSegment(BaseEstimator):
         It then tests to see whether simultaneously merging one of the
         pairs from (a) and splitting one of the events from (b) can improve
         the log-likelihood. The number of (a)/(b) pairs tested is determined
-        by the merge_split_proposals class attribute.
+        by the split_merge_proposals class attribute.
 
         Parameters
         ----------
@@ -630,9 +630,9 @@ class EventSegment(BaseEstimator):
 
         # Find best merge/split candidates
         best_merge = np.flipud(np.argsort(merge_corr))
-        best_merge = best_merge[:self.merge_split_proposals]
+        best_merge = best_merge[:self.split_merge_proposals]
         best_split = np.argsort(split_corr)
-        best_split = best_split[:self.merge_split_proposals]
+        best_split = best_split[:self.split_merge_proposals]
 
         # For every pair of merge/split candidates, attempt the merge/split
         # and measure the log-likelihood. If any are better than curr_ll,
