@@ -180,3 +180,24 @@ def test_split_merge():
 
     assert np.all(ev == hmm_events),\
         "Merge/split fails to find highly uneven events"
+
+
+def test_sym_ll():
+    ev = np.array([0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2])
+    random_state = np.random.RandomState(0)
+    ev_pat = random_state.rand(3, 10)
+    D_forward = np.zeros((len(ev), 10))
+    for t in range(len(ev)):
+        D_forward[t, :] = ev_pat[ev[t], :] + 0.1 * random_state.rand(10)
+    D_backward = np.flip(D_forward, axis=0)
+
+    hmm_forward = EventSegment(3)
+    hmm_forward.set_event_patterns(ev_pat.T)
+    _, ll_forward = hmm_forward.find_events(D_forward, var=1)
+
+    hmm_backward = EventSegment(3)
+    hmm_backward.set_event_patterns(np.flip(ev_pat.T, axis=1))
+    _, ll_backward = hmm_backward.find_events(D_backward, var=1)
+
+    assert (ll_forward == ll_backward),\
+        "Log-likelihood not symmetric forward/backward"

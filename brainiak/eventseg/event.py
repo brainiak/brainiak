@@ -215,15 +215,15 @@ class EventSegment(BaseEstimator):
                 logprob = self._logprob_obs(X[i], mean_pat, iteration_var)
                 log_gamma[i], self.ll_[-1, i] = self._forward_backward(logprob)
 
-            # If log-likelihood has started decreasing, undo last step and stop
-            if np.mean(self.ll_[-1, :]) < best_ll:
-                self.ll_ = self.ll_[:-1, :]
-                break
-
             if step > 1 and self.merge_split:
                 curr_ll = np.mean(self.ll_[-1, :])
                 self.ll_[-1, :], log_gamma, mean_pat = \
                     self._merge_split(X, log_gamma, iteration_var, curr_ll)
+
+            # If log-likelihood has started decreasing, undo last step and stop
+            if np.mean(self.ll_[-1, :]) < best_ll:
+                self.ll_ = self.ll_[:-1, :]
+                break
 
             self.segments_ = [np.exp(lg) for lg in log_gamma]
             self.event_var_ = iteration_var
@@ -647,17 +647,15 @@ class EventSegment(BaseEstimator):
                 continue
 
             # Construct new set of patterns with merge/split
-            mean_pat_ms = np.delete(mean_pat_last,
-                                    [s_e, m_e, m_e + 1], axis=1)
-            s_insert = s_e - 2*(s_e > m_e)
-            m_insert = m_e - (s_e < m_e)
-
-            # Insert in order
-            insert_inds = np.array([s_insert, s_insert, m_insert])
-            insert_pat = np.hstack((split_pat[:, (2 * s_e):(2 * s_e + 2)],
-                                    merge_pat[:, m_e:(m_e+1)]))
-            mean_pat_ms = np.insert(mean_pat_ms,
-                                    insert_inds, insert_pat, axis=1)
+            mean_pat_ms = np.delete(mean_pat_last, s_e, axis=1)
+            mean_pat_ms = np.insert(mean_pat_ms, [s_e, s_e],
+                                    split_pat[:, (2 * s_e):(2 * s_e + 2)],
+                                    axis=1)
+            mean_pat_ms = np.delete(mean_pat_ms,
+                                    [m_e + (s_e < m_e), m_e + (s_e < m_e) + 1],
+                                    axis=1)
+            mean_pat_ms = np.insert(mean_pat_ms, m_e + (s_e < m_e),
+                                    merge_pat[:, m_e], axis=1)
 
             # Measure log-likelihood with these new patterns
             ll_ms = np.zeros(n_train)
@@ -674,5 +672,7 @@ class EventSegment(BaseEstimator):
                 return_ll = ll_ms
                 for i in range(n_train):
                     return_lg[i] = log_gamma_ms[i].copy()
+                logger.debug("Identified merge %d,%d and split %d",
+                             m_e, m_e+1, s_e)
 
         return return_ll, return_lg, return_mp
