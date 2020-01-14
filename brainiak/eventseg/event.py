@@ -1,4 +1,4 @@
-#  Copyright 2016 Princeton University
+#  Copyright 2020 Princeton University
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -612,8 +612,10 @@ class EventSegment(BaseEstimator):
             cs = np.cumsum(sp, axis=0)
             for e in range(sp.shape[1]):
                 mid = np.where(cs[:, e] >= 0.5)[0][0]
-                split[:mid, 2 * e] = sp[:mid, e] / cs[mid - 1, e]
-                split[mid:, 2 * e + 1] = sp[mid:, e] / (1 - cs[mid - 1, e])
+                cs_first = cs[mid, e] - sp[mid, e]
+                cs_second = 1 - cs_first
+                split[:mid, 2 * e] = sp[:mid, e] / cs_first
+                split[mid:, 2 * e + 1] = sp[mid:, e] / cs_second
                 merge[:, e] = sp[:, e:(e + 2)].mean(1)
             merge_pat[i, :, :] = X[i].dot(merge)
             split_pat[i, :, :] = X[i].dot(split)
