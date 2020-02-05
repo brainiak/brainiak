@@ -593,34 +593,40 @@ class EventSegment(BaseEstimator):
             mean_pat[i, :, :] = X[i].dot(seg_prob[i])
         mean_pat = np.mean(mean_pat, axis=0)
 
-        # Compute correlations between every pair of neighboring
-        # events and their merged pattern. High values of
-        # merge_corr indicate events that are good candidates for
-        # being merged.
-        # Also, compute correlations between every event and each half of
-        # the event, with the midpoint defined as the point where
-        # the cumulative probability (across time) of being in the
-        # event = 0.5. Low values of split_corr indicate events
-        # that are good candidates for being split.
-        merge_corr = np.zeros(self.n_events)
+        # For each event, merge its probability distribution
+        # with the next event, and also split its probability
+        # distribution at its median into two separate events.
+        # Use these new event probability distributions to compute
+        # merged and split event patterns.
         merge_pat = np.empty((n_train, n_dim, self.n_events))
-        split_corr = np.zeros(self.n_events)
         split_pat = np.empty((n_train, n_dim, 2 * self.n_events))
         for i, sp in enumerate(seg_prob):  # Iterate over datasets
-            merge = np.zeros((sp.shape[0], sp.shape[1]))
-            split = np.zeros((sp.shape[0], 2 * sp.shape[1]))
+            m_evprob = np.zeros((sp.shape[0], sp.shape[1]))
+            s_evprob = np.zeros((sp.shape[0], 2 * sp.shape[1]))
             cs = np.cumsum(sp, axis=0)
             for e in range(sp.shape[1]):
+                # Split distribution at midpoint and normalize each half
                 mid = np.where(cs[:, e] >= 0.5)[0][0]
                 cs_first = cs[mid, e] - sp[mid, e]
                 cs_second = 1 - cs_first
-                split[:mid, 2 * e] = sp[:mid, e] / cs_first
-                split[mid:, 2 * e + 1] = sp[mid:, e] / cs_second
-                merge[:, e] = sp[:, e:(e + 2)].mean(1)
-            merge_pat[i, :, :] = X[i].dot(merge)
-            split_pat[i, :, :] = X[i].dot(split)
+                s_evprob[:mid, 2 * e] = sp[:mid, e] / cs_first
+                s_evprob[mid:, 2 * e + 1] = sp[mid:, e] / cs_second
+
+                # Merge distribution with next event distribution
+                m_evprob[:, e] = sp[:, e:(e + 2)].mean(1)
+
+            # Weight data by distribution to get event patterns
+            merge_pat[i, :, :] = X[i].dot(m_evprob)
+            split_pat[i, :, :] = X[i].dot(s_evprob)
+
+        # Average across datasets
         merge_pat = np.mean(merge_pat, axis=0)
         split_pat = np.mean(split_pat, axis=0)
+
+        # Correlate the current event patterns with the split and
+        # merged patterns
+        merge_corr = np.zeros(self.n_events)
+        split_corr = np.zeros(self.n_events)
         for e in range(self.n_events):
             split_corr[e] = np.corrcoef(mean_pat[:, e],
                                         split_pat[:, (2 * e):(2 * e + 2)],
@@ -631,6 +637,12 @@ class EventSegment(BaseEstimator):
         merge_corr = merge_corr[:-1]
 
         # Find best merge/split candidates
+        # A high value of merge_corr indicates that a pair of events are
+        # very similar to their merged pattern, and are good candidates for
+        # being merged.
+        # A low value of split_corr indicates that an event's pattern is
+        # very dissimilar from the patterns in its first and second half,
+        # and is a good candidate for being split.
         best_merge = np.flipud(np.argsort(merge_corr))
         best_merge = best_merge[:self.split_merge_proposals]
         best_split = np.argsort(split_corr)
