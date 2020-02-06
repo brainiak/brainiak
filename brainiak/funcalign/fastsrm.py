@@ -926,7 +926,12 @@ def _compute_subject_basis(corr_mat):
     or shape=[n_components, n_supervoxels]
         basis of subject or reduced_basis of subject
     """
-    U, _, V = scipy.linalg.svd(corr_mat, full_matrices=False)
+    # The perturbation is only here to be
+    # consistent with current implementation
+    # of DetSRM.
+    perturbation = np.zeros(corr_mat.shape)
+    np.fill_diagonal(perturbation, 0.001)
+    U, _, V = scipy.linalg.svd(corr_mat + perturbation, full_matrices=False)
     return U.dot(V)
 
 
@@ -970,6 +975,9 @@ def fast_srm(reduced_data_list,
         return lowram_srm(reduced_data_list, n_iter, n_components)
     else:
         # We need to switch data to DetSRM format
+        # Indeed in DetSRM all sessions are concatenated.
+        # Whereas in FastSRM multiple sessions are supported.
+
         n_subjects, n_sessions = reduced_data_list.shape[:2]
         # We store the correspondence between timeframes and session
         timeframes_slices = []
@@ -977,7 +985,7 @@ def fast_srm(reduced_data_list,
         for j in range(n_sessions):
             timeframes_slices.append(
                 slice(current_j, current_j + len(reduced_data_list[0, j])))
-            current_j = len(reduced_data_list[0][j])
+            current_j += len(reduced_data_list[0][j])
         # Now we can concatenate everything
         X = [
             np.concatenate(reduced_data_list[i], axis=0).T
@@ -1400,13 +1408,11 @@ at the object level.
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds shared "
                         "response using reduced data")
-
         shared_response_list = fast_srm(reduced_data,
                                         n_iter=self.n_iter,
                                         n_components=self.n_components,
                                         low_ram=self.low_ram,
                                         seed=self.seed)
-
         if self.verbose is True:
             logger.info("[FastSRM.fit] Finds basis using "
                         "full data and shared response")
@@ -1535,7 +1541,10 @@ during session j in shared space.
 
         atlas_shape = check_atlas(self.atlas, self.n_components)
         reshaped_input, imgs, shapes = check_imgs(
-            imgs, n_components=self.n_components, atlas_shape=atlas_shape)
+            imgs,
+            n_components=self.n_components,
+            atlas_shape=atlas_shape,
+            ignore_nsubjects=True)
         check_indexes(subjects_indexes, "subjects_indexes")
         if subjects_indexes is None:
             subjects_indexes = np.arange(len(imgs))

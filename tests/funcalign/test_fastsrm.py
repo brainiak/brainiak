@@ -12,6 +12,8 @@ from brainiak.funcalign.fastsrm import (
     check_atlas, check_imgs, check_shared_response, create_temp_dir, fast_srm,
     reduce_data, safe_load)
 
+from brainiak.funcalign.srm import DetSRM
+
 
 def to_path(X, dirpath):
     """
@@ -80,11 +82,11 @@ def generate_data(n_voxels,
 
     # create paths such that paths[i, j] contains data
     # of subject i during session j
-    paths = to_path(X, datadir)
     S = [(S[:, s] - np.mean(S[:, s], axis=1, keepdims=True))
          for s in slices_timeframes]
 
     if input_format == "array":
+        paths = to_path(X, datadir)
         return paths, W, S
 
     elif input_format == "list_of_list":
@@ -537,7 +539,7 @@ def test_reduced_data_srm():
                                                   shared_response_list)
             for j, session in enumerate(sessions):
                 assert_array_almost_equal(shared_response_list[j].dot(basis),
-                                          np.load(paths[i, j]).T)
+                                          np.load(paths[i, j]).T, 3)
 
 
 def test_compute_and_save():
@@ -558,7 +560,7 @@ def test_compute_and_save():
         for i, sessions in enumerate(paths):
             basis = _compute_and_save_subject_basis(i, sessions, datadir)
 
-            assert_array_almost_equal(np.load(basis), W[i])
+            assert_array_almost_equal(np.load(basis), W[i], 3)
 
 
 def test_fastsrm_class():
@@ -733,7 +735,7 @@ def test_fastsrm_class_correctness(input_format, low_ram, tempdir, atlas,
         for i in range(n_subjects):
             for j in range(n_sessions):
                 assert_array_almost_equal(shared_response[j].T.dot(basis[i]),
-                                          XX[i][j].T)
+                                          XX[i][j].T, 3)
 
         # Check that if we use all subjects but one if gives almost the
         # same shared response
@@ -745,7 +747,7 @@ def test_fastsrm_class_correctness(input_format, low_ram, tempdir, atlas,
                                                   aggregate, input_format)
         for j in range(n_sessions):
             assert_array_almost_equal(shared_response_partial[j],
-                                      shared_response[j])
+                                      shared_response[j], 3)
 
         # Check that if we perform add 2 times the same subject we
         # obtain the same decomposition
@@ -793,12 +795,12 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
             reconstructed_data = srm.inverse_transform(shared_response_raw,
                                                        subjects_indexes=[0, 2])
             for i, ii in enumerate([0, 2]):
-                assert_array_almost_equal(reconstructed_data[i], X[ii])
+                assert_array_almost_equal(reconstructed_data[i], X[ii], 3)
 
             reconstructed_data = srm.inverse_transform(shared_response_raw,
                                                        subjects_indexes=None)
             for i in range(len(X)):
-                assert_array_almost_equal(reconstructed_data[i], X[i])
+                assert_array_almost_equal(reconstructed_data[i], X[i], 3)
         else:
             reconstructed_data = srm.inverse_transform(shared_response_raw,
                                                        sessions_indexes=[1],
@@ -806,7 +808,7 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
             for i, ii in enumerate([0, 2]):
                 for j, jj in enumerate([1]):
                     assert_array_almost_equal(reconstructed_data[i][j],
-                                              safe_load(X[ii][jj]))
+                                              safe_load(X[ii][jj]), 3)
 
             reconstructed_data = srm.inverse_transform(shared_response_raw,
                                                        subjects_indexes=None,
@@ -815,4 +817,104 @@ def test_class_srm_inverse_transform(input_format, low_ram, tempdir, atlas,
             for i in range(len(X)):
                 for j in range(len(X[i])):
                     assert_array_almost_equal(reconstructed_data[i][j],
-                                              safe_load(X[i][j]))
+                                              safe_load(X[i][j]), 3)
+
+
+def test_fastsrm_identity():
+    # In this function we test whether fastsrm and DetSRM have
+    # identical behavior when atlas=None
+
+    # We authorize different timeframes for different sessions
+    # but they should be the same across subject
+    n_voxels = 8
+    n_timeframes = [4, 5, 6]
+    n_subjects = 2
+    n_components = 3  # number of components used for SRM model
+
+    np.random.seed(0)
+    paths, W, S = generate_data(n_voxels,
+                                n_timeframes,
+                                n_subjects,
+                                n_components,
+                                None,
+                                input_format="list_of_array")
+
+    # Test if generated data has the good shape
+    for subject in range(n_subjects):
+        assert paths[subject].shape == (n_voxels, np.sum([n_timeframes]))
+
+    srm = DetSRM(n_iter=11, features=3, rand_seed=0)
+    srm.fit(paths)
+    shared = srm.transform(paths)
+
+    fastsrm = FastSRM(atlas=None,
+                      n_components=3,
+                      verbose=True,
+                      seed=0,
+                      n_jobs=1,
+                      n_iter=10)
+    fastsrm.fit(paths)
+    shared_fast = fastsrm.transform(paths)
+
+    assert_array_almost_equal(shared_fast, np.mean(shared, axis=0))
+
+    for i in range(n_subjects):
+        assert_array_almost_equal(safe_load(fastsrm.basis_list[i]),
+                                  srm.w_[i].T)
+
+
+def load_and_concat(paths):
+    """
+    Take list of path and yields input data for ProbSRM
+    Parameters
+    ----------
+    paths
+    Returns
+    -------
+    X
+    """
+    X = []
+    for i in range(len(paths)):
+        X_i = np.concatenate(
+            [np.load(paths[i, j]) for j in range(len(paths[i]))], axis=1)
+        X.append(X_i)
+    return X
+
+
+def test_consistency_paths_data():
+    with tempfile.TemporaryDirectory() as datadir:
+        # In this function we test that input format
+        # does not change the results
+
+        n_voxels = 8
+        n_timeframes = [4, 5, 6]
+        n_subjects = 2
+        n_components = 3  # number of components used for SRM model
+
+        np.random.seed(0)
+        paths, W, S = generate_data(n_voxels,
+                                    n_timeframes,
+                                    n_subjects,
+                                    n_components,
+                                    datadir,
+                                    input_format="array")
+
+        print()
+        print("shape", paths.shape)
+
+        fastsrm = FastSRM(
+            n_components=3,
+            atlas=None,
+            verbose=True,
+            seed=0,
+            n_jobs=1,
+            n_iter=10,
+        )
+
+        fastsrm.fit(paths)
+        b0 = fastsrm.basis_list[0]
+
+        fastsrm.fit(load_and_concat(paths))
+        b1 = fastsrm.basis_list[0]
+
+        assert_array_almost_equal(b0, b1)
