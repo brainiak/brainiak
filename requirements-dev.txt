@@ -5,7 +5,7 @@ flake8-print
 mypy
 restructuredtext-lint
 setuptools_scm
-sphinx
+sphinx<2.3  # Pending release of https://github.com/sphinx-doc/sphinx/pull/6987
 sphinx_rtd_theme
 towncrier
 

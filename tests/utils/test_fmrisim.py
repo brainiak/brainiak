@@ -534,12 +534,23 @@ def test_generate_noise():
     assert power[period_freq] > power[period_freq + 1], 'Power is low'
     assert power[period_freq] > power[period_freq - 1], 'Power is low'
 
-    # Check it gives a warning if the duration is too short
+    # Check it runs fine
     drift = sim._generate_noise_temporal_drift(50,
                                                tr_duration,
                                                'discrete_cos',
                                                period,
                                                )
+
+    # Check it runs fine
+    drift = sim._generate_noise_temporal_drift(300,
+                                               tr_duration,
+                                               'cos_power_drop',
+                                               period,
+                                               )
+
+    # Check that when the TR is greater than the period it errors
+    with pytest.raises(ValueError):
+        sim._generate_noise_temporal_drift(30, 10, 'cos_power_drop', 5)
 
     # Test physiological noise (using unrealistic parameters so that it's easy)
     timepoints = list(np.linspace(0, (trs - 1) * tr_duration, trs))
@@ -675,7 +686,6 @@ def test_generate_noise_spatial():
 
     # Calculate the proportion of std relative to the mean
     std_proportion = np.nanstd(fwhm3) / np.nanmean(fwhm3)
-    print(fwhm3)
     assert std_proportion < 0.25, 'Variance is inconsistent across dim'
 
 

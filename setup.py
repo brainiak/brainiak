@@ -116,7 +116,7 @@ setup(
     use_scm_version=True,
     setup_requires=[
         'cython',
-        'numpy',
+        'numpy!=1.17.*',
         'pybind11>=1.7',
         'setuptools_scm',
     ],
@@ -127,11 +127,10 @@ setup(
         'mpi4py>=3',
         'nitime',
         # https://github.com/numpy/numpy/issues/14189
-        'numpy<1.17',
-        'scikit-learn[alldeps]>=0.18',
+        'numpy!=1.17.*',
+        'scikit-learn[alldeps]>=0.18,<0.22',
         # See https://github.com/scipy/scipy/pull/8082
-        # and https://github.com/pymanopt/pymanopt/issues/77
-        'scipy!=1.0.0,<1.3.0',
+        'scipy!=1.0.0',
         'statsmodels',
         'pymanopt',
         'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
