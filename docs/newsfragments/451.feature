@@ -1,0 +1,1 @@
+Add eventseg split-merge feature to improve fits when event lengths are highly uneven
