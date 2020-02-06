@@ -113,7 +113,7 @@ checks from ``pr-check.sh`` using the steps bellow::
   source ../brainiak_pr_venv/bin/activate
 
   # install brainiak in editable mode and developer dependencies
-  python3 -m pip install -U -r requirements-dev.txt
+  python3 -m pip install --no-use-pep517 -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
