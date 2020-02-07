@@ -2,6 +2,32 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.10 (2020-02-06)
+==========================
+
+Features
+--------
+
+- reconstruct: Add inverted encoding model (IEM) for recreating continuous
+  representations in new package for reconstruction methods. (`#364
+  <https://github.com/brainiak/brainiak/pull/364/files>`_)
+- funcalign: Add FastSRM module for input data that does not fit in RAM.
+  (`#421 <https://github.com/brainiak/brainiak/pull/421>`_)
+- fmrisim: Update to how drift is calculated and used. (`#437
+  <https://github.com/brainiak/brainiak/pull/437>`_)
+- searchlight: Allow processing single voxels. (`#440
+  <https://github.com/brainiak/brainiak/pull/440>`_)
+- eventseg: Add split-merge feature to improve fits when event lengths are
+  highly uneven. (`#451 <https://github.com/brainiak/brainiak/issues/451>`_)
+
+
+Documentation improvements
+--------------------------
+
+- Add ``--no-use-pep517`` Pip installation flag for compatibility with
+  Pip >= 19.1.1. (`#454 <https://github.com/brainiak/brainiak/pull/454>`_)
+
+
 BrainIAK 0.9.1 (2019-08-27)
 ===========================
 
