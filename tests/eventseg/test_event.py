@@ -120,10 +120,14 @@ def test_sym():
 
 def test_chains():
     es = EventSegment(5, event_chains=np.array(['A', 'A', 'B', 'B', 'B']))
+    sample_data = np.array([[0, 0, 0], [1, 1, 1]])
+
+    with pytest.raises(RuntimeError):
+        seg = es.fit(sample_data.T)[0]
+        pytest.fail("Can't use fit() with event chains")
 
     es.set_event_patterns(np.array([[1, 1, 0, 0, 0],
                                     [0, 0, 1, 1, 1]]))
-    sample_data = np.array([[0, 0, 0], [1, 1, 1]])
     seg = es.find_events(sample_data.T, 0.1)[0]
 
     ev = np.nonzero(seg > 0.99)[1]
@@ -158,3 +162,42 @@ def test_prior():
 
     assert np.all(np.isclose(mp, mp_gt)),\
         "Prior does not match analytic solution"
+
+
+def test_split_merge():
+    ev = np.array(
+        [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+         3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+    random_state = np.random.RandomState(0)
+    ev_pat = random_state.rand(5, 10)
+    D = np.zeros((len(ev), 10))
+    for t in range(len(ev)):
+        D[t, :] = ev_pat[ev[t], :] + 0.1*random_state.rand(10)
+
+    hmm_sm = EventSegment(5, split_merge=True, split_merge_proposals=2)
+    hmm_sm.fit(D)
+    hmm_events = np.argmax(hmm_sm.segments_[0], axis=1)
+
+    assert np.all(ev == hmm_events),\
+        "Merge/split fails to find highly uneven events"
+
+
+def test_sym_ll():
+    ev = np.array([0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2])
+    random_state = np.random.RandomState(0)
+    ev_pat = random_state.rand(3, 10)
+    D_forward = np.zeros((len(ev), 10))
+    for t in range(len(ev)):
+        D_forward[t, :] = ev_pat[ev[t], :] + 0.1 * random_state.rand(10)
+    D_backward = np.flip(D_forward, axis=0)
+
+    hmm_forward = EventSegment(3)
+    hmm_forward.set_event_patterns(ev_pat.T)
+    _, ll_forward = hmm_forward.find_events(D_forward, var=1)
+
+    hmm_backward = EventSegment(3)
+    hmm_backward.set_event_patterns(np.flip(ev_pat.T, axis=1))
+    _, ll_backward = hmm_backward.find_events(D_backward, var=1)
+
+    assert (ll_forward == ll_backward),\
+        "Log-likelihood not symmetric forward/backward"
