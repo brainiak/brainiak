@@ -4,10 +4,10 @@ from sklearn.base import BaseEstimator
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 
-__all__ = ["MatnormRegression"]
+__all__ = ["MatnormalRegression"]
 
 
-class MatnormRegression(BaseEstimator):
+class MatnormalRegression(BaseEstimator):
     """ This analysis allows maximum likelihood estimation of regression models
     in the presence of both spatial and temporal covariance.
 
@@ -22,7 +22,7 @@ class MatnormRegression(BaseEstimator):
         Voxel noise covariance class following CovBase interface.
     optimizer : string, default="L-BFGS-B"
         Scipy optimizer to use. For other options, see "method" argument
-        in https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html#scipy.optimize.minimize
+        of scipy.optimize.minimize
     optCtrl: dict, default=None
         Additional arguments to pass to scipy.optimize.minimize.
 

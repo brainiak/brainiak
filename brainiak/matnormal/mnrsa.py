@@ -6,7 +6,7 @@ from brainiak.utils.utils import cov2corr
 import numpy as np
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
 from tensorflow.contrib.opt import ScipyOptimizerInterface
-import logging
+import tensorflow.compat.v1.logging as tflog
 
 __all__ = ["MNRSA"]
 
@@ -67,7 +67,7 @@ class MNRSA(BaseEstimator):
         self.Y = tf.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
 
         self.X_0 = tf.Variable(
-            tf.random_normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
+            tf.random.normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
         )
 
         self.train_variables = [self.X_0]
@@ -117,9 +117,9 @@ class MNRSA(BaseEstimator):
         self.naive_C_ = cov2corr(self.naive_U_)
         self.L_full = tf.Variable(naiveRSA_L, name="L_full", dtype="float64")
 
-        L_indeterminate = tf.matrix_band_part(self.L_full, -1, 0)
+        L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
         self.L = tf.matrix_set_diag(
-            L_indeterminate, tf.exp(tf.matrix_diag_part(L_indeterminate))
+            L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
         )
 
         self.train_variables.extend([self.L_full])
@@ -134,20 +134,14 @@ class MNRSA(BaseEstimator):
             options=self.optCtrl,
         )
 
-        if logging.getLogger().isEnabledFor(logging.INFO):
-            optimizer._packed_loss_grad = tf.Print(
-                optimizer._packed_loss_grad,
-                [tf.reduce_min(optimizer._packed_loss_grad)],
-                "mingrad",
-            )
-            optimizer._packed_loss_grad = tf.Print(
-                optimizer._packed_loss_grad,
-                [tf.reduce_max(optimizer._packed_loss_grad)],
-                "maxgrad",
-            )
-            optimizer._packed_loss_grad = tf.Print(
-                optimizer._packed_loss_grad, [self.logp()], "logp"
-            )
+        logging_ops = []
+        logging_ops.append(tf.print("min(grad): ", tf.reduce_min(
+            optimizer._packed_loss_grad), output_stream=tflog.info))
+        logging_ops.append(tf.print("max(grad): ", tf.reduce_max(
+            optimizer._packed_loss_grad), output_stream=tflog.info))
+        logging_ops.append(
+            tf.print("logp", self.logp(), output_stream=tflog.info))
+        self.sess.run(logging_ops, feed_dict=feed_dict)
 
         optimizer.minimize(session=self.sess, feed_dict=feed_dict)
 

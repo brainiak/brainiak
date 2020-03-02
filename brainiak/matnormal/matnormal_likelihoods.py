@@ -53,7 +53,8 @@ def solve_det_marginal(x, sigma, A, Q):
     # of things we invert. This includes Q and Sigma, as well
     # as the "lemma factor" for lack of a better definition
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logging.log("Printing diagnostics for solve_det_marginal")
+        logging.log(logging.DEBUG,
+                    "Printing diagnostics for solve_det_marginal")
         A = tf.Print(A, [_condition(Q._prec + tf.matmul(A, sigma.solve(A),
                                                         transpose_a=True))],
                      "lemma_factor condition")
@@ -64,13 +65,13 @@ def solve_det_marginal(x, sigma, A, Q):
     # cholesky of (Qinv + A' Sigma^{-1} A), which looks sort of like
     # a schur complement by isn't, so we call it the "lemma factor"
     # since we use it in woodbury and matrix determinant lemmas
-    lemma_factor = tf.cholesky(Q._prec + tf.matmul(A, sigma.solve(A),
-                                                   transpose_a=True))
+    lemma_factor = tf.linalg.cholesky(Q._prec + tf.matmul(A, sigma.solve(A),
+                                                          transpose_a=True))
 
     logdet = (
         Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(lemma_factor)))
+        + 2 * tf.reduce_sum(tf.math.log(tf.linalg.diag_part(lemma_factor)))
     )
 
     if logging.getLogger().isEnabledFor(logging.DEBUG):
@@ -78,14 +79,14 @@ def solve_det_marginal(x, sigma, A, Q):
         logdet = tf.Print(logdet, [sigma.logdet], "sigma logdet")
         logdet = tf.Print(
             logdet,
-            [2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(lemma_factor)))],
+            [2 * tf.reduce_sum(tf.math.log(tf.linalg.diag_part(lemma_factor)))],
             "iqf logdet",
         )
 
     # A' Sigma^{-1}
     Atrp_Sinv = tf.matmul(A, sigma._prec, transpose_a=True)
     # (Qinv + A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
-    prod_term = tf.cholesky_solve(lemma_factor, Atrp_Sinv)
+    prod_term = tf.linalg.cholesky_solve(lemma_factor, Atrp_Sinv)
 
     solve = tf.matmul(
         sigma.solve(scaled_I(1.0, sigma.size) - tf.matmul(A, prod_term)), x
@@ -122,19 +123,19 @@ def solve_det_conditional(x, sigma, A, Q):
     """
 
     # (Q - A' Sigma^{-1} A)
-    lemma_factor = tf.cholesky(
+    lemma_factor = tf.linalg.cholesky(
         Q._cov - tf.matmul(A, sigma.solve(A), transpose_a=True))
 
     logdet = (
         -Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(lemma_factor)))
+        + 2 * tf.reduce_sum(tf.math.log(tf.linalg.diag_part(lemma_factor)))
     )
 
     # A' Sigma^{-1}
     Atrp_Sinv = tf.matmul(A, sigma._prec, transpose_a=True)
     # (Q - A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
-    prod_term = tf.cholesky_solve(lemma_factor, Atrp_Sinv)
+    prod_term = tf.linalg.cholesky_solve(lemma_factor, Atrp_Sinv)
 
     solve = tf.matmul(
         sigma.solve(scaled_I(1.0, sigma.size) + tf.matmul(A, prod_term)), x
@@ -167,14 +168,16 @@ def _mnorm_logp_internal(
     log2pi = 1.8378770664093453
 
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        solve_row = tf.Print(solve_row, [tf.trace(solve_col)], "coltrace")
-        solve_row = tf.Print(solve_row, [tf.trace(solve_row)], "rowtrace")
+        solve_row = tf.Print(
+            solve_row, [tf.linalg.trace(solve_col)], "coltrace")
+        solve_row = tf.Print(
+            solve_row, [tf.linalg.trace(solve_row)], "rowtrace")
         solve_row = tf.Print(solve_row, [logdet_row], "logdet_row")
         solve_row = tf.Print(solve_row, [logdet_col], "logdet_col")
 
     denominator = (-rowsize * colsize * log2pi -
                    colsize * logdet_row - rowsize * logdet_col)
-    numerator = -tf.trace(tf.matmul(solve_col, solve_row))
+    numerator = -tf.linalg.trace(tf.matmul(solve_col, solve_row))
     return 0.5 * (numerator + denominator)
 
 

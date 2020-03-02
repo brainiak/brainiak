@@ -6,7 +6,7 @@ from brainiak.matnormal.covs import (
     CovUnconstrainedInvCholesky,
     CovDiagonal,
 )
-from brainiak.matnormal.regression import MatnormRegression
+from brainiak.matnormal.regression import MatnormalRegression
 from brainiak.matnormal.utils import rmn
 import logging
 
@@ -34,7 +34,7 @@ def test_matnorm_regression_unconstrained():
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
@@ -56,7 +56,7 @@ def test_matnorm_regression_unconstrainedprec():
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
@@ -78,7 +78,7 @@ def test_matnorm_regression_optimizerChoice():
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov,
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov,
                               optimizer="CG")
 
     model.fit(X, Y)
@@ -102,7 +102,7 @@ def test_matnorm_regression_scaledDiag():
     row_cov = CovIdentity(size=m)
     col_cov = CovDiagonal(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
