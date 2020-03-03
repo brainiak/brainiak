@@ -138,7 +138,7 @@ setup(
         'psutil',
         'nibabel',
         'typing',
-        'tensorflow' 
+        'tensorflow',
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
     ],
