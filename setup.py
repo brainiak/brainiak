@@ -138,7 +138,7 @@ setup(
         'psutil',
         'nibabel',
         'typing',
-        'tensorflow',
+        'tensorflow<=1.15',  # brainiak.matnormal not compatible with tf2.0
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
     ],
