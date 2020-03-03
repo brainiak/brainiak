@@ -217,11 +217,10 @@ def matnorm_logp_marginal_row(x, row_cov, col_cov, marg, marg_cov):
     """
     Log likelihood for marginal centered matrix-variate normal density.
 
-    Given:
     .. math::
-    X \\sim \\mathcal{MN}(0, Q, C)\\
-    Y \\mid \\X \\sim \\mathcal{MN}(AX, R, C),\\
-    Y \\sim \\mathcal{MN}(0, R + AQA, C)
+        X \\sim \\mathcal{MN}(0, Q, C)\\
+        Y \\mid \\X \\sim \\mathcal{MN}(AX, R, C),\\
+        Y \\sim \\mathcal{MN}(0, R + AQA, C)
 
     This function efficiently computes the marginals by unpacking some
     info in the covariance classes and then dispatching to solve_det_marginal.
@@ -258,9 +257,9 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
     Log likelihood for centered marginal matrix-variate normal density.
 
     .. math::
-    X \\sim \\mathcal{MN}(0, R, Q)\\
-    Y \\mid \\X \\sim \\mathcal{MN}(XA, R, C),\\
-    Y \\sim \\mathcal{MN}(0, R, C + AQA)
+        X \\sim \\mathcal{MN}(0, R, Q)\\
+        Y \\mid \\X \\sim \\mathcal{MN}(XA, R, C),\\
+        Y \\sim \\mathcal{MN}(0, R, C + AQA)
 
     This function efficiently computes the marginals by unpacking some
     info in the covariance classes and then dispatching to solve_det_marginal.
