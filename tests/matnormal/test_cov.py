@@ -29,7 +29,8 @@ atol = 1e-7
 
 def logdet_sinv_np(X, sigma):
     # logdet
-    _, logdet_np = np.linalg.slogdet(sigma)
+    sign, logdet = np.linalg.slogdet(sigma)
+    logdet_np = sign * logdet
     # sigma-inv
     sinv_np = np.linalg.inv(sigma)
     # solve
@@ -58,22 +59,28 @@ X = norm.rvs(size=(m, n))
 X_tf = tf.constant(X)
 A = norm.rvs(size=(m, p))
 A_tf = tf.constant(A)
+eye = tf.eye(m, dtype=tf.float64)
 
 
 def test_CovConstant():
 
-    cov_np = wishart.rvs(df=m+2, scale=np.eye(m))
-    cov = CovUnconstrainedCholesky(m, cov_np)
+    cov_np = wishart.rvs(df=m + 2, scale=np.eye(m))
+    cov = CovUnconstrainedCholesky(Sigma=cov_np)
 
     with tf.Session() as sess:
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+
+        # verify what we pass is what we get
+        cov_tf = cov._cov.eval(session=sess)
+        assert_allclose(cov_tf, cov_np)
+
         # compute the naive version
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovIdentity():
@@ -87,9 +94,9 @@ def test_CovIdentity():
         cov_np = np.eye(m)
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovIsotropic():
@@ -100,12 +107,12 @@ def test_CovIsotropic():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = cov.sigma.eval(session=sess) * np.eye(cov.size)
+        cov_np = cov._cov.eval(session=sess) * np.eye(cov.size)
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovDiagonal():
@@ -116,18 +123,18 @@ def test_CovDiagonal():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = np.diag(1/cov.prec.eval(session=sess))
+        cov_np = np.diag(1 / cov.prec.eval(session=sess))
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovDiagonal_initialized():
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
-    cov = CovDiagonal(size=m, sigma=np.diag(cov_np))
+    cov = CovDiagonal(size=m, diag_var=np.diag(cov_np))
 
     with tf.Session() as sess:
         # initialize the random covariance
@@ -135,16 +142,16 @@ def test_CovDiagonal_initialized():
         # compute the naive version
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovDiagonalGammaPrior():
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
-    cov = CovDiagonalGammaPrior(size=m, sigma=np.diag(cov_np), alpha=1.5,
-                                beta=1e-10)
+    cov = CovDiagonalGammaPrior(
+        size=m, sigma=np.diag(cov_np), alpha=1.5, beta=1e-10)
 
     ig = invgamma(1.5, scale=1e-10)
 
@@ -153,11 +160,11 @@ def test_CovDiagonalGammaPrior():
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
-        penalty_np = np.sum(ig.logpdf(1/np.diag(cov_np)))
+        penalty_np = np.sum(ig.logpdf(1 / np.diag(cov_np)))
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
         assert_allclose(penalty_np, cov.logp.eval(session=sess), rtol=rtol)
 
 
@@ -169,12 +176,13 @@ def test_CovUnconstrainedCholesky():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = cov.Sigma.eval(session=sess)
+        L = cov.L.eval(session=sess)
+        cov_np = L @ L.T
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovUnconstrainedCholeskyWishartReg():
@@ -185,36 +193,43 @@ def test_CovUnconstrainedCholeskyWishartReg():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = cov.Sigma.eval(session=sess)
+
+        L = cov.L.eval(session=sess)
+        cov_np = L @ L.T
+
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
         # now compute the regularizer
-        reg = wishart.logpdf(cov_np, df=m+2, scale=1e10 * np.eye(m))
+        reg = wishart.logpdf(cov_np, df=m + 2, scale=1e10 * np.eye(m))
         assert_allclose(reg, cov.logp.eval(session=sess), rtol=rtol)
 
 
 def test_CovUnconstrainedInvCholesky():
 
-    cov = CovUnconstrainedInvCholesky(size=m)
+    init = invwishart.rvs(scale=np.eye(m), df=m + 2)
+    cov = CovUnconstrainedInvCholesky(size=m, invSigma=init)
 
     with tf.Session() as sess:
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = cov.Sigma.eval(session=sess)
+        Linv = cov.Linv.eval(session=sess)
+        L = np.linalg.inv(Linv)
+        cov_np = L @ L.T
+
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_Cov2FactorKron():
-    assert(m % 2 == 0)
-    dim1 = int(m/2)
+    assert m % 2 == 0
+    dim1 = int(m / 2)
     dim2 = 2
 
     with pytest.raises(TypeError) as excinfo:
@@ -234,14 +249,14 @@ def test_Cov2FactorKron():
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
 
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_Cov3FactorKron():
-    assert(m % 4 == 0)
-    dim1 = int(m/4)
+    assert m % 4 == 0
+    dim1 = int(m / 4)
     dim2 = 2
     dim3 = 2
     cov = CovKroneckerFactored(sizes=[dim1, dim2, dim3])
@@ -253,20 +268,21 @@ def test_Cov3FactorKron():
         L1 = (cov.L[0]).eval(session=sess)
         L2 = (cov.L[1]).eval(session=sess)
         L3 = (cov.L[2]).eval(session=sess)
-        cov_np = np.kron(np.kron(np.dot(L1, L1.transpose()),
-                         np.dot(L2, L2.transpose())),
-                         np.dot(L3, L3.transpose()))
+        cov_np = np.kron(
+            np.kron(np.dot(L1, L1.transpose()), np.dot(L2, L2.transpose())),
+            np.dot(L3, L3.transpose()),
+        )
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
 
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinv_np, cov.solve(eye).eval(session=sess), rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_Cov3FactorMaskedKron():
-    assert(m % 4 == 0)
-    dim1 = int(m/4)
+    assert m % 4 == 0
+    dim1 = int(m / 4)
     dim2 = 2
     dim3 = 2
 
@@ -285,18 +301,27 @@ def test_Cov3FactorMaskedKron():
         L1 = (cov.L[0]).eval(session=sess)
         L2 = (cov.L[1]).eval(session=sess)
         L3 = (cov.L[2]).eval(session=sess)
-        cov_np_factor = np.kron(L1, np.kron(L2, L3))[np.ix_(mask_indices,
-                                                            mask_indices)]
+        cov_np_factor = np.kron(L1, np.kron(L2, L3))[
+                                np.ix_(mask_indices, mask_indices)]
         cov_np = np.dot(cov_np_factor, cov_np_factor.transpose())
-        logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X[mask_indices, :],
-                                                      cov_np)
+        logdet_np, sinv_np, sinvx_np = logdet_sinv_np(
+            X[mask_indices, :], cov_np)
 
-        assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol,
-                        atol=atol)
-        assert_allclose(sinv_np, cov.Sigma_inv.eval(session=sess)[
-            np.ix_(mask_indices, mask_indices)], rtol=rtol, atol=atol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess)[
-            mask_indices, :], rtol=rtol, atol=atol)
+        assert_allclose(logdet_np, cov.logdet.eval(
+            session=sess), rtol=rtol, atol=atol)
+        assert_allclose(
+            sinv_np,
+            cov.solve(eye).eval(session=sess)[
+                      np.ix_(mask_indices, mask_indices)],
+            rtol=rtol,
+            atol=atol,
+        )
+        assert_allclose(
+            sinvx_np,
+            cov.solve(X_tf).eval(session=sess)[mask_indices, :],
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def test_CovAR1():
@@ -307,26 +332,27 @@ def test_CovAR1():
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = np.linalg.inv(cov.Sigma_inv.eval(session=sess))
+        cov_np = np.linalg.inv(cov.solve(eye).eval(session=sess))
 
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
-                        rtol=rtol)
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
 
 
 def test_CovAR1_scan_onsets():
 
-    cov = CovAR1(size=m, scan_onsets=[0, m//2])
+    cov = CovAR1(size=m, scan_onsets=[0, m // 2])
 
     with tf.Session() as sess:
         # initialize the random covariance
         sess.run(tf.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
-        cov_np = np.linalg.inv(cov.Sigma_inv.eval(session=sess))
+        cov_np = np.linalg.inv(cov.solve(eye).eval(session=sess))
 
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
+<<<<<<< HEAD
         assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
                         rtol=rtol)
 
@@ -350,3 +376,7 @@ def test_CovScaleMixin():
             logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
             assert_allclose(logdet_np, covs[j].logdet.eval(session=sess), rtol=rtol, atol=atol)
             assert_allclose(sinvx_np, covs[j].Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol, atol=atol)
+=======
+        assert_allclose(sinvx_np, cov.solve(
+            X_tf).eval(session=sess), rtol=rtol)
+>>>>>>> matnormal-regression-rsa

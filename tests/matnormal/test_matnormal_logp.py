@@ -25,14 +25,14 @@ def test_against_scipy_mvn_row():
         rowcov = CovUnconstrainedCholesky(size=m)
         colcov = CovIdentity(size=n)
         X = rmn(np.eye(m), np.eye(n))
-        X_tf = tf.constant(X, 'float64')
+        X_tf = tf.constant(X, "float64")
 
         sess.run(tf.global_variables_initializer())
 
-        rowcov_np = rowcov.Sigma.eval(session=sess)
+        rowcov_np = rowcov._cov.eval(session=sess)
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]),
-                              rowcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(
+            X.T, np.zeros([m]), rowcov_np))
         tf_answer = matnorm_logp(X_tf, rowcov, colcov)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
 
@@ -44,13 +44,14 @@ def test_against_scipy_mvn_col():
         rowcov = CovIdentity(size=m)
         colcov = CovUnconstrainedCholesky(size=n)
         X = rmn(np.eye(m), np.eye(n))
-        X_tf = tf.constant(X, 'float64')
+        X_tf = tf.constant(X, "float64")
 
         sess.run(tf.global_variables_initializer())
 
-        colcov_np = colcov.Sigma.eval(session=sess)
+        colcov_np = colcov._cov.eval(session=sess)
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]),
-                              colcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(X,
+                                                         np.zeros([n]),
+                                                         colcov_np))
         tf_answer = matnorm_logp(X_tf, rowcov, colcov)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)

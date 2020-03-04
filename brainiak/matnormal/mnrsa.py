@@ -6,35 +6,28 @@ from brainiak.utils.utils import cov2corr
 import numpy as np
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
 from tensorflow.contrib.opt import ScipyOptimizerInterface
-import logging
+import tensorflow.compat.v1.logging as tflog
 
-__all__ = ['MNRSA']
+__all__ = ["MNRSA"]
 
 
 class MNRSA(BaseEstimator):
     """ Matrix normal version of RSA.
 
     The goal of this analysis is to find the covariance of the mapping from
-    some design matrixX to the fMRI signal Y. It does so by marginalizing over
+    some design matrix X to the fMRI signal Y. It does so by marginalizing over
     the actual mapping (i.e. averaging over the uncertainty in it), which
     happens to correct a bias imposed by structure in the design matrix on the
     RSA estimate (see Cai et al., NIPS 2016).
 
-    This implementation makes different choices about two things relative to
-    `brainiak.reprsimil.BRSA`:
-
-    1. The noise covariance is assumed to be kronecker-separable. Informally,
-    this means that all voxels has the same temporal covariance, and all time
-    points have the same spatialcovariance. This is in contrast to BRSA, which
-    allows different temporal covariance for each voxel. On the other hand,
-    computational efficiencies enabled by this choice allow MNRSA to
-    support a richer class of space and time covariances (anything in
-    `brainiak.matnormal.covs`).
-
-    2. MNRSA does not estimate the nuisance timecourse X_0. Instead,
-    we expect the temporal noise covariance to capture the same property
-    (because when marginalizing over B_0 gives a low-rank component
-    to the noise covariance, something we hope to have available soon.
+    This implementation makes different choices about residual covariance
+    relative to `brainiak.reprsimil.BRSA`: Here, the noise covariance is
+    assumed to be kronecker-separable. Informally, this means that all voxels
+    have the same temporal covariance, and all time points have the same
+    spatial covariance. This is in contrast to BRSA, which allows different
+    temporal covariance for each voxel. On the other hand, computational
+    efficiencies enabled by this choice allow MNRSA to support a richer class
+    of space and time covariances (anything in `brainiak.matnormal.covs`).
 
     For users: in general, if you are worried about voxels each having
     different temporal noise structure,you should use
@@ -60,8 +53,8 @@ class MNRSA(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, n_nureg=5,
-                 optimizer='L-BFGS-B', optCtrl=None):
+    def __init__(self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B",
+                 optCtrl=None):
 
         self.n_T = time_cov.size
         self.n_V = space_cov.size
@@ -73,8 +66,9 @@ class MNRSA(BaseEstimator):
         self.X = tf.placeholder(tf.float64, [self.n_T, None], name="Design")
         self.Y = tf.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
 
-        self.X_0 = tf.Variable(tf.random_normal([self.n_T, n_nureg],
-                                                dtype=tf.float64), name="X_0")
+        self.X_0 = tf.Variable(
+            tf.random.normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
+        )
 
         self.train_variables = [self.X_0]
 
@@ -93,9 +87,9 @@ class MNRSA(BaseEstimator):
         Parameters
         ----------
         X: 2d array
-            Brain data matrix (voxels by TRs). Y in the math
+            Brain data matrix (TRs by voxels). Y in the math
         y: 2d array or vector
-            Behavior data matrix (behavioral obsevations by TRs). X in the math
+            Behavior data matrix (TRs by behavioral obsevations). X in the math
         max_iter: int, default=1000
             Maximum number of iterations to run
         step: int, default=100
@@ -123,34 +117,31 @@ class MNRSA(BaseEstimator):
         self.naive_C_ = cov2corr(self.naive_U_)
         self.L_full = tf.Variable(naiveRSA_L, name="L_full", dtype="float64")
 
-        L_indeterminate = tf.matrix_band_part(self.L_full, -1, 0)
-        self.L = tf.matrix_set_diag(L_indeterminate,
-                                    tf.exp(tf.matrix_diag_part(
-                                           L_indeterminate)))
+        L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
+        self.L = tf.matrix_set_diag(
+            L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
+        )
 
         self.train_variables.extend([self.L_full])
 
         self.x_stack = tf.concat([tf.matmul(self.X, self.L), self.X_0], 1)
         self.sess.run(tf.global_variables_initializer(), feed_dict=feed_dict)
 
-        optimizer = ScipyOptimizerInterface(-self.logp(),
-                                            var_list=self.train_variables,
-                                            method=self.optMethod,
-                                            options=self.optCtrl)
+        optimizer = ScipyOptimizerInterface(
+            -self.logp(),
+            var_list=self.train_variables,
+            method=self.optMethod,
+            options=self.optCtrl,
+        )
 
-        if logging.getLogger().isEnabledFor(logging.INFO):
-            optimizer._packed_loss_grad = tf.Print(
-                                                optimizer._packed_loss_grad,
-                                                [tf.reduce_min(
-                                                 optimizer._packed_loss_grad)],
-                                                'mingrad')
-            optimizer._packed_loss_grad = tf.Print(
-                                                optimizer._packed_loss_grad,
-                                                [tf.reduce_max(
-                                                 optimizer._packed_loss_grad)],
-                                                'maxgrad')
-            optimizer._packed_loss_grad = tf.Print(optimizer._packed_loss_grad,
-                                                   [self.logp()], 'logp')
+        logging_ops = []
+        logging_ops.append(tf.print("min(grad): ", tf.reduce_min(
+            optimizer._packed_loss_grad), output_stream=tflog.info))
+        logging_ops.append(tf.print("max(grad): ", tf.reduce_max(
+            optimizer._packed_loss_grad), output_stream=tflog.info))
+        logging_ops.append(
+            tf.print("logp", self.logp(), output_stream=tflog.info))
+        self.sess.run(logging_ops, feed_dict=feed_dict)
 
         optimizer.minimize(session=self.sess, feed_dict=feed_dict)
 
@@ -164,9 +155,15 @@ class MNRSA(BaseEstimator):
 
         rsa_cov = CovIdentity(size=self.n_c + self.n_nureg)
 
-        return self.time_cov.logp + \
-            self.space_cov.logp + \
-            rsa_cov.logp + \
-            matnorm_logp_marginal_row(self.Y, row_cov=self.time_cov,
-                                      col_cov=self.space_cov,
-                                      marg=self.x_stack, marg_cov=rsa_cov)
+        return (
+            self.time_cov.logp
+            + self.space_cov.logp
+            + rsa_cov.logp
+            + matnorm_logp_marginal_row(
+                self.Y,
+                row_cov=self.time_cov,
+                col_cov=self.space_cov,
+                marg=self.x_stack,
+                marg_cov=rsa_cov,
+            )
+        )

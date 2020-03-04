@@ -1,10 +1,12 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-from brainiak.matnormal.covs import (CovIdentity,
-                                     CovUnconstrainedCholesky,
-                                     CovUnconstrainedInvCholesky,
-                                     CovDiagonal)
-from brainiak.matnormal.regression import MatnormRegression
+from brainiak.matnormal.covs import (
+    CovIdentity,
+    CovUnconstrainedCholesky,
+    CovUnconstrainedInvCholesky,
+    CovDiagonal,
+)
+from brainiak.matnormal.regression import MatnormalRegression
 from brainiak.matnormal.utils import rmn
 import logging
 
@@ -25,18 +27,18 @@ def test_matnorm_regression_unconstrained():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_unconstrainedprec():
@@ -47,18 +49,18 @@ def test_matnorm_regression_unconstrainedprec():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_optimizerChoice():
@@ -69,19 +71,19 @@ def test_matnorm_regression_optimizerChoice():
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
-    colcov_true = wishart.rvs(p+2, np.eye(p))
+    colcov_true = wishart.rvs(p + 2, np.eye(p))
 
     Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov,
-                              optimizer="CG")
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov,
+                                optimizer="CG")
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_scaledDiag():
@@ -100,8 +102,8 @@ def test_matnorm_regression_scaledDiag():
     row_cov = CovIdentity(size=m)
     col_cov = CovDiagonal(size=p)
 
-    model = MatnormRegression(time_cov=row_cov, space_cov=col_cov)
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y)
 
-    assert(pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol)
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol

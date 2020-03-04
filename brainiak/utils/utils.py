@@ -966,6 +966,7 @@ def array_correlation(x, y, axis=0):
     r : float or 1D ndarray
         Pearson correlation values for input variables
     """
+<<<<<<< HEAD
 
 <<<<<<< HEAD
     return p
@@ -1274,6 +1275,8 @@ def tf_solve_upper_triangular_masked_kron(L, y, mask):
 
         return x
 =======
+=======
+>>>>>>> matnormal-regression-rsa
     # Accommodate array-like inputs
     if not isinstance(x, np.ndarray):
         x = np.asarray(x)
@@ -1301,4 +1304,7 @@ def tf_solve_upper_triangular_masked_kron(L, y, mask):
                           np.sum(y_demean ** 2, axis=0))
 
     return numerator / denominator
+<<<<<<< HEAD
 >>>>>>> master
+=======
+>>>>>>> matnormal-regression-rsa

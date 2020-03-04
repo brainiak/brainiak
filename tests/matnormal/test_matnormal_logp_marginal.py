@@ -4,8 +4,9 @@ from scipy.stats import multivariate_normal
 import tensorflow as tf
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import (
-                                matnorm_logp_marginal_col,
-                                matnorm_logp_marginal_row)
+    matnorm_logp_marginal_col,
+    matnorm_logp_marginal_row,
+)
 
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
 import logging
@@ -30,22 +31,22 @@ def test_against_scipy_mvn_row_marginal():
     X = rmn(np.eye(m), np.eye(n))
     A = rmn(np.eye(m), np.eye(p))
 
-    A_tf = tf.constant(A, 'float64')
-    X_tf = tf.constant(X, 'float64')
+    A_tf = tf.constant(A, "float64")
+    X_tf = tf.constant(X, "float64")
 
     with tf.Session() as sess:
 
         sess.run(tf.global_variables_initializer())
 
-        Q_np = Q.Sigma.eval(session=sess)
+        Q_np = Q._cov.eval(session=sess)
 
-        rowcov_np = rowcov.Sigma.eval(session=sess) + A.dot(Q_np).dot(A.T)
+        rowcov_np = rowcov._cov.eval(session=sess) + A.dot(Q_np).dot(A.T)
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]),
-                              rowcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(X.T,
+                                                         np.zeros([m]),
+                                                         rowcov_np))
 
-        tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov,
-                                              A_tf, Q)
+        tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov, A_tf, Q)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
 
 
@@ -58,20 +59,19 @@ def test_against_scipy_mvn_col_marginal():
     X = rmn(np.eye(m), np.eye(n))
     A = rmn(np.eye(p), np.eye(n))
 
-    A_tf = tf.constant(A, 'float64')
-    X_tf = tf.constant(X, 'float64')
+    A_tf = tf.constant(A, "float64")
+    X_tf = tf.constant(X, "float64")
 
     with tf.Session() as sess:
 
         sess.run(tf.global_variables_initializer())
 
-        Q_np = Q.Sigma.eval(session=sess)
+        Q_np = Q._cov.eval(session=sess)
 
-        colcov_np = colcov.Sigma.eval(session=sess) + A.T.dot(Q_np).dot(A)
+        colcov_np = colcov._cov.eval(session=sess) + A.T.dot(Q_np).dot(A)
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]),
-                                                         colcov_np))
+        scipy_answer = np.sum(multivariate_normal.logpdf(
+            X, np.zeros([n]), colcov_np))
 
-        tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov,
-                                              A_tf, Q)
+        tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov, A_tf, Q)
         assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
