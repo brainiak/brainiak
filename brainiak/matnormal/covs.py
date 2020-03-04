@@ -593,25 +593,23 @@ class CovScaleMixin:
         self._baseCov = base_cov
         self._scale = scale
 
-    @define_scope
+    @property
     def logdet(self):
         """ log|Sigma|
         """
         return self._baseCov.logdet + tf.log(self._scale) * self._baseCov.size
 
-    def Sigma_inv_x(self, X):
+    def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
         """
-        return self._baseCov.Sigma_inv_x(X) / self._scale
+        return self._baseCov.solve(X) / self._scale
 
-    @define_scope
-    def Sigma(self):
+    def _cov(self):
         """return Sigma
         """
-        return self._baseCov.Sigma * self._scale
-
-    @define_scope
-    def Sigma_inv(self):
+        return self._baseCov._cov * self._scale
+    
+    def _prec(self):
         """ Sigma^{-1}. Override me with more efficient
              implementation in subclasses
         """

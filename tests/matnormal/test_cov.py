@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from scipy.stats import norm, wishart, invgamma
+from scipy.stats import norm, wishart, invgamma, invwishart
 from brainiak.matnormal.covs import (CovIdentity,
                                      CovAR1,
                                      CovIsotropic,
@@ -352,9 +352,9 @@ def test_CovAR1_scan_onsets():
 
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
-<<<<<<< HEAD
-        assert_allclose(sinvx_np, cov.Sigma_inv_x(X_tf).eval(session=sess),
+        assert_allclose(sinvx_np, cov.solve(X_tf).eval(session=sess),
                         rtol=rtol)
+
 
 def test_CovScaleMixin():
 
@@ -363,7 +363,6 @@ def test_CovScaleMixin():
     scales = tf.constant(sc_np)*5
     covs = [CovScaleMixin(base_cov, scales[j]) for j in range(5)]
 
-
     with tf.Session() as sess:
         # initialize the random covariance
         sess.run(tf.variables_initializer(base_cov.get_optimize_vars()))
@@ -371,12 +370,11 @@ def test_CovScaleMixin():
         for j in range(5):
 
             # compute the naive version
-            cov_np = base_cov.Sigma.eval(session=sess) * scales[j].eval(session=sess)
+            cov_np = base_cov._cov.eval(
+                session=sess) * scales[j].eval(session=sess)
 
             logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
-            assert_allclose(logdet_np, covs[j].logdet.eval(session=sess), rtol=rtol, atol=atol)
-            assert_allclose(sinvx_np, covs[j].Sigma_inv_x(X_tf).eval(session=sess), rtol=rtol, atol=atol)
-=======
-        assert_allclose(sinvx_np, cov.solve(
-            X_tf).eval(session=sess), rtol=rtol)
->>>>>>> matnormal-regression-rsa
+            assert_allclose(logdet_np, covs[j].logdet.eval(
+                session=sess), rtol=rtol, atol=atol)
+            assert_allclose(sinvx_np, covs[j].solve(
+                X_tf).eval(session=sess), rtol=rtol, atol=atol)
