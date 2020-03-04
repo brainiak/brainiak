@@ -60,6 +60,36 @@ def test_searchlight_with_cube():
                     assert global_outputs[i, j, k] is None
 
 
+def test_searchlight_with_cube_poolsize_1():
+    sl = Searchlight(sl_rad=3)
+    comm = MPI.COMM_WORLD
+    rank = comm.rank
+    size = comm.size
+    dim0, dim1, dim2 = (50, 50, 50)
+    ntr = 30
+    nsubj = 3
+    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+            if i % size == rank
+            else None
+            for i in range(0, nsubj)]
+
+    # Put a spot in the mask
+    mask[10:17, 10:17, 10:17] = True
+
+    sl.distribute(data, mask)
+    global_outputs = sl.run_searchlight(cube_sfn, pool_size=1)
+
+    if rank == 0:
+        assert global_outputs[13, 13, 13] == 1.0
+        global_outputs[13, 13, 13] = None
+
+        for i in range(global_outputs.shape[0]):
+            for j in range(global_outputs.shape[1]):
+                for k in range(global_outputs.shape[2]):
+                    assert global_outputs[i, j, k] is None
+
+
 def diamond_sfn(l, msk, myrad, bcast_var):
     assert not np.any(msk[~Diamond(3).mask_])
     if np.all(msk[Diamond(3).mask_]):
@@ -176,7 +206,10 @@ def voxel_test_sfn(l, msk, myrad, bcast):
 def block_test_sfn(l, msk, myrad, bcast_var, extra_params):
     outmat = l[0][:, :, :, 0]
     outmat[~msk] = None
-    return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
+    if myrad == 0:
+        return outmat
+    else:
+        return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
 
 
 def test_correctness():  # noqa: C901
@@ -256,6 +289,7 @@ def test_correctness():  # noqa: C901
         block_test(data, mask, max_blk_edge, rad)
 
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=1)
+    do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=0)
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=1, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=0, dim1=10, dim2=8, ntr=5, nsubj=5, max_blk_edge=4, rad=1)

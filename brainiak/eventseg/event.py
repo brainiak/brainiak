@@ -1,4 +1,4 @@
-#  Copyright 2016 Princeton University
+#  Copyright 2020 Princeton University
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -25,11 +25,20 @@ Discovering event structure in continuous narrative perception and memory
 Neuron, Volume 95, Issue 3, 709 - 721.e5
 https://doi.org/10.1016/j.neuron.2017.06.041
 
-This class also extends the model described in the Neuron paper, by allowing
-transition matrices that are composed of multiple separate chains of events
-rather than a single linear path. This allows a model to contain patterns for
-multiple event sequences (e.g. narratives), and fit probabilities along each of
-these chains on a new, unlabeled timeseries.
+This class also extends the model described in the Neuron paper:
+1) It allows transition matrices that are composed of multiple separate
+chains of events rather than a single linear path. This allows a model to
+contain patterns for multiple event sequences (e.g. narratives), and
+fit probabilities along each of these chains on a new, unlabeled timeseries.
+To use this option, pass in an event_chain vector labeling which events
+belong to each chain, define event patterns using set_event_patterns(),
+then fit to a new dataset with find_events.
+
+2) To obtain better fits when the underlying event structure contains
+events that vary substantially in length, the split_merge option allows
+the fit() function to re-distribute events during fitting. The number of
+merge/split proposals is controlled by split_merge_proposals, which
+controls how thorough versus fast the fitting process is.
 """
 
 # Authors: Chris Baldassano and Cătălin Iordan (Princeton University)
@@ -41,6 +50,7 @@ import copy
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted, check_array
 from sklearn.exceptions import NotFittedError
+import itertools
 
 from . import _utils as utils  # type: ignore
 
@@ -63,12 +73,21 @@ class EventSegment(BaseEstimator):
         The Gaussian variance to use during fitting, as a function of the
         number of steps. Should decrease slowly over time.
 
-    n_iter: int : default 500
+    n_iter: int, default: 500
         Maximum number of steps to run during fitting
 
     event_chains: ndarray with length = n_events
         Array with unique value for each separate chain of events, each linked
         in the order they appear in the array
+
+    split_merge: bool, default: False
+        Determines whether merge/split proposals are used during fitting with
+        fit(). This can improve fitting performance when events are highly
+        uneven in size, but requires additional time
+
+    split_merge_proposals: int, default: 1
+        Number of merges and splits to consider at each step. Computation time
+        scales as O(proposals^2) so this should usually be a small value
 
     Attributes
     ----------
@@ -96,14 +115,54 @@ class EventSegment(BaseEstimator):
 
     def __init__(self, n_events=2,
                  step_var=_default_var_schedule,
-                 n_iter=500, event_chains=None):
+                 n_iter=500, event_chains=None,
+                 split_merge=False, split_merge_proposals=1):
         self.n_events = n_events
         self.step_var = step_var
         self.n_iter = n_iter
+        self.split_merge = split_merge
+        self.split_merge_proposals = split_merge_proposals
         if event_chains is None:
             self.event_chains = np.zeros(n_events)
         else:
             self.event_chains = event_chains
+
+    def _fit_validate(self, X):
+        """Validate input to fit()
+
+        Validate data passed to fit(). Includes a transpose operation to
+        change the row/column order of X and z-scoring in time.
+
+        Parameters
+        ----------
+        X: time by voxel ndarray, or a list of such ndarrays
+            fMRI data to be segmented
+
+        Returns
+        -------
+        X: list of voxel by time ndarrays
+        """
+        if len(np.unique(self.event_chains)) > 1:
+            raise RuntimeError("Cannot fit chains, use set_event_patterns")
+
+        # Copy X into a list and transpose
+        X = copy.deepcopy(X)
+        if type(X) is not list:
+            X = [X]
+        for i in range(len(X)):
+            X[i] = check_array(X[i])
+            X[i] = X[i].T
+
+        # Check that number of voxels is consistent across datasets
+        n_dim = X[0].shape[0]
+        for i in range(len(X)):
+            assert (X[i].shape[0] == n_dim)
+
+        # Double-check that data is z-scored in time
+        for i in range(len(X)):
+            X[i] = stats.zscore(X[i], axis=1, ddof=1)
+
+        return X
 
     def fit(self, X, y=None):
         """Learn a segmentation on training data
@@ -125,29 +184,15 @@ class EventSegment(BaseEstimator):
         self: the EventSegment object
         """
 
-        X = copy.deepcopy(X)
-        if type(X) is not list:
-            X = check_array(X)
-            X = [X]
-
+        X = self._fit_validate(X)
         n_train = len(X)
-        for i in range(n_train):
-            X[i] = X[i].T
-
-        self.classes_ = np.arange(self.n_events)
         n_dim = X[0].shape[0]
-        for i in range(n_train):
-            assert (X[i].shape[0] == n_dim)
-
-        # Double-check that data is z-scored in time
-        for i in range(n_train):
-            X[i] = stats.zscore(X[i], axis=1, ddof=1)
+        self.classes_ = np.arange(self.n_events)
 
         # Initialize variables for fitting
         log_gamma = []
         for i in range(n_train):
-            log_gamma.append(np.zeros((X[i].shape[1],
-                                       self.n_events)))
+            log_gamma.append(np.zeros((X[i].shape[1], self.n_events)))
         step = 1
         best_ll = float("-inf")
         self.ll_ = np.empty((0, n_train))
@@ -167,9 +212,13 @@ class EventSegment(BaseEstimator):
             # segmentation
             self.ll_ = np.append(self.ll_, np.empty((1, n_train)), axis=0)
             for i in range(n_train):
-                logprob = self._logprob_obs(X[i],
-                                            mean_pat, iteration_var)
+                logprob = self._logprob_obs(X[i], mean_pat, iteration_var)
                 log_gamma[i], self.ll_[-1, i] = self._forward_backward(logprob)
+
+            if step > 1 and self.split_merge:
+                curr_ll = np.mean(self.ll_[-1, :])
+                self.ll_[-1, :], log_gamma, mean_pat = \
+                    self._split_merge(X, log_gamma, iteration_var, curr_ll)
 
             # If log-likelihood has started decreasing, undo last step and stop
             if np.mean(self.ll_[-1, :]) < best_ll:
@@ -489,3 +538,155 @@ class EventSegment(BaseEstimator):
         segments = np.exp(lg)
 
         return segments, test_ll
+
+    def _split_merge(self, X, log_gamma, iteration_var, curr_ll):
+        """Attempt to improve log-likelihood with a merge/split
+
+        The simulated annealing used in fit() is susceptible to getting
+        stuck in a local minimum if there are some very short events. This
+        function attempts to find
+        a) pairs of neighboring events that are highly similar, to merge
+        b) events that can be split into two dissimilar events
+        It then tests to see whether simultaneously merging one of the
+        pairs from (a) and splitting one of the events from (b) can improve
+        the log-likelihood. The number of (a)/(b) pairs tested is determined
+        by the split_merge_proposals class attribute.
+
+        Parameters
+        ----------
+        X: list of voxel by time ndarrays
+            fMRI datasets being fit
+
+        log_gamma : list of time by event ndarrays
+            Log probability of each timepoint belonging to each event,
+            for each dataset
+
+        iteration_var : float
+            Current variance in simulated annealing
+
+        curr_ll: float
+            Log-likelihood of current model
+
+        Returns
+        -------
+        return_ll : ndarray with length equal to length of X
+            Log-likelihood after merge/split (same as curr_ll if no
+            merge/split improved curr_ll)
+
+        return_lg : list of time by event ndarrays
+            Log probability of each timepoint belonging to each event,
+            for each dataset (same as log_gamma if no merge/split
+            improved curr_ll)
+
+        return_mp : voxel by event ndarray
+            Mean patterns of events (after possible merge/split)
+        """
+
+        # Compute current probabilities and mean patterns
+        n_train = len(X)
+        n_dim = X[0].shape[0]
+
+        seg_prob = [np.exp(lg) / np.sum(np.exp(lg), axis=0)
+                    for lg in log_gamma]
+        mean_pat = np.empty((n_train, n_dim, self.n_events))
+        for i in range(n_train):
+            mean_pat[i, :, :] = X[i].dot(seg_prob[i])
+        mean_pat = np.mean(mean_pat, axis=0)
+
+        # For each event, merge its probability distribution
+        # with the next event, and also split its probability
+        # distribution at its median into two separate events.
+        # Use these new event probability distributions to compute
+        # merged and split event patterns.
+        merge_pat = np.empty((n_train, n_dim, self.n_events))
+        split_pat = np.empty((n_train, n_dim, 2 * self.n_events))
+        for i, sp in enumerate(seg_prob):  # Iterate over datasets
+            m_evprob = np.zeros((sp.shape[0], sp.shape[1]))
+            s_evprob = np.zeros((sp.shape[0], 2 * sp.shape[1]))
+            cs = np.cumsum(sp, axis=0)
+            for e in range(sp.shape[1]):
+                # Split distribution at midpoint and normalize each half
+                mid = np.where(cs[:, e] >= 0.5)[0][0]
+                cs_first = cs[mid, e] - sp[mid, e]
+                cs_second = 1 - cs_first
+                s_evprob[:mid, 2 * e] = sp[:mid, e] / cs_first
+                s_evprob[mid:, 2 * e + 1] = sp[mid:, e] / cs_second
+
+                # Merge distribution with next event distribution
+                m_evprob[:, e] = sp[:, e:(e + 2)].mean(1)
+
+            # Weight data by distribution to get event patterns
+            merge_pat[i, :, :] = X[i].dot(m_evprob)
+            split_pat[i, :, :] = X[i].dot(s_evprob)
+
+        # Average across datasets
+        merge_pat = np.mean(merge_pat, axis=0)
+        split_pat = np.mean(split_pat, axis=0)
+
+        # Correlate the current event patterns with the split and
+        # merged patterns
+        merge_corr = np.zeros(self.n_events)
+        split_corr = np.zeros(self.n_events)
+        for e in range(self.n_events):
+            split_corr[e] = np.corrcoef(mean_pat[:, e],
+                                        split_pat[:, (2 * e):(2 * e + 2)],
+                                        rowvar=False)[0, 1:3].max()
+            merge_corr[e] = np.corrcoef(merge_pat[:, e],
+                                        mean_pat[:, e:(e + 2)],
+                                        rowvar=False)[0, 1:3].min()
+        merge_corr = merge_corr[:-1]
+
+        # Find best merge/split candidates
+        # A high value of merge_corr indicates that a pair of events are
+        # very similar to their merged pattern, and are good candidates for
+        # being merged.
+        # A low value of split_corr indicates that an event's pattern is
+        # very dissimilar from the patterns in its first and second half,
+        # and is a good candidate for being split.
+        best_merge = np.flipud(np.argsort(merge_corr))
+        best_merge = best_merge[:self.split_merge_proposals]
+        best_split = np.argsort(split_corr)
+        best_split = best_split[:self.split_merge_proposals]
+
+        # For every pair of merge/split candidates, attempt the merge/split
+        # and measure the log-likelihood. If any are better than curr_ll,
+        # accept this best merge/split
+        mean_pat_last = mean_pat.copy()
+        return_ll = curr_ll
+        return_lg = copy.deepcopy(log_gamma)
+        return_mp = mean_pat.copy()
+        for m_e, s_e in itertools.product(best_merge, best_split):
+            if m_e == s_e or m_e+1 == s_e:
+                # Don't attempt to merge/split same event
+                continue
+
+            # Construct new set of patterns with merge/split
+            mean_pat_ms = np.delete(mean_pat_last, s_e, axis=1)
+            mean_pat_ms = np.insert(mean_pat_ms, [s_e, s_e],
+                                    split_pat[:, (2 * s_e):(2 * s_e + 2)],
+                                    axis=1)
+            mean_pat_ms = np.delete(mean_pat_ms,
+                                    [m_e + (s_e < m_e), m_e + (s_e < m_e) + 1],
+                                    axis=1)
+            mean_pat_ms = np.insert(mean_pat_ms, m_e + (s_e < m_e),
+                                    merge_pat[:, m_e], axis=1)
+
+            # Measure log-likelihood with these new patterns
+            ll_ms = np.zeros(n_train)
+            log_gamma_ms = list()
+            for i in range(n_train):
+                logprob = self._logprob_obs(X[i],
+                                            mean_pat_ms, iteration_var)
+                lg, ll_ms[i] = self._forward_backward(logprob)
+                log_gamma_ms.append(lg)
+
+            # If better than best ll so far, save to return to fit()
+            if ll_ms.mean() > return_ll:
+                return_mp = mean_pat_ms.copy()
+                return_ll = ll_ms
+                for i in range(n_train):
+                    return_lg[i] = log_gamma_ms[i].copy()
+                logger.debug("Identified merge %d,%d and split %d",
+                             m_e, m_e+1, s_e)
+
+        return return_ll, return_lg, return_mp

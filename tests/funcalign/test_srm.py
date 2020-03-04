@@ -118,6 +118,84 @@ def test_can_instantiate():
     print("Test: different number of samples per subject")
 
 
+def test_new_subject():
+    import brainiak.funcalign.srm
+    s = brainiak.funcalign.srm.SRM()
+    assert s, "Invalid SRM instance!"
+
+    import numpy as np
+    np.random.seed(0)
+
+    voxels = 100
+    samples = 500
+    subjects = 3
+    features = 3
+
+    s = brainiak.funcalign.srm.SRM(n_iter=5, features=features)
+    assert s, "Invalid SRM instance!"
+
+    # Create a Shared response S with K = 3
+    theta = np.linspace(-4 * np.pi, 4 * np.pi, samples)
+    z = np.linspace(-2, 2, samples)
+    r = z**2 + 1
+    x = r * np.sin(theta)
+    y = r * np.cos(theta)
+
+    S = np.vstack((x, y, z))
+
+    X = []
+    W = []
+    Q, R = np.linalg.qr(np.random.random((voxels, features)))
+    W.append(Q)
+    X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+
+    for subject in range(1, subjects):
+        Q, R = np.linalg.qr(np.random.random((voxels, features)))
+        W.append(Q)
+        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+
+    # Check that transform does NOT run before fitting the model
+    with pytest.raises(NotFittedError):
+        s.transform_subject(X)
+    print("Test: transforming before fitting the model")
+
+    # Check that runs with 3 subject
+    s.fit(X)
+
+    # Check that you get an error when the data is the wrong shape
+    with pytest.raises(ValueError):
+        s.transform_subject(X[0].T)
+
+    # Check that it does run to compute a new subject
+    new_w = s.transform_subject(X[0])
+    assert new_w.shape[1] == features, (
+            "Invalid computation of SRM! (wrong # features for new subject)")
+    assert new_w.shape[0] == voxels, (
+            "Invalid computation of SRM! (wrong # voxels for new subject)")
+
+    # Check that these analyses work with the deterministic SRM too
+    ds = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
+
+    # Check that transform does NOT run before fitting the model
+    with pytest.raises(NotFittedError):
+        ds.transform_subject(X)
+    print("Test: transforming before fitting the model")
+
+    # Check that runs with 3 subject
+    ds.fit(X)
+
+    # Check that you get an error when the data is the wrong shape
+    with pytest.raises(ValueError):
+        ds.transform_subject(X[0].T)
+
+    # Check that it does run to compute a new subject
+    new_w = ds.transform_subject(X[0])
+    assert new_w.shape[1] == features, (
+            "Invalid computation of SRM! (wrong # features for new subject)")
+    assert new_w.shape[0] == voxels, (
+            "Invalid computation of SRM! (wrong # voxels for new subject)")
+
+
 def test_det_srm():
     import brainiak.funcalign.srm
     model = brainiak.funcalign.srm.DetSRM()
@@ -199,6 +277,13 @@ def test_det_srm():
             "transform)")
         assert new_s[subject].shape[1] == samples, (
             "Invalid computation of DetSRM! (wrong # samples after transform)")
+
+    # Check that it does run to compute a new subject
+    new_w = model.transform_subject(X[0])
+    assert new_w.shape[1] == features, (
+            "Invalid computation of SRM! (wrong # features for new subject)")
+    assert new_w.shape[0] == voxels, (
+            "Invalid computation of SRM! (wrong # voxels for new subject)")
 
     # Check that it does NOT run with non-matching number of subjects
     with pytest.raises(ValueError):

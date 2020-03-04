@@ -34,7 +34,8 @@ class TestMaskedMultiSubjectData:
                                 masked_multi_subject_data):
         result = MaskedMultiSubjectData.from_masked_images(masked_images,
                                                            len(masked_images))
-        assert np.array_equal(result, masked_multi_subject_data)
+        assert np.array_equal(np.moveaxis(result, 1, 0),
+                              masked_multi_subject_data)
 
 
 @pytest.fixture

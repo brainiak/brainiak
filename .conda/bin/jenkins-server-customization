@@ -1,0 +1,7 @@
+# This Bash script must be sourced, not executed
+# Customizations required for the server that currently runs Jenkins
+
+# TensorFlow 2.0 breaks Pymanopt:
+# https://github.com/pymanopt/pymanopt/issues/86
+conda install --yes mpi4py mpich\<3.3 tensorflow\<2 scipy\<1.3 numpy!=1.17.\*
+module unload gcc

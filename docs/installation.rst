@@ -10,7 +10,7 @@ dependencies are not available in the default channels.
 
 Use our ``brainiak`` channel to install::
 
-    conda install -c brainiak brainiak
+    conda install -c brainiak -c defaults -c conda-forge brainiak
 
 Note that `~brainiak.funcalign.sssrm.SSSRM` currently uses Theano, which
 requires the Xcode Command Line Tools on `MacOS`_.
@@ -21,7 +21,7 @@ Source
 Requirements
 ============
 
-We support Linux and MacOS with Python version 3.4 or higher. Most of the
+We support Linux and MacOS with Python version 3.5 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 
@@ -93,7 +93,10 @@ Installing and upgrading
 The Brain Imaging Analysis Kit is available on PyPI. You can install it (or
 upgrade to the latest version) using the following command::
 
-    python3 -m pip install -U brainiak
+    python3 -m pip install --no-use-pep517 -U brainiak
+
+.. warning::
+    Running `python setup.py install` might fail. It is recommended to install using pip.
 
 Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 #61`_). Installation will proceed despite this failure. You can safely ignore it
