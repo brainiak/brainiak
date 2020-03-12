@@ -109,7 +109,11 @@ def generate_ROIs(ROI_file,
 
 def write_dicom(output_name,
                 data):
-    # Write the data to a dicom file
+    # Write the data to a dicom file.
+    # Dicom files are difficult to set up correctly, this file will likely
+    # crash when trying to open it using dcm2nii. However, if it is loaded in
+    # python (e.g., dicom.dcmread) then pixel_array contains the relevant
+    # voxel data
 
     # Convert data from float to in
     dataInts = data.astype(np.int16)
