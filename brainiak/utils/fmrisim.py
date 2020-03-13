@@ -857,6 +857,9 @@ def convolve_hrf(stimfunction,
     if stimfunction.shape[0] < stimfunction.shape[1]:
         logger.warning('Stimfunction may be the wrong shape')
 
+    if np.any(np.sum(abs(stimfunction), 0) == 0):
+        logger.warning('stimfunction contains voxels of all zeros, will nan')
+
     # How will stimfunction be resized
     stride = int(temporal_resolution * tr_duration)
     duration = int(stimfunction.shape[0] / stride)
