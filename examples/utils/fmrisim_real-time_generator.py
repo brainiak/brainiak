@@ -38,9 +38,6 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import sys
 
-sys.path.append(os.getcwd())
-
-
 def generate_ROIs(ROI_file,
                   stimfunc,
                   noise,
