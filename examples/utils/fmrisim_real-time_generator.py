@@ -38,6 +38,8 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import sys
 
+script_datetime = datetime.datetime.now()
+
 def generate_ROIs(ROI_file,
                   stimfunc,
                   noise,
@@ -105,7 +107,8 @@ def generate_ROIs(ROI_file,
 
 
 def write_dicom(output_name,
-                data):
+                data,
+                image_number=0):
     # Write the data to a dicom file.
     # Dicom files are difficult to set up correctly, this file will likely
     # crash when trying to open it using dcm2nii. However, if it is loaded in
@@ -137,6 +140,9 @@ def write_dicom(output_name,
     ds.BitsAllocated = 16
     ds.BitsStored = 16
     ds.PixelRepresentation = 0
+    ds.InstanceNumber = image_number
+    ds.ImagePositionPatient = [0, 0, 0]
+    ds.ImageOrientationPatient = [.01, 0, 0, 0, 0, 0]
 
     # Add the data elements -- not trying to set all required here. Check DICOM
     # standard
@@ -148,9 +154,9 @@ def write_dicom(output_name,
     ds.is_implicit_VR = True
 
     # Set creation date/time
-    dt = datetime.datetime.now()
-    ds.ContentDate = dt.strftime('%Y%m%d')
-    timeStr = dt.strftime('%H%M%S.%f')  # long format with micro seconds
+    image_datetime = script_datetime + datetime.timedelta(seconds=image_number)
+    timeStr = image_datetime.strftime('%H%M%S')
+    ds.ContentDate = image_datetime.strftime('%Y%m%d')
     ds.ContentTime = timeStr
 
     # Add the data
@@ -184,11 +190,12 @@ def generate_data(inputDir,
     #     burn_in - How long before the first event (in seconds)
 
     # If the folder doesn't exist then make it
-    if os.path.isdir(data_dir) is False:
-        os.makedirs(data_dir, exist_ok=True)
+    if os.path.isdir(outputDir) is False:
+        os.makedirs(outputDir, exist_ok=True)
 
     print('Load template of average voxel value')
-    template_nii = nibabel.load(fmrisim_dir + 'sub_template.nii.gz')
+    templateFile = os.path.join(inputDir, 'sub_template.nii.gz')
+    template_nii = nibabel.load(templateFile)
     template = template_nii.get_data()
 
     dimensions = np.array(template.shape[0:3])
@@ -199,11 +206,13 @@ def generate_data(inputDir,
                                     )
 
     # Write out the mask as a numpy file
-    np.save(data_dir + 'mask.npy', mask.astype(np.uint8))
+    outFile = os.path.join(outputDir, 'mask.npy')
+    np.save(outFile, mask.astype(np.uint8))
 
     # Load the noise dictionary
     print('Loading noise parameters')
-    with open(fmrisim_dir + 'sub_noise_dict.txt', 'r') as f:
+    noiseFile = os.path.join(inputDir, 'sub_noise_dict.txt')
+    with open(noiseFile, 'r') as f:
         noise_dict = f.read()
     noise_dict = eval(noise_dict)
     noise_dict['matched'] = 0  # Increases processing time
@@ -255,17 +264,21 @@ def generate_data(inputDir,
                                            )
 
     # Create a labels timecourse
-    np.save(data_dir + 'labels.npy', (stimfunc_A + (stimfunc_B * 2)))
+    outFile = os.path.join(outputDir, 'labels.npy')
+    np.save(outFile, (stimfunc_A + (stimfunc_B * 2)))
+
+    roiA_file = os.path.join(inputDir, 'ROI_A.nii.gz')
+    roiB_file = os.path.join(inputDir, 'ROI_B.nii.gz')
 
     # How is the signal implemented in the different ROIs
-    signal_A = generate_ROIs(fmrisim_dir + 'ROI_A.nii.gz',
+    signal_A = generate_ROIs(roiA_file,
                              stimfunc_A,
                              noise,
                              data_dict['scale_percentage'],
                              data_dict)
     if data_dict['different_ROIs'] is True:
 
-        signal_B = generate_ROIs(fmrisim_dir + 'ROI_B.nii.gz',
+        signal_B = generate_ROIs(roiB_file,
                                  stimfunc_B,
                                  noise,
                                  data_dict['scale_percentage'],
@@ -275,13 +288,13 @@ def generate_data(inputDir,
 
         # Halve the evoked response if these effects are both expected in the same ROI
         if data_dict['multivariate_pattern'] is False:
-            signal_B = generate_ROIs(fmrisim_dir + 'ROI_A.nii.gz',
+            signal_B = generate_ROIs(roiA_file,
                                      stimfunc_B,
                                      noise,
                                      data_dict['scale_percentage'] * 0.5,
                                      data_dict)
         else:
-            signal_B = generate_ROIs(fmrisim_dir + 'ROI_A.nii.gz',
+            signal_B = generate_ROIs(roiA_file,
                                      stimfunc_B,
                                      noise,
                                      data_dict['scale_percentage'],
@@ -302,11 +315,11 @@ def generate_data(inputDir,
         # Store as dicom or nifti?
         if data_dict['save_dicom'] is True:
             # Save the volume as a DICOM file, with each TR as its own file
-            output_file = data_dir + 'rt_' + format(idx, '03d') + '.dcm'
-            write_dicom(output_file, brain_int32)
+            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d') + '.dcm')
+            write_dicom(output_file, brain_int32, idx+1)
         else:
             # Save the volume as a numpy file, with each TR as its own file
-            output_file = data_dir + 'rt_' + format(idx, '03d') + '.npy'
+            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d') + '.npy')
             np.save(output_file, brain_int32)
 
         print("Generate {}".format(output_file))
@@ -350,7 +363,7 @@ if __name__ == '__main__':
     inputDir = args.inputDir
     outputDir = args.outputDir
 
-    if fmrisim_dir is None or data_dir is None:
+    if inputDir is None or outputDir is None:
         print("Must specify an input and output directory using -i and -o")
         exit(-1)
 
