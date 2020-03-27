@@ -150,7 +150,12 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
-    package_data={'brainiak.utils': ['grey_matter_mask.npy']},
+    package_data={'brainiak.utils.sim_parameters': ['grey_matter_mask.npy',
+                                                    'ROI_A.nii.gz',
+                                                    'ROI_B.nii.gz',
+                                                    'mask.npy',
+                                                    'sub_noise_dict.txt',
+                                                    'sub_template.nii.gz']},
     python_requires='>=3.5',
     zip_safe=False,
 )

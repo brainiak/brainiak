@@ -165,8 +165,7 @@ def write_dicom(output_name,
     ds.save_as(output_name)
 
 
-def generate_data(inputDir,
-                  outputDir,
+def generate_data(outputDir,
                   data_dict):
     # Generate simulated fMRI data with a few parameters that might be
     # relevant for real time analysis
@@ -194,8 +193,13 @@ def generate_data(inputDir,
         os.makedirs(outputDir, exist_ok=True)
 
     print('Load template of average voxel value')
-    templateFile = os.path.join(inputDir, 'sub_template.nii.gz')
-    template_nii = nibabel.load(templateFile)
+
+    if data_dict['template_path'] is None:
+        template_path = resource_stream(__name__, 'sub_template.nii.gz')
+    else:
+        template_path = data_dict['template_path']
+
+    template_nii = nibabel.load(template_path)
     template = template_nii.get_data()
 
     dimensions = np.array(template.shape[0:3])
@@ -211,8 +215,14 @@ def generate_data(inputDir,
 
     # Load the noise dictionary
     print('Loading noise parameters')
-    noiseFile = os.path.join(inputDir, 'sub_noise_dict.txt')
-    with open(noiseFile, 'r') as f:
+
+    # Load in the noise dict if supplied
+    if data_dict['noise_dict_file'] is None:
+        noise_dict_file = resource_stream(__name__, 'sub_noise_dict.txt')
+    else:
+        noise_dict_file = data_dict['noise_dict_file']
+
+    with open(noise_dict_file, 'r') as f:
         noise_dict = f.read()
     noise_dict = eval(noise_dict)
     noise_dict['matched'] = 0  # Increases processing time
@@ -267,18 +277,26 @@ def generate_data(inputDir,
     outFile = os.path.join(outputDir, 'labels.npy')
     np.save(outFile, (stimfunc_A + (stimfunc_B * 2)))
 
-    roiA_file = os.path.join(inputDir, 'ROI_A.nii.gz')
-    roiB_file = os.path.join(inputDir, 'ROI_B.nii.gz')
+    # Load in the ROIs
+    if data_dict['ROI_A_file'] is None:
+        ROI_A_file = resource_stream(__name__, 'ROI_A.nii.gz')
+    else:
+        ROI_A_file = data_dict['ROI_A_file']
+
+    if data_dict['ROI_B_file'] is None:
+        ROI_B_file = resource_stream(__name__, 'ROI_B.nii.gz')
+    else:
+        ROI_B_file = data_dict['ROI_B_file']
 
     # How is the signal implemented in the different ROIs
-    signal_A = generate_ROIs(roiA_file,
+    signal_A = generate_ROIs(ROI_A_file,
                              stimfunc_A,
                              noise,
                              data_dict['scale_percentage'],
                              data_dict)
     if data_dict['different_ROIs'] is True:
 
-        signal_B = generate_ROIs(roiB_file,
+        signal_B = generate_ROIs(ROI_B_file,
                                  stimfunc_B,
                                  noise,
                                  data_dict['scale_percentage'],
@@ -288,13 +306,13 @@ def generate_data(inputDir,
 
         # Halve the evoked response if these effects are both expected in the same ROI
         if data_dict['multivariate_pattern'] is False:
-            signal_B = generate_ROIs(roiA_file,
+            signal_B = generate_ROIs(ROI_A_file,
                                      stimfunc_B,
                                      noise,
                                      data_dict['scale_percentage'] * 0.5,
                                      data_dict)
         else:
-            signal_B = generate_ROIs(roiA_file,
+            signal_B = generate_ROIs(ROI_A_file,
                                      stimfunc_B,
                                      noise,
                                      data_dict['scale_percentage'],
@@ -335,10 +353,16 @@ if __name__ == '__main__':
         'Specify input arguments. Some arguments are parameters that require '
         'an input is provided (noted by "Param"), others are flags that when '
         'provided will change according to the flag (noted by "Flag")')
-    argParser.add_argument('--inputDir', '-i', default=None, type=str,
-                           help='Param. Input directory for fmrisim parameters')
     argParser.add_argument('--outputDir', '-o', default=None, type=str,
                            help='Param. Output directory for simulated data')
+    argParser.add_argument('--ROI_A_file', default=None, type=str,
+                           help='Param. Full path to file for cond. A ROI')
+    argParser.add_argument('--ROI_B_file', default=None, type=str,
+                           help='Param. Full path to file for cond. B ROI')
+    argParser.add_argument('--template_path', default=None, type=str,
+                           help='Param. Full path to file for brain template')
+    argParser.add_argument('--noise_dict_file', default=None, type=str,
+                           help='Param. Full path to file setting noise params')
     argParser.add_argument('--numTRs', '-n', default=200, type=int,
                            help='Param. Number of time points')
     argParser.add_argument('--eventDuration', '-d', default=10, type=int,
@@ -360,16 +384,24 @@ if __name__ == '__main__':
                                 'the acquisition rate')
     args = argParser.parse_args()
 
-    inputDir = args.inputDir
+    # Essential arguments
     outputDir = args.outputDir
 
-    if inputDir is None or outputDir is None:
-        print("Must specify an input and output directory using -i and -o")
+    if outputDir is None:
+        print("Must specify an output directory using -o")
         exit(-1)
 
     data_dict = {}
 
     ## User controlled settings
+
+    # Specify the path to the files used for defining ROIs.
+    data_dict['ROI_A_file'] = args.ROI_A_file
+    data_dict['ROI_B_file'] = args.ROI_B_file
+
+    # Specify where the template
+    data_dict['template_path'] = args.template_path
+    data_dict['noise_dict_file'] = args.noise_dict_file
 
     # Specify the number of time points
     data_dict['numTRs'] = args.numTRs
@@ -407,6 +439,5 @@ if __name__ == '__main__':
     data_dict['burn_in'] = 6
 
     # Run the function if running from command line
-    generate_data(inputDir,
-                  outputDir,
+    generate_data(outputDir,
                   data_dict)
