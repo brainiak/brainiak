@@ -17,22 +17,18 @@
  Authors: Cameron Ellis (Princeton) 2020
 """
 import numpy as np
-import math
 from brainiak.utils import fmrisim_real_time_generator as gen
 import pytest
-from itertools import product
 import os
 import nibabel as nib
 import time
 import glob
 import copy
+from pkg_resources import resource_stream
 
 # Test that it crashes without inputs
 with pytest.raises(TypeError):
     gen.generate_data()
-
-# Set up the default values
-outputDir = tmp_path
 
 data_dict = {}
 data_dict['ROI_A_file'] = resource_stream(__name__, "ROI_A.nii.gz")
@@ -50,8 +46,9 @@ data_dict['trDuration'] = 2
 data_dict['isi'] = 4
 data_dict['burn_in'] = 6
 
+
 # Run default test
-def test_default(outputDir=outputDir, dd=data_dict):
+def test_default(outputDir=tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -80,7 +77,7 @@ def test_default(outputDir=outputDir, dd=data_dict):
     assert np.sum(labels > 0) == 9, 'Incorrect number of events'
 
 
-def test_signal_size(outputDir=outputDir, dd=data_dict):
+def test_signal_size(outputDir=tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -118,7 +115,7 @@ def test_signal_size(outputDir=outputDir, dd=data_dict):
 
 
 # Run default test
-def test_save_dicoms_realtime(outputDir=outputDir, dd=data_dict):
+def test_save_dicoms_realtime(outputDir=tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -141,10 +138,10 @@ def test_save_dicoms_realtime(outputDir=outputDir, dd=data_dict):
     assert (end_time - start_time) > 60, 'Realtime ran fast'
 
     # Check correct file number
-    assert len(glob.glob(outputDir + '*.dcm')) == 30, "Incorrect dicom file num"
+    assert len(glob.glob(outputDir + '*.dcm')) == 30, "Wrong dicom file num"
 
 
-def test_multivariate(outputDir=outputDir, dd=data_dict):
+def test_multivariate(outputDir=tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -172,5 +169,4 @@ def test_multivariate(outputDir=outputDir, dd=data_dict):
     ROI_A_std = np.std(vol[ROI_A == 1])
     ROI_B_std = np.std(vol[ROI_B == 1])
 
-    assert ROI_A_std > ROI_B_std, 'Multivariate test not making variable signal'
-
+    assert ROI_A_std > ROI_B_std, 'Multivariate not making variable signal'
