@@ -35,11 +35,12 @@ import numpy as np  # type: ignore
 import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
-logger = logging.getLogger(__name__)
 from pkg_resources import resource_stream
 
+logger = logging.getLogger(__name__)
 
 script_datetime = datetime.datetime.now()
+
 
 def _generate_ROIs(ROI_file,
                    stimfunc,
@@ -224,7 +225,7 @@ def generate_data(outputDir,
     logger.info('Load template of average voxel value')
 
     # Get the file names needed for loading in the data
-    ROI_A_file, ROI_B_file, template_path, noise_dict_file =_get_input_names(
+    ROI_A_file, ROI_B_file, template_path, noise_dict_file = _get_input_names(
         data_dict)
 
     template_nii = nibabel.load(template_path)
@@ -298,7 +299,6 @@ def generate_data(outputDir,
     # Create a labels timecourse
     outFile = os.path.join(outputDir, 'labels.npy')
     np.save(outFile, (stimfunc_A + (stimfunc_B * 2)))
-
 
     # How is the signal implemented in the different ROIs
     signal_A = _generate_ROIs(ROI_A_file,
