@@ -1,7 +1,7 @@
 # Generate simulated fMRI data with a few parameters that might be relevant
 # for real time analysis
 # This code can be run as a function in python or from the command line:
-# python fmrisim_real-time_generator --inputDir fmrisim_files/ --outputDir data/
+# python fmrisim_real-time_generator --inputDir fmrisim_files/ --outputDir data
 #
 # The input arguments are:
 # Required:
@@ -27,27 +27,28 @@
 #     burn_in - How long before the first event (in seconds)
 
 import os
-import glob
 import time
-import random
 import argparse
 import datetime
 import nibabel  # type: ignore
 import numpy as np  # type: ignore
 import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
-import sys
+import logging
+logger = logging.getLogger(__name__)
+from pkg_resources import resource_stream
+
 
 script_datetime = datetime.datetime.now()
 
-def generate_ROIs(ROI_file,
-                  stimfunc,
-                  noise,
-                  scale_percentage,
-                  data_dict):
+def _generate_ROIs(ROI_file,
+                   stimfunc,
+                   noise,
+                   scale_percentage,
+                   data_dict):
     # Create the signal in the ROI as specified.
 
-    print('Loading', ROI_file)
+    logger.info('Loading', ROI_file)
 
     nii = nibabel.load(ROI_file)
     ROI = nii.get_data()
@@ -106,9 +107,9 @@ def generate_ROIs(ROI_file,
     return signal
 
 
-def write_dicom(output_name,
-                data,
-                image_number=0):
+def _write_dicom(output_name,
+                 data,
+                 image_number=0):
     # Write the data to a dicom file.
     # Dicom files are difficult to set up correctly, this file will likely
     # crash when trying to open it using dcm2nii. However, if it is loaded in
@@ -165,6 +166,35 @@ def write_dicom(output_name,
     ds.save_as(output_name)
 
 
+def _get_input_names(data_dict):
+
+    # Load in the ROIs
+    if data_dict['ROI_A_file'] is None:
+        ROI_A_file = resource_stream(__name__, 'ROI_A.nii.gz')
+    else:
+        ROI_A_file = data_dict['ROI_A_file']
+
+    if data_dict['ROI_B_file'] is None:
+        ROI_B_file = resource_stream(__name__, 'ROI_B.nii.gz')
+    else:
+        ROI_B_file = data_dict['ROI_B_file']
+
+    # Get the path to the template
+    if data_dict['template_path'] is None:
+        template_path = resource_stream(__name__, 'sub_template.nii.gz')
+    else:
+        template_path = data_dict['template_path']
+
+    # Load in the noise dict if supplied
+    if data_dict['noise_dict_file'] is None:
+        noise_dict_file = resource_stream(__name__, 'sub_noise_dict.txt')
+    else:
+        noise_dict_file = data_dict['noise_dict_file']
+
+    # Return the paths
+    return ROI_A_file, ROI_B_file, template_path, noise_dict_file
+
+
 def generate_data(outputDir,
                   data_dict):
     # Generate simulated fMRI data with a few parameters that might be
@@ -189,22 +219,20 @@ def generate_data(outputDir,
     #     burn_in - How long before the first event (in seconds)
 
     # If the folder doesn't exist then make it
-    if os.path.isdir(outputDir) is False:
-        os.makedirs(outputDir, exist_ok=True)
+    os.system('mkdir -p %s' % outputDir)
 
-    print('Load template of average voxel value')
+    logger.info('Load template of average voxel value')
 
-    if data_dict['template_path'] is None:
-        template_path = resource_stream(__name__, 'sub_template.nii.gz')
-    else:
-        template_path = data_dict['template_path']
+    # Get the file names needed for loading in the data
+    ROI_A_file, ROI_B_file, template_path, noise_dict_file =_get_input_names(
+        data_dict)
 
     template_nii = nibabel.load(template_path)
     template = template_nii.get_data()
 
     dimensions = np.array(template.shape[0:3])
 
-    print('Create binary mask and normalize the template range')
+    logger.info('Create binary mask and normalize the template range')
     mask, template = sim.mask_brain(volume=template,
                                     mask_self=True,
                                     )
@@ -214,13 +242,7 @@ def generate_data(outputDir,
     np.save(outFile, mask.astype(np.uint8))
 
     # Load the noise dictionary
-    print('Loading noise parameters')
-
-    # Load in the noise dict if supplied
-    if data_dict['noise_dict_file'] is None:
-        noise_dict_file = resource_stream(__name__, 'sub_noise_dict.txt')
-    else:
-        noise_dict_file = data_dict['noise_dict_file']
+    logger.info('Loading noise parameters')
 
     with open(noise_dict_file, 'r') as f:
         noise_dict = f.read()
@@ -230,7 +252,7 @@ def generate_data(outputDir,
     # Add it here for easy access
     data_dict['noise_dict'] = data_dict
 
-    print('Generating noise')
+    logger.info('Generating noise')
     temp_stimfunction = np.zeros((data_dict['numTRs'], 1))
     noise = sim.generate_noise(dimensions=dimensions,
                                stimfunction_tr=temp_stimfunction,
@@ -277,51 +299,42 @@ def generate_data(outputDir,
     outFile = os.path.join(outputDir, 'labels.npy')
     np.save(outFile, (stimfunc_A + (stimfunc_B * 2)))
 
-    # Load in the ROIs
-    if data_dict['ROI_A_file'] is None:
-        ROI_A_file = resource_stream(__name__, 'ROI_A.nii.gz')
-    else:
-        ROI_A_file = data_dict['ROI_A_file']
-
-    if data_dict['ROI_B_file'] is None:
-        ROI_B_file = resource_stream(__name__, 'ROI_B.nii.gz')
-    else:
-        ROI_B_file = data_dict['ROI_B_file']
 
     # How is the signal implemented in the different ROIs
-    signal_A = generate_ROIs(ROI_A_file,
-                             stimfunc_A,
-                             noise,
-                             data_dict['scale_percentage'],
-                             data_dict)
+    signal_A = _generate_ROIs(ROI_A_file,
+                              stimfunc_A,
+                              noise,
+                              data_dict['scale_percentage'],
+                              data_dict)
     if data_dict['different_ROIs'] is True:
 
-        signal_B = generate_ROIs(ROI_B_file,
-                                 stimfunc_B,
-                                 noise,
-                                 data_dict['scale_percentage'],
-                                 data_dict)
+        signal_B = _generate_ROIs(ROI_B_file,
+                                  stimfunc_B,
+                                  noise,
+                                  data_dict['scale_percentage'],
+                                  data_dict)
 
     else:
 
-        # Halve the evoked response if these effects are both expected in the same ROI
+        # Halve the evoked response if these effects are both expected in the
+        #  same ROI
         if data_dict['multivariate_pattern'] is False:
-            signal_B = generate_ROIs(ROI_A_file,
-                                     stimfunc_B,
-                                     noise,
-                                     data_dict['scale_percentage'] * 0.5,
-                                     data_dict)
+            signal_B = _generate_ROIs(ROI_A_file,
+                                      stimfunc_B,
+                                      noise,
+                                      data_dict['scale_percentage'] * 0.5,
+                                      data_dict)
         else:
-            signal_B = generate_ROIs(ROI_A_file,
-                                     stimfunc_B,
-                                     noise,
-                                     data_dict['scale_percentage'],
-                                     data_dict)
+            signal_B = _generate_ROIs(ROI_A_file,
+                                      stimfunc_B,
+                                      noise,
+                                      data_dict['scale_percentage'],
+                                      data_dict)
 
     # Combine the two signal timecourses
     signal = signal_A + signal_B
 
-    print('Generating TRs in real time')
+    logger.info('Generating TRs in real time')
     for idx in range(data_dict['numTRs']):
 
         #  Create the brain volume on this TR
@@ -333,14 +346,16 @@ def generate_data(outputDir,
         # Store as dicom or nifti?
         if data_dict['save_dicom'] is True:
             # Save the volume as a DICOM file, with each TR as its own file
-            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d') + '.dcm')
-            write_dicom(output_file, brain_int32, idx+1)
+            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d')
+                                       + '.dcm')
+            _write_dicom(output_file, brain_int32, idx+1)
         else:
             # Save the volume as a numpy file, with each TR as its own file
-            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d') + '.npy')
+            output_file = os.path.join(outputDir, 'rt_' + format(idx, '03d')
+                                       + '.npy')
             np.save(output_file, brain_int32)
 
-        print("Generate {}".format(output_file))
+        logger.info("Generate {}".format(output_file))
 
         # Sleep until next TR
         if data_dict['save_realtime'] == 1:
@@ -362,7 +377,8 @@ if __name__ == '__main__':
     argParser.add_argument('--template_path', default=None, type=str,
                            help='Param. Full path to file for brain template')
     argParser.add_argument('--noise_dict_file', default=None, type=str,
-                           help='Param. Full path to file setting noise params')
+                           help='Param. Full path to file setting noise '
+                                'params')
     argParser.add_argument('--numTRs', '-n', default=200, type=int,
                            help='Param. Number of time points')
     argParser.add_argument('--eventDuration', '-d', default=10, type=int,
@@ -379,21 +395,22 @@ if __name__ == '__main__':
     argParser.add_argument('--saveAsDicom', default=False, action='store_true',
                            help='Flag. Output files in DICOM format rather '
                                 'than numpy')
-    argParser.add_argument('--saveRealtime', default=False, action='store_true',
-                           help='Flag. Save data as if it was coming in at '
-                                'the acquisition rate')
+    argParser.add_argument('--saveRealtime', default=False,
+                           action='store_true', help='Flag. Save data as if '
+                                                     'it was coming in at '
+                                                     'the acquisition rate')
     args = argParser.parse_args()
 
     # Essential arguments
     outputDir = args.outputDir
 
     if outputDir is None:
-        print("Must specify an output directory using -o")
+        logger.info("Must specify an output directory using -o")
         exit(-1)
 
     data_dict = {}
 
-    ## User controlled settings
+    # User controlled settings
 
     # Specify the path to the files used for defining ROIs.
     data_dict['ROI_A_file'] = args.ROI_A_file
@@ -427,7 +444,7 @@ if __name__ == '__main__':
     # Do you want to save the data in real time (1) or as fast as possible (0)?
     data_dict['save_realtime'] = args.saveRealtime
 
-    ## Default settings
+    # Default settings
 
     # How long does each acquisition take
     data_dict['trDuration'] = 2
