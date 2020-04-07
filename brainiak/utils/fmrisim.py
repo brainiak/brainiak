@@ -2217,8 +2217,8 @@ def mask_brain(volume,
     if mask_self is True:
         mask_raw = volume
     elif template_name is None:
-        mask_name = resource_stream(__name__,
-                                 "sim_parameters/grey_matter_mask.npy")
+        mask_name = resource_stream(__name__, 
+                                    "sim_parameters/grey_matter_mask.npy")
         mask_raw = np.load(mask_name)
     else:
         mask_raw = np.load(template_name)
