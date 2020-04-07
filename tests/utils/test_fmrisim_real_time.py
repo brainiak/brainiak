@@ -35,7 +35,7 @@ data_dict['ROI_A_file'] = resource_stream(gen.__name__,
                                           "sim_parameters/ROI_A.nii.gz")
 data_dict['ROI_B_file'] = resource_stream(gen.__name__,
                                           "sim_parameters/ROI_B.nii.gz")
-template_path = resource_stream(gen.__name__, 
+template_path = resource_stream(gen.__name__,
                                 "sim_parameters/sub_template.nii.gz")
 data_dict['template_path'] = template_path
 noise_dict_file = resource_stream(gen.__name__,
