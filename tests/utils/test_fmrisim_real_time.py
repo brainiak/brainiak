@@ -31,14 +31,16 @@ with pytest.raises(TypeError):
     gen.generate_data()
 
 data_dict = {}
-data_dict['ROI_A_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sim_parameters/ROI_A.nii.gz")
-data_dict['ROI_B_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sim_parameters/ROI_B.nii.gz")
-data_dict['template_path'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sim_parameters/sub_template.nii.gz")
-data_dict['noise_dict_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sim_parameters/sub_noise_dict.txt")
+data_dict['ROI_A_file'] = resource_stream(gen.__name__,
+                                          "sim_parameters/ROI_A.nii.gz")
+data_dict['ROI_B_file'] = resource_stream(gen.__name__,
+                                          "sim_parameters/ROI_B.nii.gz")
+template_path = resource_stream(gen.__name__, 
+                                "sim_parameters/sub_template.nii.gz")
+data_dict['template_path'] = template_path
+noise_dict_file = resource_stream(gen.__name__,
+                                  "sim_parameters/sub_noise_dict.txt")
+data_dict['noise_dict_file'] = noise_dict_file
 data_dict['numTRs'] = 30
 data_dict['event_duration'] = 2
 data_dict['scale_percentage'] = 1
