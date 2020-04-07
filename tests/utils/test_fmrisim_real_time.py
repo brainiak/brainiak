@@ -32,13 +32,13 @@ with pytest.raises(TypeError):
 
 data_dict = {}
 data_dict['ROI_A_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "ROI_A.nii.gz")
+    fmrisim_real_time_generator.__name__, "sim_parameters/ROI_A.nii.gz")
 data_dict['ROI_B_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "ROI_B.nii.gz")
+    fmrisim_real_time_generator.__name__, "sim_parameters/ROI_B.nii.gz")
 data_dict['template_path'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sub_template.nii.gz")
+    fmrisim_real_time_generator.__name__, "sim_parameters/sub_template.nii.gz")
 data_dict['noise_dict_file'] = resource_stream(
-    fmrisim_real_time_generator.__name__, "sub_noise_dict.txt")
+    fmrisim_real_time_generator.__name__, "sim_parameters/sub_noise_dict.txt")
 data_dict['numTRs'] = 30
 data_dict['event_duration'] = 2
 data_dict['scale_percentage'] = 1
@@ -68,7 +68,7 @@ def test_default(tmp_path, dd=data_dict):
     # Check that the data is the right shape
     input_template = nib.load(dd['template_path'])
     input_shape = input_template.shape
-    output_vol = np.load(outputDir + 'rt_000.npy')
+    output_vol = np.load(tmp_path + 'rt_000.npy')
     output_shape = output_vol.shape
     assert input_shape == output_shape, 'Output shape is incorrect'
 
