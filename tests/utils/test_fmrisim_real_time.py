@@ -31,10 +31,14 @@ with pytest.raises(TypeError):
     gen.generate_data()
 
 data_dict = {}
-data_dict['ROI_A_file'] = resource_stream(__name__, "ROI_A.nii.gz")
-data_dict['ROI_B_file'] = resource_stream(__name__, "ROI_B.nii.gz")
-data_dict['template_path'] = resource_stream(__name__, "sub_template.nii.gz")
-data_dict['noise_dict_file'] = resource_stream(__name__, "sub_noise_dict.txt")
+data_dict['ROI_A_file'] = resource_stream(
+    fmrisim_real_time_generator.__name__, "ROI_A.nii.gz")
+data_dict['ROI_B_file'] = resource_stream(
+    fmrisim_real_time_generator.__name__, "ROI_B.nii.gz")
+data_dict['template_path'] = resource_stream(
+    fmrisim_real_time_generator.__name__, "sub_template.nii.gz")
+data_dict['noise_dict_file'] = resource_stream(
+    fmrisim_real_time_generator.__name__, "sub_noise_dict.txt")
 data_dict['numTRs'] = 30
 data_dict['event_duration'] = 2
 data_dict['scale_percentage'] = 1
@@ -48,7 +52,7 @@ data_dict['burn_in'] = 6
 
 
 # Run default test
-def test_default(outputDir=tmp_path, dd=data_dict):
+def test_default(tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -77,7 +81,7 @@ def test_default(outputDir=tmp_path, dd=data_dict):
     assert np.sum(labels > 0) == 9, 'Incorrect number of events'
 
 
-def test_signal_size(outputDir=tmp_path, dd=data_dict):
+def test_signal_size(tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -115,7 +119,7 @@ def test_signal_size(outputDir=tmp_path, dd=data_dict):
 
 
 # Run default test
-def test_save_dicoms_realtime(outputDir=tmp_path, dd=data_dict):
+def test_save_dicoms_realtime(tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)
@@ -141,7 +145,7 @@ def test_save_dicoms_realtime(outputDir=tmp_path, dd=data_dict):
     assert len(glob.glob(outputDir + '*.dcm')) == 30, "Wrong dicom file num"
 
 
-def test_multivariate(outputDir=tmp_path, dd=data_dict):
+def test_multivariate(tmp_path, dd=data_dict):
 
     # Make sure you don't edit the data dict
     dd = copy.deepcopy(dd)

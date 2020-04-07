@@ -1,31 +1,32 @@
 # Generate simulated fMRI data with a few parameters that might be relevant
 # for real time analysis
-# This code can be run as a function in python or from the command line:
-# python fmrisim_real-time_generator --inputDir fmrisim_files/ --outputDir data
-#
-# The input arguments are:
-# Required:
-# inputDir - Specify input data dir where the parameters for fmrisim are
-# outputDir - Specify output data dir where the data should be saved
-#
-# Optional (can be modified by flags from the command line):
-# data_dict contains:
-#     numTRs - Specify the number of time points
-#     multivariate_patterns - Is the difference between conditions univariate
-#  (0) or multivariate (1)
-#     different_ROIs - Are there different ROIs for each condition (1) or is
-# it in the same ROI (0). If it is the same ROI and you are using univariate
-# differences, the second condition will have a smaller evoked response than
-#  the other.
-#     event_duration - How long, in seconds, is each event
-#     scale_percentage - What is the percent signal change
-#     trDuration - How many seconds per volume
-#     save_dicom - Do you want to save data as a dicom (1) or numpy (0)
-#     save_realtime - Do you want to save the data in real time (1) or as
-# fast as possible (0)?
-#     isi - What is the time between each event (in seconds)
-#     burn_in - How long before the first event (in seconds)
+"""
+This code can be run as a function in python or from the command line:
+python fmrisim_real-time_generator --inputDir fmrisim_files/ --outputDir data
 
+The input arguments are:
+Required:
+inputDir - Specify input data dir where the parameters for fmrisim are
+outputDir - Specify output data dir where the data should be saved
+
+Optional (can be modified by flags from the command line):
+data_dict contains:
+    numTRs - Specify the number of time points
+    multivariate_patterns - Is the difference between conditions univariate
+ (0) or multivariate (1)
+    different_ROIs - Are there different ROIs for each condition (1) or is
+it in the same ROI (0). If it is the same ROI and you are using univariate
+differences, the second condition will have a smaller evoked response than
+ the other.
+    event_duration - How long, in seconds, is each event
+    scale_percentage - What is the percent signal change
+    trDuration - How many seconds per volume
+    save_dicom - Do you want to save data as a dicom (1) or numpy (0)
+    save_realtime - Do you want to save the data in real time (1) or as
+fast as possible (0)?
+    isi - What is the time between each event (in seconds)
+    burn_in - How long before the first event (in seconds)
+"""
 import os
 import time
 import argparse
@@ -36,6 +37,8 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
 from pkg_resources import resource_stream
+
+__all__ = ["generate_data"]
 
 logger = logging.getLogger(__name__)
 
