@@ -57,9 +57,6 @@ data_dict['burn_in'] = 6
 # Run default test
 def test_default(tmp_path, dd=data_dict):
 
-    # Make sure you don't edit the data dict
-    dd = copy.deepcopy(dd)
-
     # Run the simulation
     gen.generate_data(tmp_path,
                       dd)
