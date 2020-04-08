@@ -23,7 +23,6 @@ import os
 import nibabel as nib
 import time
 import glob
-import copy
 from pkg_resources import resource_stream
 from typing import Dict
 
