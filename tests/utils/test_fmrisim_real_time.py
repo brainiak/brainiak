@@ -25,12 +25,13 @@ import time
 import glob
 import copy
 from pkg_resources import resource_stream
+from typing import Dict
 
 # Test that it crashes without inputs
 with pytest.raises(TypeError):
-    gen.generate_data()
+    gen.generate_data()  # type: ignore
 
-data_dict = {}
+data_dict: Dict = {}
 data_dict['ROI_A_file'] = resource_stream(gen.__name__,
                                           "sim_parameters/ROI_A.nii.gz")
 data_dict['ROI_B_file'] = resource_stream(gen.__name__,
