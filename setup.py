@@ -139,6 +139,7 @@ setup(
         'nibabel',
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
+        'pydicom',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
