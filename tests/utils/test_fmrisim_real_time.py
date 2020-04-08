@@ -83,9 +83,6 @@ def test_default(tmp_path, dd=data_dict):
 
 def test_signal_size(tmp_path, dd=data_dict):
 
-    # Make sure you don't edit the data dict
-    dd = copy.deepcopy(dd)
-
     # Change it to only use ROI A
     dd['different_ROIs'] = False
 
@@ -118,9 +115,6 @@ def test_signal_size(tmp_path, dd=data_dict):
 # Run default test
 def test_save_dicoms_realtime(tmp_path, dd=data_dict):
 
-    # Make sure you don't edit the data dict
-    dd = copy.deepcopy(dd)
-
     dd['save_dicom'] = True
     dd['save_realtime'] = True
 
@@ -140,9 +134,6 @@ def test_save_dicoms_realtime(tmp_path, dd=data_dict):
 
 
 def test_multivariate(tmp_path, dd=data_dict):
-
-    # Make sure you don't edit the data dict
-    dd = copy.deepcopy(dd)
 
     dd['multivariate_pattern'] = True
     dd['different_ROIs'] = False
