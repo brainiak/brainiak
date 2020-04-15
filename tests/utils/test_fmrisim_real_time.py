@@ -25,19 +25,21 @@ import time
 import glob
 from pkg_resources import resource_stream
 from typing import Dict
+from nib.nifti1.Nifti1Image import from_bytes as from_bytes
+import gzip
 
 # Test that it crashes without inputs
 with pytest.raises(TypeError):
     gen.generate_data()  # type: ignore
 
 data_dict: Dict = {}
-data_dict['ROI_A_file'] = resource_stream(gen.__name__,
-                                          "sim_parameters/ROI_A.nii.gz")
-data_dict['ROI_B_file'] = resource_stream(gen.__name__,
-                                          "sim_parameters/ROI_B.nii.gz")
-template_path = resource_stream(gen.__name__,
-                                "sim_parameters/sub_template.nii.gz")
-data_dict['template_path'] = template_path
+vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
+data_dict['ROI_A_file'] = from_bytes(gzip.decompress(vol))
+vol = resource_stream(gen.__name__, "sim_parameters/ROI_B.nii.gz").read()
+data_dict['ROI_B_file'] = from_bytes(gzip.decompress(vol))
+vol = resource_stream(gen.__name__,
+                      "sim_parameters/sub_template.nii.gz").read()
+data_dict['template_path'] = from_bytes(gzip.decompress(vol))
 noise_dict_file = resource_stream(gen.__name__,
                                   "sim_parameters/sub_noise_dict.txt")
 data_dict['noise_dict_file'] = noise_dict_file
@@ -65,7 +67,7 @@ def test_default(tmp_path, dd=data_dict):
     assert len(os.listdir(tmp_path)) == 32, "Incorrect file number"
 
     # Check that the data is the right shape
-    input_template = nib.load(dd['template_path'])
+    input_template = dd['template_path']
     input_shape = input_template.shape
     output_vol = np.load(tmp_path + 'rt_000.npy')
     output_shape = output_vol.shape
@@ -90,8 +92,8 @@ def test_signal_size(tmp_path, dd=data_dict):
                       dd)
 
     # Load in the ROI masks
-    ROI_A = nib.load(dd['ROI_A_file']).get_data()
-    ROI_B = nib.load(dd['ROI_B_file']).get_data()
+    ROI_A = dd['ROI_A_file']
+    ROI_B = dd['ROI_B_file']
 
     # Load in the data just simulated
     ROI_A_mean = []
@@ -142,8 +144,8 @@ def test_multivariate(tmp_path, dd=data_dict):
                       dd)
 
     # Load in the ROI masks
-    ROI_A = nib.load(dd['ROI_A_file']).get_data()
-    ROI_B = nib.load(dd['ROI_B_file']).get_data()
+    ROI_A = dd['ROI_A_file']
+    ROI_B = dd['ROI_B_file']
 
     # Test this volume
     vol = np.load(tmp_path + 'rt_007.npy')

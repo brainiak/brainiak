@@ -37,6 +37,8 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
 from pkg_resources import resource_stream
+from nib.nifti1.Nifti1Image import from_bytes as from_bytes
+import gzip
 
 __all__ = ["generate_data"]
 
@@ -54,8 +56,12 @@ def _generate_ROIs(ROI_file,
 
     logger.info('Loading', ROI_file)
 
-    nii = nibabel.load(ROI_file)
-    ROI = nii.get_data()
+    # Load in the template data (it may already be loaded if doing a test)
+    if np.prod(ROI_file.shape) < 1000:
+        nii = nibabel.load(ROI_file)
+        ROI = nii.get_data()
+    else:
+        ROI = ROI_file
 
     # Find all the indices that contain signal
     idx_list = np.where(ROI == 1)
@@ -174,18 +180,22 @@ def _get_input_names(data_dict):
 
     # Load in the ROIs
     if data_dict['ROI_A_file'] is None:
-        ROI_A_file = resource_stream(__name__, 'ROI_A.nii.gz')
+        vol = resource_stream(__name__, "sim_parameters/ROI_A.nii.gz").read()
+        ROI_A_file = from_bytes(gzip.decompress(vol))
     else:
         ROI_A_file = data_dict['ROI_A_file']
 
     if data_dict['ROI_B_file'] is None:
-        ROI_B_file = resource_stream(__name__, 'ROI_B.nii.gz')
+        vol = resource_stream(__name__, "sim_parameters/ROI_B.nii.gz").read()
+        ROI_B_file = from_bytes(gzip.decompress(vol))
     else:
         ROI_B_file = data_dict['ROI_B_file']
 
     # Get the path to the template
     if data_dict['template_path'] is None:
-        template_path = resource_stream(__name__, 'sub_template.nii.gz')
+        vol = resource_stream(__name__,
+                              "sim_parameters/sub_template.nii.gz").read()
+        template_path = from_bytes(gzip.decompress(vol))
     else:
         template_path = data_dict['template_path']
 
@@ -231,8 +241,12 @@ def generate_data(outputDir,
     ROI_A_file, ROI_B_file, template_path, noise_dict_file = _get_input_names(
         data_dict)
 
-    template_nii = nibabel.load(template_path)
-    template = template_nii.get_data()
+    # Load in the template data (it may already be loaded if doing a test)
+    if np.prod(template_path.shape) < 1000:
+        template_nii = nibabel.load(template_path)
+        template = template_nii.get_data()
+    else:
+        template = template_path
 
     dimensions = np.array(template.shape[0:3])
 
