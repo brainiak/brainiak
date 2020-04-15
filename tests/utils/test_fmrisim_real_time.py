@@ -20,7 +20,6 @@ import numpy as np
 from brainiak.utils import fmrisim_real_time_generator as gen
 import pytest
 import os
-import nibabel as nib
 import time
 import glob
 from pkg_resources import resource_stream
