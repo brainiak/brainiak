@@ -37,7 +37,7 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
 from pkg_resources import resource_stream
-from nib.nifti1.Nifti1Image import from_bytes as from_bytes
+from nibabel.nifti1.Nifti1Image import from_bytes as from_bytes
 import gzip
 
 __all__ = ["generate_data"]

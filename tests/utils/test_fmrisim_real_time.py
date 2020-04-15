@@ -24,7 +24,7 @@ import time
 import glob
 from pkg_resources import resource_stream
 from typing import Dict
-from nib.nifti1.Nifti1Image import from_bytes as from_bytes
+from nibabel.nifti1.Nifti1Image import from_bytes as from_bytes
 import gzip
 
 # Test that it crashes without inputs
