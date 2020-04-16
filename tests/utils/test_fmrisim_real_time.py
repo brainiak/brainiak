@@ -24,7 +24,7 @@ import time
 import glob
 from pkg_resources import resource_stream
 from typing import Dict
-from nibabel.nifti1.Nifti1Image import from_bytes as from_bytes
+from nibabel.nifti1 import Nifti1Image
 import gzip
 
 # Test that it crashes without inputs
@@ -33,12 +33,12 @@ with pytest.raises(TypeError):
 
 data_dict: Dict = {}
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
-data_dict['ROI_A_file'] = from_bytes(gzip.decompress(vol))
+data_dict['ROI_A_file'] = Nifti1Image.from_bytes(gzip.decompress(vol))
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_B.nii.gz").read()
-data_dict['ROI_B_file'] = from_bytes(gzip.decompress(vol))
+data_dict['ROI_B_file'] = Nifti1Image.from_bytes(gzip.decompress(vol))
 vol = resource_stream(gen.__name__,
                       "sim_parameters/sub_template.nii.gz").read()
-data_dict['template_path'] = from_bytes(gzip.decompress(vol))
+data_dict['template_path'] = Nifti1Image.from_bytes(gzip.decompress(vol))
 noise_dict_file = resource_stream(gen.__name__,
                                   "sim_parameters/sub_noise_dict.txt")
 data_dict['noise_dict_file'] = noise_dict_file

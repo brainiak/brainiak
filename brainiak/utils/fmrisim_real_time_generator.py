@@ -37,7 +37,7 @@ import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
 from pkg_resources import resource_stream
-from nibabel.nifti1.Nifti1Image import from_bytes as from_bytes
+from nibabel.nifti1 import Nifti1Image
 import gzip
 
 __all__ = ["generate_data"]
@@ -181,13 +181,13 @@ def _get_input_names(data_dict):
     # Load in the ROIs
     if data_dict['ROI_A_file'] is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_A.nii.gz").read()
-        ROI_A_file = from_bytes(gzip.decompress(vol))
+        ROI_A_file = Nifti1Image.from_bytes(gzip.decompress(vol))
     else:
         ROI_A_file = data_dict['ROI_A_file']
 
     if data_dict['ROI_B_file'] is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_B.nii.gz").read()
-        ROI_B_file = from_bytes(gzip.decompress(vol))
+        ROI_B_file = Nifti1Image.from_bytes(gzip.decompress(vol))
     else:
         ROI_B_file = data_dict['ROI_B_file']
 
@@ -195,7 +195,7 @@ def _get_input_names(data_dict):
     if data_dict['template_path'] is None:
         vol = resource_stream(__name__,
                               "sim_parameters/sub_template.nii.gz").read()
-        template_path = from_bytes(gzip.decompress(vol))
+        template_path = Nifti1Image.from_bytes(gzip.decompress(vol))
     else:
         template_path = data_dict['template_path']
 
