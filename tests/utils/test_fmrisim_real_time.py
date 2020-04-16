@@ -33,12 +33,15 @@ with pytest.raises(TypeError):
 
 data_dict: Dict = {}
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
-data_dict['ROI_A_file'] = Nifti1Image.from_bytes(gzip.decompress(vol))
+data_dict['ROI_A_file'] = Nifti1Image.from_bytes(gzip.decompress(
+    vol)).get_data()
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_B.nii.gz").read()
-data_dict['ROI_B_file'] = Nifti1Image.from_bytes(gzip.decompress(vol))
+data_dict['ROI_B_file'] = Nifti1Image.from_bytes(gzip.decompress(
+    vol)).get_data()
 vol = resource_stream(gen.__name__,
                       "sim_parameters/sub_template.nii.gz").read()
-data_dict['template_path'] = Nifti1Image.from_bytes(gzip.decompress(vol))
+data_dict['template_path'] = Nifti1Image.from_bytes(gzip.decompress(
+    vol)).get_data()
 noise_dict_file = resource_stream(gen.__name__,
                                   "sim_parameters/sub_noise_dict.txt")
 data_dict['noise_dict_file'] = noise_dict_file
