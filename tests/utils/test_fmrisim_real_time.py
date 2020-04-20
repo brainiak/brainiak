@@ -43,7 +43,7 @@ vol = resource_stream(gen.__name__,
 data_dict['template_path'] = Nifti1Image.from_bytes(gzip.decompress(
     vol)).get_data()
 noise_dict_file = resource_stream(gen.__name__,
-                                  "sim_parameters/sub_noise_dict.txt")
+                                  "sim_parameters/sub_noise_dict.txt").read()
 data_dict['noise_dict_file'] = noise_dict_file
 data_dict['numTRs'] = 30
 data_dict['event_duration'] = 2

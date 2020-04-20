@@ -201,7 +201,9 @@ def _get_input_names(data_dict):
 
     # Load in the noise dict if supplied
     if data_dict['noise_dict_file'] is None:
-        noise_dict_file = resource_stream(__name__, 'sub_noise_dict.txt')
+        file = resource_stream(__name__,
+                               'sim_parameters/sub_noise_dict.txt').read()
+        noise_dict_file = file
     else:
         noise_dict_file = data_dict['noise_dict_file']
 
@@ -262,8 +264,14 @@ def generate_data(outputDir,
     # Load the noise dictionary
     logger.info('Loading noise parameters')
 
-    with open(noise_dict_file, 'r') as f:
-        noise_dict = f.read()
+    # If this isn't a string, assume it is a resource stream file
+    if type(noise_dict_file) is str:
+        with open(noise_dict_file, 'r') as f:
+            noise_dict = f.read()
+    else:
+        # Read the resource stream object
+        noise_dict = noise_dict_file.decode()
+
     noise_dict = eval(noise_dict)
     noise_dict['matched'] = 0  # Increases processing time
 
