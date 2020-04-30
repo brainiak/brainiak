@@ -157,4 +157,3 @@ def test_save_dicoms_realtime(tmp_path, dd=data_dict):
     # Check correct file number
     file_path = str(tmp_path / '*.dcm')
     assert len(glob.glob(file_path)) == 30, "Wrong dicom file num"
-
