@@ -103,7 +103,8 @@ def test_signal_size(tmp_path, dd=data_dict):
     for TR_counter in range(dd['numTRs']):
 
         # Load the data
-        vol = np.load(tmp_path / 'rt_%03d.npy' % TR_counter)
+        vol_name = 'rt_%03d.npy' % TR_counter
+        vol = np.load(tmp_path / vol_name)
 
         # Mask the data
         ROI_A_mean += [np.mean(vol[ROI_A == 1])]
@@ -130,7 +131,8 @@ def test_save_dicoms_realtime(tmp_path, dd=data_dict):
     assert (end_time - start_time) > 60, 'Realtime ran fast'
 
     # Check correct file number
-    assert len(glob.glob(tmp_path / '*.dcm')) == 30, "Wrong dicom file num"
+    file_path = str(tmp_path / '*.dcm')
+    assert len(glob.glob(file_path)) == 30, "Wrong dicom file num"
 
 
 def test_multivariate(tmp_path, dd=data_dict):
@@ -150,7 +152,7 @@ def test_multivariate(tmp_path, dd=data_dict):
     ROI_B = dd['ROI_B_file']
 
     # Test this volume
-    vol = np.load(tmp_path / 'rt_007.npy')
+    vol = np.load(str(tmp_path / 'rt_007.npy'))
 
     ROI_A_std = np.std(vol[ROI_A == 1])
     ROI_B_std = np.std(vol[ROI_B == 1])
