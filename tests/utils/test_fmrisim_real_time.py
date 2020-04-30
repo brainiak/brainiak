@@ -71,12 +71,12 @@ def test_default(tmp_path, dd=data_dict):
     # Check that the data is the right shape
     input_template = dd['template_path']
     input_shape = input_template.shape
-    output_vol = np.load(tmp_path + 'rt_000.npy')
+    output_vol = np.load(tmp_path / 'rt_000.npy')
     output_shape = output_vol.shape
     assert input_shape == output_shape, 'Output shape is incorrect'
 
     # Check the labels have the correct count
-    labels = np.load(tmp_path + 'labels.npy')
+    labels = np.load(tmp_path / 'labels.npy')
 
     assert np.sum(labels > 0) == 9, 'Incorrect number of events'
 
@@ -103,7 +103,7 @@ def test_signal_size(tmp_path, dd=data_dict):
     for TR_counter in range(dd['numTRs']):
 
         # Load the data
-        vol = np.load(tmp_path + 'rt_%03d.npy' % TR_counter)
+        vol = np.load(tmp_path / 'rt_%03d.npy' % TR_counter)
 
         # Mask the data
         ROI_A_mean += [np.mean(vol[ROI_A == 1])]
@@ -130,7 +130,7 @@ def test_save_dicoms_realtime(tmp_path, dd=data_dict):
     assert (end_time - start_time) > 60, 'Realtime ran fast'
 
     # Check correct file number
-    assert len(glob.glob(tmp_path + '*.dcm')) == 30, "Wrong dicom file num"
+    assert len(glob.glob(tmp_path / '*.dcm')) == 30, "Wrong dicom file num"
 
 
 def test_multivariate(tmp_path, dd=data_dict):
@@ -150,7 +150,7 @@ def test_multivariate(tmp_path, dd=data_dict):
     ROI_B = dd['ROI_B_file']
 
     # Test this volume
-    vol = np.load(tmp_path + 'rt_007.npy')
+    vol = np.load(tmp_path / 'rt_007.npy')
 
     ROI_A_std = np.std(vol[ROI_A == 1])
     ROI_B_std = np.std(vol[ROI_B == 1])
