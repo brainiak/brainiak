@@ -113,28 +113,6 @@ def test_signal_size(tmp_path, dd=data_dict):
     assert np.std(ROI_A_mean) > np.std(ROI_B_mean), 'Signal not scaling'
 
 
-# Run default test
-def test_save_dicoms_realtime(tmp_path, dd=data_dict):
-
-    dd['save_dicom'] = True
-    dd['save_realtime'] = True
-
-    start_time = time.time()
-
-    # Run the simulation
-    gen.generate_data(tmp_path,
-                      dd)
-
-    end_time = time.time()
-
-    # Check it took 2s per TR
-    assert (end_time - start_time) > 60, 'Realtime ran fast'
-
-    # Check correct file number
-    file_path = str(tmp_path / '*.dcm')
-    assert len(glob.glob(file_path)) == 30, "Wrong dicom file num"
-
-
 def test_multivariate(tmp_path, dd=data_dict):
 
     dd['multivariate_pattern'] = True
@@ -158,3 +136,25 @@ def test_multivariate(tmp_path, dd=data_dict):
     ROI_B_std = np.std(vol[ROI_B == 1])
 
     assert ROI_A_std > ROI_B_std, 'Multivariate not making variable signal'
+
+
+def test_save_dicoms_realtime(tmp_path, dd=data_dict):
+
+    dd['save_dicom'] = True
+    dd['save_realtime'] = True
+
+    start_time = time.time()
+
+    # Run the simulation
+    gen.generate_data(tmp_path,
+                      dd)
+
+    end_time = time.time()
+
+    # Check it took 2s per TR
+    assert (end_time - start_time) > 60, 'Realtime ran fast'
+
+    # Check correct file number
+    file_path = str(tmp_path / '*.dcm')
+    assert len(glob.glob(file_path)) == 30, "Wrong dicom file num"
+
