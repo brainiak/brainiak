@@ -11,21 +11,21 @@ outputDir - Specify output data dir where the data should be saved
 
 Optional (can be modified by flags from the command line):
 data_dict contains:
-    numTRs - Specify the number of time points
-    multivariate_patterns - Is the difference between conditions univariate
- (0) or multivariate (1)
-    different_ROIs - Are there different ROIs for each condition (1) or is
+numTRs - Specify the number of time points
+multivariate_patterns - Is the difference between conditions univariate (0)
+or multivariate (1)
+different_ROIs - Are there different ROIs for each condition (1) or is
 it in the same ROI (0). If it is the same ROI and you are using univariate
 differences, the second condition will have a smaller evoked response than
- the other.
-    event_duration - How long, in seconds, is each event
-    scale_percentage - What is the percent signal change
-    trDuration - How many seconds per volume
-    save_dicom - Do you want to save data as a dicom (1) or numpy (0)
-    save_realtime - Do you want to save the data in real time (1) or as
-fast as possible (0)?
-    isi - What is the time between each event (in seconds)
-    burn_in - How long before the first event (in seconds)
+the other.
+event_duration - How long, in seconds, is each event
+scale_percentage - What is the percent signal change
+trDuration - How many seconds per volume
+save_dicom - Do you want to save data as a dicom (1) or numpy (0)
+save_realtime - Do you want to save the data in real time (1) or as fast as
+possible (0)?
+isi - What is the time between each event (in seconds)
+burn_in - How long before the first event (in seconds)
 """
 import os
 import time
@@ -52,6 +52,55 @@ def _generate_ROIs(ROI_file,
                    noise,
                    scale_percentage,
                    data_dict):
+    """Make signal activity for an ROI of data
+        Creates the specified evoked response time course, calibrated to the
+        expected signal change, for a given ROI
+
+    Parameters
+    ----------
+
+    ROI_file : str
+        Path to the file of the ROI being loaded in
+
+    stimfunc : 1 dimensional array
+        Time course of evoked response. Output from
+        fmrisim.generate_stimfunction
+
+    noise : 4 dimensional array
+        Volume of noise generated from fmrisim.generate_noise. Although this
+        is needed as an input, this is only so that the percent signal change
+        can be calibrated. This is not combined with the signal generated.
+
+    scale_percentage : float
+        What is the percent signal change for the evoked response
+
+    data_dict : dict
+        A dictionary to specify the parameters used for making data,
+        specifying the following keys
+        numTRs - int - Specify the number of time points
+        multivariate_patterns - bool - Is the difference between conditions
+        univariate (0) or multivariate (1)
+        different_ROIs - bool - Are there different ROIs for each condition (
+        1) or is it in the same ROI (0). If it is the same ROI and you are
+        using univariate differences, the second condition will have a
+        smaller evoked response than the other.
+        event_duration - int - How long, in seconds, is each event
+        scale_percentage - float - What is the percent signal change
+        trDuration - float - How many seconds per volume
+        save_dicom - bool - Save to data as a dicom (1) or numpy (0)
+        save_realtime - bool - Do you want to save the data in real time (1)
+        or as fast as possible (0)?
+        isi - float - What is the time between each event (in seconds)
+        burn_in - int - How long before the first event (in seconds)
+
+    Returns
+    ----------
+
+    signal : 4 dimensional array
+    Volume of signal in the specified ROI (noise has not yet been added)
+
+    """
+
     # Create the signal in the ROI as specified.
 
     logger.info('Loading', ROI_file)
@@ -120,11 +169,29 @@ def _generate_ROIs(ROI_file,
 def _write_dicom(output_name,
                  data,
                  image_number=0):
-    # Write the data to a dicom file.
-    # Dicom files are difficult to set up correctly, this file will likely
-    # crash when trying to open it using dcm2nii. However, if it is loaded in
-    # python (e.g., dicom.dcmread) then pixel_array contains the relevant
-    # voxel data
+    """Write the data to a dicom file
+    Saves the data for one TR to a dicom.
+
+    Dicom files are difficult to set up correctly, this file will likely
+    crash when trying to open it using dcm2nii. However, if it is loaded in
+    python (e.g., dicom.dcmread) then pixel_array contains the relevant
+    voxel data
+
+    Parameters
+    ----------
+
+    output_name : str
+        Output name for volume being created
+
+    data : 3 dimensional array
+        Volume of data to be saved
+
+    image_number : int
+        Number dicom to be saved. This is critical for setting up dicom file
+        header information.
+
+    """
+
 
     # Convert data from float to in
     dataInts = data.astype(np.int16)
@@ -177,6 +244,47 @@ def _write_dicom(output_name,
 
 
 def _get_input_names(data_dict):
+    """Get names from dict
+        Read in the data_dict to return the relevant file names
+
+    Parameters
+    ----------
+
+    data_dict : dict
+        A dictionary to specify the parameters used for making data,
+        specifying the following keys
+        numTRs - int - Specify the number of time points
+        multivariate_patterns - bool - Is the difference between conditions
+        univariate (0) or multivariate (1)
+        different_ROIs - bool - Are there different ROIs for each condition (
+        1) or is it in the same ROI (0). If it is the same ROI and you are
+        using univariate differences, the second condition will have a
+        smaller evoked response than the other.
+        event_duration - int - How long, in seconds, is each event
+        scale_percentage - float - What is the percent signal change
+        trDuration - float - How many seconds per volume
+        save_dicom - bool - Save to data as a dicom (1) or numpy (0)
+        save_realtime - bool - Do you want to save the data in real time (1)
+        or as fast as possible (0)?
+        isi - float - What is the time between each event (in seconds)
+        burn_in - int - How long before the first event (in seconds)
+
+    Returns
+    ----------
+
+    ROI_A_file : str
+        Path to ROI for condition A
+
+    ROI_B_file : str
+        Path to ROI for condition B
+
+    template_path : str
+        Path to template file for data
+
+    noise_dict_file : str
+        Path to file containing parameters for noise simulation
+
+    """
 
     # Load in the ROIs
     if data_dict['ROI_A_file'] is None:
@@ -213,26 +321,38 @@ def _get_input_names(data_dict):
 
 def generate_data(outputDir,
                   data_dict):
-    # Generate simulated fMRI data with a few parameters that might be
-    # relevant for real time analysis
-    # inputDir - Specify input data dir where the parameters for fmrisim are
-    # outputDir - Specify output data dir where the data should be saved
-    # data_dict contains:
-    #     numTRs - Specify the number of time points
-    #     multivariate_patterns - Is the difference between conditions
-    # univariate (0) or multivariate (1)
-    #     different_ROIs - Are there different ROIs for each condition (1) or
-    #  is it in the same ROI (0). If it is the same ROI and you are using
-    # univariate differences, the second condition will have a smaller evoked
-    #  response than the other.
-    #     event_duration - How long, in seconds, is each event
-    #     scale_percentage - What is the percent signal change
-    #     trDuration - How many seconds per volume
-    #     save_dicom - Do you want to save data as a dicom (1) or numpy (0)
-    #     save_realtime - Do you want to save the data in real time (1) or as
-    #  fast as possible (0)?
-    #     isi - What is the time between each event (in seconds)
-    #     burn_in - How long before the first event (in seconds)
+    """Generate simulated fMRI data
+    Use a few parameters that might be relevant for real time analysis
+
+    Parameters
+    ----------
+
+    inputDir : str
+        Specify input data dir where the parameters for fmrisim are
+
+    outputDir : str
+        Specify output data dir where the data should be saved
+
+    data_dict : dict
+        A dictionary to specify the parameters used for making data,
+        specifying the following keys
+        numTRs - int - Specify the number of time points
+        multivariate_patterns - bool - Is the difference between conditions
+        univariate (0) or multivariate (1)
+        different_ROIs - bool - Are there different ROIs for each condition (
+        1) or is it in the same ROI (0). If it is the same ROI and you are
+        using univariate differences, the second condition will have a
+        smaller evoked response than the other.
+        event_duration - int - How long, in seconds, is each event
+        scale_percentage - float - What is the percent signal change
+        trDuration - float - How many seconds per volume
+        save_dicom - bool - Save to data as a dicom (1) or numpy (0)
+        save_realtime - bool - Do you want to save the data in real time (1)
+        or as fast as possible (0)?
+        isi - float - What is the time between each event (in seconds)
+        burn_in - int - How long before the first event (in seconds)
+
+       """
 
     # If the folder doesn't exist then make it
     os.system('mkdir -p %s' % outputDir)
