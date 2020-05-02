@@ -192,7 +192,6 @@ def _write_dicom(output_name,
 
     """
 
-
     # Convert data from float to in
     dataInts = data.astype(np.int16)
 
@@ -352,7 +351,7 @@ def generate_data(outputDir,
         isi - float - What is the time between each event (in seconds)
         burn_in - int - How long before the first event (in seconds)
 
-       """
+    """
 
     # If the folder doesn't exist then make it
     os.system('mkdir -p %s' % outputDir)
