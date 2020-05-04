@@ -66,7 +66,7 @@ def test_default(tmp_path, dd=data_dict):
 
     # Check that there are 32 files where there should be (30 plus label and
     # mask)
-    assert len(os.listdir(tmp_path)) == 32, "Incorrect file number"
+    assert len(os.listdir(str(tmp_path))) == 32, "Incorrect file number"
 
     # Check that the data is the right shape
     input_template = dd['template_path']
