@@ -527,7 +527,7 @@ if __name__ == '__main__':
                            help='Param. Number of time points')
     argParser.add_argument('--event-duration', '-d', default=10, type=int,
                            help='Param. Number of seconds per event')
-    argParser.add_argument('--scale_percentage', '-s', default=0.5, type=float,
+    argParser.add_argument('--scale-percentage', '-s', default=0.5, type=float,
                            help='Param. Percent signal change')
     argParser.add_argument('--multivariate-pattern', '-m', default=False,
                            action='store_true',
