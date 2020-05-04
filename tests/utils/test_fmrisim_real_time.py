@@ -61,7 +61,7 @@ data_dict['burn_in'] = 6
 def test_default(tmp_path, dd=data_dict):
 
     # Run the simulation
-    gen.generate_data(tmp_path,
+    gen.generate_data(str(tmp_path),
                       dd)
 
     # Check that there are 32 files where there should be (30 plus label and
@@ -90,7 +90,7 @@ def test_signal_size(tmp_path, dd=data_dict):
     dd['scale_percentage'] = 100
 
     # Run the simulation
-    gen.generate_data(tmp_path,
+    gen.generate_data(str(tmp_path),
                       dd)
 
     # Load in the ROI masks
@@ -122,7 +122,7 @@ def test_multivariate(tmp_path, dd=data_dict):
     dd['scale_percentage'] = 100
 
     # Run the simulation
-    gen.generate_data(tmp_path,
+    gen.generate_data(str(tmp_path),
                       dd)
 
     # Load in the ROI masks
@@ -146,7 +146,7 @@ def test_save_dicoms_realtime(tmp_path, dd=data_dict):
     start_time = time.time()
 
     # Run the simulation
-    gen.generate_data(tmp_path,
+    gen.generate_data(str(tmp_path),
                       dd)
 
     end_time = time.time()
