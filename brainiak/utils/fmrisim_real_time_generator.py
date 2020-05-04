@@ -106,7 +106,7 @@ def _generate_ROIs(ROI_file,
     logger.info('Loading', ROI_file)
 
     # Load in the template data (it may already be loaded if doing a test)
-    if np.prod(ROI_file.shape) < 1000:
+    if isinstance(ROI_file, str):
         nii = nibabel.load(ROI_file)
         ROI = nii.get_data()
     else:
@@ -363,7 +363,7 @@ def generate_data(outputDir,
         data_dict)
 
     # Load in the template data (it may already be loaded if doing a test)
-    if np.prod(template_path.shape) < 1000:
+    if isinstance(template_path, str):
         template_nii = nibabel.load(template_path)
         template = template_nii.get_data()
     else:
@@ -512,41 +512,42 @@ if __name__ == '__main__':
         'Specify input arguments. Some arguments are parameters that require '
         'an input is provided (noted by "Param"), others are flags that when '
         'provided will change according to the flag (noted by "Flag")')
-    argParser.add_argument('--outputDir', '-o', default=None, type=str,
+    argParser.add_argument('--output-dir', '-o', default=None, type=str,
                            help='Param. Output directory for simulated data')
-    argParser.add_argument('--ROI_A_file', default=None, type=str,
+    argParser.add_argument('--ROI-A-file', default=None, type=str,
                            help='Param. Full path to file for cond. A ROI')
-    argParser.add_argument('--ROI_B_file', default=None, type=str,
+    argParser.add_argument('--ROI-B-file', default=None, type=str,
                            help='Param. Full path to file for cond. B ROI')
-    argParser.add_argument('--template_path', default=None, type=str,
+    argParser.add_argument('--template-path', default=None, type=str,
                            help='Param. Full path to file for brain template')
-    argParser.add_argument('--noise_dict_file', default=None, type=str,
+    argParser.add_argument('--noise-dict-file', default=None, type=str,
                            help='Param. Full path to file setting noise '
                                 'params')
     argParser.add_argument('--numTRs', '-n', default=200, type=int,
                            help='Param. Number of time points')
-    argParser.add_argument('--eventDuration', '-d', default=10, type=int,
+    argParser.add_argument('--event-duration', '-d', default=10, type=int,
                            help='Param. Number of seconds per event')
-    argParser.add_argument('--signalScale', '-s', default=0.5, type=float,
+    argParser.add_argument('--scale_percentage', '-s', default=0.5, type=float,
                            help='Param. Percent signal change')
-    argParser.add_argument('--useMultivariate', '-m', default=False,
+    argParser.add_argument('--multivariate-pattern', '-m', default=False,
                            action='store_true',
                            help='Flag. Signal is different between conditions '
                                 'in a multivariate, versus univariate, way')
-    argParser.add_argument('--useDifferentROIs', '-r', default=False,
+    argParser.add_argument('--different-ROIs', '-r', default=False,
                            action='store_true', help='Flag. Use different '
                                                      'ROIs for each condition')
-    argParser.add_argument('--saveAsDicom', default=False, action='store_true',
-                           help='Flag. Output files in DICOM format rather '
-                                'than numpy')
-    argParser.add_argument('--saveRealtime', default=False,
+    argParser.add_argument('--save-dicom', default=False,
+                           action='store_true', help='Flag. Output files in '
+                                                     'DICOM format rather '
+                                                     'than numpy')
+    argParser.add_argument('--save-realtime', default=False,
                            action='store_true', help='Flag. Save data as if '
                                                      'it was coming in at '
                                                      'the acquisition rate')
     args = argParser.parse_args()
 
     # Essential arguments
-    outputDir = args.outputDir
+    outputDir = args.output_dir
 
     if outputDir is None:
         logger.info("Must specify an output directory using -o")
@@ -568,25 +569,25 @@ if __name__ == '__main__':
     data_dict['numTRs'] = args.numTRs
 
     # How long is each event/block you are modelling (assumes 6s rest between)
-    data_dict['event_duration'] = float(args.eventDuration)
+    data_dict['event_duration'] = float(args.event_duration)
 
     # What is the percent signal change being simulated
-    data_dict['scale_percentage'] = args.signalScale
+    data_dict['scale_percentage'] = args.scale_percentage
 
     # Are there different ROIs for each condition (True) or is it in the same
     #  ROI (False).
     # If it is the same ROI and you are using univariate differences,
     # the second condition will have a smaller evoked response than the other.
-    data_dict['different_ROIs'] = args.useDifferentROIs
+    data_dict['different_ROIs'] = args.different_ROIs
 
     # Is this a multivariate pattern (1) or a univariate pattern
-    data_dict['multivariate_pattern'] = args.useMultivariate
+    data_dict['multivariate_pattern'] = args.multivariate_pattern
 
     # Do you want to save data as a dicom (True) or numpy (False)
-    data_dict['save_dicom'] = args.saveAsDicom
+    data_dict['save_dicom'] = args.save_dicom
 
     # Do you want to save the data in real time (1) or as fast as possible (0)?
-    data_dict['save_realtime'] = args.saveRealtime
+    data_dict['save_realtime'] = args.save_realtime
 
     # Default settings
 

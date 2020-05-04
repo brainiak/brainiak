@@ -31,7 +31,7 @@ import gzip
 with pytest.raises(TypeError):
     gen.generate_data()  # type: ignore
 
-data_dict: Dict = {}
+data_dict = {}  # type: Dict
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
 data_dict['ROI_A_file'] = Nifti1Image.from_bytes(gzip.decompress(
     vol)).get_data()
