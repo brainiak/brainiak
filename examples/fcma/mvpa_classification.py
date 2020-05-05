@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # transpose data to facilitate training and prediction
     processed_data = processed_data.T
 
-    clf = svm.SVC(kernel='linear', shrinking=False, C=1)
+    clf = svm.SVC(kernel='linear', shrinking=False, C=1, gamma='auto')
     # doing leave-one-subject-out cross validation
     for i in range(num_subjects):
         leave_start = i * num_epochs_per_subj
