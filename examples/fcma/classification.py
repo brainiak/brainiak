@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 def example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs_per_subj):
     # aggregate the kernel matrix to save memory
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     clf = Classifier(svm_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
     rearranged_data = raw_data[num_epochs_per_subj:] + raw_data[0:num_epochs_per_subj]
     rearranged_labels = labels[num_epochs_per_subj:] + labels[0:num_epochs_per_subj]
@@ -54,7 +54,7 @@ def example_of_aggregating_sim_matrix(raw_data, labels, num_subjects, num_epochs
 
 def example_of_cross_validation_with_detailed_info(raw_data, labels, num_subjects, num_epochs_per_subj):
     # no shrinking, set C=1
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     #logit_clf = LogisticRegression()
     clf = Classifier(svm_clf, epochs_per_subj=num_epochs_per_subj)
     # doing leave-one-subject-out cross validation
@@ -86,7 +86,7 @@ def example_of_cross_validation_using_model_selection(raw_data, labels, num_subj
     # for self-correlation, i.e. correlation between the same data matrix.
 
     # no shrinking, set C=1
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     #logit_clf = LogisticRegression()
     clf = Classifier(svm_clf, epochs_per_subj=num_epochs_per_subj)
     # doing leave-one-subject-out cross validation
@@ -104,7 +104,7 @@ def example_of_cross_validation_using_model_selection(raw_data, labels, num_subj
 
 def example_of_correlating_two_components(raw_data, raw_data2, labels, num_subjects, num_epochs_per_subj):
     # aggregate the kernel matrix to save memory
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     clf = Classifier(svm_clf, epochs_per_subj=num_epochs_per_subj)
     num_training_samples=num_epochs_per_subj*(num_subjects-1)
     clf.fit(list(zip(raw_data[0:num_training_samples], raw_data2[0:num_training_samples])),
@@ -127,7 +127,7 @@ def example_of_correlating_two_components(raw_data, raw_data2, labels, num_subje
 def example_of_correlating_two_components_aggregating_sim_matrix(raw_data, raw_data2, labels,
                                                                  num_subjects, num_epochs_per_subj):
     # aggregate the kernel matrix to save memory
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     clf = Classifier(svm_clf, num_processed_voxels=1000, epochs_per_subj=num_epochs_per_subj)
     num_training_samples=num_epochs_per_subj*(num_subjects-1)
     clf.fit(list(zip(raw_data, raw_data2)), labels,

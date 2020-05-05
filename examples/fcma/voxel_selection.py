@@ -77,7 +77,7 @@ if __name__ == '__main__':
     # if providing two masks, just append raw_data2 as the last input argument
     #vs = VoxelSelector(labels, epochs_per_subj, num_subjs, raw_data, raw_data2=raw_data2)
     # for cross validation, use SVM with precomputed kernel
-    clf = svm.SVC(kernel='precomputed', shrinking=False, C=10)
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=10, gamma='auto')
     results = vs.run(clf)
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
