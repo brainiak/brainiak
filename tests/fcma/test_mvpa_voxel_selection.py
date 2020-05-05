@@ -34,7 +34,7 @@ def test_mvpa_voxel_selection():
     mvs = MVPAVoxelSelector(data, mask, labels, 2, sl)
     # for cross validation, use SVM with precomputed kernel
 
-    clf = svm.SVC(kernel='rbf', C=10)
+    clf = svm.SVC(kernel='rbf', C=10, gamma='auto')
     result_volume, results = mvs.run(clf)
     if MPI.COMM_WORLD.Get_rank() == 0:
         output = []
