@@ -128,7 +128,7 @@ setup(
         'nitime',
         # https://github.com/numpy/numpy/issues/14189
         'numpy!=1.17.*',
-        'scikit-learn[alldeps]>=0.18,<0.22',
+        'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         'scipy!=1.0.0',
         'statsmodels',

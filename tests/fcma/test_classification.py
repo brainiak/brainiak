@@ -46,7 +46,7 @@ def test_classification():
     # 5 subjects, 4 epochs per subject
     epochs_per_subj = 4
     # svm
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     training_data = fake_raw_data[0:12]
     clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
     clf.fit(list(zip(training_data, training_data)), labels[0:12])
@@ -134,7 +134,7 @@ def test_classification_with_two_components():
     # 5 subjects, 4 epochs per subject
     epochs_per_subj = 4
     # svm
-    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    svm_clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     training_data = fake_raw_data[0: 12]
     training_data2 = fake_raw_data2[0: 12]
     clf = Classifier(svm_clf, epochs_per_subj=epochs_per_subj)
