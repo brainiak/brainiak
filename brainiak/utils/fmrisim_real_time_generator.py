@@ -323,7 +323,6 @@ def _get_input_names(data_dict):
     if 'burn_in' not in data_dict:
         data_dict['burn_in'] = 6
 
-
     # Return the paths
     return ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict
 
