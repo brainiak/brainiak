@@ -51,6 +51,12 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
+# FIXME workaround for Theano failure on macOS Conda builds
+# https://travis-ci.org/github/brainiak/brainiak/jobs/689445834#L1414
+# Inspired by workaround from PyMC3
+# https://github.com/pymc-devs/pymc3/pull/3767
+theano.config.gcc.cxxflags = "-Wno-c++11-narrowing"
+
 
 class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
     """Semi-Supervised Shared Response Model (SS-SRM)
