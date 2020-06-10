@@ -242,7 +242,7 @@ def _write_dicom(output_name,
     ds.save_as(output_name)
 
 
-def _get_input_names(data_dict):
+def _get_input_defaults(data_dict):
     """Get names from dict
         Read in the data_dict to return the relevant file names. Will also
         add the default values if trDuration, isi, or burn_in haven't been set
@@ -369,7 +369,7 @@ def generate_data(outputDir,
 
     # Get the file names needed for loading in the data
     ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict = \
-        _get_input_names(data_dict)
+        _get_input_defaults(data_dict)
 
     # Load in the template data (it may already be loaded if doing a test)
     if isinstance(template_path, str):
