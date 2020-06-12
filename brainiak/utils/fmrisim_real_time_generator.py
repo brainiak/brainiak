@@ -242,9 +242,10 @@ def _write_dicom(output_name,
     ds.save_as(output_name)
 
 
-def _get_input_names(data_dict):
+def _get_input_defaults(data_dict):
     """Get names from dict
-        Read in the data_dict to return the relevant file names
+        Read in the data_dict to return the relevant file names. Will also
+        add the default values if trDuration, isi, or burn_in haven't been set
 
     Parameters
     ----------
@@ -314,8 +315,16 @@ def _get_input_names(data_dict):
     else:
         noise_dict_file = data_dict['noise_dict_file']
 
+    # Update defaults if they are missing
+    if 'trDuration' not in data_dict:
+        data_dict['trDuration'] = 2
+    if 'isi' not in data_dict:
+        data_dict['isi'] = 6
+    if 'burn_in' not in data_dict:
+        data_dict['burn_in'] = 6
+
     # Return the paths
-    return ROI_A_file, ROI_B_file, template_path, noise_dict_file
+    return ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict
 
 
 def generate_data(outputDir,
@@ -359,8 +368,8 @@ def generate_data(outputDir,
     logger.info('Load template of average voxel value')
 
     # Get the file names needed for loading in the data
-    ROI_A_file, ROI_B_file, template_path, noise_dict_file = _get_input_names(
-        data_dict)
+    ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict = \
+        _get_input_defaults(data_dict)
 
     # Load in the template data (it may already be loaded if doing a test)
     if isinstance(template_path, str):
@@ -527,6 +536,13 @@ if __name__ == '__main__':
                            help='Param. Number of time points')
     argParser.add_argument('--event-duration', '-d', default=10, type=int,
                            help='Param. Number of seconds per event')
+    argParser.add_argument('--trDuration', default=2, type=int,
+                           help='Param. How many second per volume')
+    argParser.add_argument('--isi', default=6, type=int,
+                           help='Param. How long in seconds between events')
+    argParser.add_argument('--burn-in', default=6, type=int,
+                           help='Param. How long before the first event '
+                                'begins after the run onset')
     argParser.add_argument('--scale-percentage', '-s', default=0.5, type=float,
                            help='Param. Percent signal change')
     argParser.add_argument('--multivariate-pattern', '-m', default=False,
@@ -571,6 +587,15 @@ if __name__ == '__main__':
     # How long is each event/block you are modelling (assumes 6s rest between)
     data_dict['event_duration'] = float(args.event_duration)
 
+    # How long does each acquisition take
+    data_dict['trDuration'] = args.trDuration
+
+    # What is the time between each event (in seconds)
+    data_dict['isi'] = args.isi
+
+    # How long before the first event (in seconds)
+    data_dict['burn_in'] = args.burn_in
+
     # What is the percent signal change being simulated
     data_dict['scale_percentage'] = args.scale_percentage
 
@@ -588,17 +613,6 @@ if __name__ == '__main__':
 
     # Do you want to save the data in real time (1) or as fast as possible (0)?
     data_dict['save_realtime'] = args.save_realtime
-
-    # Default settings
-
-    # How long does each acquisition take
-    data_dict['trDuration'] = 2
-
-    # What is the time between each event (in seconds)
-    data_dict['isi'] = 6
-
-    # How long before the first event (in seconds)
-    data_dict['burn_in'] = 6
 
     # Run the function if running from command line
     generate_data(outputDir,
