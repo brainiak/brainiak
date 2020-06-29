@@ -1,15 +1,14 @@
 import tensorflow as tf
 from pymanopt import Problem
-from pymanopt.manifolds import Stiefel, Euclidean
-from pymanopt.solvers import TrustRegions, ConjugateGradient
+from pymanopt.manifolds import Stiefel
+from pymanopt.solvers import ConjugateGradient
 from sklearn.base import BaseEstimator
 from brainiak.matnormal.covs import (CovIdentity,
                                      CovScaleMixin,
-                                     CovTFWrap,
                                      CovUnconstrainedCholesky)
 import numpy as np
 from brainiak.matnormal.matnormal_likelihoods import (
-    matnorm_logp_marginal_col, matnorm_logp)
+    matnorm_logp_marginal_col)
 from tensorflow.contrib.opt import ScipyOptimizerInterface
 import logging
 
@@ -56,33 +55,34 @@ class DPMNSRM(BaseEstimator):
     def _make_logp_op(self):
         """ MatnormSRM Log-likelihood"""
         subj_space_covs = [CovScaleMixin(base_cov=self.space_cov,
-                           scale=1/self.rhoprec[j]) for j in range(self.n)]
+                                         scale=1/self.rhoprec[j]) for j in range(self.n)]
         if self.marg_cov_class is CovIdentity:
             return tf.reduce_sum(
                 [matnorm_logp_marginal_col(self.X[j],
-                 row_cov=subj_space_covs[j],
-                 col_cov=self.time_cov,
-                 marg=self.S,
-                 marg_cov=CovIdentity(size=self.k))
+                                           row_cov=subj_space_covs[j],
+                                           col_cov=self.time_cov,Î
+                                           marg=self.S,
+                                           marg_cov=CovIdentity(size=self.k))
                  for j in range(self.n)], name="lik_logp")
 
         elif self.marg_cov_class is CovUnconstrainedCholesky:
             return tf.reduce_sum(
                 [matnorm_logp_marginal_col(self.X[j],
-                 row_cov=subj_space_covs[j],
-                 col_cov=self.time_cov,
-                 marg=tf.matmul(self.marg_cov.L, self.S),
-                 marg_cov=CovIdentity(size=self.k))
+                                           row_cov=subj_space_covs[j],
+                                           col_cov=self.time_cov,
+                                           marg=tf.matmul(
+                                               self.marg_cov.L, self.S),
+                                           marg_cov=CovIdentity(size=self.k))
                  for j in range(self.n)], name="lik_logp")
         else:
             logger.warn("ECME with cov that is not identity or unconstrained may\
                         yield numerical instabilities! Use ECM for now.")
             return tf.reduce_sum(
                 [matnorm_logp_marginal_col(self.X[j],
-                 row_cov=subj_space_covs[j],
-                 col_cov=self.time_cov,
-                 marg=self.S,
-                 marg_cov=self.marg_cov)
+                                           row_cov=subj_space_covs[j],
+                                           col_cov=self.time_cov,
+                                           marg=self.S,
+                                           marg_cov=self.marg_cov)
                  for j in range(self.n)], name="lik_logp")
 
     def _make_Q_op(self):
@@ -107,7 +107,9 @@ class DPMNSRM(BaseEstimator):
                                  for j in range(self.n)], 0))
 
         if self.s_constraint == "gaussian":
-            s_quad_form = -tf.trace(tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(self.S)), self.S))
+            s_quad_form = - \
+                tf.trace(tf.matmul(self.time_cov.Sigma_inv_x(
+                    tf.transpose(self.S)), self.S))
             det_terms = -(self.v*self.n+self.k) * self.time_cov.logdet -\
                 (self.k+self.t)*self.n*self.space_cov.logdet +\
                 (self.k+self.t)*self.v*tf.reduce_sum(tf.log(self.rhoprec)) -\
@@ -122,8 +124,8 @@ class DPMNSRM(BaseEstimator):
         trace_prod = -tf.reduce_sum(self.rhoprec / self.rhoprec_prime) *\
             tf.trace(self.space_cov.Sigma_inv_x(self.vcov_prime)) *\
             (tf.trace(tf.matmul(self.wcov_prime, self.marg_cov.Sigma_inv +
-             tf.matmul(self.S, self.time_cov.Sigma_inv_x(
-                tf.transpose(self.S))))))
+                                tf.matmul(self.S, self.time_cov.Sigma_inv_x(
+                                    tf.transpose(self.S))))))
 
         return 0.5 * (det_terms +
                       x_quad_form +
@@ -152,7 +154,7 @@ class DPMNSRM(BaseEstimator):
     def make_mstep_b_op(self):
         return tf.expand_dims(tf.reduce_sum(
                     [self.time_cov.Sigma_inv_x(tf.transpose(self.X[j] -
-                     tf.matmul(self.w_prime[j], self.S)))
+                                                            tf.matmul(self.w_prime[j], self.S)))
                      for j in range(self.n)], 1) /
               tf.reduce_sum(self.time_cov.Sigma_inv), -1)
 
@@ -212,7 +214,7 @@ class DPMNSRM(BaseEstimator):
 
         self.X = tf.constant(X, name="X")
 
-        xsvd = [np.linalg.svd(x)for x in X]
+        xsvd = [np.linalg.svd(x) for x in X]
 
         # parameters
         self.b = tf.Variable(np.random.normal(size=(self.n, self.v, 1)),
@@ -378,7 +380,7 @@ class DPMNSRM(BaseEstimator):
 
             delQ = loss_end_mstep - loss_start
             if np.max(np.r_[w_norm, sigv_norm,
-                      rhoprec_norm, delQ]) <= convergence_tol:
+                            rhoprec_norm, delQ]) <= convergence_tol:
                 converged = True
                 break
 
