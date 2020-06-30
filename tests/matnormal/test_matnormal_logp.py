@@ -2,6 +2,8 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import multivariate_normal
 import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
+
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
