@@ -1,6 +1,10 @@
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart, invgamma, invwishart
+
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
+
 from brainiak.matnormal.covs import (
     CovIdentity,
     CovAR1,
@@ -12,9 +16,10 @@ from brainiak.matnormal.covs import (
     CovUnconstrainedInvCholesky,
     CovKroneckerFactored,
 )
-import tensorflow as tf
 import pytest
 import logging
+
+
 
 logging.basicConfig(level=logging.DEBUG)
 

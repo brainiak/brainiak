@@ -3,7 +3,8 @@ import numpy as np
 import abc
 import scipy.linalg
 import scipy.sparse
-from tensorflow.contrib.distributions import InverseGamma, WishartCholesky
+import tensorflow_probability as tfp
+
 from brainiak.matnormal.utils import x_tx, xx_t
 from brainiak.utils.kronecker_solvers import (
     tf_solve_lower_triangular_kron,
@@ -317,9 +318,9 @@ class CovDiagonalGammaPrior(CovDiagonal):
     def __init__(self, size, sigma=None, alpha=1.5, beta=1e-10):
         super(CovDiagonalGammaPrior, self).__init__(size, sigma)
 
-        self.ig = InverseGamma(
+        self.ig = tfp.distributions.InverseGamma(
             concentration=tf.constant(alpha, dtype=tf.float64),
-            rate=tf.constant(beta, dtype=tf.float64),
+            scale=tf.constant(beta, dtype=tf.float64),
         )
 
         self.logp = tf.reduce_sum(input_tensor=self.ig.log_prob(self.prec))
@@ -410,9 +411,9 @@ class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
 
     def __init__(self, size, Sigma=None):
         super(CovUnconstrainedCholeskyWishartReg, self).__init__(size)
-        self.wishartReg = WishartCholesky(
+        self.wishartReg = tfp.distributions.WishartTriL(
             df=tf.constant(size + 2, dtype=tf.float64),
-            scale=tf.constant(1e5 * np.eye(size), dtype=tf.float64),
+            scale_tril=tf.constant(1e5 * np.eye(size), dtype=tf.float64),
         )
 
         Sigma = xx_t(self.L)
