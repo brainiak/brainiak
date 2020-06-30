@@ -68,9 +68,9 @@ def test_CovConstant():
     cov_np = wishart.rvs(df=m + 2, scale=np.eye(m))
     cov = CovUnconstrainedCholesky(Sigma=cov_np)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
 
         # verify what we pass is what we get
         cov_tf = cov._cov.eval(session=sess)
@@ -88,9 +88,9 @@ def test_CovIdentity():
 
     cov = CovIdentity(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         cov_np = np.eye(m)
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
@@ -104,9 +104,9 @@ def test_CovIsotropic():
 
     cov = CovIsotropic(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         cov_np = cov._cov.eval(session=sess) * np.eye(cov.size)
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
@@ -120,9 +120,9 @@ def test_CovDiagonal():
 
     cov = CovDiagonal(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         cov_np = np.diag(1 / cov.prec.eval(session=sess))
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
@@ -137,9 +137,9 @@ def test_CovDiagonal_initialized():
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
     cov = CovDiagonal(size=m, diag_var=np.diag(cov_np))
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         assert_allclose(logdet_np, cov.logdet.eval(session=sess), rtol=rtol)
@@ -156,9 +156,9 @@ def test_CovDiagonalGammaPrior():
 
     ig = invgamma(1.5, scale=1e-10)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
         penalty_np = np.sum(ig.logpdf(1 / np.diag(cov_np)))
@@ -173,9 +173,9 @@ def test_CovUnconstrainedCholesky():
 
     cov = CovUnconstrainedCholesky(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         L = cov.L.eval(session=sess)
         cov_np = L @ L.T
@@ -190,9 +190,9 @@ def test_CovUnconstrainedCholeskyWishartReg():
 
     cov = CovUnconstrainedCholeskyWishartReg(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
 
         L = cov.L.eval(session=sess)
@@ -213,9 +213,9 @@ def test_CovUnconstrainedInvCholesky():
     init = invwishart.rvs(scale=np.eye(m), df=m + 2)
     cov = CovUnconstrainedInvCholesky(size=m, invSigma=init)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         Linv = cov.Linv.eval(session=sess)
         L = np.linalg.inv(Linv)
@@ -239,9 +239,9 @@ def test_Cov2FactorKron():
 
     cov = CovKroneckerFactored(sizes=[dim1, dim2])
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         L1 = (cov.L[0]).eval(session=sess)
         L2 = (cov.L[1]).eval(session=sess)
@@ -262,9 +262,9 @@ def test_Cov3FactorKron():
     dim3 = 2
     cov = CovKroneckerFactored(sizes=[dim1, dim2, dim3])
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         L1 = (cov.L[0]).eval(session=sess)
         L2 = (cov.L[1]).eval(session=sess)
@@ -295,9 +295,9 @@ def test_Cov3FactorMaskedKron():
 
     cov = CovKroneckerFactored(sizes=[dim1, dim2, dim3], mask=mask)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         L1 = (cov.L[0]).eval(session=sess)
         L2 = (cov.L[1]).eval(session=sess)
@@ -329,9 +329,9 @@ def test_CovAR1():
 
     cov = CovAR1(size=m)
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         cov_np = np.linalg.inv(cov.solve(eye).eval(session=sess))
 
@@ -345,9 +345,9 @@ def test_CovAR1_scan_onsets():
 
     cov = CovAR1(size=m, scan_onsets=[0, m // 2])
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
         # initialize the random covariance
-        sess.run(tf.variables_initializer(cov.get_optimize_vars()))
+        sess.run(tf.compat.v1.variables_initializer(cov.get_optimize_vars()))
         # compute the naive version
         cov_np = np.linalg.inv(cov.solve(eye).eval(session=sess))
 

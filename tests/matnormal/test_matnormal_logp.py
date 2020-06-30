@@ -20,14 +20,14 @@ rtol = 1e-7
 
 def test_against_scipy_mvn_row():
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
 
         rowcov = CovUnconstrainedCholesky(size=m)
         colcov = CovIdentity(size=n)
         X = rmn(np.eye(m), np.eye(n))
         X_tf = tf.constant(X, "float64")
 
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         rowcov_np = rowcov._cov.eval(session=sess)
 
@@ -39,14 +39,14 @@ def test_against_scipy_mvn_row():
 
 def test_against_scipy_mvn_col():
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
 
         rowcov = CovIdentity(size=m)
         colcov = CovUnconstrainedCholesky(size=n)
         X = rmn(np.eye(m), np.eye(n))
         X_tf = tf.constant(X, "float64")
 
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         colcov_np = colcov._cov.eval(session=sess)
 

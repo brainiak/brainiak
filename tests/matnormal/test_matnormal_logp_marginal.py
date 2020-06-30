@@ -34,9 +34,9 @@ def test_against_scipy_mvn_row_marginal():
     A_tf = tf.constant(A, "float64")
     X_tf = tf.constant(X, "float64")
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
 
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         Q_np = Q._cov.eval(session=sess)
 
@@ -62,9 +62,9 @@ def test_against_scipy_mvn_col_marginal():
     A_tf = tf.constant(A, "float64")
     X_tf = tf.constant(X, "float64")
 
-    with tf.Session() as sess:
+    with tf.compat.v1.Session() as sess:
 
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
 
         Q_np = Q._cov.eval(session=sess)
 
