@@ -20,8 +20,8 @@ def _condition(X):
         Symmetric tensor to compute condition number of
 
     """
-    s = tf.svd(X, compute_uv=False)
-    return tf.reduce_max(s) / tf.reduce_min(s)
+    s = tf.linalg.svd(X, compute_uv=False)
+    return tf.reduce_max(input_tensor=s) / tf.reduce_min(input_tensor=s)
 
 
 def solve_det_marginal(x, sigma, A, Q):
@@ -56,12 +56,12 @@ def solve_det_marginal(x, sigma, A, Q):
     if logging.getLogger().isEnabledFor(logging.DEBUG):
         logging.log(logging.DEBUG,
                     "Printing diagnostics for solve_det_marginal")
-        A = tf.Print(A, [_condition(Q._prec + tf.matmul(A, sigma.solve(A),
+        A = tf.compat.v1.Print(A, [_condition(Q._prec + tf.matmul(A, sigma.solve(A),
                                                         transpose_a=True))],
                      "lemma_factor condition")
-        A = tf.Print(A, [_condition(Q._cov)], "Q condition")
-        A = tf.Print(A, [_condition(sigma._cov)], "sigma condition")
-        A = tf.Print(A, [tf.reduce_max(A), tf.reduce_min(A)], "A minmax")
+        A = tf.compat.v1.Print(A, [_condition(Q._cov)], "Q condition")
+        A = tf.compat.v1.Print(A, [_condition(sigma._cov)], "sigma condition")
+        A = tf.compat.v1.Print(A, [tf.reduce_max(input_tensor=A), tf.reduce_min(input_tensor=A)], "A minmax")
 
     # cholesky of (Qinv + A' Sigma^{-1} A), which looks sort of like
     # a schur complement by isn't, so we call it the "lemma factor"
@@ -72,15 +72,15 @@ def solve_det_marginal(x, sigma, A, Q):
     logdet = (
         Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(tf.math.log(tlinalg.diag_part(lemma_factor)))
+        + 2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))
     )
 
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logdet = tf.Print(logdet, [Q.logdet], "Q logdet")
-        logdet = tf.Print(logdet, [sigma.logdet], "sigma logdet")
-        logdet = tf.Print(
+        logdet = tf.compat.v1.Print(logdet, [Q.logdet], "Q logdet")
+        logdet = tf.compat.v1.Print(logdet, [sigma.logdet], "sigma logdet")
+        logdet = tf.compat.v1.Print(
             logdet,
-            [2 * tf.reduce_sum(tf.math.log(tlinalg.diag_part(lemma_factor)))],
+            [2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))],
             "iqf logdet",
         )
 
@@ -130,7 +130,7 @@ def solve_det_conditional(x, sigma, A, Q):
     logdet = (
         -Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(tf.math.log(tlinalg.diag_part(lemma_factor)))
+        + 2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))
     )
 
     # A' Sigma^{-1}
@@ -169,12 +169,12 @@ def _mnorm_logp_internal(
     log2pi = 1.8378770664093453
 
     if logging.getLogger().isEnabledFor(logging.DEBUG):
-        solve_row = tf.Print(
+        solve_row = tf.compat.v1.Print(
             solve_row, [tlinalg.trace(solve_col)], "coltrace")
-        solve_row = tf.Print(
+        solve_row = tf.compat.v1.Print(
             solve_row, [tlinalg.trace(solve_row)], "rowtrace")
-        solve_row = tf.Print(solve_row, [logdet_row], "logdet_row")
-        solve_row = tf.Print(solve_row, [logdet_col], "logdet_col")
+        solve_row = tf.compat.v1.Print(solve_row, [logdet_row], "logdet_row")
+        solve_row = tf.compat.v1.Print(solve_row, [logdet_col], "logdet_col")
 
     denominator = (-rowsize * colsize * log2pi -
                    colsize * logdet_row - rowsize * logdet_col)
@@ -197,11 +197,11 @@ def matnorm_logp(x, row_cov, col_cov):
 
     """
 
-    rowsize = tf.cast(tf.shape(x)[0], "float64")
-    colsize = tf.cast(tf.shape(x)[1], "float64")
+    rowsize = tf.cast(tf.shape(input=x)[0], "float64")
+    colsize = tf.cast(tf.shape(input=x)[1], "float64")
 
     # precompute sigma_col^{-1} * x'
-    solve_col = col_cov.solve(tf.transpose(x))
+    solve_col = col_cov.solve(tf.transpose(a=x))
     logdet_col = col_cov.logdet
 
     # precompute sigma_row^{-1} * x
@@ -239,10 +239,10 @@ def matnorm_logp_marginal_row(x, row_cov, col_cov, marg, marg_cov):
         Prior covariance implementing the CovBase API
 
     """
-    rowsize = tf.cast(tf.shape(x)[0], "float64")
-    colsize = tf.cast(tf.shape(x)[1], "float64")
+    rowsize = tf.cast(tf.shape(input=x)[0], "float64")
+    colsize = tf.cast(tf.shape(input=x)[1], "float64")
 
-    solve_col = col_cov.solve(tf.transpose(x))
+    solve_col = col_cov.solve(tf.transpose(a=x))
     logdet_col = col_cov.logdet
 
     solve_row, logdet_row = solve_det_marginal(x, row_cov, marg, marg_cov)
@@ -278,14 +278,14 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
         Prior covariance implementing the CovBase API
 
     """
-    rowsize = tf.cast(tf.shape(x)[0], "float64")
-    colsize = tf.cast(tf.shape(x)[1], "float64")
+    rowsize = tf.cast(tf.shape(input=x)[0], "float64")
+    colsize = tf.cast(tf.shape(input=x)[1], "float64")
 
     solve_row = row_cov.solve(x)
     logdet_row = row_cov.logdet
 
     solve_col, logdet_col = solve_det_marginal(
-        tf.transpose(x), col_cov, tf.transpose(marg), marg_cov
+        tf.transpose(a=x), col_cov, tf.transpose(a=marg), marg_cov
     )
 
     return _mnorm_logp_internal(
@@ -297,10 +297,10 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
     """
     """
 
-    rowsize = tf.cast(tf.shape(x)[0], "float64")
-    colsize = tf.cast(tf.shape(x)[1], "float64")
+    rowsize = tf.cast(tf.shape(input=x)[0], "float64")
+    colsize = tf.cast(tf.shape(input=x)[1], "float64")
 
-    solve_col = col_cov.solve(tf.transpose(x))
+    solve_col = col_cov.solve(tf.transpose(a=x))
     logdet_col = col_cov.logdet
 
     solve_row, logdet_row = solve_det_conditional(x, row_cov, cond, cond_cov)
@@ -322,14 +322,14 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
     This method exploits the matrix inversion and determinant lemmas to
     construct S - APA' given the covariance API in in CovBase.
     """
-    rowsize = tf.cast(tf.shape(x)[0], "float64")
-    colsize = tf.cast(tf.shape(x)[1], "float64")
+    rowsize = tf.cast(tf.shape(input=x)[0], "float64")
+    colsize = tf.cast(tf.shape(input=x)[1], "float64")
 
     solve_row = row_cov.solve(x)
     logdet_row = row_cov.logdet
 
     solve_col, logdet_col = solve_det_conditional(
-        tf.transpose(x), col_cov, tf.transpose(cond), cond_cov
+        tf.transpose(a=x), col_cov, tf.transpose(a=cond), cond_cov
     )
 
     return _mnorm_logp_internal(

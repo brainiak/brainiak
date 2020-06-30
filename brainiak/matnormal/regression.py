@@ -38,12 +38,12 @@ class MatnormalRegression(BaseEstimator):
         self.n_t = time_cov.size
         self.n_v = space_cov.size
 
-        self.Y = tf.placeholder(tf.float64, [self.n_t, self.n_v], name="Y")
+        self.Y = tf.compat.v1.placeholder(tf.float64, [self.n_t, self.n_v], name="Y")
 
-        self.X = tf.placeholder(tf.float64, [self.n_t, None], name="X")
+        self.X = tf.compat.v1.placeholder(tf.float64, [self.n_t, None], name="X")
 
         # create a tf session we reuse for this object
-        self.sess = tf.Session()
+        self.sess = tf.compat.v1.Session()
 
     # @define_scope
     def logp(self):
@@ -67,7 +67,7 @@ class MatnormalRegression(BaseEstimator):
         self.n_c = X.shape[1]
 
         feed_dict = {self.X: X, self.Y: y}
-        self.sess.run(tf.global_variables_initializer(), feed_dict=feed_dict)
+        self.sess.run(tf.compat.v1.global_variables_initializer(), feed_dict=feed_dict)
 
         # initialize to the least squares solution (basically all
         # we need now is the cov)
@@ -87,7 +87,7 @@ class MatnormalRegression(BaseEstimator):
         self.train_variables.extend(self.time_cov.get_optimize_vars())
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
-        self.sess.run(tf.variables_initializer([self.beta]))
+        self.sess.run(tf.compat.v1.variables_initializer([self.beta]))
 
         optimizer = ScipyOptimizerInterface(
             -self.logp(),
@@ -132,7 +132,7 @@ class MatnormalRegression(BaseEstimator):
             )
 
         # Sigma_s^{-1} B'
-        Sigma_s_btrp = self.space_cov.solve(tf.transpose(self.beta))
+        Sigma_s_btrp = self.space_cov.solve(tf.transpose(a=self.beta))
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
         # (B Sigma_s^{-1} B')^{-1}

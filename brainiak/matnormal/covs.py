@@ -186,7 +186,7 @@ class CovAR1(CovBase):
         sigma = tf.exp(self.log_sigma)
         # now compute logdet
         return tf.reduce_sum(
-            2 * tf.constant(self.run_sizes, dtype=tf.float64) *
+            input_tensor=2 * tf.constant(self.run_sizes, dtype=tf.float64) *
             tf.math.log(sigma)
             - tf.math.log(1 - tf.square(rho))
         )
@@ -290,7 +290,7 @@ class CovDiagonal(CovBase):
 
     @property
     def logdet(self):
-        return -tf.reduce_sum(self.logprec)
+        return -tf.reduce_sum(input_tensor=self.logprec)
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -322,7 +322,7 @@ class CovDiagonalGammaPrior(CovDiagonal):
             rate=tf.constant(beta, dtype=tf.float64),
         )
 
-        self.logp = tf.reduce_sum(self.ig.log_prob(self.prec))
+        self.logp = tf.reduce_sum(input_tensor=self.ig.log_prob(self.prec))
 
 
 class CovUnconstrainedCholesky(CovBase):
@@ -366,7 +366,7 @@ class CovUnconstrainedCholesky(CovBase):
         # it's positive.
 
         L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
-        self.L = tf.matrix_set_diag(
+        self.L = tf.linalg.set_diag(
             L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
         )
 
@@ -374,7 +374,7 @@ class CovUnconstrainedCholesky(CovBase):
     def logdet(self):
 
         # We save a log here by using the diag of L_full
-        return 2 * tf.reduce_sum((tf.linalg.diag_part(self.L_full)))
+        return 2 * tf.reduce_sum(input_tensor=(tf.linalg.diag_part(self.L_full)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -445,13 +445,13 @@ class CovUnconstrainedInvCholesky(CovBase):
         # Also: to make the parameterization unique we log the diagonal so
         # it's positive.
         L_indeterminate = tf.linalg.band_part(self.Linv_full, -1, 0)
-        self.Linv = tf.matrix_set_diag(
+        self.Linv = tf.linalg.set_diag(
             L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
         )
 
     @property
     def logdet(self):
-        return -2 * tf.reduce_sum(tf.math.log(tf.linalg.diag_part(self.Linv)))
+        return -2 * tf.reduce_sum(input_tensor=tf.math.log(tf.linalg.diag_part(self.Linv)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -530,7 +530,7 @@ class CovKroneckerFactored(CovBase):
         L_indeterminate = [tf.linalg.band_part(
             mat, -1, 0) for mat in self.L_full]
         self.L = [
-            tf.matrix_set_diag(mat, tf.exp(tf.linalg.diag_part(mat)))
+            tf.linalg.set_diag(mat, tf.exp(tf.linalg.diag_part(mat)))
             for mat in L_indeterminate
         ]
 
@@ -545,25 +545,25 @@ class CovKroneckerFactored(CovBase):
         """ log|Sigma| using the diagonals of the cholesky factors.
         """
         if self.mask is None:
-            n_list = tf.stack([tf.to_double(tf.shape(mat)[0])
+            n_list = tf.stack([tf.cast(tf.shape(input=mat)[0], dtype=tf.float64)
                                for mat in self.L])
-            n_prod = tf.reduce_prod(n_list)
+            n_prod = tf.reduce_prod(input_tensor=n_list)
             logdet = tf.stack(
-                [tf.reduce_sum(tf.math.log(tf.diag_part(mat)))
+                [tf.reduce_sum(input_tensor=tf.math.log(tf.linalg.tensor_diag_part(mat)))
                  for mat in self.L]
             )
-            logdetfinal = tf.reduce_sum((logdet * n_prod) / n_list)
+            logdetfinal = tf.reduce_sum(input_tensor=(logdet * n_prod) / n_list)
         else:
-            n_list = [tf.shape(mat)[0] for mat in self.L]
+            n_list = [tf.shape(input=mat)[0] for mat in self.L]
             mask_reshaped = tf.reshape(self.mask, n_list)
             logdet = 0.0
             for i in range(self.nfactors):
                 indices = list(range(self.nfactors))
                 indices.remove(i)
-                logdet += tf.math.log(tf.diag_part(self.L[i])) * tf.to_double(
-                    tf.reduce_sum(mask_reshaped, indices)
+                logdet += tf.math.log(tf.linalg.tensor_diag_part(self.L[i])) * tf.cast(
+                    tf.reduce_sum(input_tensor=mask_reshaped, axis=indices), dtype=tf.float64
                 )
-            logdetfinal = tf.reduce_sum(logdet)
+            logdetfinal = tf.reduce_sum(input_tensor=logdet)
         return 2.0 * logdetfinal
 
     def solve(self, X):

@@ -63,8 +63,8 @@ class MNRSA(BaseEstimator):
         self.optCtrl, self.optMethod = optCtrl, optimizer
 
         # placeholders for inputs
-        self.X = tf.placeholder(tf.float64, [self.n_T, None], name="Design")
-        self.Y = tf.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
+        self.X = tf.compat.v1.placeholder(tf.float64, [self.n_T, None], name="Design")
+        self.Y = tf.compat.v1.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
 
         self.X_0 = tf.Variable(
             tf.random.normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
@@ -79,7 +79,7 @@ class MNRSA(BaseEstimator):
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
         # create a tf session we reuse for this object
-        self.sess = tf.Session()
+        self.sess = tf.compat.v1.Session()
 
     def fit(self, X, y, structured_RSA_cov=None):
         """ Estimate dimension reduction and cognitive model parameters
@@ -118,14 +118,14 @@ class MNRSA(BaseEstimator):
         self.L_full = tf.Variable(naiveRSA_L, name="L_full", dtype="float64")
 
         L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
-        self.L = tf.matrix_set_diag(
+        self.L = tf.linalg.set_diag(
             L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
         )
 
         self.train_variables.extend([self.L_full])
 
         self.x_stack = tf.concat([tf.matmul(self.X, self.L), self.X_0], 1)
-        self.sess.run(tf.global_variables_initializer(), feed_dict=feed_dict)
+        self.sess.run(tf.compat.v1.global_variables_initializer(), feed_dict=feed_dict)
 
         optimizer = ScipyOptimizerInterface(
             -self.logp(),
@@ -136,9 +136,9 @@ class MNRSA(BaseEstimator):
 
         logging_ops = []
         logging_ops.append(tf.print("min(grad): ", tf.reduce_min(
-            optimizer._packed_loss_grad), output_stream=tflog.info))
+            input_tensor=optimizer._packed_loss_grad), output_stream=tflog.info))
         logging_ops.append(tf.print("max(grad): ", tf.reduce_max(
-            optimizer._packed_loss_grad), output_stream=tflog.info))
+            input_tensor=optimizer._packed_loss_grad), output_stream=tflog.info))
         logging_ops.append(
             tf.print("logp", self.logp(), output_stream=tflog.info))
         self.sess.run(logging_ops, feed_dict=feed_dict)
