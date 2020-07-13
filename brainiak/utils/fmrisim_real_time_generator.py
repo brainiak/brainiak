@@ -46,6 +46,22 @@ logger = logging.getLogger(__name__)
 
 script_datetime = datetime.datetime.now()
 
+default_settings = {
+    'ROI_A_file': None,
+    'ROI_B_file': None,
+    'template_path': None,
+    'noise_dict_file': None,
+    'numTRs': 200,
+    'trDuration': 2,
+    'isi': 6,
+    'burn_in': 6,
+    'event_duration': 10,
+    'scale_percentage': 0.5,
+    'multivariate_pattern': False,
+    'different_ROIs': False,
+    'save_dicom': False,
+    'save_realtime': False,
+}
 
 def _generate_ROIs(ROI_file,
                    stimfunc,
@@ -103,10 +119,9 @@ def _generate_ROIs(ROI_file,
 
     # Create the signal in the ROI as specified.
 
-    logger.info('Loading', ROI_file)
-
     # Load in the template data (it may already be loaded if doing a test)
     if isinstance(ROI_file, str):
+        logger.info('Loading', ROI_file)
         nii = nibabel.load(ROI_file)
         ROI = nii.get_data()
     else:
@@ -243,7 +258,7 @@ def _write_dicom(output_name,
     ds.save_as(output_name)
 
 
-def _get_input_defaults(data_dict):
+def _get_input_names(data_dict):
     """Get names from dict
         Read in the data_dict to return the relevant file names. Will also
         add the default values if trDuration, isi, or burn_in haven't been set
@@ -316,34 +331,13 @@ def _get_input_defaults(data_dict):
     else:
         noise_dict_file = data_dict['noise_dict_file']
 
-    # Update defaults if they are missing
-    if 'numTRs' not in data_dict:
-        data_dict['numTRs'] = 200
-    if 'trDuration' not in data_dict:
-        data_dict['trDuration'] = 2
-    if 'isi' not in data_dict:
-        data_dict['isi'] = 6
-    if 'burn_in' not in data_dict:
-        data_dict['burn_in'] = 6
-    if 'event_duration' not in data_dict:
-        data_dict['event_duration'] = 10
-    if 'scale_percentage' not in data_dict:
-        data_dict['scale_percentage'] = 0.5
-    if 'multivariate_pattern' not in data_dict:
-        data_dict['multivariate_pattern'] = False
-    if 'different_ROIs' not in data_dict:
-        data_dict['different_ROIs'] = False
-    if 'save_dicom' not in data_dict:
-        data_dict['save_dicom'] = False
-    if 'save_realtime' not in data_dict:
-        data_dict['save_realtime'] = False
 
     # Return the paths
-    return ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict
+    return ROI_A_file, ROI_B_file, template_path, noise_dict_file
 
 
 def generate_data(outputDir,
-                  data_dict):
+                  user_settings):
     """Generate simulated fMRI data
     Use a few parameters that might be relevant for real time analysis
 
@@ -356,7 +350,7 @@ def generate_data(outputDir,
     outputDir : str
         Specify output data dir where the data should be saved
 
-    data_dict : dict
+    user_settings : dict
         A dictionary to specify the parameters used for making data,
         specifying the following keys
         numTRs - int - Specify the number of time points
@@ -376,6 +370,8 @@ def generate_data(outputDir,
         burn_in - int - How long before the first event (in seconds)
 
     """
+    data_dict = default_settings.copy()
+    data_dict.update(user_settings)
 
     # If the folder doesn't exist then make it
     os.system('mkdir -p %s' % outputDir)
@@ -383,8 +379,8 @@ def generate_data(outputDir,
     logger.info('Load template of average voxel value')
 
     # Get the file names needed for loading in the data
-    ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict = \
-        _get_input_defaults(data_dict)
+    ROI_A_file, ROI_B_file, template_path, noise_dict_file = \
+        _get_input_names(data_dict)
 
     # Load in the template data (it may already be loaded if doing a test)
     if isinstance(template_path, str):
@@ -584,7 +580,7 @@ if __name__ == '__main__':
         logger.info("Must specify an output directory using -o")
         exit(-1)
 
-    data_dict = {}
+    data_dict = default_settings.copy()
 
     # User controlled settings
 
