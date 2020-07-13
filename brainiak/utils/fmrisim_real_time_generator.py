@@ -220,6 +220,7 @@ def _write_dicom(output_name,
     ds.InstanceNumber = image_number
     ds.ImagePositionPatient = [0, 0, 0]
     ds.ImageOrientationPatient = [.01, 0, 0, 0, 0, 0]
+    ds.PhotometricInterpretation = 'MONOCHROME1'
 
     # Add the data elements -- not trying to set all required here. Check DICOM
     # standard
@@ -287,20 +288,20 @@ def _get_input_defaults(data_dict):
     """
 
     # Load in the ROIs
-    if data_dict['ROI_A_file'] is None:
+    if data_dict.get('ROI_A_file') is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_A.nii.gz").read()
         ROI_A_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
     else:
         ROI_A_file = data_dict['ROI_A_file']
 
-    if data_dict['ROI_B_file'] is None:
+    if data_dict.get('ROI_B_file') is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_B.nii.gz").read()
         ROI_B_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
     else:
         ROI_B_file = data_dict['ROI_B_file']
 
     # Get the path to the template
-    if data_dict['template_path'] is None:
+    if data_dict.get('template_path') is None:
         vol = resource_stream(__name__,
                               "sim_parameters/sub_template.nii.gz").read()
         template_path = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
@@ -308,7 +309,7 @@ def _get_input_defaults(data_dict):
         template_path = data_dict['template_path']
 
     # Load in the noise dict if supplied
-    if data_dict['noise_dict_file'] is None:
+    if data_dict.get('noise_dict_file') is None:
         file = resource_stream(__name__,
                                'sim_parameters/sub_noise_dict.txt').read()
         noise_dict_file = file
@@ -316,12 +317,26 @@ def _get_input_defaults(data_dict):
         noise_dict_file = data_dict['noise_dict_file']
 
     # Update defaults if they are missing
+    if 'numTRs' not in data_dict:
+        data_dict['numTRs'] = 200
     if 'trDuration' not in data_dict:
         data_dict['trDuration'] = 2
     if 'isi' not in data_dict:
         data_dict['isi'] = 6
     if 'burn_in' not in data_dict:
         data_dict['burn_in'] = 6
+    if 'event_duration' not in data_dict:
+        data_dict['event_duration'] = 10
+    if 'scale_percentage' not in data_dict:
+        data_dict['scale_percentage'] = 0.5
+    if 'multivariate_pattern' not in data_dict:
+        data_dict['multivariate_pattern'] = False
+    if 'different_ROIs' not in data_dict:
+        data_dict['different_ROIs'] = False
+    if 'save_dicom' not in data_dict:
+        data_dict['save_dicom'] = False
+    if 'save_realtime' not in data_dict:
+        data_dict['save_realtime'] = False
 
     # Return the paths
     return ROI_A_file, ROI_B_file, template_path, noise_dict_file, data_dict
