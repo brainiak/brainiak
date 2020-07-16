@@ -2,11 +2,10 @@
 # for real time analysis
 """
 This code can be run as a function in python or from the command line:
-python fmrisim_real-time_generator --inputDir fmrisim_files/ --outputDir data
+python fmrisim_real-time_generator --outputDir data
 
 The input arguments are:
 Required:
-inputDir - Specify input data dir where the parameters for fmrisim are
 outputDir - Specify output data dir where the data should be saved
 
 Optional (can be modified by flags from the command line):
@@ -62,6 +61,7 @@ default_settings = {
     'save_dicom': False,
     'save_realtime': False,
 }
+
 
 def _generate_ROIs(ROI_file,
                    stimfunc,
@@ -331,7 +331,6 @@ def _get_input_names(data_dict):
     else:
         noise_dict_file = data_dict['noise_dict_file']
 
-
     # Return the paths
     return ROI_A_file, ROI_B_file, template_path, noise_dict_file
 
@@ -343,9 +342,6 @@ def generate_data(outputDir,
 
     Parameters
     ----------
-
-    inputDir : str
-        Specify input data dir where the parameters for fmrisim are
 
     outputDir : str
         Specify output data dir where the data should be saved
@@ -415,7 +411,7 @@ def generate_data(outputDir,
     noise_dict['matched'] = 0  # Increases processing time
 
     # Add it here for easy access
-    data_dict['noise_dict'] = data_dict
+    data_dict['noise_dict'] = noise_dict
 
     logger.info('Generating noise')
     temp_stimfunction = np.zeros((data_dict['numTRs'], 1))
