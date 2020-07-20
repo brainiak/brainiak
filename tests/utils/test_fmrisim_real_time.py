@@ -60,6 +60,9 @@ data_dict['burn_in'] = 6
 # Run default test
 def test_default(tmp_path, dd=data_dict):
 
+    # copy data_dict so values aren't changed
+    dd = dd.copy()
+    
     # Run the simulation
     gen.generate_data(str(tmp_path),
                       dd)
@@ -83,6 +86,8 @@ def test_default(tmp_path, dd=data_dict):
 
 def test_signal_size(tmp_path, dd=data_dict):
 
+    dd = dd.copy()
+    
     # Change it to only use ROI A
     dd['different_ROIs'] = False
 
@@ -115,6 +120,8 @@ def test_signal_size(tmp_path, dd=data_dict):
 
 def test_multivariate(tmp_path, dd=data_dict):
 
+    dd = dd.copy()
+    
     dd['multivariate_pattern'] = True
     dd['different_ROIs'] = False
 
@@ -139,12 +146,19 @@ def test_multivariate(tmp_path, dd=data_dict):
 
 
 def test_save_dicoms_realtime(tmp_path, dd=data_dict):
-
+    
+    dd = dd.copy()
+    start_time = time.time()
+    
     dd['save_dicom'] = True
     dd['save_realtime'] = True
 
-    start_time = time.time()
-
+    # test when ROI files are not set
+    dd['ROI_A_file'] = None
+    dd['ROI_B_file'] = None
+    dd['template_path'] = None
+    dd['noise_dict_file'] = None
+    
     # Run the simulation
     gen.generate_data(str(tmp_path),
                       dd)
