@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import multivariate_normal
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()
 
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
@@ -22,38 +21,30 @@ rtol = 1e-7
 
 def test_against_scipy_mvn_row():
 
-    with tf.compat.v1.Session() as sess:
+    rowcov = CovUnconstrainedCholesky(size=m)
+    colcov = CovIdentity(size=n)
+    X = rmn(np.eye(m), np.eye(n))
+    X_tf = tf.constant(X, "float64")
 
-        rowcov = CovUnconstrainedCholesky(size=m)
-        colcov = CovIdentity(size=n)
-        X = rmn(np.eye(m), np.eye(n))
-        X_tf = tf.constant(X, "float64")
+    rowcov_np = rowcov._cov
 
-        sess.run(tf.compat.v1.global_variables_initializer())
-
-        rowcov_np = rowcov._cov.eval(session=sess)
-
-        scipy_answer = np.sum(multivariate_normal.logpdf(
-            X.T, np.zeros([m]), rowcov_np))
-        tf_answer = matnorm_logp(X_tf, rowcov, colcov)
-        assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X.T, np.zeros([m]), rowcov_np))
+    tf_answer = matnorm_logp(X_tf, rowcov, colcov)
+    assert_allclose(scipy_answer, tf_answer, rtol=rtol)
 
 
 def test_against_scipy_mvn_col():
 
-    with tf.compat.v1.Session() as sess:
+    rowcov = CovIdentity(size=m)
+    colcov = CovUnconstrainedCholesky(size=n)
+    X = rmn(np.eye(m), np.eye(n))
+    X_tf = tf.constant(X, "float64")
 
-        rowcov = CovIdentity(size=m)
-        colcov = CovUnconstrainedCholesky(size=n)
-        X = rmn(np.eye(m), np.eye(n))
-        X_tf = tf.constant(X, "float64")
+    colcov_np = colcov._cov
 
-        sess.run(tf.compat.v1.global_variables_initializer())
-
-        colcov_np = colcov._cov.eval(session=sess)
-
-        scipy_answer = np.sum(multivariate_normal.logpdf(X,
-                                                         np.zeros([n]),
-                                                         colcov_np))
-        tf_answer = matnorm_logp(X_tf, rowcov, colcov)
-        assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
+    scipy_answer = np.sum(multivariate_normal.logpdf(X,
+                                                     np.zeros([n]),
+                                                     colcov_np))
+    tf_answer = matnorm_logp(X_tf, rowcov, colcov)
+    assert_allclose(scipy_answer, tf_answer, rtol=rtol)
