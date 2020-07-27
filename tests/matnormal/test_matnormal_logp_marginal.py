@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import multivariate_normal
 import tensorflow as tf
-tf.compat.v1.disable_eager_execution()
 
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import (
@@ -36,20 +35,17 @@ def test_against_scipy_mvn_row_marginal():
     A_tf = tf.constant(A, "float64")
     X_tf = tf.constant(X, "float64")
 
-    with tf.compat.v1.Session() as sess:
 
-        sess.run(tf.compat.v1.global_variables_initializer())
+    Q_np = Q._cov
 
-        Q_np = Q._cov.eval(session=sess)
+    rowcov_np = rowcov._cov + A.dot(Q_np).dot(A.T)
 
-        rowcov_np = rowcov._cov.eval(session=sess) + A.dot(Q_np).dot(A.T)
+    scipy_answer = np.sum(multivariate_normal.logpdf(X.T,
+                                                        np.zeros([m]),
+                                                        rowcov_np))
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(X.T,
-                                                         np.zeros([m]),
-                                                         rowcov_np))
-
-        tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov, A_tf, Q)
-        assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
+    tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov, A_tf, Q)
+    assert_allclose(scipy_answer, tf_answer, rtol=rtol)
 
 
 def test_against_scipy_mvn_col_marginal():
@@ -64,16 +60,13 @@ def test_against_scipy_mvn_col_marginal():
     A_tf = tf.constant(A, "float64")
     X_tf = tf.constant(X, "float64")
 
-    with tf.compat.v1.Session() as sess:
 
-        sess.run(tf.compat.v1.global_variables_initializer())
+    Q_np = Q._cov
 
-        Q_np = Q._cov.eval(session=sess)
+    colcov_np = colcov._cov + A.T.dot(Q_np).dot(A)
 
-        colcov_np = colcov._cov.eval(session=sess) + A.T.dot(Q_np).dot(A)
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X, np.zeros([n]), colcov_np))
 
-        scipy_answer = np.sum(multivariate_normal.logpdf(
-            X, np.zeros([n]), colcov_np))
-
-        tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov, A_tf, Q)
-        assert_allclose(scipy_answer, tf_answer.eval(session=sess), rtol=rtol)
+    tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov, A_tf, Q)
+    assert_allclose(scipy_answer, tf_answer, rtol=rtol)
