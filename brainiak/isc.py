@@ -1108,7 +1108,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     n_permutations : int, default: 1000
         Number of permutation iteration (randomizing group assignment)
-        
+
     side : str, default: 'two-sided'
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
@@ -1250,7 +1250,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
 
 def timeshift_isc(data, pairwise=False, summary_statistic='median',
-                  n_shifts=1000, side='right', tolerate_nans=True, 
+                  n_shifts=1000, side='right', tolerate_nans=True,
                   random_state=None):
 
     """Circular time-shift randomization for one-sample ISC test
