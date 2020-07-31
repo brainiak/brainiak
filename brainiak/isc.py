@@ -749,11 +749,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
             for voxel_iscs in iscs.T:
 
                 # Square the triangle and fill diagonal
-                try:
-                    voxel_iscs = squareform(voxel_iscs, force='tomatrix')
-                except ValueError as e:
-                    raise Exception("Pairwise ISC input must be "
-                                    "distance-vector format") from e
+                voxel_iscs = squareform(voxel_iscs, force='tomatrix')
                 np.fill_diagonal(voxel_iscs, 1)
 
                 # Shuffle square correlation matrix and get triangle
