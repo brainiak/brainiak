@@ -1056,25 +1056,29 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     For ISCs from one or more voxels or ROIs, permute group assignments to
     construct a permutation distribution. Input is a list or ndarray of
-    ISCs  for a single voxel/ROI, or an ISCs-by-voxels ndarray. If two groups,
-    ISC values should stacked along first dimension (vertically), and a
-    group_assignment list (or 1d array) of same length as the number of
-    subjects should be provided to indicate groups. If no group_assignment
-    is provided, one-sample test is performed using a sign-flipping procedure.
-    Performs exact test if number of possible permutations (2**N for one-sample
-    sign-flipping, N! for two-sample shuffling) is less than or equal to number
-    of requested permutation; otherwise, performs approximate permutation test
-    using Monte Carlo resampling. ISC values should either be N ISC values for
-    N subjects in the leave-one-out approach (pairwise=False) or N(N-1)/2 ISC
-    values for N subjects in the pairwise approach (pairwise=True). In the
-    pairwise approach, ISC values should correspond to the vectorized upper
-    triangle of a square corrlation matrix (scipy.stats.distance.squareform).
-    Note that in the pairwise approach, group_assignment order should match the
-    row/column order of the subject-by-subject square ISC matrix even though
-    the input ISCs should be supplied as the vectorized upper triangle of the
-    square ISC matrix. Returns the observed ISC and permutation-based p-value
-    (two-tailed test), as well as the permutation distribution of summary
-    statistic. According to Chen et al., 2016, this is the preferred
+    ISCs  for a single voxel/ROI, or an ISCs-by-voxels ndarray. In the
+    leave-one-out approach, ISC values for two groups should be stacked
+    along first dimension (vertically) and a group_assignment list (or 1d
+    array) of same length as the number of subjects should be provided to
+    indicate groups. In the pairwise approach, pairwise ISCs should be
+    computed the across both groups at once; i.e. the pairwise ISC matrix
+    should be shaped N x N where N is the total number of subjects across
+    both groups, and should contain between-group ISC pairs. Pairwise ISC
+    input should correspond to the vectorized upper triangle of the square
+    pairwise ISC correlation matrix containing both groups. In the pairwise
+    approach, group_assignment order should match the row/column order of the
+    subject-by-subject square ISC matrix even though the input ISCs should be
+    supplied as the vectorized upper triangle of the square ISC matrix. If no
+    group_assignment is provided, one-sample test is performed using a sign-
+    flipping procedure. Performs exact test if number of possible permutations
+    (2**N for one-sample sign-flipping, N! for two-sample shuffling) is less
+    than or equal to number of requested permutation; otherwise, performs
+    approximate permutation test using Monte Carlo resampling. ISC values
+    should either be N ISC values for N subjects in the leave-one-out approach
+    (pairwise=False) or N(N-1)/2 ISC values for N subjects in the pairwise
+    approach (pairwise=True). Returns the observed ISC and permutation-based
+    p-value (two-tailed test), as well as the permutation distribution of
+    summary statistic. According to Chen et al., 2016, this is the preferred
     nonparametric approach for controlling false positive rates (FPR) for
     two-sample tests. This approach may yield inflated FPRs for one-sample
     tests.
