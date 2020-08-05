@@ -5,7 +5,12 @@ import scipy.linalg
 import scipy.sparse
 import tensorflow_probability as tfp
 
-from brainiak.matnormal.utils import x_tx, xx_t
+from brainiak.matnormal.utils import (
+    x_tx,
+    xx_t,
+    unflatten_cholesky_unique,
+    flatten_cholesky_unique,
+)
 from brainiak.utils.kronecker_solvers import (
     tf_solve_lower_triangular_kron,
     tf_solve_upper_triangular_kron,
@@ -352,17 +357,11 @@ class CovUnconstrainedCholesky(CovBase):
 
         else:
             L = np.linalg.cholesky(Sigma)
-            # log diag since we exp it later for unique
-            # parameterization
-            L[np.diag_indices_from(L)] = np.log(np.diag(L))
-            self.L_flat = tfp.math.fill_triangular_inverse(L)
+            self.L_flat = tf.Variable(flatten_cholesky_unique(L), name="L_flat")
 
     @property
     def L(self):
-        L = tfp.math.fill_triangular(self.L_flat)
-        # exp diag for unique parameterization
-        L = tf.linalg.set_diag(L, tf.exp(tf.linalg.diag_part(L)))
-        return L
+        return unflatten_cholesky_unique(self.L_flat)
 
     @property
     def logdet(self):
@@ -441,17 +440,11 @@ class CovUnconstrainedInvCholesky(CovBase):
 
         else:
             Linv = np.linalg.cholesky(invSigma)
-            # log diag since we exp it later for unique
-            # parameterization
-            Linv[np.diag_indices_from(Linv)] = np.log(np.diag(Linv))
-            self.Linv_flat = tfp.math.fill_triangular_inverse(Linv)
+            self.Linv_flat = tf.Variable(flatten_cholesky_unique(Linv), name="Linv_flat")
 
     @property
     def Linv(self):
-        Linv = tfp.math.fill_triangular(self.Linv_flat)
-        # exp diag for unique parameterization
-        Linv = tf.linalg.set_diag(Linv, tf.exp(tf.linalg.diag_part(Linv)))
-        return Linv
+        return unflatten_cholesky_unique(self.Linv_flat)
 
     @property
     def logdet(self):

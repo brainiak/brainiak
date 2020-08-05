@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 from scipy.stats import norm
 from numpy.linalg import cholesky
 import numpy as np
@@ -33,6 +34,29 @@ def scaled_I(x, size):
 def quad_form_trp(x, y):
     """ x * y * x' """
     return tf.matmul(x, tf.matmul(y, x, transpose_b=True))
+
+
+def flatten_cholesky_unique(L):
+    """
+    Flattens nonzero-elements Cholesky (triangular) factor
+    into a vector, and logs diagonal to make parameterizaation
+    unique. Inverse of unflatten_cholesky_unique.
+    """
+    L[np.diag_indices_from(L)] = np.log(np.diag(L))
+    L_flat = tfp.math.fill_triangular_inverse(L)
+    return L_flat
+
+
+def unflatten_cholesky_unique(L_flat):
+    """
+    Converts a vector of elements into a triangular matrix 
+    (Cholesky factor). Exponentiates diagonal to make
+    parameterizaation unique. Inverse of flatten_cholesky_unique. 
+    """
+    L = tfp.math.fill_triangular(L_flat)
+    # exp diag for unique parameterization
+    L = tf.linalg.set_diag(L, tf.exp(tf.linalg.diag_part(L)))
+    return L
 
 
 def pack_trainable_vars(trainable_vars):
