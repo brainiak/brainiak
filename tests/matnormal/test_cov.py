@@ -19,7 +19,6 @@ import pytest
 import logging
 
 
-
 logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
@@ -80,8 +79,7 @@ def test_CovConstant():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovIdentity():
@@ -93,8 +91,7 @@ def test_CovIdentity():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovIsotropic():
@@ -106,8 +103,7 @@ def test_CovIsotropic():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovDiagonal():
@@ -119,8 +115,7 @@ def test_CovDiagonal():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovDiagonal_initialized():
@@ -132,15 +127,13 @@ def test_CovDiagonal_initialized():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovDiagonalGammaPrior():
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
-    cov = CovDiagonalGammaPrior(
-        size=m, sigma=np.diag(cov_np), alpha=1.5, beta=1e-10)
+    cov = CovDiagonalGammaPrior(size=m, sigma=np.diag(cov_np), alpha=1.5, beta=1e-10)
 
     ig = invgamma(1.5, scale=1e-10)
 
@@ -149,8 +142,7 @@ def test_CovDiagonalGammaPrior():
     penalty_np = np.sum(ig.logpdf(1 / np.diag(cov_np)))
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
     assert_allclose(penalty_np, cov.logp, rtol=rtol)
 
 
@@ -163,8 +155,7 @@ def test_CovUnconstrainedCholesky():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovUnconstrainedCholeskyWishartReg():
@@ -177,8 +168,7 @@ def test_CovUnconstrainedCholeskyWishartReg():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
     # now compute the regularizer
     reg = wishart.logpdf(cov_np, df=m + 2, scale=1e10 * np.eye(m))
     assert_allclose(reg, cov.logp, rtol=rtol)
@@ -187,7 +177,7 @@ def test_CovUnconstrainedCholeskyWishartReg():
 def test_CovUnconstrainedInvCholesky():
 
     init = invwishart.rvs(scale=np.eye(m), df=m + 2)
-    cov = CovUnconstrainedInvCholesky(size=m, invSigma=init)
+    cov = CovUnconstrainedInvCholesky(invSigma=init)
 
     Linv = cov.Linv
     L = np.linalg.inv(Linv)
@@ -196,8 +186,7 @@ def test_CovUnconstrainedInvCholesky():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_Cov2FactorKron():
@@ -213,14 +202,12 @@ def test_Cov2FactorKron():
 
     L1 = (cov.L[0]).numpy()
     L2 = (cov.L[1]).numpy()
-    cov_np = np.kron(np.dot(L1, L1.transpose()),
-                        np.dot(L2, L2.transpose()))
+    cov_np = np.kron(np.dot(L1, L1.transpose()), np.dot(L2, L2.transpose()))
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
 
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_Cov3FactorKron():
@@ -229,7 +216,6 @@ def test_Cov3FactorKron():
     dim2 = 2
     dim3 = 2
     cov = CovKroneckerFactored(sizes=[dim1, dim2, dim3])
-
 
     L1 = (cov.L[0]).numpy()
     L2 = (cov.L[1]).numpy()
@@ -242,8 +228,7 @@ def test_Cov3FactorKron():
 
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_Cov3FactorMaskedKron():
@@ -263,25 +248,19 @@ def test_Cov3FactorMaskedKron():
     L1 = (cov.L[0]).numpy()
     L2 = (cov.L[1]).numpy()
     L3 = (cov.L[2]).numpy()
-    cov_np_factor = np.kron(L1, np.kron(L2, L3))[
-                            np.ix_(mask_indices, mask_indices)]
+    cov_np_factor = np.kron(L1, np.kron(L2, L3))[np.ix_(mask_indices, mask_indices)]
     cov_np = np.dot(cov_np_factor, cov_np_factor.transpose())
-    logdet_np, sinv_np, sinvx_np = logdet_sinv_np(
-        X[mask_indices, :], cov_np)
+    logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X[mask_indices, :], cov_np)
 
     assert_allclose(logdet_np, cov.logdet, rtol=rtol, atol=atol)
     assert_allclose(
         sinv_np,
-        cov.solve(eye).numpy()[
-                    np.ix_(mask_indices, mask_indices)],
+        cov.solve(eye).numpy()[np.ix_(mask_indices, mask_indices)],
         rtol=rtol,
         atol=atol,
     )
     assert_allclose(
-        sinvx_np,
-        cov.solve(X_tf).numpy()[mask_indices, :],
-        rtol=rtol,
-        atol=atol,
+        sinvx_np, cov.solve(X_tf).numpy()[mask_indices, :], rtol=rtol, atol=atol
     )
 
 
@@ -293,8 +272,7 @@ def test_CovAR1():
 
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
 def test_CovAR1_scan_onsets():
@@ -306,5 +284,5 @@ def test_CovAR1_scan_onsets():
 
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
-    assert_allclose(sinvx_np, cov.solve(
-        X_tf), rtol=rtol)
+    assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
+
