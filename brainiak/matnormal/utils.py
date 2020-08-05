@@ -1,6 +1,7 @@
 import tensorflow as tf
 from scipy.stats import norm
 from numpy.linalg import cholesky
+import numpy as np
 
 
 def rmn(rowcov, colcov):
@@ -32,3 +33,48 @@ def scaled_I(x, size):
 def quad_form_trp(x, y):
     """ x * y * x' """
     return tf.matmul(x, tf.matmul(y, x, transpose_b=True))
+
+
+def pack_trainable_vars(trainable_vars):
+    """
+    Pack trainable vars in a model into a single
+    vector that can be passed to scipy.optimize
+    """
+    return tf.concat([tf.reshape(tv, (-1,)) for tv in trainable_vars], axis=0)
+
+
+def unpack_trainable_vars(x, trainable_vars):
+    """
+    Unpack trainable vars from a single vector as 
+    used/returned by scipy.optimize
+    """
+
+    sizes = [tv.shape for tv in trainable_vars]
+    idxs = [np.prod(sz) for sz in sizes]
+    flatvars = tf.split(x, idxs)
+    return [tf.reshape(fv, tv.shape) for fv, tv in zip(flatvars, trainable_vars)]
+
+
+def make_val_and_grad(model, lossfn=None, extra_args=None, train_vars=None):
+
+    if train_vars is None:
+        train_vars = model.train_variables
+
+    if lossfn is None:
+        lossfn = lambda theta: -model.logp(*extra_args)
+
+    if extra_args is None:
+        extra_args = {}
+
+    def val_and_grad(theta, *extra_args):
+        with tf.GradientTape() as tape:
+            tape.watch(train_vars)
+            unpacked_theta = unpack_trainable_vars(theta, train_vars)
+            for var, val in zip(train_vars, unpacked_theta):
+                var = val
+            loss = lossfn(theta)
+        grad = tape.gradient(loss, train_vars)
+        packed_grad = pack_trainable_vars(grad)
+        return loss.numpy(), packed_grad.numpy()
+
+    return val_and_grad

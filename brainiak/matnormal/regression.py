@@ -1,8 +1,14 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 from sklearn.base import BaseEstimator
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
-from tensorflow.contrib.opt import ScipyOptimizerInterface
+from brainiak.matnormal.utils import (
+    pack_trainable_vars,
+    unpack_trainable_vars,
+    make_val_and_grad,
+)
+from scipy.optimize import minimize
 
 __all__ = ["MatnormalRegression"]
 
@@ -28,8 +34,7 @@ class MatnormalRegression(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B",
-                 optCtrl=None):
+    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B", optCtrl=None):
 
         self.optCtrl, self.optMethod = optCtrl, optimizer
         self.time_cov = time_cov
@@ -38,19 +43,11 @@ class MatnormalRegression(BaseEstimator):
         self.n_t = time_cov.size
         self.n_v = space_cov.size
 
-        self.Y = tf.compat.v1.placeholder(tf.float64, [self.n_t, self.n_v], name="Y")
-
-        self.X = tf.compat.v1.placeholder(tf.float64, [self.n_t, None], name="X")
-
-        # create a tf session we reuse for this object
-        self.sess = tf.compat.v1.Session()
-
-    # @define_scope
-    def logp(self):
+    def logp(self, X, Y):
         """ Log likelihood of model (internal)
         """
-        y_hat = tf.matmul(self.X, self.beta)
-        resid = self.Y - y_hat
+        y_hat = tf.matmul(X, self.beta)
+        resid = Y - y_hat
         return matnorm_logp(resid, self.time_cov, self.space_cov)
 
     def fit(self, X, y):
@@ -66,20 +63,12 @@ class MatnormalRegression(BaseEstimator):
 
         self.n_c = X.shape[1]
 
-        feed_dict = {self.X: X, self.Y: y}
-        self.sess.run(tf.compat.v1.global_variables_initializer(), feed_dict=feed_dict)
-
         # initialize to the least squares solution (basically all
         # we need now is the cov)
-        sigma_inv_x = self.time_cov.solve(self.X).eval(
-            session=self.sess, feed_dict=feed_dict
-        )
-        sigma_inv_y = self.time_cov.solve(self.Y).eval(
-            session=self.sess, feed_dict=feed_dict
-        )
+        sigma_inv_x = self.time_cov.solve(X)
+        sigma_inv_y = self.time_cov.solve(y)
 
-        beta_init = np.linalg.solve((X.T).dot(sigma_inv_x),
-                                    (X.T).dot(sigma_inv_y))
+        beta_init = np.linalg.solve((X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
 
         self.beta = tf.Variable(beta_init, name="beta")
 
@@ -87,18 +76,16 @@ class MatnormalRegression(BaseEstimator):
         self.train_variables.extend(self.time_cov.get_optimize_vars())
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
-        self.sess.run(tf.compat.v1.variables_initializer([self.beta]))
+        val_and_grad = make_val_and_grad(self, extra_args=(X, y))
+        x0 = pack_trainable_vars(self.train_variables)
 
-        optimizer = ScipyOptimizerInterface(
-            -self.logp(),
-            var_list=self.train_variables,
-            method=self.optMethod,
-            options=self.optCtrl,
+        opt_results = minimize(
+            fun=val_and_grad, x0=x0, args=(X, y), jac=True, method="L-BFGS-B"
         )
 
-        optimizer.minimize(session=self.sess, feed_dict=feed_dict)
-
-        self.beta_ = self.beta.eval(session=self.sess)
+        unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
+        for var, val in zip(self.train_variables, unpacked_theta):
+            var = val
 
     def predict(self, X):
         """ Predict fMRI signal from design matrix.
@@ -136,8 +123,7 @@ class MatnormalRegression(BaseEstimator):
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
         # (B Sigma_s^{-1} B')^{-1}
-        B_Sigma_Btrp = tf.matmul(
-            self.beta, Sigma_s_btrp).eval(session=self.sess)
+        B_Sigma_Btrp = tf.matmul(self.beta, Sigma_s_btrp).eval(session=self.sess)
 
         X_test = np.linalg.solve(B_Sigma_Btrp.T, Y_Sigma_Btrp.T).T
 
