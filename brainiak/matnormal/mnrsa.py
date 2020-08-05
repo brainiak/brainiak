@@ -5,8 +5,16 @@ from .covs import CovIdentity
 from brainiak.utils.utils import cov2corr
 import numpy as np
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp_marginal_row
-from tensorflow.contrib.opt import ScipyOptimizerInterface
+from brainiak.matnormal.utils import (
+    pack_trainable_vars,
+    unpack_trainable_vars,
+    make_val_and_grad,
+    unflatten_cholesky_unique,
+    flatten_cholesky_unique,
+)
+
 import tensorflow.compat.v1.logging as tflog
+from scipy.optimize import minimize
 
 __all__ = ["MNRSA"]
 
@@ -53,18 +61,15 @@ class MNRSA(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B",
-                 optCtrl=None):
+    def __init__(
+        self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B", optCtrl=None
+    ):
 
         self.n_T = time_cov.size
         self.n_V = space_cov.size
         self.n_nureg = n_nureg
 
         self.optCtrl, self.optMethod = optCtrl, optimizer
-
-        # placeholders for inputs
-        self.X = tf.compat.v1.placeholder(tf.float64, [self.n_T, None], name="Design")
-        self.Y = tf.compat.v1.placeholder(tf.float64, [self.n_T, self.n_V], name="Brain")
 
         self.X_0 = tf.Variable(
             tf.random.normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
@@ -80,6 +85,10 @@ class MNRSA(BaseEstimator):
 
         # create a tf session we reuse for this object
         self.sess = tf.compat.v1.Session()
+
+    @property
+    def L(self):
+        return unflatten_cholesky_unique(self.L_flat)
 
     def fit(self, X, y, structured_RSA_cov=None):
         """ Estimate dimension reduction and cognitive model parameters
@@ -101,69 +110,70 @@ class MNRSA(BaseEstimator):
 
         """
 
-        # self.sess.run(tf.global_variables_initializer())
+        # In the method signature we follow sklearn discriminative API
+        # where brain is X and behavior is y. Internally we are 
+        # generative so we flip this here
+        X, Y = y, X
 
-        feed_dict = {self.X: y, self.Y: X}
-
-        self.n_c = y.shape[1]
+        self.n_c = X.shape[1]
 
         # initialize from naive RSA
         m = LinearRegression(fit_intercept=False)
-        # counterintuitive given sklearn interface above:
-        # brain is passed in as X and design is passed in as y
-        m.fit(X=y, y=X)
+        m.fit(X=X, y=Y)
         self.naive_U_ = np.cov(m.coef_.T)
         naiveRSA_L = np.linalg.cholesky(self.naive_U_)
         self.naive_C_ = cov2corr(self.naive_U_)
-        self.L_full = tf.Variable(naiveRSA_L, name="L_full", dtype="float64")
 
-        L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
-        self.L = tf.linalg.set_diag(
-            L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
+        self.L_flat = tf.Variable(
+            flatten_cholesky_unique(naiveRSA_L), name="L_flat", dtype="float64"
         )
 
-        self.train_variables.extend([self.L_full])
+        self.train_variables.extend([self.L_flat])
 
-        self.x_stack = tf.concat([tf.matmul(self.X, self.L), self.X_0], 1)
-        self.sess.run(tf.compat.v1.global_variables_initializer(), feed_dict=feed_dict)
+        # logging_ops.append(
+        #     tf.print(
+        #         "min(grad): ",
+        #         tf.reduce_min(input_tensor=optimizer._packed_loss_grad),
+        #         output_stream=tflog.info,
+        #     )
+        # )
+        # logging_ops.append(
+        #     tf.print(
+        #         "max(grad): ",
+        #         tf.reduce_max(input_tensor=optimizer._packed_loss_grad),
+        #         output_stream=tflog.info,
+        #     )
+        # )
+        # logging_ops.append(tf.print("logp", self.logp(), output_stream=tflog.info))
+        # self.sess.run(logging_ops, feed_dict=feed_dict)
+        val_and_grad = make_val_and_grad(self, extra_args=(X, Y))
+        x0 = pack_trainable_vars(self.train_variables)
 
-        optimizer = ScipyOptimizerInterface(
-            -self.logp(),
-            var_list=self.train_variables,
-            method=self.optMethod,
-            options=self.optCtrl,
+        opt_results = minimize(
+            fun=val_and_grad, x0=x0, args=(X, Y), jac=True, method="L-BFGS-B"
         )
 
-        logging_ops = []
-        logging_ops.append(tf.print("min(grad): ", tf.reduce_min(
-            input_tensor=optimizer._packed_loss_grad), output_stream=tflog.info))
-        logging_ops.append(tf.print("max(grad): ", tf.reduce_max(
-            input_tensor=optimizer._packed_loss_grad), output_stream=tflog.info))
-        logging_ops.append(
-            tf.print("logp", self.logp(), output_stream=tflog.info))
-        self.sess.run(logging_ops, feed_dict=feed_dict)
+        unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
+        for var, val in zip(self.train_variables, unpacked_theta):
+            var = val
 
-        optimizer.minimize(session=self.sess, feed_dict=feed_dict)
-
-        self.L_ = self.L.eval(session=self.sess)
-        self.X_0_ = self.X_0.eval(session=self.sess)
-        self.U_ = self.L_.dot(self.L_.T)
+        self.U_ = self.L.numpy().dot(self.L.numpy().T)
         self.C_ = cov2corr(self.U_)
 
-    def logp(self):
+    def logp(self, X, Y):
         """ MNRSA Log-likelihood"""
 
         rsa_cov = CovIdentity(size=self.n_c + self.n_nureg)
-
+        x_stack = tf.concat([tf.matmul(X, self.L), self.X_0], 1)
         return (
             self.time_cov.logp
             + self.space_cov.logp
             + rsa_cov.logp
             + matnorm_logp_marginal_row(
-                self.Y,
+                Y,
                 row_cov=self.time_cov,
                 col_cov=self.space_cov,
-                marg=self.x_stack,
+                marg=x_stack,
                 marg_cov=rsa_cov,
             )
         )
