@@ -40,7 +40,7 @@ def test_matnorm_regression_unconstrained():
 
     model.fit(X, y)
 
-    assert pearsonr(B.flatten(), model.beta.numpy().flatten())[0] >= corrtol
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_unconstrainedprec():
@@ -62,7 +62,7 @@ def test_matnorm_regression_unconstrainedprec():
 
     model.fit(X, Y)
 
-    assert pearsonr(B.flatten(), model.beta.numpy().flatten())[0] >= corrtol
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_optimizerChoice():
@@ -85,7 +85,7 @@ def test_matnorm_regression_optimizerChoice():
 
     model.fit(X, Y)
 
-    assert pearsonr(B.flatten(), model.beta.numpy().flatten())[0] >= corrtol
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
 
 def test_matnorm_regression_scaledDiag():
@@ -108,4 +108,4 @@ def test_matnorm_regression_scaledDiag():
 
     model.fit(X, Y)
 
-    assert pearsonr(B.flatten(), model.beta.numpy().flatten())[0] >= corrtol
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol

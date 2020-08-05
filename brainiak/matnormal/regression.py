@@ -87,6 +87,8 @@ class MatnormalRegression(BaseEstimator):
         for var, val in zip(self.train_variables, unpacked_theta):
             var = val
 
+        self.beta_ = self.beta.numpy()
+
     def predict(self, X):
         """ Predict fMRI signal from design matrix.
 
