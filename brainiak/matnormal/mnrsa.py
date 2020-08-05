@@ -83,11 +83,11 @@ class MNRSA(BaseEstimator):
         self.train_variables.extend(self.time_cov.get_optimize_vars())
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
-        # create a tf session we reuse for this object
-        self.sess = tf.compat.v1.Session()
-
     @property
     def L(self):
+        """
+        Cholesky factor of the RSA matrix. 
+        """
         return unflatten_cholesky_unique(self.L_flat)
 
     def fit(self, X, y, structured_RSA_cov=None):
@@ -111,7 +111,7 @@ class MNRSA(BaseEstimator):
         """
 
         # In the method signature we follow sklearn discriminative API
-        # where brain is X and behavior is y. Internally we are 
+        # where brain is X and behavior is y. Internally we are
         # generative so we flip this here
         X, Y = y, X
 
@@ -130,22 +130,6 @@ class MNRSA(BaseEstimator):
 
         self.train_variables.extend([self.L_flat])
 
-        # logging_ops.append(
-        #     tf.print(
-        #         "min(grad): ",
-        #         tf.reduce_min(input_tensor=optimizer._packed_loss_grad),
-        #         output_stream=tflog.info,
-        #     )
-        # )
-        # logging_ops.append(
-        #     tf.print(
-        #         "max(grad): ",
-        #         tf.reduce_max(input_tensor=optimizer._packed_loss_grad),
-        #         output_stream=tflog.info,
-        #     )
-        # )
-        # logging_ops.append(tf.print("logp", self.logp(), output_stream=tflog.info))
-        # self.sess.run(logging_ops, feed_dict=feed_dict)
         val_and_grad = make_val_and_grad(self, extra_args=(X, Y))
         x0 = pack_trainable_vars(self.train_variables)
 

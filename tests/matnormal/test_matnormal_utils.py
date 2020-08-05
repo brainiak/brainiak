@@ -9,7 +9,6 @@ def test_pack_unpack():
         shape=shape, seed=[0, 0]) for shape in shapes]
     flatmats = pack_trainable_vars(mats)
     unflatmats = unpack_trainable_vars(flatmats, mats)
-    with tf.compat.v1.Session() as sess:
-        for mat_in, mat_out in zip(mats, unflatmats):
-            assert tf.math.reduce_all(
-                tf.equal(mat_in, mat_out)).eval(session=sess)
+    for mat_in, mat_out in zip(mats, unflatmats):
+        assert tf.math.reduce_all(
+            tf.equal(mat_in, mat_out))
