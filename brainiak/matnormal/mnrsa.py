@@ -130,12 +130,12 @@ class MNRSA(BaseEstimator):
 
         self.train_variables.extend([self.L_flat])
 
-        val_and_grad = make_val_and_grad(self, extra_args=(X, Y))
+        lossfn = lambda theta: -self.logp(X, y)
+        val_and_grad = make_val_and_grad(lossfn, self.train_variables)
+
         x0 = pack_trainable_vars(self.train_variables)
 
-        opt_results = minimize(
-            fun=val_and_grad, x0=x0, args=(X, Y), jac=True, method="L-BFGS-B"
-        )
+        opt_results = minimize(fun=val_and_grad, x0=x0, jac=True, method="L-BFGS-B")
 
         unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
         for var, val in zip(self.train_variables, unpacked_theta):

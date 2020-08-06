@@ -79,18 +79,13 @@ def unpack_trainable_vars(x, trainable_vars):
     return [tf.reshape(fv, tv.shape) for fv, tv in zip(flatvars, trainable_vars)]
 
 
-def make_val_and_grad(model, lossfn=None, extra_args=None, train_vars=None):
+def make_val_and_grad(lossfn, train_vars):
+    """
+    Makes a function that ouptuts the loss and gradient in a format compatible
+    with scipy.optimize.minimize
+    """
 
-    if train_vars is None:
-        train_vars = model.train_variables
-
-    if lossfn is None:
-        lossfn = lambda theta: -model.logp(*extra_args)
-
-    if extra_args is None:
-        extra_args = {}
-
-    def val_and_grad(theta, *extra_args):
+    def val_and_grad(theta):
         with tf.GradientTape() as tape:
             tape.watch(train_vars)
             unpacked_theta = unpack_trainable_vars(theta, train_vars)
