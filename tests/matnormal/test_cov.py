@@ -111,7 +111,7 @@ def test_CovDiagonal():
     cov = CovDiagonal(size=m)
 
     # compute the naive version
-    cov_np = np.diag(1 / cov.prec)
+    cov_np = cov._cov
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)

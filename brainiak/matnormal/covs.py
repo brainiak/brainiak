@@ -290,9 +290,6 @@ class CovDiagonal(CovBase):
         else:
             self.logprec = tf.Variable(np.log(1 / diag_var), name="log-precisions")
 
-        self.prec = tf.exp(self.logprec)
-        self.prec_dimaugmented = tf.expand_dims(self.prec, -1)
-
     @property
     def logdet(self):
         return -tf.reduce_sum(input_tensor=self.logprec)
@@ -312,7 +309,9 @@ class CovDiagonal(CovBase):
             Tensor to multiply by inverse of this covariance
 
         """
-        return tf.multiply(self.prec_dimaugmented, X)
+        prec = tf.exp(self.logprec)
+        prec_dimaugmented = tf.expand_dims(prec, -1)
+        return tf.multiply(prec_dimaugmented, X)
 
 
 class CovDiagonalGammaPrior(CovDiagonal):
@@ -327,7 +326,7 @@ class CovDiagonalGammaPrior(CovDiagonal):
             scale=tf.constant(beta, dtype=tf.float64),
         )
 
-        self.logp = tf.reduce_sum(input_tensor=self.ig.log_prob(self.prec))
+        self.logp = tf.reduce_sum(input_tensor=self.ig.log_prob(tf.exp(self.logprec)))
 
 
 class CovUnconstrainedCholesky(CovBase):
@@ -358,6 +357,8 @@ class CovUnconstrainedCholesky(CovBase):
         else:
             L = np.linalg.cholesky(Sigma)
             self.L_flat = tf.Variable(flatten_cholesky_unique(L), name="L_flat")
+
+        self.optimize_vars = [self.L_flat]
 
     @property
     def L(self):
