@@ -90,7 +90,7 @@ class MNRSA(BaseEstimator):
         """
         return unflatten_cholesky_unique(self.L_flat)
 
-    def fit(self, X, y, structured_RSA_cov=None):
+    def fit(self, X, y, naive_init=True):
         """ Estimate dimension reduction and cognitive model parameters
 
         Parameters
@@ -117,20 +117,25 @@ class MNRSA(BaseEstimator):
 
         self.n_c = X.shape[1]
 
-        # initialize from naive RSA
-        m = LinearRegression(fit_intercept=False)
-        m.fit(X=X, y=Y)
-        self.naive_U_ = np.cov(m.coef_.T)
-        naiveRSA_L = np.linalg.cholesky(self.naive_U_)
-        self.naive_C_ = cov2corr(self.naive_U_)
-
-        self.L_flat = tf.Variable(
-            flatten_cholesky_unique(naiveRSA_L), name="L_flat", dtype="float64"
-        )
+        if naive_init: 
+            # initialize from naive RSA
+            m = LinearRegression(fit_intercept=False)
+            m.fit(X=X, y=Y)
+            self.naive_U_ = np.cov(m.coef_.T)
+            naiveRSA_L = np.linalg.cholesky(self.naive_U_)
+            self.L_flat = tf.Variable(
+                flatten_cholesky_unique(naiveRSA_L), name="L_flat", dtype="float64"
+            )
+        else:     
+    
+            chol_flat_size = (self.n_c * (self.n_c + 1)) // 2
+            self.L_flat = tf.Variable(
+                tf.random.normal([chol_flat_size], dtype="float64"), name="L_flat", dtype="float64"
+            )
 
         self.train_variables.extend([self.L_flat])
 
-        lossfn = lambda theta: -self.logp(X, y)
+        lossfn = lambda theta: -self.logp(X, Y)
         val_and_grad = make_val_and_grad(lossfn, self.train_variables)
 
         x0 = pack_trainable_vars(self.train_variables)
@@ -139,7 +144,7 @@ class MNRSA(BaseEstimator):
 
         unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
         for var, val in zip(self.train_variables, unpacked_theta):
-            var = val
+            var.assign(val)
 
         self.U_ = self.L.numpy().dot(self.L.numpy().T)
         self.C_ = cov2corr(self.U_)

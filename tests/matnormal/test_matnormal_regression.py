@@ -38,7 +38,7 @@ def test_matnorm_regression_unconstrained():
 
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
-    model.fit(X, y)
+    model.fit(X, y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
@@ -60,7 +60,7 @@ def test_matnorm_regression_unconstrainedprec():
 
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
-    model.fit(X, Y)
+    model.fit(X, Y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
@@ -83,7 +83,7 @@ def test_matnorm_regression_optimizerChoice():
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov,
                                 optimizer="CG")
 
-    model.fit(X, Y)
+    model.fit(X, Y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
@@ -106,6 +106,6 @@ def test_matnorm_regression_scaledDiag():
 
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
-    model.fit(X, Y)
+    model.fit(X, Y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol

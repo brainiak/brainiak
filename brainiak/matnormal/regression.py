@@ -50,25 +50,29 @@ class MatnormalRegression(BaseEstimator):
         resid = Y - y_hat
         return matnorm_logp(resid, self.time_cov, self.space_cov)
 
-    def fit(self, X, y):
+    def fit(self, X, y, naive_init=True):
         """ Compute the regression fit.
 
         Parameters
         ----------
         X : np.array, TRs by conditions.
             Design matrix
-        Y : np.array, TRs by voxels.
+        y : np.array, TRs by voxels.
             fMRI data
         """
 
         self.n_c = X.shape[1]
 
-        # initialize to the least squares solution (basically all
-        # we need now is the cov)
-        sigma_inv_x = self.time_cov.solve(X)
-        sigma_inv_y = self.time_cov.solve(y)
+        if naive_init:
+            # initialize to the least squares solution (basically all
+            # we need now is the cov)
+            sigma_inv_x = self.time_cov.solve(X)
+            sigma_inv_y = self.time_cov.solve(y)
 
-        beta_init = np.linalg.solve((X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
+            beta_init = np.linalg.solve((X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
+
+        else:
+            beta_init = np.random.randn(self.n_c, self.n_v)
 
         self.beta = tf.Variable(beta_init, name="beta")
 
@@ -83,8 +87,9 @@ class MatnormalRegression(BaseEstimator):
         opt_results = minimize(fun=val_and_grad, x0=x0, jac=True, method="L-BFGS-B")
 
         unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
+
         for var, val in zip(self.train_variables, unpacked_theta):
-            var = val
+            var.assign(val)
 
         self.beta_ = self.beta.numpy()
 
