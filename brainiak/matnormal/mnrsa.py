@@ -117,7 +117,7 @@ class MNRSA(BaseEstimator):
 
         self.n_c = X.shape[1]
 
-        if naive_init: 
+        if naive_init:
             # initialize from naive RSA
             m = LinearRegression(fit_intercept=False)
             m.fit(X=X, y=Y)
@@ -126,11 +126,12 @@ class MNRSA(BaseEstimator):
             self.L_flat = tf.Variable(
                 flatten_cholesky_unique(naiveRSA_L), name="L_flat", dtype="float64"
             )
-        else:     
-    
+        else:
             chol_flat_size = (self.n_c * (self.n_c + 1)) // 2
             self.L_flat = tf.Variable(
-                tf.random.normal([chol_flat_size], dtype="float64"), name="L_flat", dtype="float64"
+                tf.random.normal([chol_flat_size], dtype="float64"),
+                name="L_flat",
+                dtype="float64",
             )
 
         self.train_variables.extend([self.L_flat])
