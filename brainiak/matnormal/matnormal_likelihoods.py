@@ -53,20 +53,17 @@ def solve_det_marginal(x, sigma, A, Q):
     # For diagnostics, we want to check condition numbers
     # of things we invert. This includes Q and Sigma, as well
     # as the "lemma factor" for lack of a better definition
-    if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logging.log(logging.DEBUG, "Printing diagnostics for solve_det_marginal")
-        A = tf.compat.v1.Print(
-            A,
-            [_condition(Q._prec + tf.matmul(A, sigma.solve(A), transpose_a=True))],
-            "lemma_factor condition",
-        )
-        A = tf.compat.v1.Print(A, [_condition(Q._cov)], "Q condition")
-        A = tf.compat.v1.Print(A, [_condition(sigma._cov)], "sigma condition")
-        A = tf.compat.v1.Print(
-            A,
-            [tf.reduce_max(input_tensor=A), tf.reduce_min(input_tensor=A)],
-            "A minmax",
-        )
+    logging.log(logging.DEBUG, "Printing diagnostics for solve_det_marginal")
+    logging.log(
+        logging.DEBUG,
+        f"lemma_factor condition={_condition(Q._prec + tf.matmul(A, sigma.solve(A),transpose_a=True))}",
+    )
+    logging.log(logging.DEBUG, f"Q condition={_condition(Q._cov)}")
+    logging.log(logging.DEBUG, f"sigma condition={_condition(sigma._cov)}")
+    logging.log(
+        logging.DEBUG,
+        f"sigma max={tf.reduce_max(input_tensor=A)}, sigma min={tf.reduce_min(input_tensor=A)}",
+    )
 
     # cholesky of (Qinv + A' Sigma^{-1} A), which looks sort of like
     # a schur complement but isn't, so we call it the "lemma factor"
@@ -81,19 +78,12 @@ def solve_det_marginal(x, sigma, A, Q):
         + 2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))
     )
 
-    if logging.getLogger().isEnabledFor(logging.DEBUG):
-        logdet = tf.compat.v1.Print(logdet, [Q.logdet], "Q logdet")
-        logdet = tf.compat.v1.Print(logdet, [sigma.logdet], "sigma logdet")
-        logdet = tf.compat.v1.Print(
-            logdet,
-            [
-                2
-                * tf.reduce_sum(
-                    input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor))
-                )
-            ],
-            "iqf logdet",
-        )
+    logging.log(logging.DEBUG, f"Log-determinant of Q={Q.logdet}")
+    logging.log(logging.DEBUG, f"sigma logdet={sigma.logdet}")
+    logging.log(
+        logging.DEBUG,
+        f"lemma factor logdet={2* tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))}",
+    )
 
     # A' Sigma^{-1}
     Atrp_Sinv = tf.matmul(A, sigma._prec, transpose_a=True)
@@ -180,15 +170,10 @@ def _mnorm_logp_internal(
     """
     log2pi = 1.8378770664093453
 
-    if logging.getLogger().isEnabledFor(logging.DEBUG):
-        solve_row = tf.compat.v1.Print(
-            solve_row, [tlinalg.trace(solve_col)], "coltrace"
-        )
-        solve_row = tf.compat.v1.Print(
-            solve_row, [tlinalg.trace(solve_row)], "rowtrace"
-        )
-        solve_row = tf.compat.v1.Print(solve_row, [logdet_row], "logdet_row")
-        solve_row = tf.compat.v1.Print(solve_row, [logdet_col], "logdet_col")
+    logging.log(logging.DEBUG, f"column precision trace ={tlinalg.trace(solve_col)}")
+    logging.log(logging.DEBUG, f"row precision trace ={tlinalg.trace(solve_row)}")
+    logging.log(logging.DEBUG, f"row cov logdet ={logdet_row}")
+    logging.log(logging.DEBUG, f"col cov logdet ={logdet_col}")
 
     denominator = (
         -rowsize * colsize * log2pi - colsize * logdet_row - rowsize * logdet_col

@@ -64,7 +64,7 @@ def test_brsa_rudimentary():
 
     model_matnorm = MNRSA(time_cov=timecov_model, space_cov=spacecov_model)
 
-    model_matnorm.fit(tr["Y"], tr["X"])
+    model_matnorm.fit(tr["Y"], tr["X"], naive_init=False)
 
     RMSE = np.mean((model_matnorm.C_ - cov2corr(tr["U"])) ** 2) ** 0.5
 
