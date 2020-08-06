@@ -58,7 +58,7 @@ is :math:`m\\times m` and :math:`\\C` is :math:`n\\times n`.
 
 The `brainiak.matnormal` package provides structure to infer models that
 can be stated in the matrix-normal notation that are useful for fMRI analysis.
-It provides a few interfaces. `MatnormModelBase` is intended is intended as a
+It provides a few interfaces. `MatnormModelBase` is intended as a
 base class for matrix-variate models. It provides a wrapper for the tensorflow
 optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
@@ -85,7 +85,7 @@ Uppercase subscripts for covariances help keep track where they come from.
       \\Sigma_{\\mathbf{Z}_i}, \\Sigma_{\\mathbf{Z}_k})\\\\
 
 
-We vectorize, and covert to a form we recognize as
+We vectorize, and convert to a form we recognize as
 $y \\sim \\mathcal{N}(Mx+b, \\Sigma)$.
 
 .. math::

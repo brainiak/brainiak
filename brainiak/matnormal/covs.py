@@ -165,10 +165,10 @@ class CovAR1(CovBase):
 
         if sigma is None:
             self.log_sigma = tf.Variable(
-                tf.random.normal([1], dtype=tf.float64), name="sigma"
+                tf.random.normal([1], dtype=tf.float64), name="log_sigma"
             )
         else:
-            self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
+            self.log_sigma = tf.Variable(np.log(sigma), name="log_sigma")
 
         if rho is None:
             self.rho_unc = tf.Variable(
@@ -184,11 +184,10 @@ class CovAR1(CovBase):
         """
         # first, unconstrain rho and sigma
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
-        sigma = tf.exp(self.log_sigma)
         # now compute logdet
         return tf.reduce_sum(
             input_tensor=2 * tf.constant(self.run_sizes, dtype=tf.float64) *
-            tf.math.log(sigma)
+            self.log_sigma
             - tf.math.log(1 - tf.square(rho))
         )
 

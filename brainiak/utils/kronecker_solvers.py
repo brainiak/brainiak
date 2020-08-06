@@ -101,7 +101,7 @@ def tf_solve_upper_triangular_kron(L, y):
 
 def tf_kron_mult(L, x):
     """ Tensorflow multiply with kronecker product matrix
-    Returs kron(L[0], L[1] ...) * x
+    Returns kron(L[0], L[1] ...) * x
 
     Arguments
     ---------
