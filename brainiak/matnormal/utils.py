@@ -90,7 +90,7 @@ def make_val_and_grad(lossfn, train_vars):
             tape.watch(train_vars)
             unpacked_theta = unpack_trainable_vars(theta, train_vars)
             for var, val in zip(train_vars, unpacked_theta):
-                var = val
+                var.assign(val)
             loss = lossfn(theta)
         grad = tape.gradient(loss, train_vars)
         packed_grad = pack_trainable_vars(grad)
