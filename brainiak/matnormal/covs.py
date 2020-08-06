@@ -172,11 +172,10 @@ class CovAR1(CovBase):
 
         if rho is None:
             self.rho_unc = tf.Variable(
-                tf.random.normal([1], dtype=tf.float64), name="rho"
+                tf.random.normal([1], dtype=tf.float64), name="rho_unc"
             )
         else:
-            self.rho_unc = tf.Variable(
-                2 * tf.sigmoid(self.rho_unc) - 1, name="rho")
+            self.rho_unc = tf.Variable(scipy.special.logit(rho / 2 + 0.5), name='rho_unc')
 
     @property
     def logdet(self):

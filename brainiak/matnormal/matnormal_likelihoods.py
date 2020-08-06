@@ -273,7 +273,7 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
     .. math::
         X \\sim \\mathcal{MN}(0, R, Q)\\
         Y \\mid \\X \\sim \\mathcal{MN}(XA, R, C),\\
-        Y \\sim \\mathcal{MN}(0, R, C + AQA)
+        Y \\sim \\mathcal{MN}(0, R, C + A'QA)
 
     This function efficiently computes the marginals by unpacking some
     info in the covariance classes and then dispatching to solve_det_marginal.
