@@ -692,7 +692,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     ci_percentile : int, default: 95
          Percentile for computing confidence intervals
 
-    side : str, default: 'two-sided'
+    side : str
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
     random_state = int or None, default: None
@@ -1109,7 +1109,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     n_permutations : int, default: 1000
         Number of permutation iteration (randomizing group assignment)
 
-    side : str, default: 'two-sided'
+    side : str
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
     random_state = int, None, or np.random.RandomState, default: None
@@ -1305,7 +1305,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    side : str, default: 'two-sided'
+    side : str
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
     tolerate_nans : bool or float, default: True
@@ -1459,7 +1459,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     n_shifts : int, default: 1000
         Number of randomly shifted samples
 
-    side : str, default: 'two-sided'
+    side : str
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
     tolerate_nans : bool or float, default: True
