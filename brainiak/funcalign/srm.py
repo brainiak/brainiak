@@ -579,6 +579,8 @@ class SRM(BaseEstimator, TransformerMixin):
         # Transform from new subjects
         _, voxels = _init_w_transforms(data, self.features, random_states,
                                        self.comm)
+        
+        # Compute the transform matricies for test-subjects
         w = []
         for subject in range(subjects):
             _w = self._update_transform_subject(data[subject], self.s_)
