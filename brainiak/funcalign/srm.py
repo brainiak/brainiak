@@ -585,7 +585,6 @@ class SRM(BaseEstimator, TransformerMixin):
             w.append(_w)
         
         x, mu, rho2, trace_xtx = self._init_structures(data, subjects)
-        shared_response = self.s_
         sigma_s = self.sigma_s_
 
         # Sum the inverted the rho2 elements for computing W^T * Psi^-1 * W
@@ -622,15 +621,14 @@ class SRM(BaseEstimator, TransformerMixin):
                                                 op=MPI.SUM)
         log_det_psi = np.sum(np.log(rho2) * voxels)
 
-        # Compute its trace
-        trace_sigma_s = samples * np.trace(sigma_s)
+        # Compute the log-likelihood
         ll_score = self._likelihood(
                 chol_sigma_s_rhos, log_det_psi, chol_sigma_s,
                 trace_xt_invsigma2_x, inv_sigma_s_rhos, wt_invpsi_x,
                 samples)
         
         # Add the constant term
-        ll_score -= 0.5*samples*voxels*subjects*np.log(2*np.pi)
+        ll_score -= 0.5*samples*np.sum(voxels)*np.log(2*np.pi)
         return ll_score
 
 
