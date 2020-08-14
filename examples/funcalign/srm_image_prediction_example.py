@@ -110,7 +110,7 @@ for subject in range(subjects):
         train_data[:, start_index:end_index] = image_data_shared[train_subjects[train_subject]]
 
     # Train a Nu-SVM classifier using scikit learn
-    classifier = NuSVC(nu=0.5, kernel='linear')
+    classifier = NuSVC(nu=0.5, kernel='linear', gamma='auto')
     classifier = classifier.fit(train_data.T, train_labels)
 
     # Predict on the test data
@@ -153,7 +153,7 @@ for subject in range(subjects):
         train_data[:, start_index:end_index] = image_data_shared[train_subjects[train_subject]]
 
     # Train a Nu-SVM classifier using scikit learn
-    classifier = NuSVC(nu=0.5, kernel='linear')
+    classifier = NuSVC(nu=0.5, kernel='linear', gamma='auto')
     classifier = classifier.fit(train_data.T, train_labels)
 
     # Predict on the test data

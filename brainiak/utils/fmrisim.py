@@ -857,6 +857,9 @@ def convolve_hrf(stimfunction,
     if stimfunction.shape[0] < stimfunction.shape[1]:
         logger.warning('Stimfunction may be the wrong shape')
 
+    if np.any(np.sum(abs(stimfunction), 0) == 0):
+        logger.warning('stimfunction contains voxels of all zeros, will nan')
+
     # How will stimfunction be resized
     stride = int(temporal_resolution * tr_duration)
     duration = int(stimfunction.shape[0] / stride)
@@ -1710,13 +1713,47 @@ def _generate_noise_temporal_autoregression(timepoints,
 
     noise_dict : dict
         A dictionary specifying the types of noise in this experiment. The
-        noise types interact in important ways. First, all noise types
-        ending with sigma (e.g. motion sigma) are mixed together in
-        _generate_temporal_noise. The sigma values describe the proportion of
-        mixing of these elements. However critically, SFNR is the
-        parameter that describes how much noise these components contribute
-        to the brain. If you set the noise dict to matched then it will fit
-        the parameters to match the participant as best as possible.
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
+
+        Variables defined as follows:
+
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
+
+        task_sigma [float]: Size of the variance of task specific noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
+
+        drift_sigma [float]: Size of the variance of drift noise
+
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
 
     dimensions : 3 length array, int
         What is the shape of the volume to be generated
@@ -2074,13 +2111,47 @@ def _generate_noise_temporal(stimfunction_tr,
 
     noise_dict : dict
         A dictionary specifying the types of noise in this experiment. The
-        noise types interact in important ways. First, all noise types
-        ending with sigma (e.g. motion sigma) are mixed together in
-        _generate_temporal_noise. The sigma values describe the proportion of
-        mixing of these elements. However critically, SFNR is the
-        parameter that describes how much noise these components contribute
-        to the brain. If you set the noise dict to matched then it will fit
-        the parameters to match the participant as best as possible.
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
+
+        Variables defined as follows:
+
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
+
+        task_sigma [float]: Size of the variance of task specific noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
+
+        drift_sigma [float]: Size of the variance of drift noise
+
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
 
     Returns
     ----------
@@ -2214,7 +2285,8 @@ def mask_brain(volume,
     if mask_self is True:
         mask_raw = volume
     elif template_name is None:
-        mask_raw = np.load(resource_stream(__name__, "grey_matter_mask.npy"))
+        mfn = resource_stream(__name__, "sim_parameters/grey_matter_mask.npy")
+        mask_raw = np.load(mfn)
     else:
         mask_raw = np.load(template_name)
 
@@ -2301,26 +2373,34 @@ def _noise_dict_update(noise_dict):
 
     noise_dict : dict
         A dictionary specifying the types of noise in this experiment. The
-        noise types interact in important ways. First, all noise types
-        ending with sigma (e.g. motion sigma) are mixed together in
-        _generate_temporal_noise. These values describe the proportion of
-        mixing of these elements. However critically, SFNR is the
-        parameter that describes how much noise these components contribute
-        to the brain. If you set the noise dict to matched then it will fit
-        the parameters to match the participant as best as possible.
-        The noise variables are as follows:
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
+
+        Variables defined as follows:
 
         snr [float]: Ratio of MR signal to the spatial noise
         sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
         total variability that the following sigmas 'sum' to:
 
         task_sigma [float]: Size of the variance of task specific noise
-        drift_sigma [float]: Size of the variance of drift noise
         auto_reg_sigma [float]: Size of the variance of autoregressive
         noise. This is an ARMA process where the AR and MA components can be
         separately specified
         physiological_sigma [float]: Size of the variance of physiological
         noise
+
+        drift_sigma [float]: Size of the variance of drift noise
 
         auto_reg_rho [list]: The coefficients of the autoregressive
         components you are modeling
@@ -2371,72 +2451,105 @@ def _fit_spatial(noise,
                  iterations,
                  ):
     """
-        Fit the noise model to match the SNR of the data
+    Fit the noise model to match the SNR of the data
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        noise : multidimensional array, float
-            Initial estimate of the noise
+    noise : multidimensional array, float
+        Initial estimate of the noise
 
-        noise_temporal : multidimensional array, float
-            The temporal noise that was generated by _generate_temporal_noise
+    noise_temporal : multidimensional array, float
+        The temporal noise that was generated by _generate_temporal_noise
 
-        drift_noise : multidimensional array, float
-            The drift noise generated by _generate_noise_temporal_drift
+    drift_noise : multidimensional array, float
+        The drift noise generated by _generate_noise_temporal_drift
 
-        tr_duration : float
-            What is the duration, in seconds, of each TR?
+    tr_duration : float
+        What is the duration, in seconds, of each TR?
 
-        template : 3d array, float
-            A continuous (0 -> 1) volume describing the likelihood a voxel
-            is in the brain. This can be used to contrast the brain and non
-            brain.
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
 
-        mask : 3d array, binary
-            The mask of the brain volume, distinguishing brain from non-brain
+    mask : 3d array, binary
+        The mask of the brain volume, distinguishing brain from non-brain
 
-        spatial_sd : float
-            What is the standard deviation in space of the noise volume to be
-            generated
+    spatial_sd : float
+        What is the standard deviation in space of the noise volume to be
+        generated
 
-        temporal_sd : float
-            What is the standard deviation in time of the noise volume to be
-            generated
+    temporal_sd : float
+        What is the standard deviation in time of the noise volume to be
+        generated
 
-        noise_dict : dict
-            A dictionary specifying the types of noise in this experiment. The
-            noise types interact in important ways. First, all noise types
-            ending with sigma (e.g. motion sigma) are mixed together in
-            _generate_temporal_noise. These values describe the proportion of
-            mixing of these elements. However critically, SFNR is the
-            parameter that describes how much noise these components contribute
-            to the brain. If you set the noise dict to matched then it will
-            fit the parameters to match the participant as best as possible.
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
 
-        fit_thresh : float
-            What proportion of the target parameter value is sufficient
-            error to warrant finishing fit search.
+        Variables defined as follows:
 
-        fit_delta : float
-            How much are the parameters attenuated during the fitting process,
-            in terms of the proportion of difference between the target
-            parameter and the actual parameter
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
 
-        iterations : int
-            The first element is how many steps of fitting the SFNR and SNR
-            values will be performed. Usually converges after < 5. The
-            second element is the number of iterations for the AR fitting.
-            This is much more time consuming (has to make a new timecourse
-            on each iteration) so be careful about setting this appropriately.
+        task_sigma [float]: Size of the variance of task specific noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
 
-        Returns
-        -------
+        drift_sigma [float]: Size of the variance of drift noise
 
-        noise : multidimensional array, float
-            Generates the noise volume given these parameters
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
 
-        """
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
+
+    fit_thresh : float
+        What proportion of the target parameter value is sufficient error to
+        warrant finishing fit search.
+
+    fit_delta : float
+        How much are the parameters attenuated during the fitting process,
+        in terms of the proportion of difference between the target parameter
+        and the actual parameter
+
+    iterations : int
+        The first element is how many steps of fitting the SFNR and SNR
+        values will be performed. Usually converges after < 5. The second
+        element is the number of iterations for the AR fitting. This is much
+        more time consuming (has to make a new timecourse on each iteration)
+        so be careful about setting this appropriately.
+
+    Returns
+    -------
+
+    noise : multidimensional array, float
+        Generates the noise volume given these parameters
+
+    """
 
     # Pull out information that is needed
     dim_tr = noise.shape
@@ -2510,77 +2623,111 @@ def _fit_temporal(noise,
                   iterations,
                   ):
     """
-        Fit the noise model to match the SFNR and AR of the data
+    Fit the noise model to match the SFNR and AR of the data
 
-        Parameters
-        ----------
+    Parameters
+    ----------
 
-        noise : multidimensional array, float
-            Initial estimate of the noise
+    noise : multidimensional array, float
+        Initial estimate of the noise
 
-        mask : 3d array, binary
-            The mask of the brain volume, distinguishing brain from non-brain
+    mask : 3d array, binary
+        The mask of the brain volume, distinguishing brain from non-brain
 
-        template : 3d array, float
-            A continuous (0 -> 1) volume describing the likelihood a voxel
-            is in the brain. This can be used to contrast the brain and non
-            brain.
+    template : 3d array, float
+        A continuous (0 -> 1) volume describing the likelihood a voxel is in
+        the brain. This can be used to contrast the brain and non brain.
 
-        stimfunction_tr :  Iterable, list
-            When do the stimuli events occur. Each element is a TR
+    stimfunction_tr :  Iterable, list
+        When do the stimuli events occur. Each element is a TR
 
-        tr_duration : float
-            What is the duration, in seconds, of each TR?
+    tr_duration : float
+        What is the duration, in seconds, of each TR?
 
-        spatial_sd : float
-            What is the standard deviation in space of the noise volume to be
-            generated
+    spatial_sd : float
+        What is the standard deviation in space of the noise volume to be
+        generated
 
-        temporal_proportion, float
-            What is the proportion of the temporal variance (as specified by
-            the SFNR noise parameter) that is accounted for by the system
-            noise. If this number is high then all of the temporal
-            variability is due to system noise, if it is low then all of the
-            temporal variability is due to brain variability.
+    temporal_proportion, float
+        What is the proportion of the temporal variance (as specified by the
+        SFNR noise parameter) that is accounted for by the system noise. If
+        this number is high then all of the temporal variability is due to
+        system noise, if it is low then all of the temporal variability is
+        due to brain variability.
 
-        temporal_sd : float
-            What is the standard deviation in time of the noise volume to be
-            generated
+    temporal_sd : float
+        What is the standard deviation in time of the noise volume to be
+        generated
 
-        drift_noise : multidimensional array, float
-            The drift noise generated by _generate_noise_temporal_drift
+    drift_noise : multidimensional array, float
+        The drift noise generated by _generate_noise_temporal_drift
 
-        noise_dict : dict
-            A dictionary specifying the types of noise in this experiment. The
-            noise types interact in important ways. First, all noise types
-            ending with sigma (e.g. motion sigma) are mixed together in
-            _generate_temporal_noise. These values describe the proportion of
-            mixing of these elements. However critically, SFNR is the
-            parameter that describes how much noise these components contribute
-            to the brain. If you set the noise dict to matched then it will
-            fit the parameters to match the participant as best as possible.
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
 
-        fit_thresh : float
-            What proportion of the target parameter value is sufficient
-            error to warrant finishing fit search.
 
-        fit_delta : float
-            How much are the parameters attenuated during the fitting process,
-            in terms of the proportion of difference between the target
-            parameter and the actual parameter
+        Variables defined as follows:
 
-        iterations : list, int
-            The first element is how many steps of fitting the SFNR and SNR
-            values will be performed. Usually converges after < 5. The
-            second element is the number of iterations for the AR fitting.
-            This is much more time consuming (has to make a new timecourse
-            on each iteration) so be careful about setting this appropriately.
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
 
-        Returns
-        -------
+        task_sigma [float]: Size of the variance of task specific noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
 
-        noise : multidimensional array, float
-            Generates the noise volume given these parameters
+        drift_sigma [float]: Size of the variance of drift noise
+
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
+
+    fit_thresh : float
+        What proportion of the target parameter value is sufficient error to
+        warrant finishing fit search.
+
+    fit_delta : float
+        How much are the parameters attenuated during the fitting process,
+        in terms of the proportion of difference between the target parameter
+        and the actual parameter
+
+    iterations : list, int
+        The first element is how many steps of fitting the SFNR and SNR
+        values will be performed. Usually converges after < 5. The second
+        element is the number of iterations for the AR fitting. This is much
+        more time consuming (has to make a new timecourse on each iteration)
+        so be careful about setting this appropriately.
+
+    Returns
+    -------
+
+    noise : multidimensional array, float
+        Generates the noise volume given these parameters
 
     """
 
@@ -2717,22 +2864,36 @@ def generate_noise(dimensions,
     mask : 3d array, binary
         The mask of the brain volume, distinguishing brain from non-brain
 
-    noise_dict : dictionary, float
-        This is a dictionary which describes the noise parameters of the
-        data. If there are no other variables provided then it will use
-        default values. The noise variables are as follows:
+    noise_dict : dict
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
+
+        Variables defined as follows:
 
         snr [float]: Ratio of MR signal to the spatial noise
         sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
         total variability that the following sigmas 'sum' to:
 
         task_sigma [float]: Size of the variance of task specific noise
-        drift_sigma [float]: Size of the variance of drift noise
         auto_reg_sigma [float]: Size of the variance of autoregressive
         noise. This is an ARMA process where the AR and MA components can be
         separately specified
         physiological_sigma [float]: Size of the variance of physiological
         noise
+
+        drift_sigma [float]: Size of the variance of drift noise
 
         auto_reg_rho [list]: The coefficients of the autoregressive
         components you are modeling
@@ -2941,14 +3102,48 @@ def compute_signal_change(signal_function,
         for computing the mean evoked activity and the noise variability
 
     noise_dict : dict
-         A dictionary specifying the types of noise in this experiment. The
-        noise types interact in important ways. First, all noise types
-        ending with sigma (e.g. motion sigma) are mixed together in
-        _generate_temporal_noise. The sigma values describe the proportion of
-        mixing of these elements. However critically, SFNR is the
-        parameter that describes how much noise these components contribute
-        to the brain. If you set the noise dict to matched then it will
-        fit the parameters to match the participant as best as possible.
+        A dictionary specifying the types of noise in this experiment. The
+        noise types interact in important ways. First, autoregressive,
+        physiological and task-based noise types are mixed together in
+        _generate_temporal_noise. The parameter values for 'auto_reg_sigma',
+        'physiological_sigma' and 'task_sigma' describe the proportion of
+        mixing of these elements, respectively. However critically, 'SFNR' is
+        the parameter that controls how much noise these components contribute
+        to the brain. 'auto_reg_rho' and 'ma_rho' set parameters for the
+        autoregressive noise being simulated. Second, drift noise is added to
+        this, according to the size of 'drift_sigma'. Thirdly, system noise is
+        added based on the 'SNR' parameter. Finally, 'fwhm' is used to estimate
+        the smoothness of the noise being inserted. If 'matched' is set to
+        true, then it will fit the parameters to match the participant as best
+        as possible.
+
+        Variables defined as follows:
+
+        snr [float]: Ratio of MR signal to the spatial noise
+        sfnr [float]: Ratio of the MR signal to the temporal noise. This is the
+        total variability that the following sigmas 'sum' to:
+
+        task_sigma [float]: Size of the variance of task specific noise
+        auto_reg_sigma [float]: Size of the variance of autoregressive
+        noise. This is an ARMA process where the AR and MA components can be
+        separately specified
+        physiological_sigma [float]: Size of the variance of physiological
+        noise
+
+        drift_sigma [float]: Size of the variance of drift noise
+
+        auto_reg_rho [list]: The coefficients of the autoregressive
+        components you are modeling
+        ma_rho [list]:The coefficients of the moving average components you
+        are modeling
+        max_activity [float]: The max value of the averaged brain in order
+        to reference the template
+        voxel_size [list]: The mm size of the voxels
+        fwhm [float]: The gaussian smoothing kernel size (mm)
+        matched [bool]: Specify whether you are fitting the noise parameters
+
+        The volumes of brain noise that are generated have smoothness
+        specified by 'fwhm'
 
     magnitude : list of floats
         This specifies the size, in terms of the metric choosen below,
@@ -2985,6 +3180,11 @@ def compute_signal_change(signal_function,
     assert type(magnitude) is list, '"magnitude" should be a list of floats'
     if len(magnitude) == 1:
         magnitude *= signal_function.shape[1]
+
+    # Check that the signal_function and noise_function are the same size
+    if signal_function.shape != noise_function.shape:
+        msg = 'noise_function is not the same size as signal_function'
+        raise ValueError(msg)
 
     # Scale all signals that to have a range of -1 to 1. This is
     # so that any values less than this will be scaled appropriately

@@ -252,8 +252,17 @@ def test_apply_signal():
     noise_function_b = noise[coords[0] + 1, coords[1], coords[2], :]
     noise_function_b = noise_function_b.reshape(duration // tr_duration, 1)
 
-    # Create the calibrated signal with PSC
+    # Check that the noise_function and signal_function must be the same size
     method = 'PSC'
+    with pytest.raises(ValueError):
+        sim.compute_signal_change(signal_function,
+                                  noise_function_a.T,
+                                  noise_dict,
+                                  [0.5],
+                                  method,
+                                  )
+
+    # Create the calibrated signal with PSC
     sig_a = sim.compute_signal_change(signal_function,
                                       noise_function_a,
                                       noise_dict,

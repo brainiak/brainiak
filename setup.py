@@ -128,7 +128,7 @@ setup(
         'nitime',
         # https://github.com/numpy/numpy/issues/14189
         'numpy!=1.17.*',
-        'scikit-learn[alldeps]>=0.18,<0.22',
+        'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         'scipy!=1.0.0',
         'statsmodels',
@@ -142,6 +142,7 @@ setup(
         'tensorflow_probability',
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
+        'pydicom',
     ],
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
@@ -153,7 +154,7 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
-    package_data={'brainiak.utils': ['grey_matter_mask.npy']},
+    include_package_data=True,
     python_requires='>=3.5',
     zip_safe=False,
 )

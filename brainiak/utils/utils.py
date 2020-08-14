@@ -150,7 +150,7 @@ def sumexp_stable(data):
     return result_sum, max_value, result_exp
 
 
-def concatenate_not_none(l, axis=0):
+def concatenate_not_none(data, axis=0):
     """Construct a numpy array by stacking not-None arrays in a list
 
     Parameters
@@ -172,13 +172,13 @@ def concatenate_not_none(l, axis=0):
     """
     # Get the indexes of the arrays in the list
     mask = []
-    for i in range(len(l)):
-        if l[i] is not None:
+    for i in range(len(data)):
+        if data[i] is not None:
             mask.append(i)
 
     # Concatenate them
-    l_stacked = np.concatenate([l[i] for i in mask], axis=axis)
-    return l_stacked
+    stacked = np.concatenate([data[i] for i in mask], axis=axis)
+    return stacked
 
 
 def cov2corr(cov):
@@ -829,10 +829,10 @@ def p_from_null(observed, distribution,
     distribution : ndarray
         Null distribution of test statistic
 
-    side : str, default:'two-sided'
+    side : str, default: 'two-sided'
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
-    axis: None or int, default:None
+    axis: None or int, default: None
         Axis indicating resampling iterations in input distribution
 
     Returns
