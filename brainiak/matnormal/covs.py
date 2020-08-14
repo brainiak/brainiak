@@ -360,6 +360,9 @@ class CovUnconstrainedCholesky(CovBase):
 
     @property
     def L(self):
+        """
+        Cholesky factor of this covariance
+        """
         return unflatten_cholesky_unique(self.L_flat)
 
     @property
@@ -443,6 +446,9 @@ class CovUnconstrainedInvCholesky(CovBase):
 
     @property
     def Linv(self):
+        """
+        Inverse of Cholesky factor of this covariance
+        """
         return unflatten_cholesky_unique(self.Linv_flat)
 
     @property

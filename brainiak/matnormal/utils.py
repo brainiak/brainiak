@@ -6,7 +6,7 @@ import numpy as np
 
 
 def rmn(rowcov, colcov):
-    # generate random draws from a zero-mean matrix-normal distribution
+    """ generate random draws from a zero-mean matrix-normal distribution """
     Z = norm.rvs(size=(rowcov.shape[0], colcov.shape[0]))
     return cholesky(rowcov).dot(Z).dot(cholesky(colcov))
 
