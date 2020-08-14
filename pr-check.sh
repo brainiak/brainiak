@@ -106,7 +106,7 @@ $activate_venv $venv || {
     exit_with_error "Virtual environment activation failed."
 }
 
-python3 -m pip install -U "pip<10" || \
+python3 -m pip install -U pip || \
     exit_with_error_and_venv "Failed to update Pip."
 
 # install brainiak in editable mode (required for testing)
