@@ -146,9 +146,11 @@ class CovAR1(CovBase):
         if scan_onsets is None:
             self.run_sizes = [size]
             self.offdiag_template = tf.constant(
-                scipy.linalg.toeplitz(np.r_[0, 1, np.zeros(size - 2)]), dtype=tf.float64
+                scipy.linalg.toeplitz(np.r_[0, 1, np.zeros(size - 2)]),
+                dtype=tf.float64
             )
-            self.diag_template = tf.constant(np.diag(np.r_[0, np.ones(size - 2), 0]))
+            self.diag_template = tf.constant(
+                np.diag(np.r_[0, np.ones(size - 2), 0]))
         else:
             self.run_sizes = np.ediff1d(np.r_[scan_onsets, size])
             sub_offdiags = [
@@ -158,7 +160,8 @@ class CovAR1(CovBase):
             self.offdiag_template = tf.constant(
                 scipy.sparse.block_diag(sub_offdiags).toarray()
             )
-            subdiags = [np.diag(np.r_[0, np.ones(r - 2), 0]) for r in self.run_sizes]
+            subdiags = [np.diag(np.r_[0, np.ones(r - 2), 0])
+                        for r in self.run_sizes]
             self.diag_template = tf.constant(
                 scipy.sparse.block_diag(subdiags).toarray()
             )
@@ -289,7 +292,8 @@ class CovDiagonal(CovBase):
                 tf.random.normal([size], dtype=tf.float64), name="precisions"
             )
         else:
-            self.logprec = tf.Variable(np.log(1 / diag_var), name="log-precisions")
+            self.logprec = tf.Variable(
+                np.log(1 / diag_var), name="log-precisions")
 
     @property
     def logdet(self):
@@ -327,7 +331,8 @@ class CovDiagonalGammaPrior(CovDiagonal):
             scale=tf.constant(beta, dtype=tf.float64),
         )
 
-        self.logp = tf.reduce_sum(input_tensor=self.ig.log_prob(tf.exp(self.logprec)))
+        self.logp = tf.reduce_sum(
+            input_tensor=self.ig.log_prob(tf.exp(self.logprec)))
 
 
 class CovUnconstrainedCholesky(CovBase):
@@ -357,7 +362,8 @@ class CovUnconstrainedCholesky(CovBase):
 
         else:
             L = np.linalg.cholesky(Sigma)
-            self.L_flat = tf.Variable(flatten_cholesky_unique(L), name="L_flat")
+            self.L_flat = tf.Variable(
+                flatten_cholesky_unique(L), name="L_flat")
 
         self.optimize_vars = [self.L_flat]
 
@@ -370,7 +376,8 @@ class CovUnconstrainedCholesky(CovBase):
 
     @property
     def logdet(self):
-        return 2 * tf.reduce_sum(input_tensor=tf.math.log(tf.linalg.diag_part(self.L)))
+        return 2 * tf.reduce_sum(input_tensor=tf.math.log(
+                                 tf.linalg.diag_part(self.L)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -425,10 +432,12 @@ class CovUnconstrainedInvCholesky(CovBase):
     def __init__(self, size=None, invSigma=None):
 
         if size is None and invSigma is None:
-            raise RuntimeError("Must pass either invSigma or size but not both")
+            raise RuntimeError(
+                "Must pass either invSigma or size but not both")
 
         if size is not None and invSigma is not None:
-            raise RuntimeError("Must pass either invSigma or size but not both")
+            raise RuntimeError(
+                "Must pass either invSigma or size but not both")
 
         if invSigma is not None:
             size = invSigma.shape[0]
@@ -528,11 +537,13 @@ class CovKroneckerFactored(CovBase):
             ]
         else:
             self.Lflat = [
-                tf.Variable(flatten_cholesky_unique(np.linalg.cholesky(Sigmas[i])), name="L" + str(i) + "_flat")
+                tf.Variable(
+                    flatten_cholesky_unique(np.linalg.cholesky(Sigmas[i])),
+                    name="L" + str(i) + "_flat",
+                )
                 for i in range(self.nfactors)
             ]
         self.mask = mask
-
 
     @property
     def L(self):
@@ -550,18 +561,21 @@ class CovKroneckerFactored(CovBase):
         """
         if self.mask is None:
             n_list = tf.stack(
-                [tf.cast(tf.shape(input=mat)[0], dtype=tf.float64) for mat in self.L]
+                [tf.cast(tf.shape(input=mat)[0], dtype=tf.float64)
+                 for mat in self.L]
             )
             n_prod = tf.reduce_prod(input_tensor=n_list)
             logdet = tf.stack(
                 [
                     tf.reduce_sum(
-                        input_tensor=tf.math.log(tf.linalg.tensor_diag_part(mat))
+                        input_tensor=tf.math.log(
+                            tf.linalg.tensor_diag_part(mat))
                     )
                     for mat in self.L
                 ]
             )
-            logdetfinal = tf.reduce_sum(input_tensor=(logdet * n_prod) / n_list)
+            logdetfinal = tf.reduce_sum(
+                input_tensor=(logdet * n_prod) / n_list)
         else:
             n_list = [tf.shape(input=mat)[0] for mat in self.L]
             mask_reshaped = tf.reshape(self.mask, n_list)
@@ -569,10 +583,12 @@ class CovKroneckerFactored(CovBase):
             for i in range(self.nfactors):
                 indices = list(range(self.nfactors))
                 indices.remove(i)
-                logdet += tf.math.log(tf.linalg.tensor_diag_part(self.L[i])) * tf.cast(
-                    tf.reduce_sum(input_tensor=mask_reshaped, axis=indices),
-                    dtype=tf.float64,
-                )
+                logdet += (tf.math.log(tf.linalg.tensor_diag_part(self.L[i])) *
+                           tf.cast(
+                            tf.reduce_sum(
+                                input_tensor=mask_reshaped, axis=indices),
+                           dtype=tf.float64,
+                           ))
             logdetfinal = tf.reduce_sum(input_tensor=logdet)
         return 2.0 * logdetfinal
 

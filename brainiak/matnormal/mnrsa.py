@@ -13,7 +13,6 @@ from brainiak.matnormal.utils import (
     flatten_cholesky_unique,
 )
 
-import tensorflow.compat.v1.logging as tflog
 from scipy.optimize import minimize
 
 __all__ = ["MNRSA"]
@@ -62,7 +61,8 @@ class MNRSA(BaseEstimator):
     """
 
     def __init__(
-        self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B", optCtrl=None
+        self, time_cov, space_cov, n_nureg=5, optimizer="L-BFGS-B",
+        optCtrl=None
     ):
 
         self.n_T = time_cov.size
@@ -86,7 +86,7 @@ class MNRSA(BaseEstimator):
     @property
     def L(self):
         """
-        Cholesky factor of the RSA matrix. 
+        Cholesky factor of the RSA matrix.
         """
         return unflatten_cholesky_unique(self.L_flat)
 
@@ -124,7 +124,8 @@ class MNRSA(BaseEstimator):
             self.naive_U_ = np.cov(m.coef_.T)
             naiveRSA_L = np.linalg.cholesky(self.naive_U_)
             self.L_flat = tf.Variable(
-                flatten_cholesky_unique(naiveRSA_L), name="L_flat", dtype="float64"
+                flatten_cholesky_unique(naiveRSA_L), name="L_flat",
+                dtype="float64"
             )
         else:
             chol_flat_size = (self.n_c * (self.n_c + 1)) // 2
@@ -136,14 +137,16 @@ class MNRSA(BaseEstimator):
 
         self.train_variables.extend([self.L_flat])
 
-        lossfn = lambda theta: -self.logp(X, Y)
+        def lossfn(theta): return -self.logp(X, Y)
         val_and_grad = make_val_and_grad(lossfn, self.train_variables)
 
         x0 = pack_trainable_vars(self.train_variables)
 
-        opt_results = minimize(fun=val_and_grad, x0=x0, jac=True, method="L-BFGS-B")
+        opt_results = minimize(fun=val_and_grad, x0=x0,
+                               jac=True, method="L-BFGS-B")
 
-        unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
+        unpacked_theta = unpack_trainable_vars(
+            opt_results.x, self.train_variables)
         for var, val in zip(self.train_variables, unpacked_theta):
             var.assign(val)
 

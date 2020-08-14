@@ -49,9 +49,9 @@ def flatten_cholesky_unique(L):
 
 def unflatten_cholesky_unique(L_flat):
     """
-    Converts a vector of elements into a triangular matrix 
+    Converts a vector of elements into a triangular matrix
     (Cholesky factor). Exponentiates diagonal to make
-    parameterizaation unique. Inverse of flatten_cholesky_unique. 
+    parameterizaation unique. Inverse of flatten_cholesky_unique.
     """
     L = tfp.math.fill_triangular(L_flat)
     # exp diag for unique parameterization
@@ -69,14 +69,15 @@ def pack_trainable_vars(trainable_vars):
 
 def unpack_trainable_vars(x, trainable_vars):
     """
-    Unpack trainable vars from a single vector as 
+    Unpack trainable vars from a single vector as
     used/returned by scipy.optimize
     """
 
     sizes = [tv.shape for tv in trainable_vars]
     idxs = [np.prod(sz) for sz in sizes]
     flatvars = tf.split(x, idxs)
-    return [tf.reshape(fv, tv.shape) for fv, tv in zip(flatvars, trainable_vars)]
+    return [tf.reshape(fv, tv.shape) for fv, tv in zip(flatvars,
+                                                       trainable_vars)]
 
 
 def make_val_and_grad(lossfn, train_vars):

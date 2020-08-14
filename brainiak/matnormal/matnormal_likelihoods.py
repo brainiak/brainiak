@@ -54,15 +54,18 @@ def solve_det_marginal(x, sigma, A, Q):
     # of things we invert. This includes Q and Sigma, as well
     # as the "lemma factor" for lack of a better definition
     logging.log(logging.DEBUG, "Printing diagnostics for solve_det_marginal")
+    lemma_cond = _condition(
+        Q._prec + tf.matmul(A, sigma.solve(A), transpose_a=True))
     logging.log(
         logging.DEBUG,
-        f"lemma_factor condition={_condition(Q._prec + tf.matmul(A, sigma.solve(A),transpose_a=True))}",
+        f"lemma_factor condition={lemma_cond}",
     )
     logging.log(logging.DEBUG, f"Q condition={_condition(Q._cov)}")
     logging.log(logging.DEBUG, f"sigma condition={_condition(sigma._cov)}")
     logging.log(
         logging.DEBUG,
-        f"sigma max={tf.reduce_max(input_tensor=A)}, sigma min={tf.reduce_min(input_tensor=A)}",
+        f"sigma max={tf.reduce_max(input_tensor=A)}," +
+        "sigma min={tf.reduce_min(input_tensor=A)}",
     )
 
     # cholesky of (Qinv + A' Sigma^{-1} A), which looks sort of like
@@ -75,14 +78,19 @@ def solve_det_marginal(x, sigma, A, Q):
     logdet = (
         Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))
+        + 2 *
+        tf.reduce_sum(input_tensor=tf.math.log(
+            tlinalg.diag_part(lemma_factor)))
     )
 
     logging.log(logging.DEBUG, f"Log-determinant of Q={Q.logdet}")
     logging.log(logging.DEBUG, f"sigma logdet={sigma.logdet}")
+    lemma_logdet = 2 * \
+        tf.reduce_sum(input_tensor=tf.math.log(
+            tlinalg.diag_part(lemma_factor)))
     logging.log(
         logging.DEBUG,
-        f"lemma factor logdet={2* tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))}",
+        f"lemma factor logdet={lemma_logdet}",
     )
 
     # A' Sigma^{-1}
@@ -132,7 +140,9 @@ def solve_det_conditional(x, sigma, A, Q):
     logdet = (
         -Q.logdet
         + sigma.logdet
-        + 2 * tf.reduce_sum(input_tensor=tf.math.log(tlinalg.diag_part(lemma_factor)))
+        + 2 *
+        tf.reduce_sum(input_tensor=tf.math.log(
+            tlinalg.diag_part(lemma_factor)))
     )
 
     # A' Sigma^{-1}
@@ -170,13 +180,16 @@ def _mnorm_logp_internal(
     """
     log2pi = 1.8378770664093453
 
-    logging.log(logging.DEBUG, f"column precision trace ={tlinalg.trace(solve_col)}")
-    logging.log(logging.DEBUG, f"row precision trace ={tlinalg.trace(solve_row)}")
+    logging.log(logging.DEBUG,
+                f"column precision trace ={tlinalg.trace(solve_col)}")
+    logging.log(logging.DEBUG,
+                f"row precision trace ={tlinalg.trace(solve_row)}")
     logging.log(logging.DEBUG, f"row cov logdet ={logdet_row}")
     logging.log(logging.DEBUG, f"col cov logdet ={logdet_col}")
 
     denominator = (
-        -rowsize * colsize * log2pi - colsize * logdet_row - rowsize * logdet_col
+        -rowsize * colsize * log2pi - colsize * logdet_row -
+        rowsize * logdet_col
     )
     numerator = -tlinalg.trace(tf.matmul(solve_col, solve_row))
     return 0.5 * (numerator + denominator)
@@ -234,9 +247,9 @@ def matnorm_logp_marginal_row(x, row_cov, col_cov, marg, marg_cov):
     col_cov: CovBase
         Column Covariance implementing the CovBase API (:math:`C` above).
     marg: tf.Tensor
-        Marginal factor (:math:`A` above). 
+        Marginal factor (:math:`A` above).
     marg_cov: CovBase
-        Prior covariance implementing the CovBase API (:math:`Q` above). 
+        Prior covariance implementing the CovBase API (:math:`Q` above).
     """
     rowsize = tf.cast(tf.shape(input=x)[0], "float64")
     colsize = tf.cast(tf.shape(input=x)[1], "float64")
@@ -272,9 +285,9 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
     col_cov: CovBase
         Column Covariance implementing the CovBase API (:math:`C` above).
     marg: tf.Tensor
-        Marginal factor (:math:`A` above). 
+        Marginal factor (:math:`A` above).
     marg_cov: CovBase
-        Prior covariance implementing the CovBase API (:math:`Q` above). 
+        Prior covariance implementing the CovBase API (:math:`Q` above).
 
     """
     rowsize = tf.cast(tf.shape(input=x)[0], "float64")
@@ -298,36 +311,40 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
 
     Consider the following partitioned matrix-normal density:
     .. math::
-        \begin{bmatrix}
-        \operatorname{vec}\left[\mathbf{X}_{i j}\right] \\
-        \operatorname{vec}\left[\mathbf{Y}_{i k}\right]
-        \end{bmatrix} \sim \mathcal{N}\left(0,\begin{bmatrix}
-        \Sigma_{j} \otimes \Sigma_{i} & \Sigma_{j k} \otimes \Sigma_{i} \\
-        \Sigma_{k j} \otimes \Sigma_{i} & \Sigma_{k} \otimes \Sigma_{i}
-        \end{bmatrix}\right)
+        \\begin{bmatrix}
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+        \\end{bmatrix}\\right)
 
-    Then we can write the conditional: 
+    Then we can write the conditional:
     .. math ::
-        \mathbf{X}^{\top} j i \mid \mathbf{Y}_{k i}^{\top} \sim \mathcal{M}\\
-        \mathcal{N}\left(0, \Sigma_{j}-\Sigma_{j k} \Sigma_{k}^{-1} \Sigma_{k j},\\
-        \Sigma_{i}\right)
+        \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
+        \\sim \\mathcal{M}\\
+        \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
+        \\Sigma_{k j},\\
+        \\Sigma_{i}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
-    solve_det_conditional. 
+    solve_det_conditional.
 
     Parameters
     ---------------
     x: tf.Tensor
         Observation tensor
     row_cov: CovBase
-        Row covariance (:math:`\Sigma_{i}` in the notation above).
+        Row covariance (:math:`\\Sigma_{i}` in the notation above).
     col_cov: CovBase
-        Column covariance (:math:`\Sigma_{j}` in the notation above).
+        Column covariance (:math:`\\Sigma_{j}` in the notation above).
     cond: tf.Tensor
-        Off-diagonal block of the partitioned covariance (:math:`\Sigma_{jk}` in the notation above).
+        Off-diagonal block of the partitioned covariance (:math:`\\Sigma_{jk}`
+        in the notation above).
     cond_cov: CovBase
-        Covariance of conditioning variable (:math:`\Sigma_{k}` in the notation above).  
+        Covariance of conditioning variable (:math:`\\Sigma_{k}` in the
+        notation above).
 
     """
     rowsize = tf.cast(tf.shape(input=x)[0], "float64")
@@ -349,36 +366,38 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
 
     Consider the following partitioned matrix-normal density:
     .. math::
-        \begin{bmatrix}
-        \operatorname{vec}\left[\mathbf{X}_{i j}\right] \\
-        \operatorname{vec}\left[\mathbf{Y}_{i k}\right]
-        \end{bmatrix} \sim \mathcal{N}\left(0,\begin{bmatrix}
-        \Sigma_{j} \otimes \Sigma_{i} & \Sigma_{j k} \otimes \Sigma_{i} \\
-        \Sigma_{k j} \otimes \Sigma_{i} & \Sigma_{k} \otimes \Sigma_{i}
-        \end{bmatrix}\right)
+        \\begin{bmatrix}
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+        \\end{bmatrix}\\right)
 
-    Then we can write the conditional: 
+    Then we can write the conditional:
     .. math ::
-        \mathbf{X}_{i j} \mid \mathbf{Y}_{i k} \sim \mathcal{M}\\
-        \mathcal{N}\left(0, \Sigma_{i}, \Sigma_{j}-\Sigma_{j k}\\
-        \Sigma_{k}^{-1} \Sigma_{k j}\right)
+        \\mathbf{X}_{i j} \\mid \\mathbf{Y}_{i k} \\sim \\mathcal{M}\\
+        \\mathcal{N}\\left(0, \\Sigma_{i}, \\Sigma_{j}-\\Sigma_{j k}\\
+        \\Sigma_{k}^{-1} \\Sigma_{k j}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
-    solve_det_conditional. 
+    solve_det_conditional.
 
     Parameters
     ---------------
     x: tf.Tensor
         Observation tensor
     row_cov: CovBase
-        Row covariance (:math:`\Sigma_{i}` in the notation above).
+        Row covariance (:math:`\\Sigma_{i}` in the notation above).
     col_cov: CovBase
-        Column covariance (:math:`\Sigma_{j}` in the notation above).
+        Column covariance (:math:`\\Sigma_{j}` in the notation above).
     cond: tf.Tensor
-        Off-diagonal block of the partitioned covariance (:math:`\Sigma_{jk}` in the notation above).
+        Off-diagonal block of the partitioned covariance (:math:`\\Sigma_{jk}`
+        in the notation above).
     cond_cov: CovBase
-        Covariance of conditioning variable (:math:`\Sigma_{k}` in the notation above).  
+        Covariance of conditioning variable (:math:`\\Sigma_{k}` in the
+        notation above).
 
     """
     rowsize = tf.cast(tf.shape(input=x)[0], "float64")

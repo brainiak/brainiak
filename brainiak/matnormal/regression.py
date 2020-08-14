@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 from sklearn.base import BaseEstimator
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
@@ -34,7 +33,8 @@ class MatnormalRegression(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B", optCtrl=None):
+    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B",
+                 optCtrl=None):
 
         self.optCtrl, self.optMethod = optCtrl, optimizer
         self.time_cov = time_cov
@@ -69,7 +69,8 @@ class MatnormalRegression(BaseEstimator):
             sigma_inv_x = self.time_cov.solve(X)
             sigma_inv_y = self.time_cov.solve(y)
 
-            beta_init = np.linalg.solve((X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
+            beta_init = np.linalg.solve(
+                (X.T).dot(sigma_inv_x), (X.T).dot(sigma_inv_y))
 
         else:
             beta_init = np.random.randn(self.n_c, self.n_v)
@@ -80,13 +81,15 @@ class MatnormalRegression(BaseEstimator):
         self.train_variables.extend(self.time_cov.get_optimize_vars())
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
-        lossfn = lambda theta: -self.logp(X, y)
+        def lossfn(theta): return -self.logp(X, y)
         val_and_grad = make_val_and_grad(lossfn, self.train_variables)
         x0 = pack_trainable_vars(self.train_variables)
 
-        opt_results = minimize(fun=val_and_grad, x0=x0, jac=True, method="L-BFGS-B")
+        opt_results = minimize(fun=val_and_grad, x0=x0,
+                               jac=True, method="L-BFGS-B")
 
-        unpacked_theta = unpack_trainable_vars(opt_results.x, self.train_variables)
+        unpacked_theta = unpack_trainable_vars(
+            opt_results.x, self.train_variables)
 
         for var, val in zip(self.train_variables, unpacked_theta):
             var.assign(val)
@@ -129,7 +132,8 @@ class MatnormalRegression(BaseEstimator):
         # Y Sigma_s^{-1} B'
         Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
         # (B Sigma_s^{-1} B')^{-1}
-        B_Sigma_Btrp = tf.matmul(self.beta, Sigma_s_btrp).eval(session=self.sess)
+        B_Sigma_Btrp = tf.matmul(
+            self.beta, Sigma_s_btrp).eval(session=self.sess)
 
         X_test = np.linalg.solve(B_Sigma_Btrp.T, Y_Sigma_Btrp.T).T
 
