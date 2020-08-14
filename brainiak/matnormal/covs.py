@@ -177,7 +177,9 @@ class CovAR1(CovBase):
                 tf.random.normal([1], dtype=tf.float64), name="rho_unc"
             )
         else:
-            self.rho_unc = tf.Variable(scipy.special.logit(rho / 2 + 0.5), name='rho_unc')
+            self.rho_unc = tf.Variable(
+                scipy.special.logit(rho / 2 + 0.5), name="rho_unc"
+            )
 
     @property
     def logdet(self):
@@ -187,8 +189,9 @@ class CovAR1(CovBase):
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         # now compute logdet
         return tf.reduce_sum(
-            input_tensor=2 * tf.constant(self.run_sizes, dtype=tf.float64) *
-            self.log_sigma
+            input_tensor=2
+            * tf.constant(self.run_sizes, dtype=tf.float64)
+            * self.log_sigma
             - tf.math.log(1 - tf.square(rho))
         )
 
@@ -442,7 +445,9 @@ class CovUnconstrainedInvCholesky(CovBase):
 
         else:
             Linv = np.linalg.cholesky(invSigma)
-            self.Linv_flat = tf.Variable(flatten_cholesky_unique(Linv), name="Linv_flat")
+            self.Linv_flat = tf.Variable(
+                flatten_cholesky_unique(Linv), name="Linv_flat"
+            )
 
     @property
     def Linv(self):
@@ -512,33 +517,32 @@ class CovKroneckerFactored(CovBase):
         self.nfactors = len(sizes)
         self.size = np.prod(np.array(sizes), dtype=np.int32)
 
+        npar = [(size * (size + 1)) // 2 for size in self.sizes]
         if Sigmas is None:
-            self.L_full = [
+            self.Lflat = [
                 tf.Variable(
-                    tf.random.normal([sizes[i], sizes[i]], dtype=tf.float64),
-                    name="L" + str(i) + "_full",
+                    tf.random.normal([npar[i]], dtype=tf.float64),
+                    name="L" + str(i) + "_flat",
                 )
                 for i in range(self.nfactors)
             ]
         else:
-            self.L_full = [
-                tf.Variable(np.linalg.cholesky(Sigmas[i]), name="L" + str(i) + "_full")
+            self.Lflat = [
+                tf.Variable(flatten_cholesky_unique(np.linalg.cholesky(Sigmas[i])), name="L" + str(i) + "_flat")
                 for i in range(self.nfactors)
             ]
         self.mask = mask
 
-        # make a list of choleskys
-        L_indeterminate = [tf.linalg.band_part(mat, -1, 0) for mat in self.L_full]
-        self.L = [
-            tf.linalg.set_diag(mat, tf.exp(tf.linalg.diag_part(mat)))
-            for mat in L_indeterminate
-        ]
+
+    @property
+    def L(self):
+        return [unflatten_cholesky_unique(mat) for mat in self.Lflat]
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized
             to fit this covariance
         """
-        return self.L_full
+        return self.Lflat
 
     @property
     def logdet(self):
