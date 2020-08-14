@@ -56,7 +56,7 @@ class MNRSA(BaseEstimator):
     optimizer : string, Default :'L-BFGS'
         Name of scipy optimizer to use.
     optCtrl :  dict, default: None
-        Dict of options for optimizer (e.g. {'maxiter': 100})
+        Additional arguments to pass to scipy.optimize.minimize.
 
     """
 
@@ -69,7 +69,9 @@ class MNRSA(BaseEstimator):
         self.n_V = space_cov.size
         self.n_nureg = n_nureg
 
-        self.optCtrl, self.optMethod = optCtrl, optimizer
+        self.optMethod = optimizer
+        if optCtrl is None:
+            self.optCtrl = {}
 
         self.X_0 = tf.Variable(
             tf.random.normal([self.n_T, n_nureg], dtype=tf.float64), name="X_0"
@@ -143,7 +145,7 @@ class MNRSA(BaseEstimator):
         x0 = pack_trainable_vars(self.train_variables)
 
         opt_results = minimize(fun=val_and_grad, x0=x0,
-                               jac=True, method="L-BFGS-B")
+                               jac=True, method=self.optMethod, **self.optCtrl)
 
         unpacked_theta = unpack_trainable_vars(
             opt_results.x, self.train_variables)
