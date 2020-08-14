@@ -138,7 +138,7 @@ setup(
         'psutil',
         'nibabel',
         'typing',
-        'tensorflow',
+        'tensorflow>=2.3',  # required for tensorflow_probability
         'tensorflow_probability',
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
