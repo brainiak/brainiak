@@ -133,7 +133,8 @@ def test_CovDiagonal_initialized():
 def test_CovDiagonalGammaPrior():
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
-    cov = CovDiagonalGammaPrior(size=m, sigma=np.diag(cov_np), alpha=1.5, beta=1e-10)
+    cov = CovDiagonalGammaPrior(size=m, sigma=np.diag(cov_np), alpha=1.5,
+                                beta=1e-10)
 
     ig = invgamma(1.5, scale=1e-10)
 
@@ -248,7 +249,8 @@ def test_Cov3FactorMaskedKron():
     L1 = (cov.L[0]).numpy()
     L2 = (cov.L[1]).numpy()
     L3 = (cov.L[2]).numpy()
-    cov_np_factor = np.kron(L1, np.kron(L2, L3))[np.ix_(mask_indices, mask_indices)]
+    cov_np_factor = np.kron(L1, np.kron(L2, L3))[
+                            np.ix_(mask_indices, mask_indices)]
     cov_np = np.dot(cov_np_factor, cov_np_factor.transpose())
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X[mask_indices, :], cov_np)
 
@@ -260,7 +262,8 @@ def test_Cov3FactorMaskedKron():
         atol=atol,
     )
     assert_allclose(
-        sinvx_np, cov.solve(X_tf).numpy()[mask_indices, :], rtol=rtol, atol=atol
+        sinvx_np, cov.solve(X_tf).numpy()[
+                            mask_indices, :], rtol=rtol, atol=atol
     )
 
 
@@ -285,4 +288,3 @@ def test_CovAR1_scan_onsets():
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
-

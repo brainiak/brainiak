@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
-import tensorflow as tf
 
 from brainiak.matnormal.covs import (
     CovIdentity,
@@ -80,7 +79,8 @@ def test_matnorm_regression_optimizerChoice():
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedInvCholesky(size=p)
 
-    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov, optimizer="CG")
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov,
+                                optimizer="CG")
 
     model.fit(X, Y, naive_init=False)
 

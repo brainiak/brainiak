@@ -28,7 +28,8 @@ def test_against_scipy_mvn_row():
 
     rowcov_np = rowcov._cov
 
-    scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]), rowcov_np))
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X.T, np.zeros([m]), rowcov_np))
     tf_answer = matnorm_logp(X_tf, rowcov, colcov)
     assert_allclose(scipy_answer, tf_answer, rtol=rtol)
 
@@ -42,6 +43,7 @@ def test_against_scipy_mvn_col():
 
     colcov_np = colcov._cov
 
-    scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]), colcov_np))
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X, np.zeros([n]), colcov_np))
     tf_answer = matnorm_logp(X_tf, rowcov, colcov)
     assert_allclose(scipy_answer, tf_answer, rtol=rtol)

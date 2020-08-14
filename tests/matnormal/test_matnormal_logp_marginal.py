@@ -39,7 +39,8 @@ def test_against_scipy_mvn_row_marginal():
 
     rowcov_np = rowcov._cov + A.dot(Q_np).dot(A.T)
 
-    scipy_answer = np.sum(multivariate_normal.logpdf(X.T, np.zeros([m]), rowcov_np))
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X.T, np.zeros([m]), rowcov_np))
 
     tf_answer = matnorm_logp_marginal_row(X_tf, rowcov, colcov, A_tf, Q)
     assert_allclose(scipy_answer, tf_answer, rtol=rtol)
@@ -61,7 +62,8 @@ def test_against_scipy_mvn_col_marginal():
 
     colcov_np = colcov._cov + A.T.dot(Q_np).dot(A)
 
-    scipy_answer = np.sum(multivariate_normal.logpdf(X, np.zeros([n]), colcov_np))
+    scipy_answer = np.sum(multivariate_normal.logpdf(
+        X, np.zeros([n]), colcov_np))
 
     tf_answer = matnorm_logp_marginal_col(X_tf, rowcov, colcov, A_tf, Q)
     assert_allclose(scipy_answer, tf_answer, rtol=rtol)
