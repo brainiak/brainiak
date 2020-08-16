@@ -491,7 +491,7 @@ def compute_summary_statistic(iscs, summary_statistic='mean', axis=None):
 
     The implementation is based on the work in [SilverDunlap1987]_.
 
-    .. [SilverDunlap1987] "Averaging corrlelation coefficients: should
+    .. [SilverDunlap1987] "Averaging correlation coefficients: should
        Fisher's z transformation be used?", N. C. Silver, W. P. Dunlap, 1987,
        Journal of Applied Psychology, 72, 146-148.
        https://doi.org/10.1037/0021-9010.72.1.146
@@ -648,7 +648,8 @@ def _threshold_nans(data, tolerate_nans):
 
 
 def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
-                  n_bootstraps=1000, ci_percentile=95, random_state=None):
+                  n_bootstraps=1000, ci_percentile=95, side='right',
+                  random_state=None):
 
     """One-sample group-level bootstrap hypothesis test for ISCs
 
@@ -658,16 +659,19 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     should be either N ISC values for N subjects in the leave-one-out appraoch
     (pairwise=False), N(N-1)/2 ISC values for N subjects in the pairwise
     approach (pairwise=True). In the pairwise approach, ISC values should
-    correspond to the vectorized upper triangle of a square corrlation matrix
+    correspond to the vectorized upper triangle of a square correlation matrix
     (see scipy.stats.distance.squareform). Shifts bootstrap distribution by
-    actual summary statistic (effectively to zero) for two-tailed null
-    hypothesis test (Hall & Wilson, 1991). Uses subject-wise (not pair-wise)
-    resampling in the pairwise approach. Returns the observed ISC, the
-    confidence interval, and a p-value for the bootstrap hypothesis test, as
-    well as the bootstrap distribution of summary statistics. According to
-    Chen et al., 2016, this is the preferred nonparametric approach for
-    controlling false positive rates (FPR) for one-sample tests in the pairwise
-    approach.
+    actual summary statistic (effectively to zero) for null hypothesis test
+    (Hall & Wilson, 1991). Uses subject-wise (not pair-wise) resampling in the
+    pairwise approach. Returns the observed ISC, the confidence interval, and
+    a p-value for the bootstrap hypothesis test, as well as the bootstrap
+    distribution of summary statistics. The p-value corresponds to either a
+    'two-sided', 'left'-, or 'right'-sided (default) test, as specified by
+    side. According to Chen et al., 2016, this is the preferred nonparametric
+    approach for controlling false positive rates (FPR) for one-sample tests
+    in the pairwise approach. The efficacy of this approach for controlling
+    FPRs in the leave-one-out approach has not yet been systematically
+    evaluated.
 
     The implementation is based on the work in [Chen2016]_ and
     [HallWilson1991]_.
@@ -692,6 +696,9 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
 
     ci_percentile : int, default: 95
          Percentile for computing confidence intervals
+
+    side : str
+        Perform one-sided ('left' or 'right') or 'two-sided' test
 
     random_state = int or None, default: None
         Initial random seed
@@ -791,7 +798,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
 
     # Get p-value for actual median from shifted distribution
     p = p_from_null(observed, shifted,
-                    side='two-sided', exact=False,
+                    side=side, exact=False,
                     axis=0)
 
     return observed, ci, p, distribution
@@ -1050,34 +1057,39 @@ def _permute_two_sample_iscs(iscs, group_parameters, i, pairwise=False,
 
 def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                     summary_statistic='median', n_permutations=1000,
-                    random_state=None):
+                    side='right', random_state=None):
 
     """Group-level permutation test for ISCs
 
     For ISCs from one or more voxels or ROIs, permute group assignments to
     construct a permutation distribution. Input is a list or ndarray of
-    ISCs  for a single voxel/ROI, or an ISCs-by-voxels ndarray. If two groups,
-    ISC values should stacked along first dimension (vertically), and a
-    group_assignment list (or 1d array) of same length as the number of
-    subjects should be provided to indicate groups. If no group_assignment
-    is provided, one-sample test is performed using a sign-flipping procedure.
-    Performs exact test if number of possible permutations (2**N for one-sample
-    sign-flipping, N! for two-sample shuffling) is less than or equal to number
-    of requested permutation; otherwise, performs approximate permutation test
-    using Monte Carlo resampling. ISC values should either be N ISC values for
-    N subjects in the leave-one-out approach (pairwise=False) or N(N-1)/2 ISC
-    values for N subjects in the pairwise approach (pairwise=True). In the
-    pairwise approach, ISC values should correspond to the vectorized upper
-    triangle of a square corrlation matrix (scipy.stats.distance.squareform).
-    Note that in the pairwise approach, group_assignment order should match the
-    row/column order of the subject-by-subject square ISC matrix even though
-    the input ISCs should be supplied as the vectorized upper triangle of the
-    square ISC matrix. Returns the observed ISC and permutation-based p-value
-    (two-tailed test), as well as the permutation distribution of summary
-    statistic. According to Chen et al., 2016, this is the preferred
-    nonparametric approach for controlling false positive rates (FPR) for
-    two-sample tests. This approach may yield inflated FPRs for one-sample
-    tests.
+    ISCs  for a single voxel/ROI, or an ISCs-by-voxels ndarray. In the
+    leave-one-out approach, ISC values for two groups should be stacked
+    along first dimension (vertically) and a group_assignment list (or 1d
+    array) of same length as the number of subjects should be provided to
+    indicate groups. In the pairwise approach, pairwise ISCs should be
+    computed the across both groups at once; i.e. the pairwise ISC matrix
+    should be shaped N x N where N is the total number of subjects across
+    both groups, and should contain between-group ISC pairs. Pairwise ISC
+    input should correspond to the vectorized upper triangle of the square
+    pairwise ISC correlation matrix containing both groups. In the pairwise
+    approach, group_assignment order should match the row/column order of the
+    subject-by-subject square ISC matrix even though the input ISCs should be
+    supplied as the vectorized upper triangle of the square ISC matrix. If no
+    group_assignment is provided, one-sample test is performed using a sign-
+    flipping procedure. Performs exact test if number of possible permutations
+    (2**N for one-sample sign-flipping, N! for two-sample shuffling) is less
+    than or equal to number of requested permutation; otherwise, performs
+    approximate permutation test using Monte Carlo resampling. ISC values
+    should either be N ISC values for N subjects in the leave-one-out approach
+    (pairwise=False) or N(N-1)/2 ISC values for N subjects in the pairwise
+    approach (pairwise=True). Returns the observed ISC and permutation-based
+    p-value as well as the permutation distribution of summary statistic.
+    The p-value corresponds to either a 'two-sided', 'left'-, or 'right'-sided
+    (default) test, as specified by side. According to Chen et al., 2016,
+    this is the preferred nonparametric approach for controlling false
+    positive rates (FPR) for two-sample tests. This approach may yield
+    inflated FPRs for one-sample tests.
 
     The implementation is based on the work in [Chen2016]_.
 
@@ -1097,6 +1109,9 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     n_permutations : int, default: 1000
         Number of permutation iteration (randomizing group assignment)
+
+    side : str
+        Perform one-sided ('left' or 'right') or 'two-sided' test
 
     random_state = int, None, or np.random.RandomState, default: None
         Initial random seed
@@ -1225,18 +1240,19 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     # Get p-value for actual median from shifted distribution
     if exact_permutations:
         p = p_from_null(observed, distribution,
-                        side='two-sided', exact=True,
+                        side=side, exact=True,
                         axis=0)
     else:
         p = p_from_null(observed, distribution,
-                        side='two-sided', exact=False,
+                        side=side, exact=False,
                         axis=0)
 
     return observed, p, distribution
 
 
 def timeshift_isc(data, pairwise=False, summary_statistic='median',
-                  n_shifts=1000, tolerate_nans=True, random_state=None):
+                  n_shifts=1000, side='right', tolerate_nans=True,
+                  random_state=None):
 
     """Circular time-shift randomization for one-sample ISC test
 
@@ -1262,8 +1278,10 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     will not affect the pairwise approach; however, if a threshold float is
     provided, voxels that do not reach this threshold will be excluded. Note
     that accommodating NaNs may be notably slower than setting tolerate_nans to
-    False. Returns the observed ISC and p-values (two-tailed test), as well as
-    the null distribution of ISCs computed on randomly time-shifted data.
+    False. Returns the observed ISC and p-values, as well as the null
+    distribution of ISCs computed on randomly time-shifted data. The p-value
+    corresponds to either a 'two-sided', 'left'-, or 'right'-sided (default)
+    test, as specified by side.
 
     The implementation is based on the work in [Kauppi2010]_ and
     [Kauppi2014]_.
@@ -1287,6 +1305,9 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     n_shifts : int, default: 1000
         Number of randomly shifted samples
+
+    side : str
+        Perform one-sided ('left' or 'right') or 'two-sided' test
 
     tolerate_nans : bool or float, default: True
         Accommodate NaNs (when averaging in leave-one-out approach)
@@ -1378,14 +1399,15 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get p-value for actual median from shifted distribution
     p = p_from_null(observed, distribution,
-                    side='two-sided', exact=False,
+                    side=side, exact=False,
                     axis=0)
 
     return observed, p, distribution
 
 
 def phaseshift_isc(data, pairwise=False, summary_statistic='median',
-                   n_shifts=1000, tolerate_nans=True, random_state=None):
+                   n_shifts=1000, side='right', tolerate_nans=True,
+                   random_state=None):
 
     """Phase randomization for one-sample ISC test
 
@@ -1410,9 +1432,11 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     N-1 subjects will be assigned NaN. Setting tolerate_nans to True or False
     will not affect the pairwise approach; however, if a threshold float is
     provided, voxels that do not reach this threshold will be excluded. Note
-    that accommodating NaNs may be notably slower than setting tolerate_nans to
-    False. Returns the observed ISC and p-values (two-tailed test), as well as
-    the null distribution of ISCs computed on phase-randomized data.
+    that accommodating NaNs may be notably slower than setting tolerate_nans
+    to False. Returns the observed ISC and p-values, as well as the null
+    distribution of ISCs computed on phase-randomized data. The p-value
+    corresponds to either a 'two-sided', 'left'-, or 'right'-sided (default)
+    test, as specified by side.
 
     The implementation is based on the work in [Lerner2011]_ and
     [Simony2016]_.
@@ -1435,6 +1459,9 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     n_shifts : int, default: 1000
         Number of randomly shifted samples
+
+    side : str
+        Perform one-sided ('left' or 'right') or 'two-sided' test
 
     tolerate_nans : bool or float, default: True
         Accommodate NaNs (when averaging in leave-one-out approach)
@@ -1514,7 +1541,7 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
 
     # Get p-value for actual median from shifted distribution
     p = p_from_null(observed, distribution,
-                    side='two-sided', exact=False,
+                    side=side, exact=False,
                     axis=0)
 
     return observed, p, distribution
