@@ -45,10 +45,10 @@ def correlated_timeseries(n_subjects, n_TRs, noise=0,
             uncorrelated[:, 0, :].T), checks=False))
         unc_mean = np.mean(squareform(np.corrcoef(
             uncorrelated[:, 0, :].T), checks=False))
-        if unc_max < .3 and np.abs(unc_mean) < .001:
+        if unc_max < .25 and np.abs(unc_mean) < .001:
             correlated = False
     data = np.repeat(np.column_stack((signal, signal))[..., np.newaxis],
-                     20, axis=2)
+                     n_subjects, axis=2)
     data = np.concatenate((data, uncorrelated), axis=1)
     data = data + np.random.randn(n_TRs, 3, n_subjects) * noise
     return data
@@ -301,6 +301,7 @@ def test_bootstrap_isc():
     assert np.all(iscs[:, -1] < .5)
     assert p[0] < .05 and p[1] < .05
     assert p[2] > .01
+    print(p)
 
     iscs = isc(data, pairwise=True)
     observed, ci, p, distribution = bootstrap_isc(iscs, pairwise=True)

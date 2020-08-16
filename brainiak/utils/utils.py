@@ -828,10 +828,10 @@ def p_from_null(observed, distribution,
     distribution : ndarray
         Null distribution of test statistic
 
-    side : str, default:'two-sided'
+    side : str, default: 'two-sided'
         Perform one-sided ('left' or 'right') or 'two-sided' test
 
-    axis: None or int, default:None
+    axis: None or int, default: None
         Axis indicating resampling iterations in input distribution
 
     Returns
