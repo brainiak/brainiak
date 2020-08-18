@@ -118,6 +118,7 @@ setup(
         'cython',
         'numpy!=1.17.*',
         'pybind11>=1.7',
+        'scipy!=1.0.0',
         'setuptools_scm',
     ],
     install_requires=[
