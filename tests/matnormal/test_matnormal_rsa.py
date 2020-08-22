@@ -4,9 +4,6 @@ from brainiak.matnormal.covs import CovIdentity, CovDiagonal
 from scipy.stats import norm
 from brainiak.matnormal.utils import rmn
 import numpy as np
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def gen_U_nips2016_example():
@@ -65,6 +62,14 @@ def test_brsa_rudimentary(seeded_rng):
     model_matnorm = MNRSA(time_cov=timecov_model, space_cov=spacecov_model)
 
     model_matnorm.fit(tr["Y"], tr["X"], naive_init=False)
+
+    RMSE = np.mean((model_matnorm.C_ - cov2corr(tr["U"])) ** 2) ** 0.5
+
+    assert RMSE < 0.1
+
+    model_matnorm = MNRSA(time_cov=timecov_model, space_cov=spacecov_model)
+
+    model_matnorm.fit(tr["Y"], tr["X"], naive_init=True)
 
     RMSE = np.mean((model_matnorm.C_ - cov2corr(tr["U"])) ** 2) ** 0.5
 

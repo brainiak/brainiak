@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from scipy.stats import norm, wishart, pearsonr
 
@@ -9,9 +10,6 @@ from brainiak.matnormal.covs import (
 )
 from brainiak.matnormal.regression import MatnormalRegression
 from brainiak.matnormal.utils import rmn
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 m = 100
 n = 4
@@ -38,6 +36,15 @@ def test_matnorm_regression_unconstrained(seeded_rng):
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
     model.fit(X, Y, naive_init=False)
+
+    assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
+
+    pred_y = model.predict(X)
+    assert pearsonr(pred_y.flatten(), Y_hat.flatten())[0] >= corrtol
+
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
+
+    model.fit(X, Y, naive_init=True)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
@@ -126,3 +133,30 @@ def test_matnorm_regression_scaledDiag(seeded_rng):
     # we'd need a lot more data, which would make the test slow
     X_hat = model.calibrate(Y)
     assert pearsonr(X_hat.flatten(), X.flatten())[0] >= corrtol
+
+
+def test_matnorm_calibration_raises(seeded_rng):
+
+    # Y = XB + eps
+    # Y is m x n, B is n x p, eps is m x p
+    X = norm.rvs(size=(2, 5))
+    B = norm.rvs(size=(5, 3))
+    Y_hat = X.dot(B)
+
+    rowcov_true = np.eye(2)
+    colcov_true = np.diag(np.abs(norm.rvs(size=3)))
+
+    Y = Y_hat + rmn(rowcov_true, colcov_true)
+
+    row_cov = CovIdentity(size=2)
+    col_cov = CovDiagonal(size=3)
+
+    model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
+
+    model.fit(X, Y, naive_init=False)
+
+    with pytest.raises(RuntimeError):
+        model.calibrate(Y)
+    
+
+

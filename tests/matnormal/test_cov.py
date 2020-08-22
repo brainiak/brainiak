@@ -16,10 +16,6 @@ from brainiak.matnormal.covs import (
     CovKroneckerFactored,
 )
 import pytest
-import logging
-
-
-logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
 

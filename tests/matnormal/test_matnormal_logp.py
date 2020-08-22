@@ -6,9 +6,6 @@ import tensorflow as tf
 from brainiak.matnormal.utils import rmn
 from brainiak.matnormal.matnormal_likelihoods import matnorm_logp
 from brainiak.matnormal.covs import CovIdentity, CovUnconstrainedCholesky
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
 
 # X is m x n, so A sould be m x p
 
