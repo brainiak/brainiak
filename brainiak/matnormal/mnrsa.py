@@ -43,9 +43,10 @@ class MNRSA(BaseEstimator):
     support, you should use MNRSA.
 
     .. math::
-        Y \\sim \\mathcal{MN}(0, \\Sigma_t + XLL^{\\top}X^{\\top}+
-        X_0X_0^{\\top}, \\Sigma_s)\\
-        U = LL^{\\top}
+        Y &\\sim \\mathcal{MN}(0, \\Sigma_t + XLL^TX^T+
+        X_0X_0^T, \\Sigma_s)\\
+
+        U &= LL^T
 
     Parameters
     ----------

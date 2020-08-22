@@ -120,7 +120,7 @@ class MatnormalRegression(BaseEstimator):
         trained mapping. This method just does naive MLE:
 
         .. math::
-            X = Y \\Sigma_s^{-1}B'(B \\Sigma_s^{-1} B')^{-1}
+            X = Y \\Sigma_s^{-1}B^T(B \\Sigma_s^{-1} B^T)^{-1}
 
         Parameters
         ----------

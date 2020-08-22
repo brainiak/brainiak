@@ -4,7 +4,7 @@ Some properties of the matrix-variate normal distribution
 
 .. math::
     \\DeclareMathOperator{\\Tr}{Tr}
-    \\newcommand{\\trp}{{^\\top}} % transpose
+    \\newcommand{\\trp}{^{T}} % transpose
     \\newcommand{\\trace}{\\text{Trace}} % trace
     \\newcommand{\\inv}{^{-1}}
     \\newcommand{\\mb}{\\mathbf{b}}
@@ -74,24 +74,24 @@ use lowercase subscripts for sizes to make dimensionalities easier to track.
 Uppercase subscripts for covariances help keep track where they come from.
 
 .. math::
-    \\mathbf{X}_{ij} \\sim \\mathcal{MN}(\\mathbf{A}_{ij},
+    \\mathbf{X}_{ij} &\\sim \\mathcal{MN}(\\mathbf{A}_{ij},
     \\Sigma_{\\mathbf{X}i},\\Sigma_{\\mathbf{X}j})\\\\
-    \\mathbf{Y}_{jk} \\sim \\mathcal{MN}(\\mathbf{B}_{jk},
+    \\mathbf{Y}_{jk} &\\sim \\mathcal{MN}(\\mathbf{B}_{jk},
      \\Sigma_{\\mathbf{Y}j},\\Sigma_{\\mathbf{Y}k})\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{X}_{ij}\\mathbf{Y}_{jk} + \\mathbf{C}_{ik},
       \\Sigma_{\\mathbf{Z}_i}, \\Sigma_{\\mathbf{Z}_k})\\\\
 
 
 We vectorize, and convert to a form we recognize as
-$y \\sim \\mathcal{N}(Mx+b, \\Sigma)$.
+:math:`y \\sim \\mathcal{N}(Mx+b, \\Sigma)`.
 
 .. math::
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
      \\mathcal{N}(\\vecop(\\X_{ij}\\mathbf{Y}_{jk}+\\mathbf{C}_{ik}),
      \\Sigma_{\\mathbf{Z}_k}\\otimes\\Sigma_{\\mathbf{Z}_i})\\\\
     \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk}
-    \\sim \\mathcal{N}((\\I_k\\otimes\\X_{ij})\\vecop(\\mathbf{Y}_{jk})
+    &\\sim \\mathcal{N}((\\I_k\\otimes\\X_{ij})\\vecop(\\mathbf{Y}_{jk})
      + \\vecop(\\mathbf{C}_{ik}),
      \\Sigma_{\\mathbf{Z}_k}\\otimes\\Sigma_{\\mathbf{Z}_i})
 
@@ -126,15 +126,15 @@ is well-defined but the covariance retains its kronecker structure. So we let
 and transform it back into a matrix normal:
 
 .. math::
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{N}(\\vecop(\\X\\mathbf{B}_{jk}) + \\vecop(\\mathbf{C}_{ik}),
       \\Sigma_{k}\\otimes\\Sigma_{\\mathbf{Z}_i} + \\Sigma_{_k}\\otimes
       \\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp)\\\\
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{N}(\\vecop(\\X\\mathbf{B}_{jk}) + \\vecop(\\mathbf{C}_{ik}),
       \\Sigma_{k}\\otimes(\\Sigma_{\\mathbf{Z}_i}
       +\\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp))\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{MN}(\\X\\mathbf{B}_{jk} + \\mathbf{C}_{ik},
       \\Sigma_{\\mathbf{Z}_i} +\\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp,\\Sigma_{k})
 
@@ -144,17 +144,17 @@ We can do it in the other direction as well, because if
 \\mathcal{MN}(M\\trp, V, U)`:
 
 .. math::
-    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
     \\mathcal{MN}(\\mathbf{Y}_{jk}\\trp\\mathbf{X}_{ij}\\trp +
     \\mathbf{C}\\trp_{ik}, \\Sigma_{\\mathbf{Z}_k},\\Sigma_{\\mathbf{Z}_i})\\\\
     \\mbox{let } \\Sigma_i :=
      \\Sigma_{\\mathbf{Z}_i}=\\Sigma_{\\mathbf{X}_i} \\\\
     \\cdots\\\\
-    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{A}_{jk}\\trp\\mathbf{X}_{ij}\\trp +
       \\mathbf{C}\\trp_{ik}, \\Sigma_{\\mathbf{Z}_k} +
        \\Y\\trp\\Sigma_{\\mathbf{Y}_j}\\Y,\\Sigma_{\\mathbf{Z}_i})\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{X}_{ij}\\mathbf{A}_{jk}+
       \\mathbf{C}_{ik},\\Sigma_{\\mathbf{Z}_i},\\Sigma_{\\mathbf{Z}_k} +
        \\Y\\trp\\Sigma_{\\mathbf{Y}_j}\\Y)

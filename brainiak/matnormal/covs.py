@@ -601,7 +601,7 @@ class CovKroneckerFactored(CovBase):
 
     def solve(self, X):
         """ Given this covariance :math:`\\Sigma` and some input :math:`X`,
-        compute Sigma^{-1} * x using traingular solves with the cholesky
+        compute :math:`\\Sigma^{-1}x` using traingular solves with the cholesky
         factors.
 
         Specifically, we solve :math:`L L^T x = y` by solving

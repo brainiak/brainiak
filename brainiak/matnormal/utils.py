@@ -24,7 +24,7 @@ def rmn(rowcov, colcov):
 def xx_t(x):
     """
     Outer product
-    :math:`xx^{\\top}`
+    :math:`xx^T`
 
     Parameters
     -----------
@@ -36,7 +36,7 @@ def xx_t(x):
 
 def x_tx(x):
     """Inner product
-    :math:`x^{\\top} x`
+    :math:`x^T x`
 
     Parameters
     -----------
@@ -48,7 +48,7 @@ def x_tx(x):
 
 def scaled_I(x, size):
     """Scaled identity matrix
-    :math:`x * I_{size}`
+    :math:`x I_{size}`
 
     Parameters
     ------------

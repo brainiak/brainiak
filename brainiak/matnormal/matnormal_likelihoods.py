@@ -29,14 +29,14 @@ def solve_det_marginal(x, sigma, A, Q):
     Use matrix inversion lemma for the solve:
 
     .. math::
-        (\\Sigma + AQA')^{-1} X =\\
+        (\\Sigma + AQA^T)^{-1} X =\\
         (\\Sigma^{-1} - \\Sigma^{-1} A (Q^{-1} +
-        A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
+        A^T \\Sigma^{-1} A)^{-1} A^T \\Sigma^{-1}) X
 
     Use matrix determinant lemma for determinant:
 
     .. math::
-        \\log|(\\Sigma + AQA')| = \\log|Q^{-1} + A' \\Sigma^{-1} A|
+        \\log|(\\Sigma + AQA^T)| = \\log|Q^{-1} + A^T \\Sigma^{-1} A|
         + \\log|Q| + \\log|\\Sigma|
 
     Parameters
@@ -70,7 +70,7 @@ def solve_det_marginal(x, sigma, A, Q):
         "sigma min={tf.reduce_min(input_tensor=A)}",
     )
 
-    # cholesky of (Qinv + A' Sigma^{-1} A), which looks sort of like
+    # cholesky of (Qinv + A^T Sigma^{-1} A), which looks sort of like
     # a schur complement but isn't, so we call it the "lemma factor"
     # since we use it in woodbury and matrix determinant lemmas
     lemma_factor = tlinalg.cholesky(
@@ -95,9 +95,9 @@ def solve_det_marginal(x, sigma, A, Q):
         f"lemma factor logdet={lemma_logdet}",
     )
 
-    # A' Sigma^{-1}
+    # A^T Sigma^{-1}
     Atrp_Sinv = tf.matmul(A, sigma._prec, transpose_a=True)
-    # (Qinv + A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
+    # (Qinv + A^T Sigma^{-1} A)^{-1} A^T Sigma^{-1}
     prod_term = tlinalg.cholesky_solve(lemma_factor, Atrp_Sinv)
 
     solve = tf.matmul(
@@ -112,15 +112,15 @@ def solve_det_conditional(x, sigma, A, Q):
     Use matrix inversion lemma for the solve:
 
     .. math::
-        (\\Sigma - AQ^{-1}A')^{-1} X =\\
+        (\\Sigma - AQ^{-1}A^T)^{-1} X =\\
         (\\Sigma^{-1} + \\Sigma^{-1} A (Q -
-        A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
+        A^T \\Sigma^{-1} A)^{-1} A^T \\Sigma^{-1}) X
 
     Use matrix determinant lemma for determinant:
 
     .. math::
-        \\log|(\\Sigma - AQ^{-1}A')| =
-        \\log|Q - A' \\Sigma^{-1} A| - \\log|Q| + \\log|\\Sigma|
+        \\log|(\\Sigma - AQ^{-1}A^T)| =
+        \\log|Q - A^T \\Sigma^{-1} A| - \\log|Q| + \\log|\\Sigma|
 
     Parameters
     ----------
@@ -136,7 +136,7 @@ def solve_det_conditional(x, sigma, A, Q):
 
     """
 
-    # (Q - A' Sigma^{-1} A)
+    # (Q - A^T Sigma^{-1} A)
     lemma_factor = tlinalg.cholesky(
         Q._cov - tf.matmul(A, sigma.solve(A), transpose_a=True)
     )
@@ -149,9 +149,9 @@ def solve_det_conditional(x, sigma, A, Q):
             tlinalg.diag_part(lemma_factor)))
     )
 
-    # A' Sigma^{-1}
+    # A^T Sigma^{-1}
     Atrp_Sinv = tf.matmul(A, sigma._prec, transpose_a=True)
-    # (Q - A' Sigma^{-1} A)^{-1} A' Sigma^{-1}
+    # (Q - A^T Sigma^{-1} A)^{-1} A^T Sigma^{-1}
     prod_term = tlinalg.cholesky_solve(lemma_factor, Atrp_Sinv)
 
     solve = tf.matmul(
@@ -235,9 +235,11 @@ def matnorm_logp_marginal_row(x, row_cov, col_cov, marg, marg_cov):
     Log likelihood for marginal centered matrix-variate normal density.
 
     .. math::
-        X \\sim \\mathcal{MN}(0, Q, C)\\
-        Y \\mid \\X \\sim \\mathcal{MN}(AX, R, C),\\
-        Y \\sim \\mathcal{MN}(0, R + AQA', C)
+        X &\\sim \\mathcal{MN}(0, Q, C)\\
+
+        Y \\mid \\X &\\sim \\mathcal{MN}(AX, R, C),\\
+
+        Y &\\sim \\mathcal{MN}(0, R + AQA^T, C)
 
     This function efficiently computes the marginals by unpacking some
     info in the covariance classes and then dispatching to
@@ -274,9 +276,11 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
     Log likelihood for centered marginal matrix-variate normal density.
 
     .. math::
-        X \\sim \\mathcal{MN}(0, R, Q)\\
-        Y \\mid \\X \\sim \\mathcal{MN}(XA, R, C),\\
-        Y \\sim \\mathcal{MN}(0, R, C + A'QA)
+        X &\\sim \\mathcal{MN}(0, R, Q)\\
+
+        Y \\mid \\X &\\sim \\mathcal{MN}(XA, R, C),\\
+
+        Y &\\sim \\mathcal{MN}(0, R, C + A^TQA)
 
     This function efficiently computes the marginals by unpacking some
     info in the covariance classes and then dispatching to
@@ -319,17 +323,17 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
 
     .. math::
         \\begin{bmatrix}
-        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\\\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]\\end{bmatrix}
+        \\sim \\mathcal{N}\\left(0,\\begin{bmatrix} \\Sigma_{j} \\otimes
+        \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\\\
         \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
         \\end{bmatrix}\\right)
 
     Then we can write the conditional:
 
     .. math::
-        \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
+        \\mathbf{X}^T j i \\mid \\mathbf{Y}_{k i}^T
         \\sim \\mathcal{M}\\
         \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
         \\Sigma_{k j},\\
@@ -376,10 +380,10 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
 
     .. math::
         \\begin{bmatrix}
-        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\\\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]\\end{bmatrix}
+        \\sim \\mathcal{N}\\left(0,\\begin{bmatrix} \\Sigma_{j} \\otimes
+        \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\\\
         \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
         \\end{bmatrix}\\right)
 
