@@ -2,7 +2,7 @@ from brainiak.matnormal.utils import pack_trainable_vars, unpack_trainable_vars
 import tensorflow as tf
 
 
-def test_pack_unpack():
+def test_pack_unpack(seeded_rng):
 
     shapes = [[2, 3], [3], [3, 4, 2], [1, 5]]
     mats = [tf.random.stateless_normal(

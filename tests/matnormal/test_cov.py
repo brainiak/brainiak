@@ -66,7 +66,7 @@ A_tf = tf.constant(A)
 eye = tf.eye(m, dtype=tf.float64)
 
 
-def test_CovConstant():
+def test_CovConstant(seeded_rng):
 
     cov_np = wishart.rvs(df=m + 2, scale=np.eye(m))
     cov = CovUnconstrainedCholesky(Sigma=cov_np)
@@ -82,7 +82,7 @@ def test_CovConstant():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovIdentity():
+def test_CovIdentity(seeded_rng):
 
     cov = CovIdentity(size=m)
 
@@ -94,7 +94,7 @@ def test_CovIdentity():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovIsotropic():
+def test_CovIsotropic(seeded_rng):
 
     cov = CovIsotropic(size=m)
 
@@ -106,7 +106,7 @@ def test_CovIsotropic():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovDiagonal():
+def test_CovDiagonal(seeded_rng):
 
     cov = CovDiagonal(size=m)
 
@@ -118,7 +118,7 @@ def test_CovDiagonal():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovDiagonal_initialized():
+def test_CovDiagonal_initialized(seeded_rng):
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
     cov = CovDiagonal(size=m, diag_var=np.diag(cov_np))
@@ -130,7 +130,7 @@ def test_CovDiagonal_initialized():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovDiagonalGammaPrior():
+def test_CovDiagonalGammaPrior(seeded_rng):
 
     cov_np = np.diag(np.exp(np.random.normal(size=m)))
     cov = CovDiagonalGammaPrior(size=m, sigma=np.diag(cov_np), alpha=1.5,
@@ -147,7 +147,7 @@ def test_CovDiagonalGammaPrior():
     assert_allclose(penalty_np, cov.logp, rtol=rtol)
 
 
-def test_CovUnconstrainedCholesky():
+def test_CovUnconstrainedCholesky(seeded_rng):
 
     cov = CovUnconstrainedCholesky(size=m)
 
@@ -159,7 +159,7 @@ def test_CovUnconstrainedCholesky():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovUnconstrainedCholeskyWishartReg():
+def test_CovUnconstrainedCholeskyWishartReg(seeded_rng):
 
     cov = CovUnconstrainedCholeskyWishartReg(size=m)
 
@@ -175,7 +175,7 @@ def test_CovUnconstrainedCholeskyWishartReg():
     assert_allclose(reg, cov.logp, rtol=rtol)
 
 
-def test_CovUnconstrainedInvCholesky():
+def test_CovUnconstrainedInvCholesky(seeded_rng):
 
     init = invwishart.rvs(scale=np.eye(m), df=m + 2)
     cov = CovUnconstrainedInvCholesky(invSigma=init)
@@ -190,7 +190,7 @@ def test_CovUnconstrainedInvCholesky():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_Cov2FactorKron():
+def test_Cov2FactorKron(seeded_rng):
     assert m % 2 == 0
     dim1 = int(m / 2)
     dim2 = 2
@@ -211,7 +211,7 @@ def test_Cov2FactorKron():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_Cov3FactorKron():
+def test_Cov3FactorKron(seeded_rng):
     assert m % 4 == 0
     dim1 = int(m / 4)
     dim2 = 2
@@ -232,7 +232,7 @@ def test_Cov3FactorKron():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_Cov3FactorMaskedKron():
+def test_Cov3FactorMaskedKron(seeded_rng):
     assert m % 4 == 0
     dim1 = int(m / 4)
     dim2 = 2
@@ -267,7 +267,7 @@ def test_Cov3FactorMaskedKron():
     )
 
 
-def test_CovAR1():
+def test_CovAR1(seeded_rng):
 
     cov = CovAR1(size=m)
 
@@ -278,7 +278,7 @@ def test_CovAR1():
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
 
-def test_CovAR1_scan_onsets():
+def test_CovAR1_scan_onsets(seeded_rng):
 
     cov = CovAR1(size=m, scan_onsets=[0, m // 2])
 

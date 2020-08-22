@@ -23,7 +23,7 @@ p = 3
 rtol = 1e-7
 
 
-def test_against_scipy_mvn_row_marginal():
+def test_against_scipy_mvn_row_marginal(seeded_rng):
 
     rowcov = CovUnconstrainedCholesky(size=m)
     colcov = CovIdentity(size=n)
@@ -46,7 +46,7 @@ def test_against_scipy_mvn_row_marginal():
     assert_allclose(scipy_answer, tf_answer, rtol=rtol)
 
 
-def test_against_scipy_mvn_col_marginal():
+def test_against_scipy_mvn_col_marginal(seeded_rng):
 
     rowcov = CovIdentity(size=m)
     colcov = CovUnconstrainedCholesky(size=n)

@@ -20,29 +20,32 @@ p = 5
 corrtol = 0.8  # at least this much correlation between true and est to pass
 
 
-def test_matnorm_regression_unconstrained():
+def test_matnorm_regression_unconstrained(seeded_rng):
 
     # Y = XB + eps
-    # Y is m x n, B is n x p, eps is m x p
+    # Y is m x p, B is n x p, eps is m x p
     X = norm.rvs(size=(m, n))
     B = norm.rvs(size=(n, p))
     Y_hat = X.dot(B)
     rowcov_true = np.eye(m)
     colcov_true = wishart.rvs(p + 2, np.eye(p))
 
-    y = Y_hat + rmn(rowcov_true, colcov_true)
+    Y = Y_hat + rmn(rowcov_true, colcov_true)
 
     row_cov = CovIdentity(size=m)
     col_cov = CovUnconstrainedCholesky(size=p)
 
     model = MatnormalRegression(time_cov=row_cov, space_cov=col_cov)
 
-    model.fit(X, y, naive_init=False)
+    model.fit(X, Y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
+    pred_y = model.predict(X)
+    assert pearsonr(pred_y.flatten(), Y_hat.flatten())[0] >= corrtol
 
-def test_matnorm_regression_unconstrainedprec():
+
+def test_matnorm_regression_unconstrainedprec(seeded_rng):
 
     # Y = XB + eps
     # Y is m x n, B is n x p, eps is m x p
@@ -63,8 +66,11 @@ def test_matnorm_regression_unconstrainedprec():
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
+    pred_y = model.predict(X)
+    assert pearsonr(pred_y.flatten(), Y_hat.flatten())[0] >= corrtol
 
-def test_matnorm_regression_optimizerChoice():
+
+def test_matnorm_regression_optimizerChoice(seeded_rng):
 
     # Y = XB + eps
     # Y is m x n, B is n x p, eps is m x p
@@ -86,8 +92,11 @@ def test_matnorm_regression_optimizerChoice():
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
 
+    pred_y = model.predict(X)
+    assert pearsonr(pred_y.flatten(), Y_hat.flatten())[0] >= corrtol
 
-def test_matnorm_regression_scaledDiag():
+
+def test_matnorm_regression_scaledDiag(seeded_rng):
 
     # Y = XB + eps
     # Y is m x n, B is n x p, eps is m x p
@@ -108,3 +117,12 @@ def test_matnorm_regression_scaledDiag():
     model.fit(X, Y, naive_init=False)
 
     assert pearsonr(B.flatten(), model.beta_.flatten())[0] >= corrtol
+
+    pred_y = model.predict(X)
+    assert pearsonr(pred_y.flatten(), Y_hat.flatten())[0] >= corrtol
+
+    # we only do calibration test on the scaled diag
+    # model because to hit corrtol on unconstrainedCov
+    # we'd need a lot more data, which would make the test slow
+    X_hat = model.calibrate(Y)
+    assert pearsonr(X_hat.flatten(), X.flatten())[0] >= corrtol

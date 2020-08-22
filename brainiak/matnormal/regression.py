@@ -33,8 +33,7 @@ class MatnormalRegression(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B",
-                 optCtrl=None):
+    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B", optCtrl=None):
 
         self.optMethod = optimizer
         if optCtrl is None:
@@ -84,12 +83,15 @@ class MatnormalRegression(BaseEstimator):
         self.train_variables.extend(self.time_cov.get_optimize_vars())
         self.train_variables.extend(self.space_cov.get_optimize_vars())
 
-        def lossfn(theta): return -self.logp(X, y)
+        def lossfn(theta):
+            return -self.logp(X, y)
+
         val_and_grad = make_val_and_grad(lossfn, self.train_variables)
         x0 = pack_trainable_vars(self.train_variables)
 
-        opt_results = minimize(fun=val_and_grad, x0=x0,
-                               jac=True, method=self.optMethod, **self.optCtrl)
+        opt_results = minimize(
+            fun=val_and_grad, x0=x0, jac=True, method=self.optMethod, **self.optCtrl
+        )
 
         unpacked_theta = unpack_trainable_vars(
             opt_results.x, self.train_variables)
@@ -133,10 +135,9 @@ class MatnormalRegression(BaseEstimator):
         # Sigma_s^{-1} B'
         Sigma_s_btrp = self.space_cov.solve(tf.transpose(a=self.beta))
         # Y Sigma_s^{-1} B'
-        Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).eval(session=self.sess)
+        Y_Sigma_Btrp = tf.matmul(Y, Sigma_s_btrp).numpy()
         # (B Sigma_s^{-1} B')^{-1}
-        B_Sigma_Btrp = tf.matmul(
-            self.beta, Sigma_s_btrp).eval(session=self.sess)
+        B_Sigma_Btrp = tf.matmul(self.beta, Sigma_s_btrp).numpy()
 
         X_test = np.linalg.solve(B_Sigma_Btrp.T, Y_Sigma_Btrp.T).T
 

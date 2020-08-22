@@ -36,7 +36,7 @@ def gen_brsa_data_matnorm_model(U, n_T, n_V, space_cov, time_cov, n_nureg):
     return train, sizes
 
 
-def test_brsa_rudimentary():
+def test_brsa_rudimentary(seeded_rng):
     """this test is super loose"""
 
     # this is Mingbo's synth example from the paper
