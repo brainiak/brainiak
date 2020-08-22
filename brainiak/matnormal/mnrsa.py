@@ -44,7 +44,7 @@ class MNRSA(BaseEstimator):
 
     .. math::
         Y \\sim \\mathcal{MN}(0, \\Sigma_t + XLL^{\\top}X^{\\top}+
-         X_0X_0^{\\top}, \\Sigma_s)
+        X_0X_0^{\\top}, \\Sigma_s)\\
         U = LL^{\\top}
 
     Parameters

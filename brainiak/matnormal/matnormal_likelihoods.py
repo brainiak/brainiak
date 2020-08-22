@@ -27,15 +27,17 @@ def _condition(X):
 def solve_det_marginal(x, sigma, A, Q):
     """
     Use matrix inversion lemma for the solve:
+
     .. math::
-    (\\Sigma + AQA')^{-1} X =\\
-    (\\Sigma^{-1} - \\Sigma^{-1} A (Q^{-1} +
-    A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
+        (\\Sigma + AQA')^{-1} X =\\
+        (\\Sigma^{-1} - \\Sigma^{-1} A (Q^{-1} +
+        A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
 
     Use matrix determinant lemma for determinant:
+
     .. math::
-    \\log|(\\Sigma + AQA')| = \\log|Q^{-1} + A' \\Sigma^{-1} A|
-    + \\log|Q| + \\log|\\Sigma|
+        \\log|(\\Sigma + AQA')| = \\log|Q^{-1} + A' \\Sigma^{-1} A|
+        + \\log|Q| + \\log|\\Sigma|
 
     Parameters
     ----------
@@ -108,15 +110,17 @@ def solve_det_marginal(x, sigma, A, Q):
 def solve_det_conditional(x, sigma, A, Q):
     """
     Use matrix inversion lemma for the solve:
+
     .. math::
-    (\\Sigma - AQ^{-1}A')^{-1} X =\\
-    (\\Sigma^{-1} + \\Sigma^{-1} A (Q -
-    A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
+        (\\Sigma - AQ^{-1}A')^{-1} X =\\
+        (\\Sigma^{-1} + \\Sigma^{-1} A (Q -
+        A' \\Sigma^{-1} A)^{-1} A' \\Sigma^{-1}) X
 
     Use matrix determinant lemma for determinant:
+
     .. math::
-    \\log|(\\Sigma - AQ^{-1}A')| =
-    \\log|Q - A' \\Sigma^{-1} A| - \\log|Q| + \\log|\\Sigma|
+        \\log|(\\Sigma - AQ^{-1}A')| =
+        \\log|Q - A' \\Sigma^{-1} A| - \\log|Q| + \\log|\\Sigma|
 
     Parameters
     ----------
@@ -236,7 +240,8 @@ def matnorm_logp_marginal_row(x, row_cov, col_cov, marg, marg_cov):
         Y \\sim \\mathcal{MN}(0, R + AQA', C)
 
     This function efficiently computes the marginals by unpacking some
-    info in the covariance classes and then dispatching to solve_det_marginal.
+    info in the covariance classes and then dispatching to
+    `solve_det_marginal`.
 
     Parameters
     ---------------
@@ -274,7 +279,8 @@ def matnorm_logp_marginal_col(x, row_cov, col_cov, marg, marg_cov):
         Y \\sim \\mathcal{MN}(0, R, C + A'QA)
 
     This function efficiently computes the marginals by unpacking some
-    info in the covariance classes and then dispatching to solve_det_marginal.
+    info in the covariance classes and then dispatching to
+    `solve_det_marginal`.
 
     Parameters
     ---------------
@@ -310,26 +316,28 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
     Log likelihood for centered conditional matrix-variate normal density.
 
     Consider the following partitioned matrix-normal density:
+
     .. math::
-    \\begin{bmatrix}
-    \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-    \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-    \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-    \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
-    \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
-    \\end{bmatrix}\\right)
+        \\begin{bmatrix}
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+        \\end{bmatrix}\\right)
 
     Then we can write the conditional:
-    .. math ::
-    \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
-    \\sim \\mathcal{M}\\
-    \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
-    \\Sigma_{k j},\\
-    \\Sigma_{i}\\right)
+    
+    .. math::
+        \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
+        \\sim \\mathcal{M}\\
+        \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
+        \\Sigma_{k j},\\
+        \\Sigma_{i}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
-    solve_det_conditional.
+    `solve_det_conditional`.
 
     Parameters
     ---------------
@@ -365,24 +373,26 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
     Log likelihood for centered conditional matrix-variate normal density.
 
     Consider the following partitioned matrix-normal density:
+    
     .. math::
-    \\begin{bmatrix}
-    \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-    \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-    \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-    \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
-    \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
-    \\end{bmatrix}\\right)
+        \\begin{bmatrix}
+        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+        \\end{bmatrix}\\right)
 
     Then we can write the conditional:
-    .. math ::
-    \\mathbf{X}_{i j} \\mid \\mathbf{Y}_{i k} \\sim \\mathcal{M}\\
-    \\mathcal{N}\\left(0, \\Sigma_{i}, \\Sigma_{j}-\\Sigma_{j k}\\
-    \\Sigma_{k}^{-1} \\Sigma_{k j}\\right)
+
+    .. math::
+        \\mathbf{X}_{i j} \\mid \\mathbf{Y}_{i k} \\sim \\mathcal{M}\\
+        \\mathcal{N}\\left(0, \\Sigma_{i}, \\Sigma_{j}-\\Sigma_{j k}\\
+        \\Sigma_{k}^{-1} \\Sigma_{k j}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
-    solve_det_conditional.
+    `solve_det_conditional`.
 
     Parameters
     ---------------

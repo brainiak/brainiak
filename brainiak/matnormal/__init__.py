@@ -1,6 +1,6 @@
-"""The matrix variate normal distribution,
-with conditional and marginal identities
-==========================================================================================
+"""
+Some properties of the matrix-variate normal distribution
+---------------------------------------------------------
 
 .. math::
     \\DeclareMathOperator{\\Tr}{Tr}
@@ -37,7 +37,7 @@ The distributional intuition is as follows: if
 :math:`X \\sim \\mathcal{MN}(M,R,C)` then
 :math:`\\mathrm{vec}(X)\\sim\\mathcal{N}(\\mathrm{vec}(M), C \\otimes R)`,
 where :math:`\\mathrm{vec}(\\cdot)` is the vectorization operator and
-:math:`otimes` is the Kronecker product. If we think of X as a matrix of TRs by
+:math:`\\otimes` is the Kronecker product. If we think of X as a matrix of TRs by
 voxels in the fMRI setting, then this model assumes that each voxel has the
 same TR-by-TR covariance structure (represented by the matrix R),
 and each volume has the same spatial covariance (represented by the matrix C).
@@ -50,7 +50,7 @@ The log-likelihood for the matrix-normal density is:
 
 .. math::
     \\log p(X\\mid \\M,\\R, \\C) = -2\\log mn - m \\log|\\C| -  n \\log|\\R| -
-     \\Tr\\left[\\C\\inv(\\X-\\M)\\trp\\R\\inv(\\X-\\M)\\right]
+    \\Tr\\left[\\C\\inv(\\X-\\M)\\trp\\R\\inv(\\X-\\M)\\right]
 
 
 Here :math:`X` and :math:`M` are both :math:`m\\times n` matrices, :math:`\\R`
@@ -64,8 +64,7 @@ optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
 for noise covariances (`CovBase`). Any class that follows the interface
 can be used as a noise covariance in any of the matrix normal models. The
-package includes a variety of noise covariances to work with, as well as an
-interface to use any of the kernels in the `GPflow` package.
+package includes a variety of noise covariances to work with. 
 
 Matrix normal marginals
 -------------------------
@@ -166,7 +165,7 @@ These marginal likelihoods are implemented relatively efficiently in
 `MatnormModelBase.matnorm_logp_marginal_col`.
 
 Partitioned matrix normal conditionals
---------------------------------------------------
+--------------------------------------
 
 Here we extend the multivariate gaussian conditional identity to matrix
 normals. This is used for prediction in some models. Below, we
@@ -223,17 +222,17 @@ Next, we recognize that this multivariate gaussian is equivalent to the
 following matrix variate gaussian:
 
 .. math::
-    \\X_{ij} \\mid \\Y_{ik}\\sim \\mathcal{MN}(&\\A_{ij} +
+    \\X_{ij} \\mid \\Y_{ik}\\sim \\mathcal{MN}(\\A_{ij} +
     (\\Y_{ik}-\\B_{ik})\\Sigma_k\\inv\\Sigma_{kj}, \\Sigma_i,
-     \\Sigma_j-\\Sigma_{jk}\\Sigma_k\\inv\\Sigma_{kj})
+    \\Sigma_j-\\Sigma_{jk}\\Sigma_k\\inv\\Sigma_{kj})
 
 The conditional in the other direction can be written by working through the
 same algebra:
 
 .. math::
-    \\Y_{ik} \\mid \\X_{ij}\\sim \\mathcal{MN}(&\\B_{ik} +(\\X_{ij}-
+    \\Y_{ik} \\mid \\X_{ij}\\sim \\mathcal{MN}(\\B_{ik} +(\\X_{ij}-
     \\A_{ij})\\Sigma_j\\inv\\Sigma_{jk}, \\Sigma_i,
-     \\Sigma_k-\\Sigma_{kj}\\Sigma_j\\inv\\Sigma_{jk})
+    \\Sigma_k-\\Sigma_{kj}\\Sigma_j\\inv\\Sigma_{jk})
 
 Finally, vertical rather than horizontal concatenation (yielding a partitioned
 row rather than column covariance) can be written by recognizing the behavior

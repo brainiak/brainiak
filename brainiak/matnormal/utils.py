@@ -6,40 +6,64 @@ import numpy as np
 
 
 def rmn(rowcov, colcov):
-    """ generate random draws from a zero-mean matrix-normal distribution """
+    """
+    Generate random draws from a zero-mean matrix-normal distribution.
+
+    Parameters
+    -----------
+    rowcov : np.ndarray
+        Row covariance (assumed to be positive definite)
+    colcov : np.ndarray
+        Column covariance (assumed to be positive definite)
+    """
+
     Z = norm.rvs(size=(rowcov.shape[0], colcov.shape[0]))
     return cholesky(rowcov).dot(Z).dot(cholesky(colcov))
 
 
 def xx_t(x):
-    """ x * x' """
+    """
+    Outer product
+    :math:`xx^{\\top}`
+
+    Parameters
+    -----------
+    x : tf.Tensor
+
+    """
     return tf.matmul(x, x, transpose_b=True)
 
 
 def x_tx(x):
-    """ x' * x """
+    """Inner product
+    :math:`x^{\\top} x`
+
+    Parameters
+    -----------
+    x : tf.Tensor
+
+    """
     return tf.matmul(x, x, transpose_a=True)
 
 
-def quad_form(x, y):
-    """ x' * y * x """
-    return tf.matmul(x, tf.matmul(y, x), transpose_a=True)
-
-
 def scaled_I(x, size):
-    """ x * I_{size} """
+    """Scaled identity matrix
+    :math:`x * I_{size}`
+    
+    Parameters
+    ------------
+    x: float or coercable to float
+        Scale to multiply the identity matrix by
+    size: int or otherwise coercable to a size
+        Dimension of the scaled identity matrix to return
+    """
     return tf.linalg.tensor_diag(tf.ones([size], dtype=tf.float64) * x)
-
-
-def quad_form_trp(x, y):
-    """ x * y * x' """
-    return tf.matmul(x, tf.matmul(y, x, transpose_b=True))
 
 
 def flatten_cholesky_unique(L):
     """
     Flattens nonzero-elements Cholesky (triangular) factor
-    into a vector, and logs diagonal to make parameterizaation
+    into a vector, and logs diagonal to make parameterization
     unique. Inverse of unflatten_cholesky_unique.
     """
     L[np.diag_indices_from(L)] = np.log(np.diag(L))
@@ -51,7 +75,7 @@ def unflatten_cholesky_unique(L_flat):
     """
     Converts a vector of elements into a triangular matrix
     (Cholesky factor). Exponentiates diagonal to make
-    parameterizaation unique. Inverse of flatten_cholesky_unique.
+    parameterization unique. Inverse of flatten_cholesky_unique.
     """
     L = tfp.math.fill_triangular(L_flat)
     # exp diag for unique parameterization

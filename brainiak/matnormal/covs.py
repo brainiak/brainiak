@@ -66,7 +66,8 @@ class CovBase(abc.ABC):
 
     @abc.abstractmethod
     def solve(self, X):
-        """Given this covariance and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+            compute :math:`\\Sigma^{-1}x`
         """
         pass
 
@@ -103,7 +104,8 @@ class CovIdentity(CovBase):
         return []
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+            compute :math:`\\Sigma^{-1}x`
         """
         return X
 
@@ -218,12 +220,13 @@ class CovAR1(CovBase):
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to
-            fit this covariance
+        fit this covariance
         """
         return [self.rho_unc, self.log_sigma]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
         """
         return tf.matmul(self._prec, X)
 
@@ -261,7 +264,8 @@ class CovIsotropic(CovBase):
         return [self.log_var]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
 
         Parameters
         ----------
@@ -306,7 +310,8 @@ class CovDiagonal(CovBase):
         return [self.logprec]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
 
         Parameters
         ----------
@@ -386,8 +391,9 @@ class CovUnconstrainedCholesky(CovBase):
         return [self.L_flat]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
-        using cholesky solve
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x` (using cholesky solve)
+
         Parameters
         ----------
         X: tf.Tensor
@@ -399,9 +405,9 @@ class CovUnconstrainedCholesky(CovBase):
 
 class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
     """Unconstrained noise covariance parameterized in terms of its
-       cholesky factor.
-       Regularized using the trick from Chung et al. 2015 such that as the
-       covariance approaches singularity, the likelihood goes to 0.
+    cholesky factor. Regularized using the trick from
+    Chung et al. 2015 such that as the covariance approaches
+    singularity, the likelihood goes to 0.
 
     References
     ----------
@@ -473,13 +479,14 @@ class CovUnconstrainedInvCholesky(CovBase):
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
-             this covariance
+            this covariance
         """
         return [self.Linv_flat]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
-        using cholesky solve
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x` (using cholesky solve)
+
         Parameters
         ----------
         X: tf.Tensor
@@ -593,9 +600,12 @@ class CovKroneckerFactored(CovBase):
         return 2.0 * logdetfinal
 
     def solve(self, X):
-        """ Given this Sigma and some X, compute Sigma^{-1} * x using
-        traingular solves with the cholesky factors.
-        Do 2 triangular solves - L L^T x = y as L z = y and L^T x = z
+        """ Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute Sigma^{-1} * x using traingular solves with the cholesky
+        factors.
+
+        Specifically, we solve :math:`L L^T x = y` by solving
+        :math:`L z = y` and :math:`L^T x = z`.
 
         Parameters
         ----------

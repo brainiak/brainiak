@@ -17,7 +17,7 @@ class MatnormalRegression(BaseEstimator):
     in the presence of both spatial and temporal covariance.
 
     ..math::
-    Y \\sim \\mathcal{MN}(X\beta, time_cov, space_cov)
+        Y \\sim \\mathcal{MN}(X\beta, time_cov, space_cov)
 
     Parameters
     ----------
