@@ -37,8 +37,8 @@ The distributional intuition is as follows: if
 :math:`X \\sim \\mathcal{MN}(M,R,C)` then
 :math:`\\mathrm{vec}(X)\\sim\\mathcal{N}(\\mathrm{vec}(M), C \\otimes R)`,
 where :math:`\\mathrm{vec}(\\cdot)` is the vectorization operator and
-:math:`\\otimes` is the Kronecker product. If we think of X as a matrix of TRs by
-voxels in the fMRI setting, then this model assumes that each voxel has the
+:math:`\\otimes` is the Kronecker product. If we think of X as a matrix of TRs
+by voxels in the fMRI setting, then this model assumes that each voxel has the
 same TR-by-TR covariance structure (represented by the matrix R),
 and each volume has the same spatial covariance (represented by the matrix C).
 This assumption allows us to model both covariances separately.
@@ -52,7 +52,6 @@ The log-likelihood for the matrix-normal density is:
     \\log p(X\\mid \\M,\\R, \\C) = -2\\log mn - m \\log|\\C| -  n \\log|\\R| -
     \\Tr\\left[\\C\\inv(\\X-\\M)\\trp\\R\\inv(\\X-\\M)\\right]
 
-
 Here :math:`X` and :math:`M` are both :math:`m\\times n` matrices, :math:`\\R`
 is :math:`m\\times m` and :math:`\\C` is :math:`n\\times n`.
 
@@ -64,7 +63,7 @@ optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
 for noise covariances (`CovBase`). Any class that follows the interface
 can be used as a noise covariance in any of the matrix normal models. The
-package includes a variety of noise covariances to work with. 
+package includes a variety of noise covariances to work with.
 
 Matrix normal marginals
 -------------------------

@@ -49,7 +49,7 @@ def x_tx(x):
 def scaled_I(x, size):
     """Scaled identity matrix
     :math:`x * I_{size}`
-    
+
     Parameters
     ------------
     x: float or coercable to float

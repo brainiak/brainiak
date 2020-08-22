@@ -327,7 +327,7 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
         \\end{bmatrix}\\right)
 
     Then we can write the conditional:
-    
+
     .. math::
         \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
         \\sim \\mathcal{M}\\
@@ -373,7 +373,7 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
     Log likelihood for centered conditional matrix-variate normal density.
 
     Consider the following partitioned matrix-normal density:
-    
+
     .. math::
         \\begin{bmatrix}
         \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
