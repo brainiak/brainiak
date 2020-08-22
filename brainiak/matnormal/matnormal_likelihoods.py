@@ -311,21 +311,21 @@ def matnorm_logp_conditional_row(x, row_cov, col_cov, cond, cond_cov):
 
     Consider the following partitioned matrix-normal density:
     .. math::
-        \\begin{bmatrix}
-        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
-        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
-        \\end{bmatrix}\\right)
+    \\begin{bmatrix}
+    \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+    \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+    \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+    \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+    \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+    \\end{bmatrix}\\right)
 
     Then we can write the conditional:
     .. math ::
-        \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
-        \\sim \\mathcal{M}\\
-        \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
-        \\Sigma_{k j},\\
-        \\Sigma_{i}\\right)
+    \\mathbf{X}^{\\top} j i \\mid \\mathbf{Y}_{k i}^{\\top}
+    \\sim \\mathcal{M}\\
+    \\mathcal{N}\\left(0, \\Sigma_{j}-\\Sigma_{j k} \\Sigma_{k}^{-1}
+    \\Sigma_{k j},\\
+    \\Sigma_{i}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
@@ -366,19 +366,19 @@ def matnorm_logp_conditional_col(x, row_cov, col_cov, cond, cond_cov):
 
     Consider the following partitioned matrix-normal density:
     .. math::
-        \\begin{bmatrix}
-        \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
-        \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
-        \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
-        \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
-        \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
-        \\end{bmatrix}\\right)
+    \\begin{bmatrix}
+    \\operatorname{vec}\\left[\\mathbf{X}_{i j}\\right] \\
+    \\operatorname{vec}\\left[\\mathbf{Y}_{i k}\\right]
+    \\end{bmatrix} \\sim \\mathcal{N}\\left(0,\\begin{bmatrix}
+    \\Sigma_{j} \\otimes \\Sigma_{i} & \\Sigma_{j k} \\otimes \\Sigma_{i}\\
+    \\Sigma_{k j} \\otimes \\Sigma_{i} & \\Sigma_{k} \\otimes \\Sigma_{i}
+    \\end{bmatrix}\\right)
 
     Then we can write the conditional:
     .. math ::
-        \\mathbf{X}_{i j} \\mid \\mathbf{Y}_{i k} \\sim \\mathcal{M}\\
-        \\mathcal{N}\\left(0, \\Sigma_{i}, \\Sigma_{j}-\\Sigma_{j k}\\
-        \\Sigma_{k}^{-1} \\Sigma_{k j}\\right)
+    \\mathbf{X}_{i j} \\mid \\mathbf{Y}_{i k} \\sim \\mathcal{M}\\
+    \\mathcal{N}\\left(0, \\Sigma_{i}, \\Sigma_{j}-\\Sigma_{j k}\\
+    \\Sigma_{k}^{-1} \\Sigma_{k j}\\right)
 
     This function efficiently computes the conditionals by unpacking some
     info in the covariance classes and then dispatching to
