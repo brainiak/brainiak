@@ -33,7 +33,8 @@ class MatnormalRegression(BaseEstimator):
 
     """
 
-    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B", optCtrl=None):
+    def __init__(self, time_cov, space_cov, optimizer="L-BFGS-B",
+                 optCtrl=None):
 
         self.optMethod = optimizer
         if optCtrl is None:
@@ -90,7 +91,8 @@ class MatnormalRegression(BaseEstimator):
         x0 = pack_trainable_vars(self.train_variables)
 
         opt_results = minimize(
-            fun=val_and_grad, x0=x0, jac=True, method=self.optMethod, **self.optCtrl
+            fun=val_and_grad, x0=x0, jac=True, method=self.optMethod,
+            **self.optCtrl
         )
 
         unpacked_theta = unpack_trainable_vars(

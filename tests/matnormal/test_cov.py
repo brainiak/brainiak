@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy.stats import norm, wishart, invgamma, invwishart
@@ -15,7 +16,6 @@ from brainiak.matnormal.covs import (
     CovUnconstrainedInvCholesky,
     CovKroneckerFactored,
 )
-import pytest
 
 # X is m x n, so A sould be m x p
 
@@ -100,6 +100,10 @@ def test_CovIsotropic(seeded_rng):
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinv_np, cov.solve(eye), rtol=rtol)
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
+
+    # test initialization
+    cov = CovIsotropic(var=0.123, size=3)
+    assert_allclose(np.exp(cov.log_var.numpy()), 0.123)
 
 
 def test_CovDiagonal(seeded_rng):
@@ -273,6 +277,11 @@ def test_CovAR1(seeded_rng):
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
 
+    # test initialization
+    cov = CovAR1(rho=0.3, sigma=1.3, size=3)
+    assert_allclose(np.exp(cov.log_sigma.numpy()), 1.3)
+    assert_allclose((2 * tf.sigmoid(cov.rho_unc) - 1).numpy(), 0.3)
+
 
 def test_CovAR1_scan_onsets(seeded_rng):
 
@@ -284,3 +293,18 @@ def test_CovAR1_scan_onsets(seeded_rng):
     logdet_np, sinv_np, sinvx_np = logdet_sinv_np(X, cov_np)
     assert_allclose(logdet_np, cov.logdet, rtol=rtol)
     assert_allclose(sinvx_np, cov.solve(X_tf), rtol=rtol)
+
+
+def test_raises(seeded_rng):
+
+    with pytest.raises(RuntimeError):
+        CovUnconstrainedCholesky(Sigma=np.eye(3), size=4)
+
+    with pytest.raises(RuntimeError):
+        CovUnconstrainedCholesky()
+
+    with pytest.raises(RuntimeError):
+        CovUnconstrainedInvCholesky(invSigma=np.eye(3), size=4)
+
+    with pytest.raises(RuntimeError):
+        CovUnconstrainedInvCholesky()

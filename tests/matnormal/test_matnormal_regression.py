@@ -157,6 +157,3 @@ def test_matnorm_calibration_raises(seeded_rng):
 
     with pytest.raises(RuntimeError):
         model.calibrate(Y)
-    
-
-
