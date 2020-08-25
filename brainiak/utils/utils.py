@@ -18,7 +18,6 @@ import os.path
 import psutil
 from .fmrisim import generate_stimfunction, _double_gamma_hrf, convolve_hrf
 from scipy.fftpack import fft, ifft
-
 import logging
 
 logger = logging.getLogger(__name__)

@@ -67,7 +67,7 @@ def solve_det_marginal(x, sigma, A, Q):
     logging.log(
         logging.DEBUG,
         f"sigma max={tf.reduce_max(input_tensor=A)}," +
-        "sigma min={tf.reduce_min(input_tensor=A)}",
+        f"sigma min={tf.reduce_min(input_tensor=A)}",
     )
 
     # cholesky of (Qinv + A^T Sigma^{-1} A), which looks sort of like

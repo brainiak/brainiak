@@ -138,7 +138,6 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'typing',
         'tensorflow',
         'tensorflow_probability',
         'joblib',
