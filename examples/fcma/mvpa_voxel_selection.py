@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # create a Searchlight object
     sl = Searchlight(sl_rad=1)
     mvs = MVPAVoxelSelector(data, mask, labels, num_subjs, sl)
-    clf = svm.SVC(kernel='linear', shrinking=False, C=1)
+    clf = svm.SVC(kernel='linear', shrinking=False, C=1, gamma='auto')
     # only rank 0 has meaningful return values
     score_volume, results = mvs.run(clf)
     # this output is just for result checking

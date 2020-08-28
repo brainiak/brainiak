@@ -3,8 +3,14 @@ import numpy as np
 import abc
 import scipy.linalg
 import scipy.sparse
-from tensorflow.contrib.distributions import InverseGamma, WishartCholesky
-from brainiak.matnormal.utils import x_tx, xx_t
+import tensorflow_probability as tfp
+
+from brainiak.matnormal.utils import (
+    x_tx,
+    xx_t,
+    unflatten_cholesky_unique,
+    flatten_cholesky_unique,
+)
 from brainiak.utils.kronecker_solvers import (
     tf_solve_lower_triangular_kron,
     tf_solve_upper_triangular_kron,
@@ -60,7 +66,8 @@ class CovBase(abc.ABC):
 
     @abc.abstractmethod
     def solve(self, X):
-        """Given this covariance and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+            compute :math:`\\Sigma^{-1}x`
         """
         pass
 
@@ -97,7 +104,8 @@ class CovIdentity(CovBase):
         return []
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+            compute :math:`\\Sigma^{-1}x`
         """
         return X
 
@@ -143,8 +151,8 @@ class CovAR1(CovBase):
                 scipy.linalg.toeplitz(np.r_[0, 1, np.zeros(size - 2)]),
                 dtype=tf.float64
             )
-            self.diag_template = tf.constant(np.diag(
-                  np.r_[0, np.ones(size - 2), 0]))
+            self.diag_template = tf.constant(
+                np.diag(np.r_[0, np.ones(size - 2), 0]))
         else:
             self.run_sizes = np.ediff1d(np.r_[scan_onsets, size])
             sub_offdiags = [
@@ -164,18 +172,19 @@ class CovAR1(CovBase):
 
         if sigma is None:
             self.log_sigma = tf.Variable(
-                tf.random.normal([1], dtype=tf.float64), name="sigma"
+                tf.random.normal([1], dtype=tf.float64), name="log_sigma"
             )
         else:
-            self.log_sigma = tf.Variable(np.log(sigma), name="sigma")
+            self.log_sigma = tf.Variable(np.log(sigma), name="log_sigma")
 
         if rho is None:
             self.rho_unc = tf.Variable(
-                tf.random.normal([1], dtype=tf.float64), name="rho"
+                tf.random.normal([1], dtype=tf.float64), name="rho_unc"
             )
         else:
             self.rho_unc = tf.Variable(
-                2 * tf.sigmoid(self.rho_unc) - 1, name="rho")
+                scipy.special.logit(rho / 2 + 0.5), name="rho_unc"
+            )
 
     @property
     def logdet(self):
@@ -183,11 +192,11 @@ class CovAR1(CovBase):
         """
         # first, unconstrain rho and sigma
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
-        sigma = tf.exp(self.log_sigma)
         # now compute logdet
         return tf.reduce_sum(
-            2 * tf.constant(self.run_sizes, dtype=tf.float64) *
-            tf.math.log(sigma)
+            input_tensor=2
+            * tf.constant(self.run_sizes, dtype=tf.float64)
+            * self.log_sigma
             - tf.math.log(1 - tf.square(rho))
         )
 
@@ -203,17 +212,21 @@ class CovAR1(CovBase):
         rho = 2 * tf.sigmoid(self.rho_unc) - 1
         sigma = tf.exp(self.log_sigma)
 
-        return (self._identity_mat - rho * self.offdiag_template +
-                rho ** 2 * self.diag_template) / tf.square(sigma)
+        return (
+            self._identity_mat
+            - rho * self.offdiag_template
+            + rho ** 2 * self.diag_template
+        ) / tf.square(sigma)
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to
-            fit this covariance
+        fit this covariance
         """
         return [self.rho_unc, self.log_sigma]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
         """
         return tf.matmul(self._prec, X)
 
@@ -251,7 +264,8 @@ class CovIsotropic(CovBase):
         return [self.log_var]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
 
         Parameters
         ----------
@@ -285,12 +299,9 @@ class CovDiagonal(CovBase):
             self.logprec = tf.Variable(
                 np.log(1 / diag_var), name="log-precisions")
 
-        self.prec = tf.exp(self.logprec)
-        self.prec_dimaugmented = tf.expand_dims(self.prec, -1)
-
     @property
     def logdet(self):
-        return -tf.reduce_sum(self.logprec)
+        return -tf.reduce_sum(input_tensor=self.logprec)
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
@@ -299,7 +310,8 @@ class CovDiagonal(CovBase):
         return [self.logprec]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x`
 
         Parameters
         ----------
@@ -307,7 +319,9 @@ class CovDiagonal(CovBase):
             Tensor to multiply by inverse of this covariance
 
         """
-        return tf.multiply(self.prec_dimaugmented, X)
+        prec = tf.exp(self.logprec)
+        prec_dimaugmented = tf.expand_dims(prec, -1)
+        return tf.multiply(prec_dimaugmented, X)
 
 
 class CovDiagonalGammaPrior(CovDiagonal):
@@ -317,12 +331,13 @@ class CovDiagonalGammaPrior(CovDiagonal):
     def __init__(self, size, sigma=None, alpha=1.5, beta=1e-10):
         super(CovDiagonalGammaPrior, self).__init__(size, sigma)
 
-        self.ig = InverseGamma(
+        self.ig = tfp.distributions.InverseGamma(
             concentration=tf.constant(alpha, dtype=tf.float64),
-            rate=tf.constant(beta, dtype=tf.float64),
+            scale=tf.constant(beta, dtype=tf.float64),
         )
 
-        self.logp = tf.reduce_sum(self.ig.log_prob(self.prec))
+        self.logp = tf.reduce_sum(
+            input_tensor=self.ig.log_prob(tf.exp(self.logprec)))
 
 
 class CovUnconstrainedCholesky(CovBase):
@@ -332,7 +347,7 @@ class CovUnconstrainedCholesky(CovBase):
     def __init__(self, size=None, Sigma=None):
 
         if size is None and Sigma is None:
-            raise RuntimeError("Must pass either Sigma or size")
+            raise RuntimeError("Must pass either Sigma or size but not both")
 
         if size is not None and Sigma is not None:
             raise RuntimeError("Must pass either Sigma or size but not both")
@@ -342,49 +357,43 @@ class CovUnconstrainedCholesky(CovBase):
 
         super(CovUnconstrainedCholesky, self).__init__(size)
 
+        # number of parameters in the triangular mat
+        npar = (size * (size + 1)) // 2
+
         if Sigma is None:
-            self.L_full = tf.Variable(
-                tf.random.normal([size, size], dtype=tf.float64),
-                name="L_full",
-                dtype="float64",
+            self.L_flat = tf.Variable(
+                tf.random.normal([npar], dtype=tf.float64), name="L_flat"
             )
 
         else:
-            # in order to respect the Sigma we got passed in, we log the diag
-            # which we will later exp. a little ugly but this
-            # is a rare use case
             L = np.linalg.cholesky(Sigma)
-            L[np.diag_indices_from(L)] = np.log(np.diag(L))
-            self.L_full = tf.Variable(L, name="L_full", dtype="float64")
+            self.L_flat = tf.Variable(
+                flatten_cholesky_unique(L), name="L_flat")
 
-        # Zero out triu of L_full to get cholesky L.
-        # This seems dumb but TF is smart enough to set the gradient to zero
-        # for those elements, and the alternative (fill_lower_triangular from
-        # contrib.distributions) is inefficient and recommends not doing the
-        # packing (for now).
-        # Also: to make the parameterization unique we exp the diagonal so
-        # it's positive.
+        self.optimize_vars = [self.L_flat]
 
-        L_indeterminate = tf.linalg.band_part(self.L_full, -1, 0)
-        self.L = tf.matrix_set_diag(
-            L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
-        )
+    @property
+    def L(self):
+        """
+        Cholesky factor of this covariance
+        """
+        return unflatten_cholesky_unique(self.L_flat)
 
     @property
     def logdet(self):
-
-        # We save a log here by using the diag of L_full
-        return 2 * tf.reduce_sum((tf.linalg.diag_part(self.L_full)))
+        return 2 * tf.reduce_sum(input_tensor=tf.math.log(
+                                 tf.linalg.diag_part(self.L)))
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
              this covariance
         """
-        return [self.L_full]
+        return [self.L_flat]
 
     def solve(self, X):
-        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
-        using cholesky solve
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x` (using cholesky solve)
+
         Parameters
         ----------
         X: tf.Tensor
@@ -396,9 +405,9 @@ class CovUnconstrainedCholesky(CovBase):
 
 class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
     """Unconstrained noise covariance parameterized in terms of its
-       cholesky factor.
-       Regularized using the trick from Chung et al. 2015 such that as the
-       covariance approaches singularity, the likelihood goes to 0.
+    cholesky factor. Regularized using the trick from
+    Chung et al. 2015 such that as the covariance approaches
+    singularity, the likelihood goes to 0.
 
     References
     ----------
@@ -410,9 +419,9 @@ class CovUnconstrainedCholeskyWishartReg(CovUnconstrainedCholesky):
 
     def __init__(self, size, Sigma=None):
         super(CovUnconstrainedCholeskyWishartReg, self).__init__(size)
-        self.wishartReg = WishartCholesky(
+        self.wishartReg = tfp.distributions.WishartTriL(
             df=tf.constant(size + 2, dtype=tf.float64),
-            scale=tf.constant(1e5 * np.eye(size), dtype=tf.float64),
+            scale_tril=tf.constant(1e5 * np.eye(size), dtype=tf.float64),
         )
 
         Sigma = xx_t(self.L)
@@ -426,43 +435,57 @@ class CovUnconstrainedInvCholesky(CovBase):
        this saves a cholesky solve on every step of optimization
     """
 
-    def __init__(self, size, invSigma=None):
+    def __init__(self, size=None, invSigma=None):
+
+        if size is None and invSigma is None:
+            raise RuntimeError(
+                "Must pass either invSigma or size but not both")
+
+        if size is not None and invSigma is not None:
+            raise RuntimeError(
+                "Must pass either invSigma or size but not both")
+
+        if invSigma is not None:
+            size = invSigma.shape[0]
+
         super(CovUnconstrainedInvCholesky, self).__init__(size)
 
-        if invSigma is None:
-            self.Linv_full = tf.Variable(
-                tf.random.normal([size, size], dtype=tf.float64),
-                name="Linv_full")
-        else:
-            self.Linv_full = tf.Variable(
-                np.linalg.cholesky(invSigma), name="Linv_full")
+        # number of parameters in the triangular mat
+        npar = (size * (size + 1)) // 2
 
-        # Zero out triu of L_full to get cholesky L.
-        # This seems dumb but TF is smart enough to set the gradient to zero
-        # for those elements, and the alternative (fill_lower_triangular from
-        # contrib.distributions) is inefficient and recommends not doing the
-        # packing (for now).
-        # Also: to make the parameterization unique we log the diagonal so
-        # it's positive.
-        L_indeterminate = tf.linalg.band_part(self.Linv_full, -1, 0)
-        self.Linv = tf.matrix_set_diag(
-            L_indeterminate, tf.exp(tf.linalg.diag_part(L_indeterminate))
-        )
+        if invSigma is None:
+            self.Linv_flat = tf.Variable(
+                tf.random.normal([npar], dtype=tf.float64), name="Linv_flat"
+            )
+
+        else:
+            Linv = np.linalg.cholesky(invSigma)
+            self.Linv_flat = tf.Variable(
+                flatten_cholesky_unique(Linv), name="Linv_flat"
+            )
+
+    @property
+    def Linv(self):
+        """
+        Inverse of Cholesky factor of this covariance
+        """
+        return unflatten_cholesky_unique(self.Linv_flat)
 
     @property
     def logdet(self):
-        return -2 * tf.reduce_sum(tf.math.log(tf.linalg.diag_part(self.Linv)))
+        return -2 * tf.reduce_sum(
+            input_tensor=tf.math.log(tf.linalg.diag_part(self.Linv))
+        )
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized to fit
             this covariance
         """
-        return [self.Linv_full]
+        return [self.Linv_flat]
 
     def solve(self, X):
-        """
-        Given this Sigma and some X, compute :math:`Sigma^{-1} * x` using
-        matmul (since we're parameterized by L_inv)
+        """Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x` (using cholesky solve)
 
         Parameters
         ----------
@@ -510,66 +533,79 @@ class CovKroneckerFactored(CovBase):
         self.nfactors = len(sizes)
         self.size = np.prod(np.array(sizes), dtype=np.int32)
 
+        npar = [(size * (size + 1)) // 2 for size in self.sizes]
         if Sigmas is None:
-            self.L_full = [
+            self.Lflat = [
                 tf.Variable(
-                    tf.random.normal([sizes[i], sizes[i]], dtype=tf.float64),
-                    name="L" + str(i) + "_full",
+                    tf.random.normal([npar[i]], dtype=tf.float64),
+                    name="L" + str(i) + "_flat",
                 )
                 for i in range(self.nfactors)
             ]
         else:
-            self.L_full = [
-                tf.Variable(np.linalg.cholesky(
-                    Sigmas[i]), name="L" + str(i) + "_full")
+            self.Lflat = [
+                tf.Variable(
+                    flatten_cholesky_unique(np.linalg.cholesky(Sigmas[i])),
+                    name="L" + str(i) + "_flat",
+                )
                 for i in range(self.nfactors)
             ]
         self.mask = mask
 
-        # make a list of choleskys
-        L_indeterminate = [tf.linalg.band_part(
-            mat, -1, 0) for mat in self.L_full]
-        self.L = [
-            tf.matrix_set_diag(mat, tf.exp(tf.linalg.diag_part(mat)))
-            for mat in L_indeterminate
-        ]
+    @property
+    def L(self):
+        return [unflatten_cholesky_unique(mat) for mat in self.Lflat]
 
     def get_optimize_vars(self):
         """ Returns a list of tf variables that need to get optimized
             to fit this covariance
         """
-        return self.L_full
+        return self.Lflat
 
     @property
     def logdet(self):
         """ log|Sigma| using the diagonals of the cholesky factors.
         """
         if self.mask is None:
-            n_list = tf.stack([tf.to_double(tf.shape(mat)[0])
-                               for mat in self.L])
-            n_prod = tf.reduce_prod(n_list)
-            logdet = tf.stack(
-                [tf.reduce_sum(tf.math.log(tf.diag_part(mat)))
+            n_list = tf.stack(
+                [tf.cast(tf.shape(input=mat)[0], dtype=tf.float64)
                  for mat in self.L]
             )
-            logdetfinal = tf.reduce_sum((logdet * n_prod) / n_list)
+            n_prod = tf.reduce_prod(input_tensor=n_list)
+            logdet = tf.stack(
+                [
+                    tf.reduce_sum(
+                        input_tensor=tf.math.log(
+                            tf.linalg.tensor_diag_part(mat))
+                    )
+                    for mat in self.L
+                ]
+            )
+            logdetfinal = tf.reduce_sum(
+                input_tensor=(logdet * n_prod) / n_list)
         else:
-            n_list = [tf.shape(mat)[0] for mat in self.L]
+            n_list = [tf.shape(input=mat)[0] for mat in self.L]
             mask_reshaped = tf.reshape(self.mask, n_list)
             logdet = 0.0
             for i in range(self.nfactors):
                 indices = list(range(self.nfactors))
                 indices.remove(i)
-                logdet += tf.math.log(tf.diag_part(self.L[i])) * tf.to_double(
-                    tf.reduce_sum(mask_reshaped, indices)
-                )
-            logdetfinal = tf.reduce_sum(logdet)
+                logdet += (tf.math.log(tf.linalg.tensor_diag_part(self.L[i])) *
+                           tf.cast(
+                            tf.reduce_sum(
+                                input_tensor=mask_reshaped, axis=indices),
+                           dtype=tf.float64,
+                           ))
+            logdetfinal = tf.reduce_sum(input_tensor=logdet)
         return 2.0 * logdetfinal
 
     def solve(self, X):
-        """ Given this Sigma and some X, compute Sigma^{-1} * x using
-        traingular solves with the cholesky factors.
-        Do 2 triangular solves - L L^T x = y as L z = y and L^T x = z
+        """ Given this covariance :math:`\\Sigma` and some input :math:`X`,
+        compute :math:`\\Sigma^{-1}x` using traingular solves with the cholesky
+        factors.
+
+        Specifically, we solve :math:`L L^T x = y` by solving
+        :math:`L z = y` and :math:`L^T x = z`.
 
         Parameters
         ----------

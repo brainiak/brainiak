@@ -1,10 +1,10 @@
-"""The matrix variate normal distribution,
-with conditional and marginal identities
-==========================================================================================
+"""
+Some properties of the matrix-variate normal distribution
+---------------------------------------------------------
 
 .. math::
     \\DeclareMathOperator{\\Tr}{Tr}
-    \\newcommand{\\trp}{{^\\top}} % transpose
+    \\newcommand{\\trp}{^{T}} % transpose
     \\newcommand{\\trace}{\\text{Trace}} % trace
     \\newcommand{\\inv}{^{-1}}
     \\newcommand{\\mb}{\\mathbf{b}}
@@ -37,8 +37,8 @@ The distributional intuition is as follows: if
 :math:`X \\sim \\mathcal{MN}(M,R,C)` then
 :math:`\\mathrm{vec}(X)\\sim\\mathcal{N}(\\mathrm{vec}(M), C \\otimes R)`,
 where :math:`\\mathrm{vec}(\\cdot)` is the vectorization operator and
-:math:`otimes` is the Kronecker product. If we think of X as a matrix of TRs by
-voxels in the fMRI setting, then this model assumes that each voxel has the
+:math:`\\otimes` is the Kronecker product. If we think of X as a matrix of TRs
+by voxels in the fMRI setting, then this model assumes that each voxel has the
 same TR-by-TR covariance structure (represented by the matrix R),
 and each volume has the same spatial covariance (represented by the matrix C).
 This assumption allows us to model both covariances separately.
@@ -50,22 +50,20 @@ The log-likelihood for the matrix-normal density is:
 
 .. math::
     \\log p(X\\mid \\M,\\R, \\C) = -2\\log mn - m \\log|\\C| -  n \\log|\\R| -
-     \\Tr\\left[\\C\\inv(\\X-\\M)\\trp\\R\\inv(\\X-\\M)\\right]
-
+    \\Tr\\left[\\C\\inv(\\X-\\M)\\trp\\R\\inv(\\X-\\M)\\right]
 
 Here :math:`X` and :math:`M` are both :math:`m\\times n` matrices, :math:`\\R`
 is :math:`m\\times m` and :math:`\\C` is :math:`n\\times n`.
 
 The `brainiak.matnormal` package provides structure to infer models that
 can be stated in the matrix-normal notation that are useful for fMRI analysis.
-It provides a few interfaces. `MatnormModelBase` is intended is intended as a
+It provides a few interfaces. `MatnormModelBase` is intended as a
 base class for matrix-variate models. It provides a wrapper for the tensorflow
 optimizer that provides convergence checks based on thresholds on the function
 value and gradient, and simple verbose outputs. It also provides an interface
 for noise covariances (`CovBase`). Any class that follows the interface
 can be used as a noise covariance in any of the matrix normal models. The
-package includes a variety of noise covariances to work with, as well as an
-interface to use any of the kernels in the `GPflow` package.
+package includes a variety of noise covariances to work with.
 
 Matrix normal marginals
 -------------------------
@@ -76,24 +74,24 @@ use lowercase subscripts for sizes to make dimensionalities easier to track.
 Uppercase subscripts for covariances help keep track where they come from.
 
 .. math::
-    \\mathbf{X}_{ij} \\sim \\mathcal{MN}(\\mathbf{A}_{ij},
+    \\mathbf{X}_{ij} &\\sim \\mathcal{MN}(\\mathbf{A}_{ij},
     \\Sigma_{\\mathbf{X}i},\\Sigma_{\\mathbf{X}j})\\\\
-    \\mathbf{Y}_{jk} \\sim \\mathcal{MN}(\\mathbf{B}_{jk},
+    \\mathbf{Y}_{jk} &\\sim \\mathcal{MN}(\\mathbf{B}_{jk},
      \\Sigma_{\\mathbf{Y}j},\\Sigma_{\\mathbf{Y}k})\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{X}_{ij}\\mathbf{Y}_{jk} + \\mathbf{C}_{ik},
       \\Sigma_{\\mathbf{Z}_i}, \\Sigma_{\\mathbf{Z}_k})\\\\
 
 
-We vectorize, and covert to a form we recognize as
-$y \\sim \\mathcal{N}(Mx+b, \\Sigma)$.
+We vectorize, and convert to a form we recognize as
+:math:`y \\sim \\mathcal{N}(Mx+b, \\Sigma)`.
 
 .. math::
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
      \\mathcal{N}(\\vecop(\\X_{ij}\\mathbf{Y}_{jk}+\\mathbf{C}_{ik}),
      \\Sigma_{\\mathbf{Z}_k}\\otimes\\Sigma_{\\mathbf{Z}_i})\\\\
     \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk}
-    \\sim \\mathcal{N}((\\I_k\\otimes\\X_{ij})\\vecop(\\mathbf{Y}_{jk})
+    &\\sim \\mathcal{N}((\\I_k\\otimes\\X_{ij})\\vecop(\\mathbf{Y}_{jk})
      + \\vecop(\\mathbf{C}_{ik}),
      \\Sigma_{\\mathbf{Z}_k}\\otimes\\Sigma_{\\mathbf{Z}_i})
 
@@ -128,15 +126,15 @@ is well-defined but the covariance retains its kronecker structure. So we let
 and transform it back into a matrix normal:
 
 .. math::
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{N}(\\vecop(\\X\\mathbf{B}_{jk}) + \\vecop(\\mathbf{C}_{ik}),
       \\Sigma_{k}\\otimes\\Sigma_{\\mathbf{Z}_i} + \\Sigma_{_k}\\otimes
       \\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp)\\\\
-    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} \\sim
+    \\vecop(\\mathbf{Z}_{ik})\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{N}(\\vecop(\\X\\mathbf{B}_{jk}) + \\vecop(\\mathbf{C}_{ik}),
       \\Sigma_{k}\\otimes(\\Sigma_{\\mathbf{Z}_i}
       +\\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp))\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{X}_{ij} &\\sim
      \\mathcal{MN}(\\X\\mathbf{B}_{jk} + \\mathbf{C}_{ik},
       \\Sigma_{\\mathbf{Z}_i} +\\X\\Sigma_{\\mathbf{Y}_j}\\X\\trp,\\Sigma_{k})
 
@@ -146,17 +144,17 @@ We can do it in the other direction as well, because if
 \\mathcal{MN}(M\\trp, V, U)`:
 
 .. math::
-    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{X}_{ij},\\mathbf{Y}_{jk} &\\sim
     \\mathcal{MN}(\\mathbf{Y}_{jk}\\trp\\mathbf{X}_{ij}\\trp +
     \\mathbf{C}\\trp_{ik}, \\Sigma_{\\mathbf{Z}_k},\\Sigma_{\\mathbf{Z}_i})\\\\
     \\mbox{let } \\Sigma_i :=
      \\Sigma_{\\mathbf{Z}_i}=\\Sigma_{\\mathbf{X}_i} \\\\
     \\cdots\\\\
-    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z\\trp}_{ik}\\mid\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{A}_{jk}\\trp\\mathbf{X}_{ij}\\trp +
       \\mathbf{C}\\trp_{ik}, \\Sigma_{\\mathbf{Z}_k} +
        \\Y\\trp\\Sigma_{\\mathbf{Y}_j}\\Y,\\Sigma_{\\mathbf{Z}_i})\\\\
-    \\mathbf{Z}_{ik}\\mid\\mathbf{Y}_{jk} \\sim
+    \\mathbf{Z}_{ik}\\mid\\mathbf{Y}_{jk} &\\sim
      \\mathcal{MN}(\\mathbf{X}_{ij}\\mathbf{A}_{jk}+
       \\mathbf{C}_{ik},\\Sigma_{\\mathbf{Z}_i},\\Sigma_{\\mathbf{Z}_k} +
        \\Y\\trp\\Sigma_{\\mathbf{Y}_j}\\Y)
@@ -166,7 +164,7 @@ These marginal likelihoods are implemented relatively efficiently in
 `MatnormModelBase.matnorm_logp_marginal_col`.
 
 Partitioned matrix normal conditionals
---------------------------------------------------
+--------------------------------------
 
 Here we extend the multivariate gaussian conditional identity to matrix
 normals. This is used for prediction in some models. Below, we
@@ -223,17 +221,17 @@ Next, we recognize that this multivariate gaussian is equivalent to the
 following matrix variate gaussian:
 
 .. math::
-    \\X_{ij} \\mid \\Y_{ik}\\sim \\mathcal{MN}(&\\A_{ij} +
+    \\X_{ij} \\mid \\Y_{ik}\\sim \\mathcal{MN}(\\A_{ij} +
     (\\Y_{ik}-\\B_{ik})\\Sigma_k\\inv\\Sigma_{kj}, \\Sigma_i,
-     \\Sigma_j-\\Sigma_{jk}\\Sigma_k\\inv\\Sigma_{kj})
+    \\Sigma_j-\\Sigma_{jk}\\Sigma_k\\inv\\Sigma_{kj})
 
 The conditional in the other direction can be written by working through the
 same algebra:
 
 .. math::
-    \\Y_{ik} \\mid \\X_{ij}\\sim \\mathcal{MN}(&\\B_{ik} +(\\X_{ij}-
+    \\Y_{ik} \\mid \\X_{ij}\\sim \\mathcal{MN}(\\B_{ik} +(\\X_{ij}-
     \\A_{ij})\\Sigma_j\\inv\\Sigma_{jk}, \\Sigma_i,
-     \\Sigma_k-\\Sigma_{kj}\\Sigma_j\\inv\\Sigma_{jk})
+    \\Sigma_k-\\Sigma_{kj}\\Sigma_j\\inv\\Sigma_{jk})
 
 Finally, vertical rather than horizontal concatenation (yielding a partitioned
 row rather than column covariance) can be written by recognizing the behavior

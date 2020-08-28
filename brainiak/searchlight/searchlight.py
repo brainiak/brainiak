@@ -522,7 +522,7 @@ class Searchlight:
         return block_fn_result
 
 
-def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
+def _singlenode_searchlight(data, msk, mysl_rad, bcast_var, extra_params):
     """Run searchlight function on block data in parallel.
 
     `extra_params` contains:
@@ -554,7 +554,7 @@ def _singlenode_searchlight(l, msk, mysl_rad, bcast_var, extra_params):
                         or np.count_nonzero(voxel_fn_mask) / voxel_fn_mask.size
                             > min_active_voxels_proportion):
                         outmat[i, j, k] = voxel_fn(
-                            [ll[searchlight_slice] for ll in l],
+                            [subject[searchlight_slice] for subject in data],
                             msk[searchlight_slice] * shape_mask,
                             mysl_rad,
                             bcast_var)
