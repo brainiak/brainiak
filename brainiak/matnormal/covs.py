@@ -633,7 +633,7 @@ class CovScaleMixin:
     def logdet(self):
         """ log|Sigma|
         """
-        return self._baseCov.logdet + tf.log(self._scale) * self._baseCov.size
+        return self._baseCov.logdet + tf.math.log(self._scale) * self._baseCov.size
 
     def solve(self, X):
         """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`

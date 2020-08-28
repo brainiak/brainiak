@@ -31,10 +31,10 @@ class MNSRM_OrthoW(BaseEstimator):
         self.optCtrl, self.optMethod = optCtrl, optMethod
 
         # create a tf session we reuse for this object
-        self.sess = tf.Session()
+        self.sess = tf.compat.v1.Session()
 
     def _eye(self, x):
-        return tf.diag(tf.ones((x), dtype=tf.float64))
+        return tf.linalg.tensor_diag(tf.ones((x), dtype=tf.float64))
 
     def _make_Q_op(self):
         mean = self.X - self.b - tf.matmul(self.w, tf.tile(tf.expand_dims(self.s_prime, 0), [self.n, 1, 1]) )
@@ -42,24 +42,24 @@ class MNSRM_OrthoW(BaseEstimator):
         det_terms = -(self.v*self.n + self.k)*self.time_cov.logdet -\
                      (self.t*self.n)*self.space_cov.logdet -\
                     self.t*self.marg_cov.logdet +\
-                     (self.t*self.v)*tf.reduce_sum(tf.log(self.rhoprec))
+                     (self.t*self.v)*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec))
 
         # used twice below
-        trace_t_t = tf.trace(self.time_cov.Sigma_inv_x(self.tcov_prime))
+        trace_t_t = tf.linalg.trace(self.time_cov.Sigma_inv_x(self.tcov_prime))
 
         # covs don't support batch ops (yet!) (TODO):
-        x_quad_form = -tf.trace(tf.reduce_sum([tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(mean[j])),
+        x_quad_form = -tf.linalg.trace(tf.reduce_sum(input_tensor=[tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(a=mean[j])),
                                                          self.space_cov.Sigma_inv_x(mean[j]))*self.rhoprec[j]
-                                               for j in range(self.n)], 0))
+                                               for j in range(self.n)], axis=0))
 
-        w_quad_form = -tf.trace(tf.reduce_sum([tf.matmul(tf.matmul(self.scov_prime, tf.transpose(self.w[j])),
+        w_quad_form = -tf.linalg.trace(tf.reduce_sum(input_tensor=[tf.matmul(tf.matmul(self.scov_prime, tf.transpose(a=self.w[j])),
                                                          self.space_cov.Sigma_inv_x(self.w[j]))*self.rhoprec[j]
-                                               for j in range(self.n)], 0)) * trace_t_t
+                                               for j in range(self.n)], axis=0)) * trace_t_t
 
-        s_quad_form = -tf.trace(tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(self.s_prime)),
+        s_quad_form = -tf.linalg.trace(tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(a=self.s_prime)),
                                                          self.marg_cov.Sigma_inv_x(self.s_prime)))
 
-        sig_trace_prod = -trace_t_t * tf.trace(self.marg_cov.Sigma_inv_x(self.scov_prime))
+        sig_trace_prod = -trace_t_t * tf.linalg.trace(self.marg_cov.Sigma_inv_x(self.scov_prime))
 
         return 0.5 * (det_terms + x_quad_form + s_quad_form + w_quad_form + sig_trace_prod)#, det_terms, x_quad_form, s_quad_form, w_quad_form, sig_trace_prod
 
@@ -68,33 +68,33 @@ class MNSRM_OrthoW(BaseEstimator):
         tcov_prime = self.time_cov.Sigma
         Xmb = self.X - self.b
 
-        sprec_chol = tf.cholesky(self.marg_cov.Sigma_inv + tf.reduce_sum([tf.matmul(tf.transpose(self.w[j]), self.space_cov.Sigma_inv_x(self.w[j]))*self.rhoprec[j] for j in range(self.n)], 0))
+        sprec_chol = tf.linalg.cholesky(self.marg_cov.Sigma_inv + tf.reduce_sum(input_tensor=[tf.matmul(tf.transpose(a=self.w[j]), self.space_cov.Sigma_inv_x(self.w[j]))*self.rhoprec[j] for j in range(self.n)], axis=0))
 
-        wsig_x = tf.reduce_sum([tf.matmul(tf.transpose(self.w[j]), self.space_cov.Sigma_inv_x(Xmb[j]))*self.rhoprec[j] for j in range(self.n)], 0)
+        wsig_x = tf.reduce_sum(input_tensor=[tf.matmul(tf.transpose(a=self.w[j]), self.space_cov.Sigma_inv_x(Xmb[j]))*self.rhoprec[j] for j in range(self.n)], axis=0)
 
-        scov_prime = tf.cholesky_solve(sprec_chol, self._eye(self.k))
+        scov_prime = tf.linalg.cholesky_solve(sprec_chol, self._eye(self.k))
 
-        s_prime = tf.cholesky_solve(sprec_chol, wsig_x)
+        s_prime = tf.linalg.cholesky_solve(sprec_chol, wsig_x)
 
         return s_prime, scov_prime, tcov_prime
 
     def make_mstep_b_op(self):
 
-        return tf.expand_dims(tf.reduce_sum([self.time_cov.Sigma_inv_x(tf.transpose(self.X[j] -
+        return tf.expand_dims(tf.reduce_sum(input_tensor=[self.time_cov.Sigma_inv_x(tf.transpose(a=self.X[j] -
                                              tf.matmul(self.w[j],self.s_prime)))
-                                             for j in range(self.n)], 1) /
-                              tf.reduce_sum(self.time_cov.Sigma_inv), -1)
+                                             for j in range(self.n)], axis=1) /
+                              tf.reduce_sum(input_tensor=self.time_cov.Sigma_inv), -1)
 
     def make_mstep_rhoprec_op(self):
 
         mean = self.X - self.b - tf.matmul(self.w, tf.tile(tf.expand_dims(self.s_prime,0), [self.n, 1, 1]) )
 
-        mean_trace = tf.stack([tf.trace(tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(mean[j])),
+        mean_trace = tf.stack([tf.linalg.trace(tf.matmul(self.time_cov.Sigma_inv_x(tf.transpose(a=mean[j])),
                                         self.space_cov.Sigma_inv_x(mean[j]))) for j in range(self.n)])
 
-        trace_t_t = tf.trace(self.time_cov.Sigma_inv_x(self.tcov_prime))
+        trace_t_t = tf.linalg.trace(self.time_cov.Sigma_inv_x(self.tcov_prime))
 
-        w_trace = trace_t_t * tf.stack([tf.trace(tf.matmul(tf.matmul(self.scov_prime, tf.transpose(self.w[j])),
+        w_trace = trace_t_t * tf.stack([tf.linalg.trace(tf.matmul(tf.matmul(self.scov_prime, tf.transpose(a=self.w[j])),
                                         self.space_cov.Sigma_inv_x(self.w[j]))) for j in range(self.n)])
 
         rho_hat_unscaled = mean_trace + w_trace 
@@ -174,7 +174,7 @@ class MNSRM_OrthoW(BaseEstimator):
         for i in range(self.n):
             w_problems[i].backend._session = self.sess
 
-        self.sess.run(tf.global_variables_initializer())
+        self.sess.run(tf.compat.v1.global_variables_initializer())
 
         for em_iter in range(n_iter):
             q_start = q_op.eval(session=self.sess)
