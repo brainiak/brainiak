@@ -25,4 +25,4 @@ def test_cholesky_uncholesky(seeded_rng):
     unflatchol = unflatten_cholesky_unique(flatchol)
     npt.assert_equal(unflatchol.shape, [3, 3])
     reflatchol = flatten_cholesky_unique(unflatchol)
-    npt.assert_equal(flatchol, reflatchol)
+    npt.assert_allclose(flatchol, reflatchol)
