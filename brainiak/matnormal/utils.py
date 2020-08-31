@@ -66,8 +66,8 @@ def flatten_cholesky_unique(L):
     into a vector, and logs diagonal to make parameterization
     unique. Inverse of unflatten_cholesky_unique.
     """
-    L[np.diag_indices_from(L)] = np.log(np.diag(L))
-    L_flat = tfp.math.fill_triangular_inverse(L)
+    L_tf = tf.linalg.set_diag(L, tf.math.log(tf.linalg.diag_part(L)))
+    L_flat = tfp.math.fill_triangular_inverse(L_tf)
     return L_flat
 
 
