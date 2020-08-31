@@ -19,7 +19,7 @@ analyses (e.g., intersubject funtional correlations; ISFC), as well
 as statistical tests designed specifically for ISC analyses.
 
 The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
-[Simony2016]_, and [Chen2016]_.
+[Simony2016]_, [Chen2016]_, and [Nastase2019]_.
 
 .. [Chen2016] "Untangling the relatedness among correlations, part I:
    nonparametric approaches to inter-subject correlation analysis at the
@@ -41,6 +41,11 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
    during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
    Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
    7, 12141. https://doi.org/10.1038/ncomms12141
+
+.. [Nastase2019] "Measuring shared responses across subjects using
+   intersubject correlation." S. A. Nastase, V. Gazzola, U. Hasson,
+   C. Keysers, 2019, Social Cognitive and Affective Neuroscience, 14,
+   667-685. https://doi.org/10.1093/scan/nsz037
 """
 
 # Authors: Sam Nastase, Christopher Baldassano, Qihong Lu,
@@ -405,7 +410,7 @@ def _check_isc_input(iscs, pairwise=False):
     # Check if incoming pairwise matrix is vectorized triangle
     if pairwise:
         try:
-            test_square = squareform(iscs[:, 0])
+            test_square = squareform(iscs[:, 0], force='tomatrix')
             n_subjects = test_square.shape[0]
         except ValueError:
             raise ValueError("For pairwise input, ISCs must be the "
@@ -751,12 +756,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
             for voxel_iscs in iscs.T:
 
                 # Square the triangle and fill diagonal
-                voxel_iscs = squareform(voxel_iscs)
+                voxel_iscs = squareform(voxel_iscs, force='tomatrix')
                 np.fill_diagonal(voxel_iscs, 1)
-
-                # Check that pairwise ISC matrix is square and symmetric
-                assert voxel_iscs.shape[0] == voxel_iscs.shape[1]
-                assert np.allclose(voxel_iscs, voxel_iscs.T)
 
                 # Shuffle square correlation matrix and get triangle
                 voxel_sample = voxel_iscs[subject_sample, :][:, subject_sample]
