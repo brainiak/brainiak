@@ -964,6 +964,7 @@ def array_correlation(x, y, axis=0):
     r : float or 1D ndarray
         Pearson correlation values for input variables
     """
+    
     # Accommodate array-like inputs
     if not isinstance(x, np.ndarray):
         x = np.asarray(x)
