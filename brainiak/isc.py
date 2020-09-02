@@ -1067,8 +1067,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     leave-one-out approach, ISC values for two groups should be stacked
     along first dimension (vertically) and a group_assignment list (or 1d
     array) of same length as the number of subjects should be provided to
-    indicate groups. In the pairwise approach, pairwise ISCs should be
-    computed the across both groups at once; i.e. the pairwise ISC matrix
+    indicate groups. In the pairwise approach, pairwise ISCs should have
+    been computed across both groups at once; i.e. the pairwise ISC matrix
     should be shaped N x N where N is the total number of subjects across
     both groups, and should contain between-group ISC pairs. Pairwise ISC
     input should correspond to the vectorized upper triangle of the square
