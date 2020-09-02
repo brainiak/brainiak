@@ -1,5 +1,5 @@
 {% set conda_package_nonexistent = (
-    "pymanopt","tensorflow_probability",
+    "pymanopt","tensorflow","tensorflow_probability",
 ) %}
 {% set data = load_setup_py_data() %}
 
