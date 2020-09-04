@@ -714,8 +714,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on bootstrap hypothesis test
 
-    distribution : ndarray, bootstraps by voxels (optional)
-        Bootstrap distribution if return_bootstrap=True
+    distribution : ndarray, n_bootstraps by voxels
+        Bootstrap distribution
 
     """
 
@@ -1124,8 +1124,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     p : float, p-value
         p-value based on permutation test
 
-    distribution : ndarray, permutations by voxels (optional)
-        Permutation distribution if return_bootstrap=True
+    distribution : ndarray, n_permutations by voxels
+        Permutation distribution
     """
 
     # Standardize structure of input data
@@ -1323,8 +1323,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on time-shifting randomization test
 
-    distribution : ndarray, time-shifts by voxels (optional)
-        Time-shifted null distribution if return_bootstrap=True
+    distribution : ndarray, n_shifts by voxels
+        Time-shifted null distribution
     """
 
     # Check response time series input format
@@ -1349,7 +1349,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         else:
             prng = np.random.RandomState(random_state)
 
-        # Get a random set of shifts based on number of TRs,
+        # Get a random set of shifts based on number of TRs
         shifts = prng.choice(np.arange(n_TRs), size=n_subjects,
                              replace=True)
 
@@ -1477,8 +1477,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on time-shifting randomization test
 
-    distribution : ndarray, time-shifts by voxels (optional)
-        Time-shifted null distribution if return_bootstrap=True
+    distribution : ndarray, n_shifts by voxels
+        Phase-shifted null distribution
     """
 
     # Check response time series input format
