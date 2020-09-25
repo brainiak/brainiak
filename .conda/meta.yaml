@@ -1,6 +1,11 @@
 {% set conda_package_nonexistent = (
     "pymanopt","tensorflow","tensorflow_probability",
 ) %}
+# Pin until new release
+# https://github.com/tensorflow/probability/commit/7601ef6d6aee014a5566937858974177e4f53122
+{% set tensorflow_probability_requirements = (
+    "cloudpickle ==1.3",
+) %}
 {% set data = load_setup_py_data() %}
 
 package:
@@ -42,17 +47,17 @@ requirements:
         if req not in conda_package_nonexistent -%}
     - {{req}}
     {% endfor %}
-    {% for req in data.get('install_requires', [])
-        if req not in conda_package_nonexistent -%}
-    - {{req}}
-    {% endfor %}
 
   run:
     - python
     - mpich
     - openmp
+    - tensorflow-base
     {% for req in data.get('install_requires', [])
         if req not in conda_package_nonexistent -%}
+    - {{req}}
+    {% endfor %}
+    {% for req in tensorflow_probability_requirements %}
     - {{req}}
     {% endfor %}
 
