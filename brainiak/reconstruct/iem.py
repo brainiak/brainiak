@@ -538,7 +538,7 @@ class InvertedEncoding2D(BaseEstimator):
     """
 
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
-                 channels=None):
+                 chan_xlim, chan_ylim, channels=None):
                  # n_channels, stim_xlim, stim_ylim, stimulus_resolution,
                  # chan_xlim, chan_ylim, channel_exp=5,
                  # channel_arrangement='square'):
@@ -555,7 +555,7 @@ class InvertedEncoding2D(BaseEstimator):
                             np.linspace(stim_ylim[0], stim_ylim[1],
                                         stimulus_resolution[1])]
         self.channels = channels
-        # self.channel_limits = [chan_xlim, chan_ylim]
+        self.channel_limits = [chan_xlim, chan_ylim]
         self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
         # self.n_channels = n_channels
         # self.channel_exp = channel_exp
