@@ -15,7 +15,7 @@
 import pytest
 import numpy as np
 import logging
-from brainiak.reconstruct.iem import InvertedEncoding
+from brainiak.reconstruct.iem import InvertedEncoding1D
 from brainiak.utils.fmrisim import generate_1d_gaussian_rfs, \
     generate_1d_rf_responses
 from scipy.stats import circmean
@@ -25,56 +25,56 @@ logger = logging.getLogger(__name__)
 
 # Simple test: can an instance be instantiated?
 def test_can_instantiate():
-    s = InvertedEncoding()
-    assert s, "Invalid InvertedEncoding instance"
+    s = InvertedEncoding1D()
+    assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Simple test for checking range values.
 def test_instantiate_improper_range():
     with pytest.raises(ValueError):
-        s = InvertedEncoding(6, 5, 'halfcircular', range_start=20,
-                             range_stop=0)
-        assert s, "Invalid InvertedEncoding instance"
+        s = InvertedEncoding1D(6, 5, 'halfcircular', range_start=20,
+                               range_stop=0)
+        assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Test to check stimulus resolution input
 def test_stimulus_resolution():
-    s = InvertedEncoding(6, 5, stimulus_resolution=360)
+    s = InvertedEncoding1D(6, 5, stimulus_resolution=360)
     assert s.stim_res == 360
 
 
 # Provide invalid data so that channels cannot be created.
 def test_cannot_instantiate_channels():
     with pytest.raises(ValueError):
-        s = InvertedEncoding(n_channels=0)
-        assert s, "Invalid InvertedEncoding instance"
+        s = InvertedEncoding1D(n_channels=0)
+        assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Provide invalid stimulus mode
 def test_stimulus_mode():
     with pytest.raises(ValueError):
-        s = InvertedEncoding(6, 5, 'random')
-        assert s, "Invalid InvertedEncoding instance"
+        s = InvertedEncoding1D(6, 5, 'random')
+        assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Provide mismatching range and stimulus_mode input
 def test_range_stimulus_mode_circ():
     with pytest.raises(ValueError):
-        s = InvertedEncoding(6, 5, 'circular', 0, 180)
-        assert s, "Invalid InvertedEncoding instance"
+        s = InvertedEncoding1D(6, 5, 'circular', 0, 180)
+        assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Provide mismatching range & stimulus mode, with half circular
 def test_range_stimulus_mode_halfcirc():
     with pytest.raises(ValueError):
-        s = InvertedEncoding(6, 5, 'halfcircular', -10, 350)
-        assert s, "Invalid InvertedEncoding instance"
+        s = InvertedEncoding1D(6, 5, 'halfcircular', -10, 350)
+        assert s, "Invalid InvertedEncoding1D instance"
 
 
 # Test for n_observations < n_channels
 def test_data_amount():
     x = np.random.rand(5, 1000)
-    s = InvertedEncoding()
+    s = InvertedEncoding1D()
     with pytest.raises(ValueError):
         s.fit(x, np.random.rand(5))
         assert s, "Invalid data"
@@ -83,7 +83,7 @@ def test_data_amount():
 # Test number of data dimensions
 def test_data_dimensions():
     x = np.random.rand(5, 10, 2)
-    s = InvertedEncoding()
+    s = InvertedEncoding1D()
     with pytest.raises(ValueError):
         s.fit(x, np.random.rand(5))
 
@@ -102,13 +102,13 @@ X2 = generate_1d_rf_responses(voxel_rfs, y, 180, (0, 179),
 
 # Test if valid data can be fit.
 def test_can_fit_data():
-    Invt_model = InvertedEncoding()
+    Invt_model = InvertedEncoding1D()
     Invt_model.fit(X, y)
 
 
 # Test if valid data can be fit in circular space.
 def test_can_fit_circular_space():
-    s = InvertedEncoding(6, 5, 'circular', range_stop=360)
+    s = InvertedEncoding1D(6, 5, 'circular', range_stop=360)
     s.fit(X, y)
 
 
@@ -116,12 +116,12 @@ def test_can_fit_circular_space():
 # algorithm.
 def test_cannot_fit_data():
     with pytest.raises(ValueError):
-        Invt_model = InvertedEncoding()
+        Invt_model = InvertedEncoding1D()
         Invt_model.fit(X.transpose(), y)
 
 
 def test_ill_conditioned_train_data():
-    Invt_model = InvertedEncoding()
+    Invt_model = InvertedEncoding1D()
     with pytest.raises(ValueError):
         X = np.array([[0, 0, 0], [1, 1, 1]])
         Invt_model.fit(X, np.array([0, 0, 0]))
@@ -132,20 +132,20 @@ def test_extra_data_dimensions():
     with pytest.raises(ValueError):
         n, dim1, dim2 = 300, 3, 3
         X = np.random.rand(n//3, dim1, dim2)
-        Invt_model = InvertedEncoding()
+        Invt_model = InvertedEncoding1D()
         Invt_model.fit(X, y)
 
 
 # Test case when # of observations are not matched btwn data & labels
 def test_mismatched_observations():
     with pytest.raises(ValueError):
-        Invt_model = InvertedEncoding()
+        Invt_model = InvertedEncoding1D()
         Invt_model.fit(X, y[:-50])
 
 
 # Test prediction capability from valid (fabricated) data
 def test_can_predict_from_data():
-    Invt_model = InvertedEncoding()
+    Invt_model = InvertedEncoding1D()
     Invt_model.fit(X, y)
     m_reconstruct = []
     for j in np.arange(dim):
@@ -157,7 +157,7 @@ def test_can_predict_from_data():
 
 # Show that prediction is invalid when input data is wrong size
 def test_cannot_predict_from_data():
-    Invt_model = InvertedEncoding()
+    Invt_model = InvertedEncoding1D()
     Invt_model.fit(X, y)
     with pytest.raises(ValueError):
         _ = Invt_model.predict(X2[0:n_, :].transpose())
@@ -165,7 +165,7 @@ def test_cannot_predict_from_data():
 
 # Show proper scoring function with valid (fabricated) test data
 def test_can_score():
-    Invt_model = InvertedEncoding()
+    Invt_model = InvertedEncoding1D()
     Invt_model.fit(X, y)
     score = Invt_model.score(X2, y)
     logger.info('Scores: ' + str(score))
@@ -174,7 +174,7 @@ def test_can_score():
 # Test scoring with invalid data formatting
 def test_cannot_score():
     with pytest.raises(ValueError):
-        Invt_model = InvertedEncoding()
+        Invt_model = InvertedEncoding1D()
         Invt_model.fit(X, y)
         score = Invt_model.score(X2.transpose(), y)
         logger.info('Scores: ' + str(score))
@@ -182,16 +182,16 @@ def test_cannot_score():
 
 # Test stimulus resolution that is not even multiple
 def test_stimulus_resolution_odd():
-    Invt_model = InvertedEncoding(stimulus_resolution=59)
+    Invt_model = InvertedEncoding1D(stimulus_resolution=59)
     with pytest.raises(NotImplementedError):
         Invt_model.fit(X, y)
 
 
 # Test stimulus masking
 def test_stimulus_mask():
-    Invt_model = InvertedEncoding(6, 5, range_start=-10,
-                                  range_stop=170,
-                                  stimulus_resolution=60)
+    Invt_model = InvertedEncoding1D(6, 5, range_start=-10,
+                                    range_stop=170,
+                                    stimulus_resolution=60)
     chans, _ = Invt_model._define_channels()
     Invt_model.set_params(channels_=chans)
     with pytest.warns(RuntimeWarning):
@@ -202,9 +202,9 @@ def test_stimulus_mask():
 
 # Test stimulus masking with different range
 def test_stimulus_mask_shift_positive():
-    Invt_model = InvertedEncoding(6, 5, range_start=10,
-                                  range_stop=190,
-                                  stimulus_resolution=60)
+    Invt_model = InvertedEncoding1D(6, 5, range_start=10,
+                                    range_stop=190,
+                                    stimulus_resolution=60)
     chans, _ = Invt_model._define_channels()
     Invt_model.set_params(channels_=chans)
     with pytest.warns(RuntimeWarning):
@@ -215,7 +215,7 @@ def test_stimulus_mask_shift_positive():
 
 # Test ability to get model parameters from object
 def test_can_get_params():
-    s = InvertedEncoding()
+    s = InvertedEncoding1D()
     param_out = s.get_params()
     logger.info('Returned Parameters: ' +
                 str(param_out.get('n_channels')) +
@@ -225,7 +225,7 @@ def test_can_get_params():
 
 # Test ability to set model parameters of an object instance
 def test_can_set_params():
-    s = InvertedEncoding()
+    s = InvertedEncoding1D()
     s.set_params(n_channels=10,
                  stimulus_mode='circular',
                  range_start=-90,
