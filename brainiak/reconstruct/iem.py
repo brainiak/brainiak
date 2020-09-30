@@ -722,7 +722,7 @@ class InvertedEncoding2D(BaseEstimator):
                 (np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5))
         return cossz
 
-    def define_basis_functions_sqgrid(self, nx, ny, channel_size=None):
+    def define_basis_functions_sqgrid(self, nchannels, channel_size=None):
         """Define basis functions (aka channels) arrange in a square grid.
         Sets the self.channels parameter.
 
@@ -738,9 +738,12 @@ class InvertedEncoding2D(BaseEstimator):
             channel_centers: numpy array of the centers of each channel
         """
         chan_xcenters = np.linspace(self.channel_limits[0][0],
-                                    self.channel_limits[0][1], nx)
+                                    self.channel_limits[0][1], nchannels[0])
         chan_ycenters = np.linspace(self.channel_limits[1][0],
-                                    self.channel_limits[1][1], ny)
+                                    self.channel_limits[1][1], nchannels[1])
+        cx, cy = np.meshgrid(chan_xcenters, chan_ycenters)
+        cx = cx.reshape(-1, 1)
+        cy = cy.reshape(-1, 1)
         if channel_size is None:
             # To get even coverage, setting the channel FWHM to ~1.1x the
             # spacing between the channels works. (See Sprague et al. 2013
@@ -750,11 +753,11 @@ class InvertedEncoding2D(BaseEstimator):
         # define exponentiated function
         self.channels = np.asarray(
             self._make_2d_cosine(self.xp.reshape(-1, 1), self.yp.reshape(-1, 1),
-                                 chan_xcenters, chan_ycenters,
-                                 cos_width))
-        self.n_channels = self.channels.size
+                                 cx, cy,
+                                 cos_width)).squeeze()
+        self.n_channels = self.channels.shape[0]
 
-        return self.channels, np.vstack([chan_xcenters, chan_ycenters])
+        return self.channels, np.hstack([cx, cy])
 
     def define_basis_functions_trigrid(self, grid_radius, channel_size=None):
         """Define basis functions (aka channels) arranged in a triangular grid.
@@ -779,7 +782,6 @@ class InvertedEncoding2D(BaseEstimator):
                 yy = np.ones((xx.size, 1)) * y
             trigrid = np.vstack(
                 (trigrid, np.hstack((xx, yy))))
-        # TODO: self.channels only has 2 dimensions (my tests show 3)
 
         if channel_size is None:
             # To get even coverage, setting the channel FWHM to ~1.1x the
@@ -790,9 +792,9 @@ class InvertedEncoding2D(BaseEstimator):
         result = np.asarray(self._make_2d_cosine(self.xp.reshape(-1, 1),
                                                  self.yp.reshape(-1, 1),
                                                  trigrid[:, 0], trigrid[:, 1],
-                                                 cos_width))
+                                                 cos_width)).squeeze()
         self.channels = result
-        self.n_channels = result.size
+        self.n_channels = result.shape[0]
 
         return self.channels, trigrid
 
@@ -818,9 +820,8 @@ class InvertedEncoding2D(BaseEstimator):
             inds = np.where(rad_vals < self.stim_radius_px)[0]
             stimulus_mask[inds, i] = 1
 
-        # TODO: make sure C is the correct dimensionality. Does it need to be transposed?
-#        C = stimulus_mask @ self.channels.squeeze().transpose()
         C = self.channels.squeeze() @ stimulus_mask
+        C = C.transpose()
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
             warnings.warn("Stimulus matrix is {}, not full rank. May cause "
