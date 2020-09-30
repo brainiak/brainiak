@@ -686,7 +686,7 @@ class InvertedEncoding2D(BaseEstimator):
         """Defines a 2D exponentiated cosine (isometric, e.g. constant width in x & y)
         for use as a basis function. Function goes to zero at the given size constant s.
         That is, the function is given by
-            if r < s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
+            if r <= s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
             else:       0
         where r is the Euclidean distance from the center of the function. This will
         yield a Gaussian-like function, centered at (x_center, y_center).
@@ -705,24 +705,24 @@ class InvertedEncoding2D(BaseEstimator):
         cos_functions: basis functions defined in the 2D stimulus space. returns a
             [nchannels x npixels] matrix.
         """
-        cos_functions = np.zeros(len(x_center), len(x))
+        cos_functions = np.zeros((len(x_center), len(x)))
         for i in range(len(x_center)):
-            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2)
+            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2).squeeze()
             qq = (myr <= s) * 1
             zp = ((0.5 * (1 + np.cos(myr * np.pi / s))) ** self.channel_exp)
             cos_functions[i, :] = zp * qq
         return cos_functions
 
-    #def _calc_2d_cosine_fwhm(self, size_constant):
-    #    fwhm = size_constant \
-    #           * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
-    #    return fwhm
+    def _2d_cosine_sz_to_fwhm(self, size_constant):
+       fwhm = 2 * size_constant \
+              * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
+       return fwhm
 
-    def _2d_cosine_fwhm_to_cossz(self, fwhm):
+    def _2d_cosine_fwhm_to_sz(self, fwhm):
         """For an exponentiated 2D cosine basis function, converts the full-width
         half-maximum (FWHM) of that function to the function's size constant.
         The size constant is the variable s in the function below:
-            if r < s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
+            if r <= s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
             else:       0
         where r is the Euclidean distance from the center of the function.
 
@@ -732,11 +732,11 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-        cossz: the size constant of the exponentiated cosine
+        sz: the size constant of the exponentiated cosine
         """
-        cossz = (np.pi * fwhm) / \
+        sz = (0.5 * np.pi * fwhm) / \
                 (np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5))
-        return cossz
+        return sz
 
     def define_basis_functions_sqgrid(self, nchannels, channel_size=None):
         """Define basis functions (aka channels) arrange in a square grid.
@@ -764,7 +764,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels works. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3).
             channel_size = 1.1*(chan_xcenters[1] - chan_xcenters[0])
-        cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
+        cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         # define exponentiated function
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
                                              self.yp.reshape(-1, 1), cx, cy, cos_width)
@@ -801,7 +801,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels works. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3).
             channel_size = 1.1*x_dist
-        cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
+        cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
                                              self.yp.reshape(-1, 1), trigrid[:, 0],
                                              trigrid[:, 1], cos_width)
