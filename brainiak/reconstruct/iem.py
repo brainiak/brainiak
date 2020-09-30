@@ -540,11 +540,8 @@ class InvertedEncoding2D(BaseEstimator):
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius=None,
                  chan_xlim=[None, None], chan_ylim=[None, None], channels=None,
                  channel_exp=5):
-        # Automatically expand n_channels or stimulus_resolution if only one
-        # value is given. This will create a square basis set or square field
-        # of view (FOV) for the reconstruction.
-        # if not isinstance(n_channels, list):  # make basis set square
-        #     n_channels = [n_channels, n_channels]
+        # Automatically expand stimulus_resolution if only one value is given. This
+        # will create a square field  of view (FOV) for the reconstruction.
         if not isinstance(stimulus_resolution, list):  # make FOV square
             stimulus_resolution = [stimulus_resolution, stimulus_resolution]
         self.stim_fov = [stim_xlim, stim_ylim]
@@ -555,19 +552,24 @@ class InvertedEncoding2D(BaseEstimator):
         self.stim_radius_px = stim_radius
         self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
         self.channels = channels
+        if self.channels is None:
+            self.n_channels = None
+        else:
+            self.n_channels = self.channels.shape[0]
         self.channel_limits = [chan_xlim, chan_ylim]
         self.channel_exp = channel_exp
-        # self.n_channels = n_channels
-        # self.channel_exp = channel_exp
-        # self.channel_arrangement = channel_arrangement
-    #     self._check_params()
-    #
-    # def _check_params(self):
-    #     if any(self.n_channels < 2):
-    #         raise ValueError("Insufficient number of channels.")
-    #     if not np.isin(self.stimulus_mode, ['circular', 'halfcircular']):
-    #         raise ValueError("Stimulus mode must be one of these: "
-    #                          "'circular', 'halfcircular'")
+
+    def _check_params(self):
+        if self.n_channels and self.channels and \
+                (self.n_channels != self.channels.shape[0]):
+            raise ValueError("Number of channels {} does not match the defined channels"
+                             ": {}".format(self.n_channels, self.channels.shape[0]))
+        if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
+            any(self.channels[:, 0] < self.channel_limits[0][0]) or \
+            any(self.channels[:, 1] > self.channel_limits[1][1]) or \
+            any(self.channels[:, 1] < self.channel_limits[1][0]):
+            raise ValueError("Channel limits and values defined in self.channels do not"
+                             "match each other.")
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -595,16 +597,10 @@ class InvertedEncoding2D(BaseEstimator):
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
         if len(shape_data) != 2:
-            raise ValueError("Data matrix has too many or too few "
-                             "dimensions.")
+            raise ValueError("Data matrix has too many or too few dimensions.")
         else:
             if shape_data[0] != shape_labels[0]:
                 raise ValueError("Mismatched data samples and label samples")
-
-        # # Define the channels (or basis set)
-        # self.channels_, channel_centers = self._define_channels()
-        # logger.info("Defined channels centered at {} degrees.".format(
-        #     np.rad2deg(channel_centers)))
         # Create a matrix of channel activations for every observation.
         # (i.e., C1 in Brouwer & Heeger 2009.)
         C = self._define_trial_activations(y)
@@ -669,12 +665,12 @@ class InvertedEncoding2D(BaseEstimator):
         params: parameter of this object
         """
         return {"n_channels": self.n_channels, "channel_exp": self.channel_exp,
-                "stimulus_mode": self.stimulus_mode,
-                "range_start": self.range_start, "range_stop": self.range_stop,
-                "channel_domain": self.channel_domain,
-                "stim_res": self.stim_res}
+                "stim_fov": self.stim_fov, "stim_pixels": self.stim_pixels,
+                "stim_radius_px": self.stim_radius_px, "xp": self.xp, "yp": self.yp,
+                "channels": self.channels, "channel_limits": self.channel_limits}
 
     def set_params(self, **parameters):
+        # TODO: update with real params
         """Sets model parameters after initialization.
 
         Parameters
@@ -683,10 +679,6 @@ class InvertedEncoding2D(BaseEstimator):
         """
         for parameter, value in parameters.items():
             setattr(self, parameter, value)
-
-        setattr(self, "channel_domain",
-                np.linspace(self.range_start, self.range_stop - 1,
-                            self.channel_density))
         self._check_params()
         return self
 
@@ -886,7 +878,7 @@ class InvertedEncoding2D(BaseEstimator):
         return pred_response
 
     def _predict_features(self, X):
-        """Predicts feature value (e.g. direction) from data in X.
+        """Predicts feature value from data in X.
         Takes the maximum of the 'reconstructed' or predicted response function.
 
         Parameters
