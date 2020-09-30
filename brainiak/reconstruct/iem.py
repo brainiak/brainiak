@@ -538,7 +538,7 @@ class InvertedEncoding2D(BaseEstimator):
     """
 
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius,
-                 chan_xlim, chan_ylim, channels=None):
+                 chan_xlim, chan_ylim, channels=None, channel_exp=5):
                  # n_channels, stim_xlim, stim_ylim, stimulus_resolution,
                  # chan_xlim, chan_ylim, channel_exp=5,
                  # channel_arrangement='square'):
@@ -555,9 +555,10 @@ class InvertedEncoding2D(BaseEstimator):
                             np.linspace(stim_ylim[0], stim_ylim[1],
                                         stimulus_resolution[1])]
         self.stim_radius_px = stim_radius
+        self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
         self.channels = channels
         self.channel_limits = [chan_xlim, chan_ylim]
-        self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
+        self.channel_exp = channel_exp
         # self.n_channels = n_channels
         # self.channel_exp = channel_exp
         # self.channel_arrangement = channel_arrangement
@@ -745,7 +746,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels works. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3).
             channel_size = 1.1*(chan_xcenters[1] - chan_xcenters[0])
-        cos_width = self._2d_cosine_fwhm_to_radians(channel_size)
+        cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
         # define exponentiated function
         self.channels = np.asarray(
             self._make_2d_cosine(self.xp.reshape(-1, 1), self.yp.reshape(-1, 1),
@@ -753,9 +754,9 @@ class InvertedEncoding2D(BaseEstimator):
                                  cos_width))
         self.n_channels = self.channels.size
 
-        return self.channels
+        return self.channels, np.vstack([chan_xcenters, chan_ycenters])
 
-    def define_basis_functions_trigrid(self, channel_size, grid_radius):
+    def define_basis_functions_trigrid(self, grid_radius, channel_size=None):
         """Define basis functions (aka channels) arranged in a triangular grid.
 
         Returns
@@ -784,7 +785,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels works. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3).
             channel_size = 1.1*x_dist
-        cos_width = self._2d_cosine_fwhm_to_radians(channel_size)
+        cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
         result = np.asarray(self._make_2d_cosine(self.xp.reshape(-1, 1),
                                                  self.yp.reshape(-1, 1),
                                                  trigrid[:, 0], trigrid[:, 1],
@@ -792,7 +793,7 @@ class InvertedEncoding2D(BaseEstimator):
         self.channels = result
         self.n_channels = result.size
 
-        return self.channels
+        return self.channels, trigrid
 
     def _define_trial_activations(self, stim_centers):
         """Defines a numpy matrix of predicted channel responses for
