@@ -537,11 +537,9 @@ class InvertedEncoding2D(BaseEstimator):
         data
     """
 
-    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius,
-                 chan_xlim, chan_ylim, channels=None, channel_exp=5):
-                 # n_channels, stim_xlim, stim_ylim, stimulus_resolution,
-                 # chan_xlim, chan_ylim, channel_exp=5,
-                 # channel_arrangement='square'):
+    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius=None,
+                 chan_xlim=[None, None], chan_ylim=[None, None], channels=None,
+                 channel_exp=5):
         # Automatically expand n_channels or stimulus_resolution if only one
         # value is given. This will create a square basis set or square field
         # of view (FOV) for the reconstruction.
@@ -649,7 +647,7 @@ class InvertedEncoding2D(BaseEstimator):
         ----------
             X: numpy matrix of voxel activation from new data
                 [observations,voxels]
-            y: numpy array of responses. [observations]
+            y: numpy array of stimulus features. [observations, 2]
 
         Returns
         -------
@@ -657,15 +655,8 @@ class InvertedEncoding2D(BaseEstimator):
                 feature and predicted features.
         """
         pred_features = self.predict(X)
-        if self.stimulus_mode == 'halfcircular':
-            # multiply features by 2. otherwise doesn't wrap properly
-            pred_features = pred_features * 2
-            y = y * 2
-        # TODO: replace this with a version for 2D space
-        ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features)) ** 2).sum()
-        sstot = (circ_dist(np.deg2rad(y),
-                           np.ones(y.size) * scipy.stats.circmean(
-                               np.deg2rad(y))) ** 2).sum()
+        ssres = (pred_features - y) ** 2
+        sstot = (y - np.mean(y)) ** 2
         score_value = (1 - ssres / sstot)
 
         return score_value
@@ -700,24 +691,51 @@ class InvertedEncoding2D(BaseEstimator):
         return self
 
     def _make_2d_cosine(self, x, y, x_center, y_center, r):
-        # x, y is a meshgrid of x, y values at which to compute the 2d cos
-        # x_center, y_center is the center of the function
-        # r is the distance from center to 0 (T/2) - function will go from z = 0 to
-        # 0 across 2*r at widest point
-        z = [None] * len(x_center)
+        """Defines a 2D exponentiated cosine (isometric, e.g. constant width in x & y)
+        for use as a basis function. Function goes to zero at the given size constant r.
+        # TODO: put function here
+
+        Parameters
+        ----------
+        x: x-coordinates of the stimulus space, [npixels, 1] matrix
+        y: y-coordinates of the stimulus space, [npixels, 1] matrix
+        x_center: x-coordinate of basis function centers (sequence, nchannels elements)
+        y_center: y-coordinate of basis function centers (sequence, nchannels elements)
+        r: size constant of the 2D cosine function. This is the radius where the
+            function is non-zero.
+
+        Returns
+        -------
+        cos_functions: basis functions defined in the 2D stimulus space. returns a
+            [nchannels x npixels] matrix.
+        """
+        cos_functions = np.zeros(len(x_center), len(x))
         for i in range(len(x_center)):
-            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2) #** 0.5
+            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2)
             qq = (myr <= r) * 1
             zp = ((0.5 * (1 + np.cos(myr * np.pi / r))) ** self.channel_exp)
-            z[i] = zp * qq
-        return z
+            cos_functions[i, :] = zp * qq
+        return cos_functions
 
-    # def _calc_2d_cosine_fwhm(self, size_constant):
-    #     fwhm = size_constant \
-    #            * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
-    #     return fwhm
+    #def _calc_2d_cosine_fwhm(self, size_constant):
+    #    fwhm = size_constant \
+    #           * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
+    #    return fwhm
 
     def _2d_cosine_fwhm_to_cossz(self, fwhm):
+        """For a 2D cosine basis function with a given exponent, convert the full-width
+        half-maximum (FWHM) of that function to a size constant.
+        # TODO: put function here
+        # TODO: define size constant
+
+        Parameters
+        ----------
+        fwhm: a float value indicating the full-width half-maximum in stimulus space
+
+        Returns
+        -------
+        cossz: the size constant of the exponentiated cosine
+        """
         cossz = (np.pi * fwhm) / \
                 (np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5))
         return cossz
@@ -728,8 +746,7 @@ class InvertedEncoding2D(BaseEstimator):
 
         Parameters
         ----------
-            nx: number of channels in the x (horizontal) direction
-            ny: number of channels in the y (vertical) direction
+            nchannels: number of channels in the x (horizontal) direction
             channel_size: the desired full-width half-maximum (FWHM) of the
             channel, in stimulus space.
 
@@ -751,10 +768,8 @@ class InvertedEncoding2D(BaseEstimator):
             channel_size = 1.1*(chan_xcenters[1] - chan_xcenters[0])
         cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
         # define exponentiated function
-        self.channels = np.asarray(
-            self._make_2d_cosine(self.xp.reshape(-1, 1), self.yp.reshape(-1, 1),
-                                 cx, cy,
-                                 cos_width)).squeeze()
+        self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
+                                             self.yp.reshape(-1, 1), cx, cy, cos_width)
         self.n_channels = self.channels.shape[0]
 
         return self.channels, np.hstack([cx, cy])
@@ -789,37 +804,46 @@ class InvertedEncoding2D(BaseEstimator):
             # Methods & Supplementary Figure 3).
             channel_size = 1.1*x_dist
         cos_width = self._2d_cosine_fwhm_to_cossz(channel_size)
-        result = np.asarray(self._make_2d_cosine(self.xp.reshape(-1, 1),
-                                                 self.yp.reshape(-1, 1),
-                                                 trigrid[:, 0], trigrid[:, 1],
-                                                 cos_width)).squeeze()
-        self.channels = result
-        self.n_channels = result.shape[0]
+        self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
+                                             self.yp.reshape(-1, 1), trigrid[:, 0],
+                                             trigrid[:, 1], cos_width)
+        self.n_channels = self.channels.shape[0]
 
         return self.channels, trigrid
 
-    def _define_trial_activations(self, stim_centers):
-        """Defines a numpy matrix of predicted channel responses for
-        each trial/observation.
+    def _define_trial_activations(self, stim_centers, stim_radius=None):
+        """Defines a numpy matrix of predicted channel responses for each
+        trial/observation. Assumes that the presented stimulus is circular in the 2D
+        stimulus space. This can include a point -- simply set stim_radius to 0.5.
 
         Parameters
-
-            stimuli: numpy array of the feature values for each
-                observation (e.g., [0, 5, 15, 30, ...] degrees)
+        -------
+        stim_centers: numpy array of the 2D stimulus features for each observation,
+            expected dimensions are [observations, 2].
+        stim_radius: scalar value or array-like sequence specifying the radius of the
+            circular stimulus (if array-like, should have n_observations elements)
 
         Returns
         -------
-            C: matrix of predicted channel responses. dimensions are
-                number of observations by stimulus resolution
+        C: numpy array of predicted channel responses [observations, pixels]
         """
         nstim = stim_centers.shape[0]
+        if self.stim_radius_px is None:
+            if stim_radius is None:
+                raise ValueError("No defined stimulus radius. Please set this value.")
+            else:
+                self.stim_radius_px = stim_radius
+        if not isinstance(self.stim_radius_px, np.ndarray) or not isinstance(
+                self.stim_radius_px, list):
+            self.stim_radius_px = np.ones(nstim) * self.stim_radius_px
+        # Create a mask for every stimulus observation in the stimulus domain
         stimulus_mask = np.zeros((self.xp.size, nstim))
         for i in range(nstim):
             rad_vals = ((self.xp.reshape(-1, 1) - stim_centers[i, 0])**2 +
                         (self.yp.reshape(-1, 1) - stim_centers[i, 1])**2)
-            inds = np.where(rad_vals < self.stim_radius_px)[0]
+            inds = np.where(rad_vals < self.stim_radius_px[i])[0]
             stimulus_mask[inds, i] = 1
-
+        # Go from the stimulus domain to the channel domain
         C = self.channels.squeeze() @ stimulus_mask
         C = C.transpose()
         # Check that C is full rank
@@ -839,7 +863,7 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-            channel_response: numpy matrix of channel responses
+            channel_response: numpy matrix of channel responses [channels, observations]
         """
         channel_response = np.matmul(np.linalg.pinv(self.W_), X.transpose())
         return channel_response
@@ -849,34 +873,33 @@ class InvertedEncoding2D(BaseEstimator):
         functions defined in the feature domain.
 
         Parameters
-         ---------
-            X: numpy matrix of data. [observations, voxels]
+        ---------
+        X: numpy matrix of data. [observations, voxels]
 
         Returns
         -------
-            pred_response: predict response from all channels. Used
-                to predict feature (e.g. direction).
+        pred_response: predict response from all channels. This is the stimulus
+            reconstruction in the channel domain. [pixels, observations]
         """
-        pred_response = np.matmul(self.channels_.transpose(),
+        pred_response = np.matmul(self.channels.transpose(),
                                   self._predict_channel_responses(X))
         return pred_response
 
     def _predict_features(self, X):
         """Predicts feature value (e.g. direction) from data in X.
-        Takes the maximum of the 'reconstructed' or predicted response
-        function.
+        Takes the maximum of the 'reconstructed' or predicted response function.
 
         Parameters
-         ---------
-            X: numpy matrix of data. [observations, voxels]
+        ---------
+        X: numpy matrix of data. [observations, voxels]
 
         Returns
         -------
-            pred_features: predicted feature from response across all
-                channels.
+        pred_features: numpy matrix of predicted stimulus features. [observations, 2]
         """
         pred_response = self._predict_feature_responses(X)
         feature_ind = np.argmax(pred_response, 0)
-        pred_features = self.channel_domain[feature_ind]
+        pred_features = np.hstack((self.xp.reshape(-1, 1)[feature_ind],
+                                   self.yp.reshape(-1, 1)[feature_ind]))
 
         return pred_features
