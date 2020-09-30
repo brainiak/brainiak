@@ -779,6 +779,7 @@ class InvertedEncoding2D(BaseEstimator):
                 yy = np.ones((xx.size, 1)) * y
             trigrid = np.vstack(
                 (trigrid, np.hstack((xx, yy))))
+        # TODO: self.channels only has 2 dimensions (my tests show 3)
 
         if channel_size is None:
             # To get even coverage, setting the channel FWHM to ~1.1x the
@@ -810,14 +811,16 @@ class InvertedEncoding2D(BaseEstimator):
                 number of observations by stimulus resolution
         """
         nstim = stim_centers.shape[0]
-        stimulus_mask = np.zeros((len(self.xp), nstim))
+        stimulus_mask = np.zeros((self.xp.size, nstim))
         for i in range(nstim):
-            rad_vals = ((self.xp - stim_centers[i, 0])**2 +
-                        (self.yp - stim_centers[i, 1])**2)
+            rad_vals = ((self.xp.reshape(-1, 1) - stim_centers[i, 0])**2 +
+                        (self.yp.reshape(-1, 1) - stim_centers[i, 1])**2)
             inds = np.where(rad_vals < self.stim_radius_px)[0]
             stimulus_mask[inds, i] = 1
 
-        C = stimulus_mask @ self.channels_.transpose()
+        # TODO: make sure C is the correct dimensionality. Does it need to be transposed?
+#        C = stimulus_mask @ self.channels.squeeze().transpose()
+        C = self.channels.squeeze() @ stimulus_mask
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
             warnings.warn("Stimulus matrix is {}, not full rank. May cause "
