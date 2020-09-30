@@ -537,7 +537,7 @@ class InvertedEncoding2D(BaseEstimator):
         data
     """
 
-    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
+    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius,
                  chan_xlim, chan_ylim, channels=None):
                  # n_channels, stim_xlim, stim_ylim, stimulus_resolution,
                  # chan_xlim, chan_ylim, channel_exp=5,
@@ -554,6 +554,7 @@ class InvertedEncoding2D(BaseEstimator):
                                         stimulus_resolution[0]),
                             np.linspace(stim_ylim[0], stim_ylim[1],
                                         stimulus_resolution[1])]
+        self.stim_radius_px = stim_radius
         self.channels = channels
         self.channel_limits = [chan_xlim, chan_ylim]
         self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
@@ -793,8 +794,7 @@ class InvertedEncoding2D(BaseEstimator):
 
         return self.channels
 
-
-    def _define_trial_activations(self, stimuli):
+    def _define_trial_activations(self, stim_centers):
         """Defines a numpy matrix of predicted channel responses for
         each trial/observation.
 
@@ -808,30 +808,13 @@ class InvertedEncoding2D(BaseEstimator):
             C: matrix of predicted channel responses. dimensions are
                 number of observations by stimulus resolution
         """
-        # self.stim_xdomain = np.linspace(stim_fov[0][0], stim_fov[0][1],
-        #                                 stimulus_resolution[0])
-        # self.stim_ydomain = np.linspace(stim_fov[1][0], stim_fov[1][1],
-        #                                 stimulus_resolution[1])
-        stim_axis = np.linspace(self.range_start, self.range_stop - 1,
-                                self.stim_res)
-        if self.range_start > 0:
-            stimuli = stimuli + self.range_start
-        elif self.range_start < 0:
-            stimuli = stimuli - self.range_start
-        one_hot = np.eye(self.stim_res)
-        indices = [np.argmin(abs(stim_axis - x)) for x in stimuli]
-        stimulus_mask = one_hot[indices, :]
-        if self.channel_density != self.stim_res:
-            if self.channel_density % self.stim_res == 0:
-                stimulus_mask = np.repeat(stimulus_mask,
-                                          self.channel_density / self.stim_res)
-            else:
-                raise NotImplementedError("This code doesn't currently support"
-                                          " stimuli which are not square "
-                                          "functions in the feature domain, or"
-                                          " stimulus widths that are not even"
-                                          "divisors of the number of points in"
-                                          " the feature domain.")
+        nstim = stim_centers.shape[0]
+        stimulus_mask = np.zeros((len(self.xp), nstim))
+        for i in range(nstim):
+            rad_vals = ((self.xp - stim_centers[i, 0])**2 +
+                        (self.yp - stim_centers[i, 1])**2)
+            inds = np.where(rad_vals < self.stim_radius_px)[0]
+            stimulus_mask[inds, i] = 1
 
         C = stimulus_mask @ self.channels_.transpose()
         # Check that C is full rank
