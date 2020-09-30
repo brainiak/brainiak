@@ -31,18 +31,18 @@ __all__ = [
 ]
 
 
-def _sfn(l, mask, myrad, bcast_var):
+def _sfn(data, mask, myrad, bcast_var):
     """Score classifier on searchlight data using cross-validation.
 
     The classifier is in `bcast_var[2]`. The labels are in `bast_var[0]`. The
     number of cross-validation folds is in `bast_var[1].
     """
     clf = bcast_var[2]
-    data = l[0][mask, :].T
+    masked_data = data[0][mask, :].T
     # print(l[0].shape, mask.shape, data.shape)
     skf = model_selection.StratifiedKFold(n_splits=bcast_var[1],
                                           shuffle=False)
-    accuracy = np.mean(model_selection.cross_val_score(clf, data,
+    accuracy = np.mean(model_selection.cross_val_score(clf, masked_data,
                                                        y=bcast_var[0],
                                                        cv=skf,
                                                        n_jobs=1))

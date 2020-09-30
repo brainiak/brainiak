@@ -58,7 +58,7 @@ def test_voxel_selection():
             'within-subject normalization does not provide correct results'
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=1
-    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     results = vs.run(clf)
     if MPI.COMM_WORLD.Get_rank() == 0:
         output = [None] * len(results)
@@ -89,7 +89,7 @@ def test_voxel_selection_with_two_masks():
                        raw_data2=fake_raw_data2, voxel_unit=1)
     # for cross validation, use SVM with precomputed kernel
     # no shrinking, set C=1
-    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1)
+    clf = svm.SVC(kernel='precomputed', shrinking=False, C=1, gamma='auto')
     results = vs.run(clf)
     if MPI.COMM_WORLD.Get_rank() == 0:
         output = [None] * len(results)

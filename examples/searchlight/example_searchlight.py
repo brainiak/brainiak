@@ -78,7 +78,7 @@ sl.broadcast(labels)
 def sfn(l, msk, myrad, bcast_var):
   import sklearn.svm
   import sklearn.model_selection
-  classifier = sklearn.svm.SVC()
+  classifier = sklearn.svm.SVC(gamma='auto')
   data = l[0][msk,:].T
   return np.mean(sklearn.model_selection.cross_val_score(classifier, data, bcast_var,n_jobs=1))
 

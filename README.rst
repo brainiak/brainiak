@@ -33,7 +33,7 @@ If you have `Conda <conda.io>`_::
 Otherwise, or if you want to compile from source, install the requirements (see
 `docs/installation`) and then install from PyPI::
 
-    python3 -m pip install brainiak
+    python3 -m pip install --no-use-pep517 brainiak
 
 Note that we do not support Windows.
 
