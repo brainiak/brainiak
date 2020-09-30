@@ -682,10 +682,14 @@ class InvertedEncoding2D(BaseEstimator):
         self._check_params()
         return self
 
-    def _make_2d_cosine(self, x, y, x_center, y_center, r):
+    def _make_2d_cosine(self, x, y, x_center, y_center, s):
         """Defines a 2D exponentiated cosine (isometric, e.g. constant width in x & y)
-        for use as a basis function. Function goes to zero at the given size constant r.
-        # TODO: put function here
+        for use as a basis function. Function goes to zero at the given size constant s.
+        That is, the function is given by
+            if r < s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
+            else:       0
+        where r is the Euclidean distance from the center of the function. This will
+        yield a Gaussian-like function, centered at (x_center, y_center).
 
         Parameters
         ----------
@@ -704,8 +708,8 @@ class InvertedEncoding2D(BaseEstimator):
         cos_functions = np.zeros(len(x_center), len(x))
         for i in range(len(x_center)):
             myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2)
-            qq = (myr <= r) * 1
-            zp = ((0.5 * (1 + np.cos(myr * np.pi / r))) ** self.channel_exp)
+            qq = (myr <= s) * 1
+            zp = ((0.5 * (1 + np.cos(myr * np.pi / s))) ** self.channel_exp)
             cos_functions[i, :] = zp * qq
         return cos_functions
 
@@ -715,10 +719,12 @@ class InvertedEncoding2D(BaseEstimator):
     #    return fwhm
 
     def _2d_cosine_fwhm_to_cossz(self, fwhm):
-        """For a 2D cosine basis function with a given exponent, convert the full-width
-        half-maximum (FWHM) of that function to a size constant.
-        # TODO: put function here
-        # TODO: define size constant
+        """For an exponentiated 2D cosine basis function, converts the full-width
+        half-maximum (FWHM) of that function to the function's size constant.
+        The size constant is the variable s in the function below:
+            if r < s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
+            else:       0
+        where r is the Euclidean distance from the center of the function.
 
         Parameters
         ----------
