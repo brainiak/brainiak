@@ -670,7 +670,6 @@ class InvertedEncoding2D(BaseEstimator):
                 "channels": self.channels, "channel_limits": self.channel_limits}
 
     def set_params(self, **parameters):
-        # TODO: update with real params
         """Sets model parameters after initialization.
 
         Parameters
@@ -760,10 +759,11 @@ class InvertedEncoding2D(BaseEstimator):
         cx = cx.reshape(-1, 1)
         cy = cy.reshape(-1, 1)
         if channel_size is None:
-            # To get even coverage, setting the channel FWHM to ~1.1x the
-            # spacing between the channels works. (See Sprague et al. 2013
-            # Methods & Supplementary Figure 3).
-            channel_size = 1.1*(chan_xcenters[1] - chan_xcenters[0])
+            # To get even coverage, setting the channel FWHM to ~1.1x-1.2x the
+            # spacing between the channels might work. (See Sprague et al. 2013
+            # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
+            # your mileage may vary for other exponents!).
+            channel_size = 1.2*(chan_xcenters[1] - chan_xcenters[0])
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         # define exponentiated function
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
@@ -797,9 +797,10 @@ class InvertedEncoding2D(BaseEstimator):
                 (trigrid, np.hstack((xx, yy))))
 
         if channel_size is None:
-            # To get even coverage, setting the channel FWHM to ~1.1x the
-            # spacing between the channels works. (See Sprague et al. 2013
-            # Methods & Supplementary Figure 3).
+            # To get even coverage, setting the channel FWHM to ~1.1x-1.2x the
+            # spacing between the channels might work. (See Sprague et al. 2013
+            # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
+            # your mileage may vary for other exponents!).
             channel_size = 1.1*x_dist
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
@@ -866,7 +867,7 @@ class InvertedEncoding2D(BaseEstimator):
         channel_response = np.matmul(np.linalg.pinv(self.W_), X.transpose())
         return channel_response
 
-    def _predict_feature_responses(self, X):
+    def predict_feature_responses(self, X):
         """Takes channel weights and transforms them into continuous
         functions defined in the feature domain.
 
@@ -895,7 +896,7 @@ class InvertedEncoding2D(BaseEstimator):
         -------
         pred_features: numpy matrix of predicted stimulus features. [observations, 2]
         """
-        pred_response = self._predict_feature_responses(X)
+        pred_response = self.predict_feature_responses(X)
         feature_ind = np.argmax(pred_response, 0)
         pred_features = np.hstack((self.xp.reshape(-1, 1)[feature_ind],
                                    self.yp.reshape(-1, 1)[feature_ind]))
