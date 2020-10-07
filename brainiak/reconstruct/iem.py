@@ -750,13 +750,15 @@ class InvertedEncoding2D(BaseEstimator):
 
         Parameters
         ----------
-            nchannels: number of channels in the x (horizontal) direction
-            channel_size: the desired full-width half-maximum (FWHM) of the
+        nchannels: number of channels in the x (horizontal) direction
+        channel_size: the desired full-width half-maximum (FWHM) of the
             channel, in stimulus space.
 
         Returns
         -------
-            channel_centers: numpy array of the centers of each channel
+        self.channels: defines channels, [nchannels x npixels] matrix.
+        channel_centers: numpy array of the centers of each channel
+        # TODO: get dimensionality of channel_centers
         """
         chan_xcenters = np.linspace(self.channel_limits[0][0],
                                     self.channel_limits[0][1], nchannels[0])
@@ -784,7 +786,8 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-            channel_centers: numpy array of the centers of each channel
+        self.channels: defines channels, [nchannels x npixels] matrix.
+        channel_centers: numpy array of the centers of each channel
         """
         x_dist = np.diff(self.channel_limits[0]) / (grid_radius*2)
         y_dist = x_dist * np.sqrt(3) * 0.5
