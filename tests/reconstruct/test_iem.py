@@ -45,13 +45,34 @@ def test_instantiate_improper_range():
 
 
 # Test to check stimulus resolution input
-def test_stimulus_resolution():
+def test_1d_stimulus_resolution():
     s = InvertedEncoding1D(6, 5, stimulus_resolution=360)
     assert s.stim_res == 360
+
+
+# Test to check that stimulus resolution is used properly
+def test_2d_stimulus_resolution():
     s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
-                            stimulus_resolution=[10, 10])
+                            stimulus_resolution=10) 
     assert len(s2.stim_pixels[0] == 10)
     assert len(s2.stim_pixels[1] == 10)
+    s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-2, 2],
+                            stimulus_resolution=[10, 20]) 
+    assert len(s2.stim_pixels[0] == 10)
+    assert len(s2.stim_pixels[1] == 20)
+
+
+# Test that 2D channels can be set by the user
+def test_2d_custom_channels():
+    nchan = 8
+    res = 10
+    npix = res*res
+    channels = np.random.rand(nchan, npix)*2 - 1
+    bds = [-1, 1]
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=res, chan_xlim=bds,
+                           chan_ylim=bds, channels=channels)
+    assert s, "Unable to define custom InvertedEncoding2D channels"
 
 
 # Provide invalid data so that channels cannot be created.
@@ -61,10 +82,18 @@ def test_cannot_instantiate_1d_channels():
         assert s, "Invalid InvertedEncoding1D instance"
 
 
-# Provide invalid data so that channels cannot be created.
+# Test that modifying channel properties is not allowed.
 def test_cannot_instantiate_2d_channels():
-    #TODO: fill in with custom channels but wrong channel number
-    pass
+    nchan = 8
+    res = 10
+    npix = res*res
+    channels = np.random.rand(nchan, npix)*2 - 1
+    bds = [-1, 1]
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=res, chan_xlim=bds,
+                           chan_ylim=bds, channels=channels)
+    with pytest.raises(ValueError):
+        s.set_params({'n_channels': nchan - 1})
 
 
 # Provide invalid stimulus mode
