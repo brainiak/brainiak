@@ -15,7 +15,7 @@
 import pytest
 import numpy as np
 import logging
-from brainiak.reconstruct.iem import InvertedEncoding1D
+from brainiak.reconstruct.iem import InvertedEncoding1D, InvertedEncoding2D
 from brainiak.utils.fmrisim import generate_1d_gaussian_rfs, \
     generate_1d_rf_responses
 from scipy.stats import circmean
@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 def test_can_instantiate():
     s = InvertedEncoding1D()
     assert s, "Invalid InvertedEncoding1D instance"
+    s2 = InvertedEncoding2D(stim_xlim=[0, 0], stim_ylim=[0, 0],
+                            stimulus_resolution=[0, 0])
+    assert s2, "Invalid InvertedEncoding2D instance"
 
 
 # Simple test for checking range values.
@@ -35,19 +38,33 @@ def test_instantiate_improper_range():
         s = InvertedEncoding1D(6, 5, 'halfcircular', range_start=20,
                                range_stop=0)
         assert s, "Invalid InvertedEncoding1D instance"
+    with pytest.raises(ValueError):
+        s2 = InvertedEncoding2D(stim_xlim=[0, -1], stim_ylim=[0, -1],
+                                stimulus_resolution=[10, 10])
+        assert s2, "Invalid InvertedEncoding2D instance"
 
 
 # Test to check stimulus resolution input
 def test_stimulus_resolution():
     s = InvertedEncoding1D(6, 5, stimulus_resolution=360)
     assert s.stim_res == 360
+    s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
+                            stimulus_resolution=[10, 10])
+    assert len(s2.stim_pixels[0] == 10)
+    assert len(s2.stim_pixels[1] == 10)
 
 
 # Provide invalid data so that channels cannot be created.
-def test_cannot_instantiate_channels():
+def test_cannot_instantiate_1d_channels():
     with pytest.raises(ValueError):
         s = InvertedEncoding1D(n_channels=0)
         assert s, "Invalid InvertedEncoding1D instance"
+
+
+# Provide invalid data so that channels cannot be created.
+def test_cannot_instantiate_2d_channels():
+    #TODO: fill in with custom channels but wrong channel number
+    pass
 
 
 # Provide invalid stimulus mode

@@ -558,18 +558,25 @@ class InvertedEncoding2D(BaseEstimator):
             self.n_channels = self.channels.shape[0]
         self.channel_limits = [chan_xlim, chan_ylim]
         self.channel_exp = channel_exp
+        self._check_params()
 
     def _check_params(self):
+        if len(self.stim_fov[0]) != 2 or len(self.stim_fov[1]) != 2:
+            raise ValueError("Stimulus limits should be a sequence of 2 values")
+        else:
+            if (self.stim_fov[0][0] >= self.stim_fov[0][1]) or \
+                    (self.stim_fov[1][0] >= self.stim_fov[1][1]):
+                raise ValueError("Stimulus x or y limits should be ascending values")
         if self.n_channels and self.channels and \
                 (self.n_channels != self.channels.shape[0]):
             raise ValueError("Number of channels {} does not match the defined channels"
                              ": {}".format(self.n_channels, self.channels.shape[0]))
-        if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
-            any(self.channels[:, 0] < self.channel_limits[0][0]) or \
-            any(self.channels[:, 1] > self.channel_limits[1][1]) or \
-            any(self.channels[:, 1] < self.channel_limits[1][0]):
-            raise ValueError("Channel limits and values defined in self.channels do not"
-                             "match each other.")
+            if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
+                any(self.channels[:, 0] < self.channel_limits[0][0]) or \
+                any(self.channels[:, 1] > self.channel_limits[1][1]) or \
+                any(self.channels[:, 1] < self.channel_limits[1][0]):
+                raise ValueError("Channel limits and values defined in self.channels do not"
+                                 "match each other.")
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
