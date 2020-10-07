@@ -567,16 +567,24 @@ class InvertedEncoding2D(BaseEstimator):
             if (self.stim_fov[0][0] >= self.stim_fov[0][1]) or \
                     (self.stim_fov[1][0] >= self.stim_fov[1][1]):
                 raise ValueError("Stimulus x or y limits should be ascending values")
-        if self.n_channels and self.channels and \
-                (self.n_channels != self.channels.shape[0]):
-            raise ValueError("Number of channels {} does not match the defined channels"
-                             ": {}".format(self.n_channels, self.channels.shape[0]))
-            if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
-                any(self.channels[:, 0] < self.channel_limits[0][0]) or \
-                any(self.channels[:, 1] > self.channel_limits[1][1]) or \
-                any(self.channels[:, 1] < self.channel_limits[1][0]):
-                raise ValueError("Channel limits and values defined in self.channels do not"
-                                 "match each other.")
+        if self.xp.size != self.yp.size:
+            raise ValueError("xpixel grid and ypixel grid do not have same number of elements")
+        if self.n_channels and self.channels:
+            if self.n_channels != self.channels.shape[0]:
+                raise ValueError("Number of channels {} does not match the defined channels"
+                                 ": {}".format(self.n_channels, self.channels.shape[0]))
+            if self.channels.shape[1] != self.xp.size:
+                raise ValueError("Defined {} channels over {} pixels, but stimuli are "
+                                 "represented over {} pixels. Pixels should match.".\
+                                 format(self.n_channels, self.channels.shape[1], 
+                                        self.xp.size))
+            if self.channel_limits:
+                if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
+                    any(self.channels[:, 0] < self.channel_limits[0][0]) or \
+                    any(self.channels[:, 1] > self.channel_limits[1][1]) or \
+                    any(self.channels[:, 1] < self.channel_limits[1][0]):
+                    raise ValueError("Channel limits and values defined in self.channels do not"
+                                     "match each other.")
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
