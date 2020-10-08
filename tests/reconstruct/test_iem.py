@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 def test_can_instantiate():
     s = InvertedEncoding1D()
     assert s, "Invalid InvertedEncoding1D instance"
-    s2 = InvertedEncoding2D(stim_xlim=[0, 0], stim_ylim=[0, 0],
-                            stimulus_resolution=[0, 0])
+    s2 = InvertedEncoding2D(stim_xlim=[0, 1], stim_ylim=[0, 1],
+                            stimulus_resolution=[1, 1])
     assert s2, "Invalid InvertedEncoding2D instance"
 
 
-# Simple test for checking range values.
+# Test for checking range values.
 def test_instantiate_improper_range():
     with pytest.raises(ValueError):
         s = InvertedEncoding1D(6, 5, 'halfcircular', range_start=20,
@@ -42,10 +42,13 @@ def test_instantiate_improper_range():
         s2 = InvertedEncoding2D(stim_xlim=[0, -1], stim_ylim=[0, -1],
                                 stimulus_resolution=[10, 10])
         assert s2, "Invalid InvertedEncoding2D instance"
+    with pytest.raises(ValueError): # CATCH THIS CASE
+        s2 = InvertedEncoding2D(stim_xlim=[0], stim_ylim=[-1, 0],
+                                stimulus_resolution=10)
+        assert s2, "Invalid InvertedEncoding2D instance"
 
 
-### TESTS SPECIFIC TO 2D MODEL ###
-
+### TESTS FOR 2D MODEL ###
 # Test to check that stimulus resolution is used properly
 def test_2d_stimulus_resolution():
     s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
@@ -92,13 +95,19 @@ def test_modify_2d_properties():
                            chan_ylim=bds, channels=channels)
     with pytest.raises(ValueError):
         s.set_params(n_channels=nchan - 1)
+        assert s, "Invalid InvertedEncoding2D instance"
     with pytest.raises(ValueError):
-        s.set_params(xp=np.random.rand(npix - 10)
-    # TODO: test with stim_fov?
+        s.set_params(xp=np.random.rand(npix - 10))
+        assert s, "Invalid InvertedEncoding2D instance"
+    with pytest.raises(ValueError):
+        s.set_params(stim_fov=[[0, 1], [0, -1]])
+        assert s, "Invalid InvertedEncoding2D instance"
+    with pytest.raises(ValueError):
+        s.set_params(stim_fov=[[0, 1]])
+        assert s, "Invalid InvertedEncoding2D instance"
 
 
-### TESTS SPECIFIC TO 1D MODEL ###
-
+### TESTS FOR 1D MODEL ###
 # Test to check stimulus resolution input
 def test_1d_stimulus_resolution():
     s = InvertedEncoding1D(6, 5, stimulus_resolution=360)

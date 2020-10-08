@@ -49,7 +49,8 @@ import scipy.stats
 from sklearn.base import BaseEstimator
 from ..utils.utils import circ_dist
 
-__all__ = ["InvertedEncoding1D", ]
+__all__ = ["InvertedEncoding1D",
+           "InvertedEncoding2D"]
 
 logger = logging.getLogger(__name__)
 MAX_CONDITION_CHECK = 9000
@@ -544,6 +545,8 @@ class InvertedEncoding2D(BaseEstimator):
         # will create a square field  of view (FOV) for the reconstruction.
         if not isinstance(stimulus_resolution, list):  # make FOV square
             stimulus_resolution = [stimulus_resolution, stimulus_resolution]
+        if (len(stim_xlim) != 2) or (len(stim_ylim) != 2):
+            raise ValueError("Stimulus limits should be a sequence of 2 values")
         self.stim_fov = [stim_xlim, stim_ylim]
         self.stim_pixels = [np.linspace(stim_xlim[0], stim_xlim[1],
                                         stimulus_resolution[0]),
@@ -561,15 +564,18 @@ class InvertedEncoding2D(BaseEstimator):
         self._check_params()
 
     def _check_params(self):
-        if len(self.stim_fov[0]) != 2 or len(self.stim_fov[1]) != 2:
+        if len(self.stim_fov) != 2:
+            raise ValueError("Stim FOV needs to have an x-list and a y-list")
+        elif len(self.stim_fov[0]) != 2 or len(self.stim_fov[1]) != 2:
             raise ValueError("Stimulus limits should be a sequence of 2 values")
         else:
             if (self.stim_fov[0][0] >= self.stim_fov[0][1]) or \
                     (self.stim_fov[1][0] >= self.stim_fov[1][1]):
                 raise ValueError("Stimulus x or y limits should be ascending values")
         if self.xp.size != self.yp.size:
-            raise ValueError("xpixel grid and ypixel grid do not have same number of elements")
-        if self.n_channels and self.channels:
+            raise ValueError("xpixel grid and ypixel grid do not have same number of "
+                             "elements")
+        if self.n_channels and np.all(self.channels):
             if self.n_channels != self.channels.shape[0]:
                 raise ValueError("Number of channels {} does not match the defined channels"
                                  ": {}".format(self.n_channels, self.channels.shape[0]))
@@ -578,7 +584,7 @@ class InvertedEncoding2D(BaseEstimator):
                                  "represented over {} pixels. Pixels should match.".\
                                  format(self.n_channels, self.channels.shape[1], 
                                         self.xp.size))
-            if self.channel_limits:
+            if np.all(self.channel_limits):
                 if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
                     any(self.channels[:, 0] < self.channel_limits[0][0]) or \
                     any(self.channels[:, 1] > self.channel_limits[1][1]) or \
