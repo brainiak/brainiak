@@ -184,14 +184,14 @@ class InvertedEncoding1D(BaseEstimator):
             if (self.range_stop - self.range_start) != 180.:
                 raise ValueError("For half-circular feature spaces,"
                                  "the range must be 180 degrees, "
-                                 "not {}".format(
-                    self.range_stop - self.range_start))
+                                 "not {}".
+                                 format(self.range_stop - self.range_start))
         elif self.stimulus_mode == 'circular':
             if (self.range_stop - self.range_start) != 360.:
                 raise ValueError("For circular feature spaces, the"
                                  " range must be 360 degrees"
-                                 "not {}".format(
-                    self.range_stop - self.range_start))
+                                 "not {}".
+                                 format(self.range_stop - self.range_start))
         if self.n_channels < 2:
             raise ValueError("Insufficient number of channels.")
         if not np.isin(self.stimulus_mode, ['circular', 'halfcircular']):
@@ -512,6 +512,7 @@ class InvertedEncoding2D(BaseEstimator):
     Use score() to compute a measure of the error of the prediction
     based on known stimuli.
 
+    #TODO: fix param docstrings
     Parameters
     ----------
     n_channels: int, default 5. Number of channels
@@ -571,18 +572,22 @@ class InvertedEncoding2D(BaseEstimator):
         else:
             if (self.stim_fov[0][0] >= self.stim_fov[0][1]) or \
                     (self.stim_fov[1][0] >= self.stim_fov[1][1]):
-                raise ValueError("Stimulus x or y limits should be ascending values")
+                raise ValueError("Stimulus x or y limits should be ascending "
+                                 "values")
         if self.xp.size != self.yp.size:
-            raise ValueError("xpixel grid and ypixel grid do not have same number of "
-                             "elements")
+            raise ValueError("xpixel grid and ypixel grid do not have same "
+                             "number of elements")
         if self.n_channels and np.all(self.channels):
             if self.n_channels != self.channels.shape[0]:
-                raise ValueError("Number of channels {} does not match the defined channels"
-                                 ": {}".format(self.n_channels, self.channels.shape[0]))
+                raise ValueError("Number of channels {} does not match the "
+                                 "defined channels: {}".
+                                 format(self.n_channels,
+                                        self.channels.shape[0]))
             if self.channels.shape[1] != self.xp.size:
-                raise ValueError("Defined {} channels over {} pixels, but stimuli are "
-                                 "represented over {} pixels. Pixels should match.".\
-                                 format(self.n_channels, self.channels.shape[1], 
+                raise ValueError("Defined {} channels over {} pixels, but "
+                                 "stimuli are represented over {} pixels. "
+                                 "Pixels should match.".
+                                 format(self.n_channels, self.channels.shape[1],
                                         self.xp.size))
             if np.all(self.channel_limits):
                 if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
@@ -638,13 +643,13 @@ class InvertedEncoding2D(BaseEstimator):
 
         Parameters
         ----------
-            X: numpy matrix of voxel activation from test trials
-            [observations, voxels]. Used to predict feature
-            associated with the given observation.
+        X: numpy matrix of voxel activation from test trials [observations,
+            voxels]. Used to predict feature associated with the given
+            observation.
 
         Returns
         -------
-            model_prediction: numpy array of estimated feature values.
+        model_prediction: numpy array of estimated feature values.
         """
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
@@ -662,14 +667,14 @@ class InvertedEncoding2D(BaseEstimator):
 
         Parameters
         ----------
-            X: numpy matrix of voxel activation from new data
-                [observations,voxels]
-            y: numpy array of stimulus features. [observations, 2]
+        X: numpy matrix of voxel activation from new data
+            [observations,voxels]
+        y: numpy array of stimulus features. [observations, 2]
 
         Returns
         -------
-            score_value: the error measurement between the actual
-                feature and predicted features.
+        score_value: the error measurement between the actual
+            feature and predicted features.
         """
         pred_features = self.predict(X)
         ssres = (pred_features - y) ** 2
@@ -687,8 +692,9 @@ class InvertedEncoding2D(BaseEstimator):
         """
         return {"n_channels": self.n_channels, "channel_exp": self.channel_exp,
                 "stim_fov": self.stim_fov, "stim_pixels": self.stim_pixels,
-                "stim_radius_px": self.stim_radius_px, "xp": self.xp, "yp": self.yp,
-                "channels": self.channels, "channel_limits": self.channel_limits}
+                "stim_radius_px": self.stim_radius_px, "xp": self.xp,
+                "yp": self.yp, "channels": self.channels, "channel_limits":
+                    self.channel_limits}
 
     def set_params(self, **parameters):
         """Sets model parameters after initialization.
@@ -703,52 +709,53 @@ class InvertedEncoding2D(BaseEstimator):
         return self
 
     def _make_2d_cosine(self, x, y, x_center, y_center, s):
-        """Defines a 2D exponentiated cosine (isometric, e.g. constant width in x & y)
-        for use as a basis function. Function goes to zero at the given size constant s.
-        That is, the function is given by
-            if r <= s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
-            else:       0
-        where r is the Euclidean distance from the center of the function. This will
+        """Defines a 2D exponentiated cosine (isometric, e.g. constant width
+        in x & y) for use as a basis function. Function goes to zero at the
+        given size constant s. That is, the function is given by if r <= s:
+        f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp else:       0 where r is
+        the Euclidean distance from the center of the function. This will
         yield a Gaussian-like function, centered at (x_center, y_center).
 
         Parameters
         ----------
         x: x-coordinates of the stimulus space, [npixels, 1] matrix
         y: y-coordinates of the stimulus space, [npixels, 1] matrix
-        x_center: x-coordinate of basis function centers (sequence, nchannels elements)
-        y_center: y-coordinate of basis function centers (sequence, nchannels elements)
-        r: size constant of the 2D cosine function. This is the radius where the
+        x_center: x-coordinate of basis function centers (sequence, nchannels)
+        y_center: y-coordinate of basis function centers (sequence, nchannels)
+        s: size constant of the 2D cosine function. This is the radius where the
             function is non-zero.
 
         Returns
         -------
-        cos_functions: basis functions defined in the 2D stimulus space. returns a
-            [nchannels x npixels] matrix.
+        cos_functions: basis functions defined in the 2D stimulus space. returns
+            a [nchannels, npixels] matrix.
         """
         cos_functions = np.zeros((len(x_center), len(x)))
         for i in range(len(x_center)):
-            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2).squeeze()
+            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2).\
+                squeeze()
             qq = (myr <= s) * 1
             zp = ((0.5 * (1 + np.cos(myr * np.pi / s))) ** self.channel_exp)
             cos_functions[i, :] = zp * qq
         return cos_functions
 
     def _2d_cosine_sz_to_fwhm(self, size_constant):
-       fwhm = 2 * size_constant \
+        fwhm = 2 * size_constant \
               * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
-       return fwhm
+        return fwhm
 
     def _2d_cosine_fwhm_to_sz(self, fwhm):
-        """For an exponentiated 2D cosine basis function, converts the full-width
-        half-maximum (FWHM) of that function to the function's size constant.
-        The size constant is the variable s in the function below:
+        """For an exponentiated 2D cosine basis function, converts the
+        full-width half-maximum (FWHM) of that function to the function's
+        size constant. The size constant is the variable s in the function
+        below:
             if r <= s:   f(r) = (0.5 + 0.5*cos(r*pi/s)))**channel_exp
-            else:       0
-        where r is the Euclidean distance from the center of the function.
+            else:       0 where r is the Euclidean distance from the center of
+        the function.
 
         Parameters
         ----------
-        fwhm: a float value indicating the full-width half-maximum in stimulus space
+        fwhm: a float indicating the full-width half-maximum in stimulus space
 
         Returns
         -------
@@ -770,10 +777,12 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-        self.channels: defines channels, [nchannels x npixels] matrix.
+        self.channels: defines channels, a [nchannels, npixels] matrix.
         channel_centers: numpy array of the centers of each channel
         # TODO: get dimensionality of channel_centers
         """
+        # TODO: expand nchannels to list
+        # TODO: make sure channel limits exists
         chan_xcenters = np.linspace(self.channel_limits[0][0],
                                     self.channel_limits[0][1], nchannels[0])
         chan_ycenters = np.linspace(self.channel_limits[1][0],
@@ -790,7 +799,8 @@ class InvertedEncoding2D(BaseEstimator):
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         # define exponentiated function
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
-                                             self.yp.reshape(-1, 1), cx, cy, cos_width)
+                                             self.yp.reshape(-1, 1), cx, cy,
+                                             cos_width)
         self.n_channels = self.channels.shape[0]
 
         return self.channels, np.hstack([cx, cy])
@@ -800,7 +810,7 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-        self.channels: defines channels, [nchannels x npixels] matrix.
+        self.channels: defines channels, [nchannels, npixels] matrix.
         channel_centers: numpy array of the centers of each channel
         """
         x_dist = np.diff(self.channel_limits[0]) / (grid_radius*2)
@@ -828,7 +838,8 @@ class InvertedEncoding2D(BaseEstimator):
             channel_size = 1.1*x_dist
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
-                                             self.yp.reshape(-1, 1), trigrid[:, 0],
+                                             self.yp.reshape(-1, 1),
+                                             trigrid[:, 0],
                                              trigrid[:, 1], cos_width)
         self.n_channels = self.channels.shape[0]
 
@@ -836,15 +847,16 @@ class InvertedEncoding2D(BaseEstimator):
 
     def _define_trial_activations(self, stim_centers, stim_radius=None):
         """Defines a numpy matrix of predicted channel responses for each
-        trial/observation. Assumes that the presented stimulus is circular in the 2D
-        stimulus space. This can include a point -- simply set stim_radius to 0.5.
+        trial/observation. Assumes that the presented stimulus is circular in
+        the 2D stimulus space. This can include a point -- simply set
+        stim_radius to 0.5.
 
         Parameters
         -------
-        stim_centers: numpy array of the 2D stimulus features for each observation,
+        stim_centers: numpy array of 2D stimulus features for each observation,
             expected dimensions are [observations, 2].
-        stim_radius: scalar value or array-like sequence specifying the radius of the
-            circular stimulus (if array-like, should have n_observations elements)
+        stim_radius: scalar value or array-like specifying the radius of the
+            circular stimulus (array-like should have n_observations elements)
 
         Returns
         -------
@@ -853,7 +865,7 @@ class InvertedEncoding2D(BaseEstimator):
         nstim = stim_centers.shape[0]
         if self.stim_radius_px is None:
             if stim_radius is None:
-                raise ValueError("No defined stimulus radius. Please set this value.")
+                raise ValueError("No defined stimulus radius. Please set this.")
             else:
                 self.stim_radius_px = stim_radius
         if not isinstance(self.stim_radius_px, np.ndarray) or not isinstance(
@@ -872,8 +884,8 @@ class InvertedEncoding2D(BaseEstimator):
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
             warnings.warn("Stimulus matrix is {}, not full rank. May cause "
-                          "issues with stimulus prediction/reconstruction.".format(
-                np.linalg.matrix_rank(C)), RuntimeWarning)
+                          "issues with stimulus prediction/reconstruction.".
+                          format(np.linalg.matrix_rank(C)), RuntimeWarning)
         return C
 
     def _predict_channel_responses(self, X):
@@ -882,11 +894,12 @@ class InvertedEncoding2D(BaseEstimator):
 
         Parameters
         ----------
-            X: numpy data matrix. [observations, voxels]
+        X: numpy data matrix. [observations, voxels]
 
         Returns
         -------
-            channel_response: numpy matrix of channel responses [channels, observations]
+        channel_response: numpy matrix of channel responses. [channels,
+            observations]
         """
         channel_response = np.matmul(np.linalg.pinv(self.W_), X.transpose())
         return channel_response
@@ -918,7 +931,8 @@ class InvertedEncoding2D(BaseEstimator):
 
         Returns
         -------
-        pred_features: numpy matrix of predicted stimulus features. [observations, 2]
+        pred_features: numpy matrix of predicted stimulus features.
+            [observations, 2]
         """
         pred_response = self.predict_feature_responses(X)
         feature_ind = np.argmax(pred_response, 0)
