@@ -48,6 +48,31 @@ def test_instantiate_improper_range():
         assert s2, "Invalid InvertedEncoding2D instance"
 
 
+# Test for n_observations < n_channels
+def test_data_amount():
+    x = np.random.rand(5, 1000)
+    s = InvertedEncoding1D()
+    with pytest.raises(ValueError):
+        s.fit(x, np.random.rand(5))
+        assert s, "Invalid data"
+    s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
+                            stimulus_resolution=10)
+    with pytest.raises(ValueError):
+        s2.fit(x, np.random.rand(5))
+
+
+# Test number of data dimensions
+def test_data_dimensions():
+    x = np.random.rand(5, 10, 2)
+    s = InvertedEncoding1D()
+    with pytest.raises(ValueError):
+        s.fit(x, np.random.rand(5))
+    s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
+                            stimulus_resolution=10)
+    with pytest.raises(ValueError):
+        s2.fit(x, np.random.rand(5))
+
+
 ### TESTS FOR 2D MODEL ###
 # Test to check that stimulus resolution is used properly
 def test_2d_stimulus_resolution():
@@ -107,6 +132,114 @@ def test_modify_2d_properties():
         assert s, "Invalid InvertedEncoding2D instance"
 
 
+# Define some data to use in the following tests.
+nobs, nvox, ntest = 100, 1000, 5
+xlim, ylim = [[-6, 6], [-3, 3]]
+sxx, syy = np.meshgrid(np.linspace(xlim[0], xlim[1], 10),
+                       np.linspace(ylim[0], ylim[1], 10))
+yd = np.hstack((sxx.reshape(-1, 1), syy.reshape(-1, 1)))
+Xd = np.zeros((nobs, nvox))
+for i, l in enumerate(np.linspace(-1, 1, 10)):
+    Xd[i*10:i*10+10, :] = np.random.normal(loc=l, scale=1.5,
+                                          size=(10, nvox))
+X2d = np.zeros((ntest, nvox))
+for i, l in enumerate(np.linspace(-1, 1, 5)):
+    X2d[i, :] = np.random.normal(loc=l, scale=1.5,
+                                size=(1, nvox))
+iem_2d = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
+                            stimulus_resolution=100, stim_radius=15,
+                            chan_xlim=xlim, chan_ylim=ylim)
+iem_2d.define_basis_functions_sqgrid(nchannels=[12, 6])
+
+
+# Test if valid data can be fit.
+def test_can_fit_2d_data():
+    iem_2d.fit(Xd, yd)
+
+
+# Show that a data matrix with improper format (dimensions) breaks the
+# algorithm.
+def test_cannot_fit_2d_data():
+    with pytest.raises(ValueError):
+        iem_2d.fit(Xd.transpose(), yd)
+
+
+def test_ill_conditioned_2d_train_data():
+    with pytest.raises(ValueError):
+        Xt = np.random.rand(nobs, nvox)  #np.array([[0, 0, 0], [1, 1, 1]])
+        iem_2d.fit(Xt, np.hstack((np.random.rand(nobs), np.random.rand(nobs))))
+
+
+# Test case when # of observations are not matched btwn data & labels
+def test_mismatched_2d_observations():
+    with pytest.raises(ValueError):
+        iem_2d.fit(Xd, yd[:-50, :])
+
+
+# Test prediction capability from valid (fabricated) data
+def test_can_predict_from_2d_data():
+    iem_2d.fit(Xd, yd)
+    preds = iem_2d.predict(X2d)
+    assert preds.shape == (ntest, 2)
+
+
+# Show that prediction is invalid when input data is wrong size
+def test_cannot_predict_from_2d_data():
+    iem_2d.fit(Xd, yd)
+    with pytest.raises(ValueError):
+        _ = iem_2d.predict(X2d.T)
+
+
+# # Show proper scoring function with valid (fabricated) test data
+# def test_can_score():
+#     Invt_model = InvertedEncoding1D()
+#     Invt_model.fit(X, y)
+#     score = Invt_model.score(X2, y)
+#     logger.info('Scores: ' + str(score))
+#
+#
+# # Test scoring with invalid data formatting
+# def test_cannot_score():
+#     with pytest.raises(ValueError):
+#         Invt_model = InvertedEncoding1D()
+#         Invt_model.fit(X, y)
+#         score = Invt_model.score(X2.transpose(), y)
+#         logger.info('Scores: ' + str(score))
+#
+#
+# # Test stimulus resolution that is not even multiple
+# def test_stimulus_resolution_odd():
+#     Invt_model = InvertedEncoding1D(stimulus_resolution=59)
+#     with pytest.raises(NotImplementedError):
+#         Invt_model.fit(X, y)
+#
+#
+# # Test stimulus masking
+# def test_stimulus_mask():
+#     Invt_model = InvertedEncoding1D(6, 5, range_start=-10,
+#                                     range_stop=170,
+#                                     stimulus_resolution=60)
+#     chans, _ = Invt_model._define_channels()
+#     Invt_model.set_params(channels_=chans)
+#     with pytest.warns(RuntimeWarning):
+#         C = Invt_model._define_trial_activations(np.array([50]))
+#         tmp_C = np.repeat([0, 1, 0], 60) @ chans.transpose()
+#         assert np.all((C - tmp_C) < 1e-7)
+#
+#
+# # Test stimulus masking with different range
+# def test_stimulus_mask_shift_positive():
+#     Invt_model = InvertedEncoding1D(6, 5, range_start=10,
+#                                     range_stop=190,
+#                                     stimulus_resolution=60)
+#     chans, _ = Invt_model._define_channels()
+#     Invt_model.set_params(channels_=chans)
+#     with pytest.warns(RuntimeWarning):
+#         C = Invt_model._define_trial_activations(np.array([70]))
+#         tmp_C = np.repeat([0, 1, 0], 60) @ chans.transpose()
+#         assert np.all((C - tmp_C) < 1e-7)
+
+
 ### TESTS FOR 1D MODEL ###
 # Test to check stimulus resolution input
 def test_1d_stimulus_resolution():
@@ -140,23 +273,6 @@ def test_range_stimulus_mode_halfcirc():
     with pytest.raises(ValueError):
         s = InvertedEncoding1D(6, 5, 'halfcircular', -10, 350)
         assert s, "Invalid InvertedEncoding1D instance"
-
-
-# Test for n_observations < n_channels
-def test_data_amount():
-    x = np.random.rand(5, 1000)
-    s = InvertedEncoding1D()
-    with pytest.raises(ValueError):
-        s.fit(x, np.random.rand(5))
-        assert s, "Invalid data"
-
-
-# Test number of data dimensions
-def test_data_dimensions():
-    x = np.random.rand(5, 10, 2)
-    s = InvertedEncoding1D()
-    with pytest.raises(ValueError):
-        s.fit(x, np.random.rand(5))
 
 
 # Define some data to use in the following tests.
