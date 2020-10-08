@@ -159,8 +159,8 @@ class InvertedEncoding1D(BaseEstimator):
     """
 
     def __init__(self, n_channels=6, channel_exp=5,
-                 stimulus_mode='halfcircular', range_start=0., range_stop=180.,
-                 channel_density=180, stimulus_resolution=None):
+            stimulus_mode='halfcircular', range_start=0., range_stop=180.,
+            channel_density=180, stimulus_resolution=None):
         self.n_channels = n_channels
         self.channel_exp = channel_exp
         self.stimulus_mode = stimulus_mode
@@ -539,9 +539,10 @@ class InvertedEncoding2D(BaseEstimator):
         data
     """
 
-    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution, stim_radius=None,
-                 chan_xlim=[None, None], chan_ylim=[None, None], channels=None,
-                 channel_exp=5):
+    def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
+            stim_radius=None,
+            chan_xlim=[None, None], chan_ylim=[None, None], channels=None,
+            channel_exp=5):
         # Automatically expand stimulus_resolution if only one value is given. This
         # will create a square field  of view (FOV) for the reconstruction.
         if not isinstance(stimulus_resolution, list):  # make FOV square
@@ -590,12 +591,12 @@ class InvertedEncoding2D(BaseEstimator):
                                  format(self.n_channels, self.channels.shape[1],
                                         self.xp.size))
             if np.all(self.channel_limits):
-                if any(self.channels[:, 0] > self.channel_limits[0][1]) or \
-                    any(self.channels[:, 0] < self.channel_limits[0][0]) or \
-                    any(self.channels[:, 1] > self.channel_limits[1][1]) or \
-                    any(self.channels[:, 1] < self.channel_limits[1][0]):
-                    raise ValueError("Channel limits and values defined in self.channels do not"
-                                     "match each other.")
+                if any(self.channels[:, 0] > self.channel_limits[0][1]) or\
+                        any(self.channels[:, 0] < self.channel_limits[0][0]) or\
+                        any(self.channels[:, 1] > self.channel_limits[1][1]) or\
+                        any(self.channels[:, 1] < self.channel_limits[1][0]):
+                    raise ValueError("Channel limits and values defined in "
+                                     "self.channels do not match each other.")
 
     def fit(self, X, y):
         """Use data and feature variable labels to fit an IEM
@@ -732,7 +733,7 @@ class InvertedEncoding2D(BaseEstimator):
         """
         cos_functions = np.zeros((len(x_center), len(x)))
         for i in range(len(x_center)):
-            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2).\
+            myr = np.sqrt((x - x_center[i]) ** 2 + (y - y_center[i]) ** 2). \
                 squeeze()
             qq = (myr <= s) * 1
             zp = ((0.5 * (1 + np.cos(myr * np.pi / s))) ** self.channel_exp)
@@ -741,7 +742,7 @@ class InvertedEncoding2D(BaseEstimator):
 
     def _2d_cosine_sz_to_fwhm(self, size_constant):
         fwhm = 2 * size_constant \
-              * np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5) / np.pi
+               * np.arccos((0.5 ** (1 / self.channel_exp) - 0.5) / 0.5) / np.pi
         return fwhm
 
     def _2d_cosine_fwhm_to_sz(self, fwhm):
@@ -762,7 +763,7 @@ class InvertedEncoding2D(BaseEstimator):
         sz: the size constant of the exponentiated cosine
         """
         sz = (0.5 * np.pi * fwhm) / \
-                (np.arccos((0.5**(1 / self.channel_exp) - 0.5) / 0.5))
+             (np.arccos((0.5 ** (1 / self.channel_exp) - 0.5) / 0.5))
         return sz
 
     def define_basis_functions_sqgrid(self, nchannels, channel_size=None):
@@ -795,7 +796,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels might work. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
             # your mileage may vary for other exponents!).
-            channel_size = 1.2*(chan_xcenters[1] - chan_xcenters[0])
+            channel_size = 1.2 * (chan_xcenters[1] - chan_xcenters[0])
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         # define exponentiated function
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
@@ -813,7 +814,7 @@ class InvertedEncoding2D(BaseEstimator):
         self.channels: defines channels, [nchannels, npixels] matrix.
         channel_centers: numpy array of the centers of each channel
         """
-        x_dist = np.diff(self.channel_limits[0]) / (grid_radius*2)
+        x_dist = np.diff(self.channel_limits[0]) / (grid_radius * 2)
         y_dist = x_dist * np.sqrt(3) * 0.5
         trigrid = np.zeros((0, 2))
         xbase = np.expand_dims(np.arange(self.channel_limits[0][0],
@@ -835,7 +836,7 @@ class InvertedEncoding2D(BaseEstimator):
             # spacing between the channels might work. (See Sprague et al. 2013
             # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
             # your mileage may vary for other exponents!).
-            channel_size = 1.1*x_dist
+            channel_size = 1.1 * x_dist
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
         self.channels = self._make_2d_cosine(self.xp.reshape(-1, 1),
                                              self.yp.reshape(-1, 1),
@@ -874,8 +875,8 @@ class InvertedEncoding2D(BaseEstimator):
         # Create a mask for every stimulus observation in the stimulus domain
         stimulus_mask = np.zeros((self.xp.size, nstim))
         for i in range(nstim):
-            rad_vals = ((self.xp.reshape(-1, 1) - stim_centers[i, 0])**2 +
-                        (self.yp.reshape(-1, 1) - stim_centers[i, 1])**2)
+            rad_vals = ((self.xp.reshape(-1, 1) - stim_centers[i, 0]) ** 2 +
+                        (self.yp.reshape(-1, 1) - stim_centers[i, 1]) ** 2)
             inds = np.where(rad_vals < self.stim_radius_px[i])[0]
             stimulus_mask[inds, i] = 1
         # Go from the stimulus domain to the channel domain
