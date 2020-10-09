@@ -47,6 +47,7 @@ import warnings
 import numpy as np
 import scipy.stats
 from sklearn.base import BaseEstimator
+from sklearn.metrics.pairwise import cosine_distances, euclidean_distances
 from ..utils.utils import circ_dist
 
 __all__ = ["InvertedEncoding1D",
@@ -361,7 +362,7 @@ class InvertedEncoding1D(BaseEstimator):
         Parameters
 
             stimuli: numpy array of the feature values for each
-                observation (e.g., [0, 5, 15, 30, ...] degrees)
+                observation
 
         Returns
         -------
@@ -694,8 +695,8 @@ class InvertedEncoding2D(BaseEstimator):
         return model_prediction
 
     def score(self, X, y):
-        """Calculate error measure of prediction. Default measurement
-        is R^2, the coefficient of determination.
+        """Calculate error measure of prediction, assuming that the predicted
+        feature is at the maximum of the reconstructed values.
 
         Parameters
         ----------
@@ -706,15 +707,41 @@ class InvertedEncoding2D(BaseEstimator):
         Returns
         -------
         score_value: the error measurement between the actual
-            feature and predicted features.
+            feature and predicted features, [observations].
         """
-        # TODO: add other scoring methods
         pred_features = self.predict(X)
-        ssres = (pred_features - y) ** 2
-        sstot = (y - np.mean(y)) ** 2
-        score_value = (1 - ssres / sstot)
+        ssres = np.sum((pred_features - y) ** 2, axis=1)
+        sstot = np.sum((y - np.mean(y)) ** 2, axis=1)
+        score_value = 1 - (ssres / sstot)
 
         return score_value
+
+    def score_against_reconstructed(self, X, y, metric="euclidean"):
+        """Calculates a distance metric between reconstructed features in
+        the 2D stimulus domain (i.e. reconstructions in pixels) given
+        some observations X, and expected features y. Expected features must
+        also be in the pixel stimulus domain.
+
+        Parameters
+        ----------
+        X: numpy matrix of voxel activation from new data
+            [observations, voxels]
+        y: numpy array of the expected stimulus reconstruction values [pixels,
+            observations].
+        metric: string specifying the distance metric, either "euclidean" or
+            "cosine".
+
+        Returns
+        -------
+        score_value: the error measurement between the reconstructed feature
+            values as the expected values, [observations].
+        """
+        yhat = self.predict_feature_responses(X)
+        if metric == "euclidean":
+            score_value = euclidean_distances(y.T, yhat.T)
+        elif metric == "cosine":
+            score_value = cosine_distances(y.T, yhat.T)
+        return score_value[0, :]
 
     def get_params(self):
         """Returns model parameters.

@@ -132,6 +132,9 @@ def test_modify_2d_properties():
         assert s, "Invalid InvertedEncoding2D instance"
 
 
+# TODO: test attempt to fit with C=None and stim_radius=None
+
+
 # Define some data to use in the following tests.
 nobs, nvox, ntest = 100, 1000, 5
 xlim, ylim = [[-6, 6], [-3, 3]]
@@ -190,30 +193,19 @@ def test_cannot_predict_from_2d_data():
         _ = iem_2d.predict(X2d.T)
 
 
-# # Show proper scoring function with valid (fabricated) test data
-# def test_can_score():
-#     Invt_model = InvertedEncoding1D()
-#     Invt_model.fit(X, y)
-#     score = Invt_model.score(X2, y)
-#     logger.info('Scores: ' + str(score))
-#
-#
-# # Test scoring with invalid data formatting
-# def test_cannot_score():
-#     with pytest.raises(ValueError):
-#         Invt_model = InvertedEncoding1D()
-#         Invt_model.fit(X, y)
-#         score = Invt_model.score(X2.transpose(), y)
-#         logger.info('Scores: ' + str(score))
-#
-#
-# # Test stimulus resolution that is not even multiple
-# def test_stimulus_resolution_odd():
-#     Invt_model = InvertedEncoding1D(stimulus_resolution=59)
-#     with pytest.raises(NotImplementedError):
-#         Invt_model.fit(X, y)
-#
-#
+# Show proper scoring function with valid (fabricated) test data
+def test_can_score_2d():
+    iem_2d.fit(Xd, yd)
+    score = iem_2d.score(X2d, yd[ntest, :])
+
+
+# Test scoring with invalid data formatting
+def test_cannot_score_2d():
+    with pytest.raises(ValueError):
+        iem_2d.fit(Xd, yd)
+        score = iem_2d.score(X2d.transpose(), yd[ntest, :])
+
+
 # # Test stimulus masking
 # def test_stimulus_mask():
 #     Invt_model = InvertedEncoding1D(6, 5, range_start=-10,
