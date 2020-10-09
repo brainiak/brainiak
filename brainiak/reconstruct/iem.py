@@ -465,8 +465,10 @@ class InvertedEncoding2D(BaseEstimator):
     user).
 
     The documentation will refer to the 'stimulus space' or 'stimulus domain',
-    which should be a 2D space in consistent units (e.g. pixels, or degrees
-    visual angle).
+    which should be a 2D space in consistent units (e.g. screen pixels,
+    or degrees visual angle). The stimulus space is the domain in which the
+    stimulus is reconstructed. We will refer to the each point in this 2D
+    stimulus domain as a 'pixel'.
 
     The model:
     Inverted encoding models reconstruct a stimulus feature from
@@ -512,37 +514,54 @@ class InvertedEncoding2D(BaseEstimator):
     Use score() to compute a measure of the error of the prediction
     based on known stimuli.
 
-    #TODO: fix param docstrings
     Parameters
     ----------
-    n_channels: int, default 5. Number of channels
-        The number of channels, or basis functions, to be used in
-        the inverted encoding model.
+    stim_xlim: list of 2 floats Specifies the minimum and maximum x-values
+        of the area to be reconstructed. In order to be estimated properly, a
+        stimulus must appear at these limits. Specifying limits outside the
+        range of the stimuli can lead to spurious estimates.
 
-    channel_exp: int, default 6. Basis function exponent.
-        The exponent of the sinuoidal basis functions, which
-        establishes the width of the functions.
+    stim_ylim: list of 2 floats Specifies the minimum and maximum y-values
+        of the area to be reconstructed. In order to be estimated properly, a
+        stimulus must appear at these limits. Specifying limits outside the
+        range of the stimuli can lead to spurious estimates.
 
-    stimulus_resolution: double, default None will set the stimulus
-        resolution to be identical to the channel density. This sets
-        the resolution at which the stimuli were presented (e.g. a
-        spatial position with some width has a lower stimulus
-        resolution).
+    stimulus_resolution: float or list of 2 floats. If a single float is
+        given, it will be expanded to a list (i.e. we will assume that the
+        reconstructed area is composed of square pixels).
+
+    stim_radius: float, or sequence of floats [n_stim], default None. If the
+        user does not define the design matrix of the encoding model (e.g. C
+        in B = W*C), it will be defined automatically on the assumption that
+        each observation was for a 2D circular stimulus of some radius.
+
+    chan_xlim: list of 2 floats, default None. Specifies the minimum and
+        maximum x-values of the channels, or basis functions.
+
+    chan_ylim: list of 2 floats, default None. Specifies the minimum and
+        maximum y-values of the channels, or basis functions.
+
+    channels: [n_channels, n_pixels] NumPy 2D array, default None. If None at
+        initialization, it can be defined with
+        either define_basis_functions_sqgrid() or
+        define_basis_functions_trigrid(), each of which tiles the given 2D
+        space with some grid (square or triangular/hexagonal, respectively).
+        Alternatively, the user can specify their own channels.
+
+    channel_exp: int, default 7. Basis function exponent. The exponent of the
+        sinuoidal basis functions, which establishes the width of the functions.
 
     Attributes
     ----------
-    channels_: [n_channels, channel density] NumPy 2D array
-        matrix defining channel values
+    channels: [n_channels, n_pixels] NumPy 2D array defining channels
 
-    W_: sklearn.linear_model model containing weight matrix that
-        relates estimated channel responses to response amplitude
-        data
+    W_: sklearn.linear_model containing weight matrix that relates estimated
+        channel responses to response data
     """
 
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
-            stim_radius=None,
-            chan_xlim=[None, None], chan_ylim=[None, None], channels=None,
-            channel_exp=5):
+            stim_radius=None, chan_xlim=None, chan_ylim=None, channels=None,
+            channel_exp=7):
         # Automatically expand stimulus_resolution if only one value is given. This
         # will create a square field  of view (FOV) for the reconstruction.
         if not isinstance(stimulus_resolution, list):  # make FOV square
@@ -554,13 +573,19 @@ class InvertedEncoding2D(BaseEstimator):
                                         stimulus_resolution[0]),
                             np.linspace(stim_ylim[0], stim_ylim[1],
                                         stimulus_resolution[1])]
-        self.stim_radius_px = stim_radius
         self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
+        self.stim_radius_px = stim_radius
         self.channels = channels
         if self.channels is None:
             self.n_channels = None
         else:
             self.n_channels = self.channels.shape[0]
+        if chan_xlim is None:
+            chan_xlim = stim_xlim
+            logger.info("Set channel x-limits to stimulus x-limits", stim_xlim)
+        if chan_ylim is None:
+            chan_ylim = stim_ylim
+            logger.info("Set channel y-limits to stimulus y-limits", stim_ylim)
         self.channel_limits = [chan_xlim, chan_ylim]
         self.channel_exp = channel_exp
         self._check_params()
@@ -598,7 +623,7 @@ class InvertedEncoding2D(BaseEstimator):
                     raise ValueError("Channel limits and values defined in "
                                      "self.channels do not match each other.")
 
-    def fit(self, X, y):
+    def fit(self, X, y, C=None):
         """Use data and feature variable labels to fit an IEM
 
         Parameters
@@ -608,6 +633,11 @@ class InvertedEncoding2D(BaseEstimator):
             trial and each voxel of training data.
         y: numpy array of response variable. [observations]
             Should contain the feature for each observation in X.
+        C: numpy matrix of channel activations for every observation (e.g.
+            the design matrix C in the linear equation B = W*C). Size of matrix:
+            [observations, pixels]. If None (default), this assumes that each
+            observation contains a 2D circular stimulus and will define the
+            activations with self._define_trial_activations(y).
         """
         # Check that data matrix is well conditioned:
         if np.linalg.cond(X) > MAX_CONDITION_CHECK:
@@ -628,9 +658,10 @@ class InvertedEncoding2D(BaseEstimator):
         else:
             if shape_data[0] != shape_labels[0]:
                 raise ValueError("Mismatched data samples and label samples")
-        # Create a matrix of channel activations for every observation.
-        # (i.e., C1 in Brouwer & Heeger 2009.)
-        C = self._define_trial_activations(y)
+        if C is None:
+            # Create a matrix of channel activations for every observation.
+            # (i.e., C1 in Brouwer & Heeger 2009.)
+            C = self._define_trial_activations(y)
         # Solve for W in B = WC
         self.W_ = X.transpose() @ np.linalg.pinv(C.transpose())
         if np.linalg.cond(self.W_) > MAX_CONDITION_CHECK:
@@ -677,6 +708,7 @@ class InvertedEncoding2D(BaseEstimator):
         score_value: the error measurement between the actual
             feature and predicted features.
         """
+        # TODO: add other scoring methods
         pred_features = self.predict(X)
         ssres = (pred_features - y) ** 2
         sstot = (y - np.mean(y)) ** 2
@@ -779,11 +811,12 @@ class InvertedEncoding2D(BaseEstimator):
         Returns
         -------
         self.channels: defines channels, a [nchannels, npixels] matrix.
-        channel_centers: numpy array of the centers of each channel
-        # TODO: get dimensionality of channel_centers
+        channel_centers: numpy array of the centers of each channel, given as
+            [nchannels x 2] matrix
         """
-        # TODO: expand nchannels to list
-        # TODO: make sure channel limits exists
+        # If given a single value for nchannels, expand to make a square
+        if not isinstance(nchannels, list):
+            nchannels = [nchannels, nchannels]
         chan_xcenters = np.linspace(self.channel_limits[0][0],
                                     self.channel_limits[0][1], nchannels[0])
         chan_ycenters = np.linspace(self.channel_limits[1][0],
@@ -849,15 +882,18 @@ class InvertedEncoding2D(BaseEstimator):
     def _define_trial_activations(self, stim_centers, stim_radius=None):
         """Defines a numpy matrix of predicted channel responses for each
         trial/observation. Assumes that the presented stimulus is circular in
-        the 2D stimulus space. This can include a point -- simply set
-        stim_radius to 0.5.
+        the 2D stimulus space. This can effectively be a single circular
+        pixel if stim_radius=0.5.
 
         Parameters
         -------
         stim_centers: numpy array of 2D stimulus features for each observation,
             expected dimensions are [observations, 2].
         stim_radius: scalar value or array-like specifying the radius of the
-            circular stimulus (array-like should have n_observations elements)
+            circular stimulus for each observation, [observations]. While
+            this can be read-out from the property self.stim_radius_px,
+            here the user can specify it in case they are retraining the
+            model with new observations.
 
         Returns
         -------
