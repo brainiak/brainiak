@@ -33,7 +33,11 @@ If you have `Conda <conda.io>`_::
 Otherwise, or if you want to compile from source, install the requirements (see
 `docs/installation`) and then install from PyPI::
 
-    python3 -m pip install --no-use-pep517 brainiak
+    python3 -m pip install brainiak
+
+Note that to use the ``brainiak.matnormal`` package, you need to install additional dependencies from PyPI, even when using Conda::
+
+    python3 -m pip install brainiak[matnormal]
 
 Note that we do not support Windows.
 
