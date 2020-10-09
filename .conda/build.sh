@@ -4,8 +4,6 @@
 # following. Explicitly install dependencies with no conda package as well
 # because otherwise conda-build does not include them in the output package.
 PIP_NO_INDEX=False $PYTHON -m pip install pymanopt
-PIP_NO_INDEX=False $PYTHON -m pip install tensorflow_probability dm-tree
-
 
 # NOTE: This is the recommended way to install packages
 $PYTHON setup.py install --single-version-externally-managed --record=record.txt

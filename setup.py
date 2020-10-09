@@ -138,12 +138,16 @@ setup(
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'tensorflow',
-        'tensorflow_probability',
         'joblib',
         'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
         'pydicom',
     ],
+    extras_require={
+        'matnormal': [
+            'tensorflow',
+            'tensorflow_probability',
+        ],
+    },
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
     url='http://brainiak.org',
