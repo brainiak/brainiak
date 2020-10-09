@@ -132,12 +132,10 @@ def test_modify_2d_properties():
         assert s, "Invalid InvertedEncoding2D instance"
 
 
-# TODO: test attempt to fit with C=None and stim_radius=None
-
-
 # Define some data to use in the following tests.
 nobs, nvox, ntest = 100, 1000, 5
 xlim, ylim = [[-6, 6], [-3, 3]]
+res = [100, 100]
 sxx, syy = np.meshgrid(np.linspace(xlim[0], xlim[1], 10),
                        np.linspace(ylim[0], ylim[1], 10))
 yd = np.hstack((sxx.reshape(-1, 1), syy.reshape(-1, 1)))
@@ -149,9 +147,43 @@ X2d = np.zeros((ntest, nvox))
 for i, l in enumerate(np.linspace(-1, 1, 5)):
     X2d[i, :] = np.random.normal(loc=l, scale=1.5,
                                 size=(1, nvox))
+
+
+# Test that 2D model raises error if design matrix C cannot be defined
+def test_fit_invalid_2d():
+    # C=None and stim_radius=None here, cannot define C
+    i2 = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
+                            stimulus_resolution=res, stim_radius=None)
+    i2.define_basis_functions_sqgrid(nchannels=[12, 6])
+    with pytest.raises(ValueError):
+        i2.fit(Xd, yd)
+
+
+# Test attempt to fit with list of varying stimulus radii
+def test_fit_2d_radius_list():
+    i2 = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
+                            stimulus_resolution=res,
+                            stim_radius=np.random.rand(nobs))
+    i2.define_basis_functions_sqgrid(nchannels=[12, 6])
+    i2.fit(Xd, yd)
+
+
+# Test with custom C input
+def test_fit_2d_radius_list():
+    i2 = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
+                            stimulus_resolution=res,
+                            stim_radius=12)
+    i2.define_basis_functions_sqgrid(nchannels=[12, 6])
+    # Define C by expanding y & adding noise to avoid singular W matrix error
+    C0 = np.repeat(np.expand_dims(yd[:, 0], 1), 12*3, axis=1) + \
+        np.random.rand(nobs, 12*3)
+    C1 = np.repeat(np.expand_dims(yd[:, 1], 1), 12*3, axis=1) + \
+        np.random.rand(nobs, 12*3)
+    i2.fit(Xd, yd, np.hstack((C0, C1)))
+
+
 iem_2d = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
-                            stimulus_resolution=100, stim_radius=15,
-                            chan_xlim=xlim, chan_ylim=ylim)
+                            stimulus_resolution=res, stim_radius=12)
 iem_2d.define_basis_functions_sqgrid(nchannels=[12, 6])
 
 
@@ -196,7 +228,17 @@ def test_cannot_predict_from_2d_data():
 # Show proper scoring function with valid (fabricated) test data
 def test_can_score_2d():
     iem_2d.fit(Xd, yd)
-    score = iem_2d.score(X2d, yd[ntest, :])
+    score = iem_2d.score(X2d, yd[:ntest, :])
+    assert score.shape == (ntest,)
+    score = iem_2d.score_against_reconstructed(X2d,
+                                               np.random.rand(res[0]*res[1],
+                                                              ntest))
+    assert score.shape == (ntest,)
+    score = iem_2d.score_against_reconstructed(X2d,
+                                               np.random.rand(res[0]*res[1],
+                                                              ntest),
+                                               metric="cosine")
+    assert score.shape == (ntest,)
 
 
 # Test scoring with invalid data formatting
@@ -215,19 +257,6 @@ def test_cannot_score_2d():
 #     Invt_model.set_params(channels_=chans)
 #     with pytest.warns(RuntimeWarning):
 #         C = Invt_model._define_trial_activations(np.array([50]))
-#         tmp_C = np.repeat([0, 1, 0], 60) @ chans.transpose()
-#         assert np.all((C - tmp_C) < 1e-7)
-#
-#
-# # Test stimulus masking with different range
-# def test_stimulus_mask_shift_positive():
-#     Invt_model = InvertedEncoding1D(6, 5, range_start=10,
-#                                     range_stop=190,
-#                                     stimulus_resolution=60)
-#     chans, _ = Invt_model._define_channels()
-#     Invt_model.set_params(channels_=chans)
-#     with pytest.warns(RuntimeWarning):
-#         C = Invt_model._define_trial_activations(np.array([70]))
 #         tmp_C = np.repeat([0, 1, 0], 60) @ chans.transpose()
 #         assert np.all((C - tmp_C) < 1e-7)
 
