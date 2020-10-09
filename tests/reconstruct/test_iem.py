@@ -42,7 +42,7 @@ def test_instantiate_improper_range():
         s2 = InvertedEncoding2D(stim_xlim=[0, -1], stim_ylim=[0, -1],
                                 stimulus_resolution=[10, 10])
         assert s2, "Invalid InvertedEncoding2D instance"
-    with pytest.raises(ValueError): # CATCH THIS CASE
+    with pytest.raises(ValueError):
         s2 = InvertedEncoding2D(stim_xlim=[0], stim_ylim=[-1, 0],
                                 stimulus_resolution=10)
         assert s2, "Invalid InvertedEncoding2D instance"
@@ -73,15 +73,15 @@ def test_data_dimensions():
         s2.fit(x, np.random.rand(5))
 
 
-### TESTS FOR 2D MODEL ###
+# TESTS FOR 2D MODEL #
 # Test to check that stimulus resolution is used properly
 def test_2d_stimulus_resolution():
     s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
-                            stimulus_resolution=10) 
+                            stimulus_resolution=10)
     assert len(s2.stim_pixels[0] == 10)
     assert len(s2.stim_pixels[1] == 10)
     s2 = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-2, 2],
-                            stimulus_resolution=[10, 20]) 
+                            stimulus_resolution=[10, 20])
     assert len(s2.stim_pixels[0] == 10)
     assert len(s2.stim_pixels[1] == 20)
 
@@ -142,11 +142,11 @@ yd = np.hstack((sxx.reshape(-1, 1), syy.reshape(-1, 1)))
 Xd = np.zeros((nobs, nvox))
 for i, l in enumerate(np.linspace(-1, 1, 10)):
     Xd[i*10:i*10+10, :] = np.random.normal(loc=l, scale=1.5,
-                                          size=(10, nvox))
+                                           size=(10, nvox))
 X2d = np.zeros((ntest, nvox))
 for i, l in enumerate(np.linspace(-1, 1, 5)):
     X2d[i, :] = np.random.normal(loc=l, scale=1.5,
-                                size=(1, nvox))
+                                 size=(1, nvox))
 
 
 # Test that 2D model raises error if design matrix C cannot be defined
@@ -169,7 +169,7 @@ def test_fit_2d_radius_list():
 
 
 # Test with custom C input
-def test_fit_2d_radius_list():
+def test_fit_custom_C():
     i2 = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
                             stimulus_resolution=res,
                             stim_radius=12)
@@ -201,7 +201,7 @@ def test_cannot_fit_2d_data():
 
 def test_ill_conditioned_2d_train_data():
     with pytest.raises(ValueError):
-        Xt = np.random.rand(nobs, nvox)  #np.array([[0, 0, 0], [1, 1, 1]])
+        Xt = np.random.rand(nobs, nvox)
         iem_2d.fit(Xt, np.hstack((np.random.rand(nobs), np.random.rand(nobs))))
 
 
@@ -243,9 +243,10 @@ def test_can_score_2d():
 
 # Test scoring with invalid data formatting
 def test_cannot_score_2d():
+    iem_2d.fit(Xd, yd)
     with pytest.raises(ValueError):
-        iem_2d.fit(Xd, yd)
         score = iem_2d.score(X2d.transpose(), yd[ntest, :])
+        assert score
 
 
 # # Test stimulus masking
@@ -261,7 +262,7 @@ def test_cannot_score_2d():
 #         assert np.all((C - tmp_C) < 1e-7)
 
 
-### TESTS FOR 1D MODEL ###
+# TESTS FOR 1D MODEL #
 # Test to check stimulus resolution input
 def test_1d_stimulus_resolution():
     s = InvertedEncoding1D(6, 5, stimulus_resolution=360)

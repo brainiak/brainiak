@@ -160,8 +160,8 @@ class InvertedEncoding1D(BaseEstimator):
     """
 
     def __init__(self, n_channels=6, channel_exp=5,
-            stimulus_mode='halfcircular', range_start=0., range_stop=180.,
-            channel_density=180, stimulus_resolution=None):
+                 stimulus_mode='halfcircular', range_start=0., range_stop=180.,
+                 channel_density=180, stimulus_resolution=None):
         self.n_channels = n_channels
         self.channel_exp = channel_exp
         self.stimulus_mode = stimulus_mode
@@ -288,7 +288,8 @@ class InvertedEncoding1D(BaseEstimator):
             pred_features = pred_features * 2
             y = y * 2
 
-        ssres = (circ_dist(np.deg2rad(y), np.deg2rad(pred_features)) ** 2).sum()
+        ssres = (circ_dist(np.deg2rad(y),
+                           np.deg2rad(pred_features)) ** 2).sum()
         sstot = (circ_dist(np.deg2rad(y),
                            np.ones(y.size) * scipy.stats.circmean(
                                np.deg2rad(y))) ** 2).sum()
@@ -394,8 +395,8 @@ class InvertedEncoding1D(BaseEstimator):
         # Check that C is full rank
         if np.linalg.matrix_rank(C) < self.n_channels:
             warnings.warn("Stimulus matrix is {}, not full rank. May cause "
-                          "issues with stimulus prediction/reconstruction.".format(
-                np.linalg.matrix_rank(C)), RuntimeWarning)
+                          "issues with stimulus prediction/reconstruction.".
+                          format(np.linalg.matrix_rank(C)), RuntimeWarning)
         return C
 
     def _predict_channel_responses(self, X):
@@ -462,8 +463,8 @@ class InvertedEncoding2D(BaseEstimator):
     stimulus feature (e.g. 2D spatial position) to basis function is one-
     to-one and invertible. The response of a voxel is expressed as the
     weighted sum of basis functions. In this implementation, basis functions
-    were half-wave rectified sinusoid functions raised to some power (set by the
-    user).
+    were half-wave rectified sinusoid functions raised to some power (set by
+    the user).
 
     The documentation will refer to the 'stimulus space' or 'stimulus domain',
     which should be a 2D space in consistent units (e.g. screen pixels,
@@ -550,7 +551,7 @@ class InvertedEncoding2D(BaseEstimator):
         Alternatively, the user can specify their own channels.
 
     channel_exp: int, default 7. Basis function exponent. The exponent of the
-        sinuoidal basis functions, which establishes the width of the functions.
+        sinuoidal basis functions, which helps control their width.
 
     Attributes
     ----------
@@ -561,20 +562,22 @@ class InvertedEncoding2D(BaseEstimator):
     """
 
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
-            stim_radius=None, chan_xlim=None, chan_ylim=None, channels=None,
-            channel_exp=7):
-        # Automatically expand stimulus_resolution if only one value is given. This
-        # will create a square field  of view (FOV) for the reconstruction.
+                 stim_radius=None, chan_xlim=None, chan_ylim=None,
+                 channels=None, channel_exp=7):
+        # Automatically expand stimulus_resolution if only one value is given.
+        # This will create a square field  of view (FOV) for the
+        # reconstruction.
         if not isinstance(stimulus_resolution, list):  # make FOV square
             stimulus_resolution = [stimulus_resolution, stimulus_resolution]
         if (len(stim_xlim) != 2) or (len(stim_ylim) != 2):
-            raise ValueError("Stimulus limits should be a sequence of 2 values")
+            raise ValueError("Stimulus limits should be a sequence, 2 values")
         self.stim_fov = [stim_xlim, stim_ylim]
         self.stim_pixels = [np.linspace(stim_xlim[0], stim_xlim[1],
                                         stimulus_resolution[0]),
                             np.linspace(stim_ylim[0], stim_ylim[1],
                                         stimulus_resolution[1])]
-        self.xp, self.yp = np.meshgrid(self.stim_pixels[0], self.stim_pixels[1])
+        self.xp, self.yp = np.meshgrid(self.stim_pixels[0],
+                                       self.stim_pixels[1])
         self.stim_radius_px = stim_radius
         self.channels = channels
         if self.channels is None:
@@ -595,7 +598,7 @@ class InvertedEncoding2D(BaseEstimator):
         if len(self.stim_fov) != 2:
             raise ValueError("Stim FOV needs to have an x-list and a y-list")
         elif len(self.stim_fov[0]) != 2 or len(self.stim_fov[1]) != 2:
-            raise ValueError("Stimulus limits should be a sequence of 2 values")
+            raise ValueError("Stimulus limits should be a sequence, 2 values")
         else:
             if (self.stim_fov[0][0] >= self.stim_fov[0][1]) or \
                     (self.stim_fov[1][0] >= self.stim_fov[1][1]):
@@ -614,12 +617,13 @@ class InvertedEncoding2D(BaseEstimator):
                 raise ValueError("Defined {} channels over {} pixels, but "
                                  "stimuli are represented over {} pixels. "
                                  "Pixels should match.".
-                                 format(self.n_channels, self.channels.shape[1],
+                                 format(self.n_channels,
+                                        self.channels.shape[1],
                                         self.xp.size))
             if np.all(self.channel_limits):
                 if any(self.channels[:, 0] > self.channel_limits[0][1]) or\
-                        any(self.channels[:, 0] < self.channel_limits[0][0]) or\
-                        any(self.channels[:, 1] > self.channel_limits[1][1]) or\
+                    any(self.channels[:, 0] < self.channel_limits[0][0]) or\
+                    any(self.channels[:, 1] > self.channel_limits[1][1]) or\
                         any(self.channels[:, 1] < self.channel_limits[1][0]):
                     raise ValueError("Channel limits and values defined in "
                                      "self.channels do not match each other.")
@@ -635,7 +639,7 @@ class InvertedEncoding2D(BaseEstimator):
         y: numpy array of response variable. [observations]
             Should contain the feature for each observation in X.
         C: numpy matrix of channel activations for every observation (e.g.
-            the design matrix C in the linear equation B = W*C). Size of matrix:
+            the design matrix C in the linear equation B = W*C), matrix size
             [observations, pixels]. If None (default), this assumes that each
             observation contains a 2D circular stimulus and will define the
             activations with self._define_trial_activations(y).
@@ -782,13 +786,13 @@ class InvertedEncoding2D(BaseEstimator):
         y: y-coordinates of the stimulus space, [npixels, 1] matrix
         x_center: x-coordinate of basis function centers (sequence, nchannels)
         y_center: y-coordinate of basis function centers (sequence, nchannels)
-        s: size constant of the 2D cosine function. This is the radius where the
-            function is non-zero.
+        s: size constant of the 2D cosine function. This is the radius where
+            the function is non-zero.
 
         Returns
         -------
-        cos_functions: basis functions defined in the 2D stimulus space. returns
-            a [nchannels, npixels] matrix.
+        cos_functions: basis functions defined in the 2D stimulus space.
+            returns a [nchannels, npixels] matrix.
         """
         cos_functions = np.zeros((len(x_center), len(x)))
         for i in range(len(x_center)):
@@ -854,7 +858,7 @@ class InvertedEncoding2D(BaseEstimator):
         if channel_size is None:
             # To get even coverage, setting the channel FWHM to ~1.1x-1.2x the
             # spacing between the channels might work. (See Sprague et al. 2013
-            # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
+            # Methods & Supplementary Figure 3 -- this is for cosine exp = 7,
             # your mileage may vary for other exponents!).
             channel_size = 1.2 * (chan_xcenters[1] - chan_xcenters[0])
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
@@ -894,7 +898,7 @@ class InvertedEncoding2D(BaseEstimator):
         if channel_size is None:
             # To get even coverage, setting the channel FWHM to ~1.1x-1.2x the
             # spacing between the channels might work. (See Sprague et al. 2013
-            # Methods & Supplementary Figure 3 -- this is for cosine exponent 7,
+            # Methods & Supplementary Figure 3 -- this is for cosine exp = 7,
             # your mileage may vary for other exponents!).
             channel_size = 1.1 * x_dist
         cos_width = self._2d_cosine_fwhm_to_sz(channel_size)
@@ -929,7 +933,7 @@ class InvertedEncoding2D(BaseEstimator):
         nstim = stim_centers.shape[0]
         if self.stim_radius_px is None:
             if stim_radius is None:
-                raise ValueError("No defined stimulus radius. Please set this.")
+                raise ValueError("No defined stimulus radius. Please set.")
             else:
                 self.stim_radius_px = stim_radius
         if not isinstance(self.stim_radius_px, np.ndarray) or not isinstance(
@@ -987,7 +991,8 @@ class InvertedEncoding2D(BaseEstimator):
 
     def _predict_features(self, X):
         """Predicts feature value from data in X.
-        Takes the maximum of the 'reconstructed' or predicted response function.
+        Takes the maximum of the reconstructed, i.e. predicted response
+        function.
 
         Parameters
         ---------
