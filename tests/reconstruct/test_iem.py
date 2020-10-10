@@ -132,6 +132,73 @@ def test_modify_2d_properties():
         assert s, "Invalid InvertedEncoding2D instance"
 
 
+# Test helper function to create 2D cosine
+def test_2d_cos():
+    nchan = 8
+    res = 10
+    npix = res*res
+    bds = [-1, 1]
+    sz = 2
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=res,
+                           channels=np.random.rand(nchan, npix))
+    sz = s._2d_cosine_fwhm_to_sz(1)
+    fcn = s._make_2d_cosine(s.xp.reshape(-1, 1), s.yp.reshape(-1, 1),
+                            np.linspace(bds[0], bds[1], nchan),
+                            np.linspace(bds[0], bds[1], nchan), sz)
+    assert fcn.shape == (nchan, npix)
+    # Test that masking works -- basis function should have fewer non-zero
+    # elements than specified by the size constant
+    xd = np.diff(s.xp)[0][0]
+    nval = (np.nonzero(fcn[0, :])[0]).size
+    assert nval*(xd**2) <= sz**2
+
+
+# Test size conversion functions
+def test_2d_cos_size_fcns():
+    bds = [-1, 1]
+    s = np.random.rand()
+    imodel = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                                stimulus_resolution=10)
+    fwhm = imodel._2d_cosine_sz_to_fwhm(s)
+    s2 = imodel._2d_cosine_fwhm_to_sz(fwhm)
+    assert s == s2
+    fwhm2 = imodel._2d_cosine_sz_to_fwhm(s2)
+    assert fwhm == fwhm2
+
+
+def test_square_basis_grid():
+    nchan = 8
+    bds = [-1, 1]
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=10)
+    _, centers = s.define_basis_functions_sqgrid(nchannels=nchan)
+    assert centers.shape[0] == nchan*nchan
+    xspacing = np.round(np.diff(centers[:, 0]), 5)
+    yspacing = np.round(np.diff(centers[:, 1]), 5)
+    assert xspacing[0] == xspacing[np.random.randint(nchan*nchan)] == \
+        xspacing[-1]
+    assert yspacing[0] == yspacing[np.random.randint(nchan * nchan)] == \
+        yspacing[-1]
+
+
+def test_triangular_basis_grid():
+    grid_rad = 3
+    n_channels = (grid_rad*2 + 1) * (grid_rad*2)
+    bds = [-1, 1]
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=10)
+    _, centers = s.define_basis_functions_trigrid(grid_rad)
+    assert centers.shape[0] == n_channels
+    xspacing = np.round(np.diff(centers[:, 0]), 4)
+    assert xspacing[0] == xspacing[np.random.randint(n_channels)] == \
+        xspacing[-1]
+    ysp = xspacing[0] * np.sqrt(3) * 0.5
+    yspacing = np.diff(centers[:, 1])
+    yspace = yspacing[yspacing > 0.0]
+    assert np.all((ysp - yspace) < 1e-5)
+
+
 # Define some data to use in the following tests.
 nobs, nvox, ntest = 100, 1000, 5
 xlim, ylim = [[-6, 6], [-3, 3]]
@@ -169,7 +236,7 @@ def test_fit_2d_radius_list():
 
 
 # Test with custom C input
-def test_fit_custom_C():
+def test_fit_custom_channel_activations():
     i2 = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
                             stimulus_resolution=res,
                             stim_radius=12)
@@ -180,6 +247,7 @@ def test_fit_custom_C():
     C1 = np.repeat(np.expand_dims(yd[:, 1], 1), 12*3, axis=1) + \
         np.random.rand(nobs, 12*3)
     i2.fit(Xd, yd, np.hstack((C0, C1)))
+    assert np.all(i2.W_)
 
 
 iem_2d = InvertedEncoding2D(stim_xlim=xlim, stim_ylim=ylim,
@@ -247,19 +315,6 @@ def test_cannot_score_2d():
     with pytest.raises(ValueError):
         score = iem_2d.score(X2d.transpose(), yd[ntest, :])
         assert score
-
-
-# # Test stimulus masking
-# def test_stimulus_mask():
-#     Invt_model = InvertedEncoding1D(6, 5, range_start=-10,
-#                                     range_stop=170,
-#                                     stimulus_resolution=60)
-#     chans, _ = Invt_model._define_channels()
-#     Invt_model.set_params(channels_=chans)
-#     with pytest.warns(RuntimeWarning):
-#         C = Invt_model._define_trial_activations(np.array([50]))
-#         tmp_C = np.repeat([0, 1, 0], 60) @ chans.transpose()
-#         assert np.all((C - tmp_C) < 1e-7)
 
 
 # TESTS FOR 1D MODEL #
