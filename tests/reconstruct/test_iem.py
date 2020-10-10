@@ -177,9 +177,9 @@ def test_2d_cos_size_fcns():
                                 stimulus_resolution=10)
     fwhm = imodel._2d_cosine_sz_to_fwhm(s)
     s2 = imodel._2d_cosine_fwhm_to_sz(fwhm)
-    assert s == s2
+    assert np.isclose(s, s2)
     fwhm2 = imodel._2d_cosine_sz_to_fwhm(s2)
-    assert fwhm == fwhm2
+    assert np.isclose(fwhm, fwhm2)
 
 
 def test_square_basis_grid():
@@ -292,6 +292,7 @@ def test_ill_conditioned_2d_train_data():
 def test_ill_conditioned_2d_channel_activations():
     with pytest.warns(RuntimeWarning):
         C = iem_2d._define_trial_activations(np.ones((nobs, 2)))
+        assert np.linalg.matrix_rank(C) == 1
 
 
 # Ill conditioned weight matrix will raise error
