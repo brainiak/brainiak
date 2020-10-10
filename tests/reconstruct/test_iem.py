@@ -191,10 +191,8 @@ def test_square_basis_grid():
     assert centers.shape[0] == nchan*nchan
     xspacing = np.round(np.diff(centers[:, 0]), 5)
     yspacing = np.round(np.diff(centers[:, 1]), 5)
-    assert xspacing[0] == xspacing[np.random.randint(nchan*nchan)] == \
-        xspacing[-1]
-    assert yspacing[0] == yspacing[np.random.randint(nchan * nchan)] == \
-        yspacing[-1]
+    assert xspacing[0] == xspacing[28] == xspacing[-1]
+    assert yspacing[0] == yspacing[25] == yspacing[-1]
 
 
 def test_triangular_basis_grid():
@@ -290,12 +288,10 @@ def test_ill_conditioned_2d_train_data():
         iem_2d.fit(Xt, y)
 
 
-# Ill conditioned channel activations C will raise runtime warning
+# Ill conditioned channel activations C will raise warning
 def test_ill_conditioned_2d_channel_activations():
-    with pytest.raises(RuntimeWarning):
-        Xt = np.random.rand(nobs, nvox)
-        y = np.ones((nobs, 2))
-        iem_2d.fit(Xt, y)
+    with pytest.warns(RuntimeWarning):
+        C = iem_2d._define_trial_activations(np.ones((nobs, 2)))
 
 
 # Ill conditioned weight matrix will raise error
