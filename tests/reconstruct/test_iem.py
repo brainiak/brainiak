@@ -101,6 +101,7 @@ def test_2d_custom_channels():
 
 # Test that channel definition should be consistent.
 def test_cannot_instantiate_2d_channels():
+    # Channel definition over wrong number of pixels (5 instead of 100)
     with pytest.raises(ValueError):
         s = InvertedEncoding2D(stim_xlim=[-1, 1], stim_ylim=[-1, 1],
                                stimulus_resolution=10,
@@ -119,17 +120,31 @@ def test_modify_2d_properties():
                            stimulus_resolution=res, chan_xlim=bds,
                            chan_ylim=bds, channels=channels)
     with pytest.raises(ValueError):
-        s.set_params(n_channels=nchan - 1)
+        s = s.set_params(n_channels=nchan - 1)
         assert s, "Invalid InvertedEncoding2D instance"
     with pytest.raises(ValueError):
-        s.set_params(xp=np.random.rand(npix - 10))
+        s = s.set_params(xp=np.random.rand(npix - 10))
         assert s, "Invalid InvertedEncoding2D instance"
     with pytest.raises(ValueError):
-        s.set_params(stim_fov=[[0, 1], [0, -1]])
+        s = s.set_params(stim_fov=[[0, 1], [0, -1]])
         assert s, "Invalid InvertedEncoding2D instance"
     with pytest.raises(ValueError):
-        s.set_params(stim_fov=[[0, 1]])
+        s = s.set_params(stim_fov=[[0, 1]])
         assert s, "Invalid InvertedEncoding2D instance"
+    with pytest.raises(ValueError):
+        s = s.set_params(stim_fov=[[0], [0, 1]])
+        assert s, "Invalid InvertedEncoding2D instance"
+
+
+# Test that you can get object properties
+def test_get_2d_params():
+    bds = [-1, 1]
+    res = 10
+    s = InvertedEncoding2D(stim_xlim=bds, stim_ylim=bds,
+                           stimulus_resolution=res)
+    param_out = s.get_params()
+    assert np.all(param_out.get('stim_fov')[0] == bds)
+    assert param_out.get('xp').size == res*res
 
 
 # Test helper function to create 2D cosine
@@ -267,10 +282,36 @@ def test_cannot_fit_2d_data():
         iem_2d.fit(Xd.transpose(), yd)
 
 
+# Ill conditioned data matrix will raise error
 def test_ill_conditioned_2d_train_data():
     with pytest.raises(ValueError):
+        Xt = np.ones((nobs, nvox))
+        y = np.random.rand(nobs, 2)
+        iem_2d.fit(Xt, y)
+
+
+# Ill conditioned channel activations C will raise runtime warning
+def test_ill_conditioned_2d_channel_activations():
+    with pytest.raises(RuntimeWarning):
         Xt = np.random.rand(nobs, nvox)
-        iem_2d.fit(Xt, np.hstack((np.random.rand(nobs), np.random.rand(nobs))))
+        y = np.ones((nobs, 2))
+        iem_2d.fit(Xt, y)
+
+
+# Ill conditioned weight matrix will raise error
+def test_ill_conditioned_2d_weights():
+    with pytest.raises(ValueError):
+        Xt = np.random.rand(nobs, nvox)
+        y = np.random.rand(nobs, 2)
+        iem_2d.fit(Xt, y)
+
+
+# Not enough observations will trigger error
+def test_insufficient_2d_data():
+    with pytest.raises(ValueError):
+        Xt = np.random.rand(10, nvox)
+        y = np.random.rand(10, 2)
+        iem_2d.fit(Xt, y)
 
 
 # Test case when # of observations are not matched btwn data & labels
@@ -481,6 +522,7 @@ def test_stimulus_mask_shift_positive():
 def test_can_get_params():
     s = InvertedEncoding1D()
     param_out = s.get_params()
+    assert param_out.get('channel_exp') == 5
     logger.info('Returned Parameters: ' +
                 str(param_out.get('n_channels')) +
                 ', ' + str(param_out.get('range_start')) +
