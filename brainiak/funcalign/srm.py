@@ -41,6 +41,7 @@ from sklearn.utils import assert_all_finite
 from sklearn.exceptions import NotFittedError
 from mpi4py import MPI
 import sys
+import os
 
 __all__ = [
     "DetSRM",
@@ -104,6 +105,47 @@ def _init_w_transforms(data, features, random_states, comm=MPI.COMM_SELF):
             w.append(None)
     voxels = comm.allreduce(voxels, op=MPI.SUM)
     return w, voxels
+
+def load(file):
+        """Load fitted Shared Response Model from .npz file
+        
+        Parameters
+        ----------
+
+        file : The file to read (string) of type .npz
+        
+        Returns
+        --------
+        
+        srm_obj: fitted SRM model
+        """
+        # check file exists
+        if not (os.path.isfile(file)):
+            raise FileError("Input file not found")
+        
+        # Check file format
+        if not file[-4:]=='.npz':
+            raise FileError("Input file is not in .npz format")
+        
+        # load data
+        loaded = np.load(file) 
+        w_ = [s for s in loaded['w_']]
+        s_ = loaded['s_']
+        sigma_s_ = loaded['sigma_s_']
+        mu_ = [s for s in loaded['mu_']]
+        rho2_ = loaded['rho2_']
+        n_feature,n_iter,seed = loaded['features']
+        
+        # init new SRM object
+        srm_obj = SRM(n_iter=n_iter, features=n_feature ,rand_seed=seed)
+        srm_obj.w_ = w_
+        srm_obj.s_ = s_
+        srm_obj.sigma_s_ = sigma_s_
+        srm_obj.mu_ = mu_
+        srm_obj.rho2_ = rho2_
+        
+        return srm_obj
+        
 
 
 class SRM(BaseEstimator, TransformerMixin):
@@ -411,7 +453,27 @@ class SRM(BaseEstimator, TransformerMixin):
         w = self._update_transform_subject(X, self.s_)
 
         return w
+    
+    def save(self, file):
+        """Save fitted Shared Response Model to .npz file
+        
+        
+        Parameters
+        ----------
 
+        file : The filename (string) where the data will be saved. If file is a string or a Path, the .npz extension will be appended to the filename if it is not already there.
+        
+        Returns
+        --------
+        None
+        """
+        
+        # Check if the model exists
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+        
+        np.savez_compressed(file, w_=self.w_, s_=self.s_, sigma_s_=self.sigma_s_, mu_=self.mu_, rho2_=self.rho2_, features=np.array([self.features,self.n_iter,self.rand_seed])) 
+ 
     def _srm(self, data):
         """Expectation-Maximization algorithm for fitting the probabilistic SRM.
 
@@ -844,3 +906,4 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 logger.info('Objective function %f' % objective)
 
         return w, shared_response
+
