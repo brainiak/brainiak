@@ -620,13 +620,6 @@ class InvertedEncoding2D(BaseEstimator):
                                  format(self.n_channels,
                                         self.channels.shape[1],
                                         self.xp.size))
-            if np.all(self.channel_limits):
-                if any(self.channels[:, 0] > self.channel_limits[0][1]) or\
-                    any(self.channels[:, 0] < self.channel_limits[0][0]) or\
-                    any(self.channels[:, 1] > self.channel_limits[1][1]) or\
-                        any(self.channels[:, 1] < self.channel_limits[1][0]):
-                    raise ValueError("Channel limits and values defined in "
-                                     "self.channels do not match each other.")
 
     def fit(self, X, y, C=None):
         """Use data and feature variable labels to fit an IEM
@@ -658,11 +651,8 @@ class InvertedEncoding2D(BaseEstimator):
         # Check that the data matrix is the right size
         shape_data = np.shape(X)
         shape_labels = np.shape(y)
-        if len(shape_data) != 2:
-            raise ValueError("Data matrix has too many or too few dimensions.")
-        else:
-            if shape_data[0] != shape_labels[0]:
-                raise ValueError("Mismatched data samples and label samples")
+        if shape_data[0] != shape_labels[0]:
+            raise ValueError("Mismatched data samples and label samples")
         if C is None:
             # Create a matrix of channel activations for every observation.
             # (i.e., C1 in Brouwer & Heeger 2009.)
