@@ -40,6 +40,9 @@
     written to give some flexibility compared to the specific instances
     in Kok, 2013 & in Brouwer, 2009. Users can set the number of basis
     functions, or channels, and the range of possible feature values.
+
+    There are separate classes for reconstructing feature values in a
+    1-dimensional (1D) space or in a 2-dimensional (2D) space.
 """
 
 # Authors: David Huberdeau (Yale University) &
@@ -65,8 +68,8 @@ class InvertedEncoding1D(BaseEstimator):
     """Basis function-based reconstruction method
 
     Inverted encoding models (alternatively known as forward models) are used
-    to reconstruct a feature represented in a 1-dimensional (1D) space,
-    e.g. color of a stimulus, from patterns across voxels in functional data.
+    to reconstruct a feature represented in some N-dimensional space, here 1D,
+    (e.g. color of a stimulus) from patterns across voxels in functional data.
     The model uses n_channels number of idealized basis functions and assumes
     that the transformation from stimulus feature (e.g. color) to basis
     function is one- to-one and invertible. The response of a voxel is
@@ -161,6 +164,8 @@ class InvertedEncoding1D(BaseEstimator):
     W_: sklearn.linear_model model containing weight matrix that
         relates estimated channel responses to response amplitude
         data
+    
+    See get_params() for the rest of the attributes.
     """
 
     def __init__(self, n_channels=6, channel_exp=5,
@@ -460,8 +465,8 @@ class InvertedEncoding2D(BaseEstimator):
     """Basis function-based reconstruction method
 
     Inverted encoding models (alternatively known as forward models) are used
-    to reconstruct a feature represented in a 2-dimensional (2D) space,
-    e.g. position on a projector screen, from patterns across voxels in
+    to reconstruct a feature represented in a N-dimensional space, here 2D,
+    (e.g. position on a projector screen) from patterns across voxels in
     functional data. The model uses some number of idealized basis functions
     that cover the 2D space, and assumes that the transformation from
     stimulus feature (e.g. 2D spatial position) to basis function is one-
@@ -563,11 +568,45 @@ class InvertedEncoding2D(BaseEstimator):
 
     W_: sklearn.linear_model containing weight matrix that relates estimated
         channel responses to response data
+
+    See get_params() for the rest of the attributes.
     """
 
     def __init__(self, stim_xlim, stim_ylim, stimulus_resolution,
                  stim_radius=None, chan_xlim=None, chan_ylim=None,
                  channels=None, channel_exp=7):
+        """Defines a 2D inverted encoding model object.
+
+        While the parameters defining the domain in which to reconstruct
+        the stimuli are required (e.g. all `stim_*` inputs), the parameters
+        to define the channels (`chan*`) are optional, in case the user
+        wishes to define their own channels (a.k.a basis functions).
+
+
+        Parameters
+        ----------
+        stim_xlim: sequence of 2 float values, specifying the lower & upper
+            limits on the horizontal axis, respectively.
+        stim_ylim: sequence of 2 float values, specifying the lower & upper
+            limits on the vertical axis, respectively.
+        stimulus_resolution: a float or sequence of 2 floats, specifying the
+            number of pixels that exist in the x- and y- directions.
+        stim_radius: float, default None. The radius in pixels, assuming that
+            the stimulus is circular. If None, the user must either define it
+            before running fit(), or pass in a custom C in B = W*C.
+        chan_xlim: sequence of 2 float values, default None. Specifies the
+            lower & upper limits of the channels in the horizontal axis. If
+            None, the user must define this before using the class functions
+            to create basis functions, or pass in custom-defined channels.
+        chan_ylim: sequence of 2 float values, default None. Specifies the
+            lower & upper limits of the channels in the vertical axis. If
+            None, the user must define this before using the class functions
+            to create basis functions, or pass in custom-defined channels.
+        channel_exp: float or int, default None. The exponent for a
+            sinusoidal basis function. If None, it must be set before the
+            channels or defined, or pass in custom-defined channels.
+
+        """
         # Automatically expand stimulus_resolution if only one value is given.
         # This will create a square field  of view (FOV) for the
         # reconstruction.
