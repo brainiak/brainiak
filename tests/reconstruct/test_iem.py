@@ -11,6 +11,13 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+#
+# Copyright 2020 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Authors: David Huberdeau (Yale University) &
+# Peter Kok (Yale University), 2018 &
+# Vy Vo (Intel Corp., UCSD), 2019
 
 import pytest
 import numpy as np
