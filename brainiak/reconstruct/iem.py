@@ -164,7 +164,7 @@ class InvertedEncoding1D(BaseEstimator):
     W_: sklearn.linear_model model containing weight matrix that
         relates estimated channel responses to response amplitude
         data
-    
+
     See get_params() for the rest of the attributes.
     """
 
@@ -735,6 +735,9 @@ class InvertedEncoding2D(BaseEstimator):
         """Calculate error measure of prediction, assuming that the predicted
         feature is at the maximum of the reconstructed values.
 
+        To score the reconstructions against expected features defined in the
+        stimulus domain (i.e. in pixels), see score_against_reconstructed().
+
         Parameters
         ----------
         X: numpy matrix of voxel activation from new data
@@ -758,6 +761,8 @@ class InvertedEncoding2D(BaseEstimator):
         the 2D stimulus domain (i.e. reconstructions in pixels) given
         some observations X, and expected features y. Expected features must
         also be in the pixel stimulus domain.
+
+        To score the reconstructions against the expected maxima, see score().
 
         Parameters
         ----------
