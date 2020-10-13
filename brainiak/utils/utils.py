@@ -30,6 +30,7 @@ Some utility functions that can be used by different algorithms
 __all__ = [
     "array_correlation",
     "center_mass_exp",
+    "circ_dist",
     "concatenate_not_none",
     "cov2corr",
     "from_tri_2_sym",

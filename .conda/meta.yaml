@@ -42,10 +42,6 @@ requirements:
         if req not in conda_package_nonexistent -%}
     - {{req}}
     {% endfor %}
-    {% for req in data.get('install_requires', [])
-        if req not in conda_package_nonexistent -%}
-    - {{req}}
-    {% endfor %}
 
   run:
     - python
@@ -59,6 +55,7 @@ requirements:
 test:
   commands:
     - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf
+    - pip install tensorflow tensorflow-probability
     - mpiexec -n 2 pytest $BRAINIAK_HOME
 
       # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
