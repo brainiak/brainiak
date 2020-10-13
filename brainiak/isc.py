@@ -19,7 +19,7 @@ analyses (e.g., intersubject funtional correlations; ISFC), as well
 as statistical tests designed specifically for ISC analyses.
 
 The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
-[Simony2016]_, and [Chen2016]_.
+[Simony2016]_, [Chen2016]_, and [Nastase2019]_.
 
 .. [Chen2016] "Untangling the relatedness among correlations, part I:
    nonparametric approaches to inter-subject correlation analysis at the
@@ -41,6 +41,11 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
    during narrative comprehension.", E. Simony, C. J. Honey, J. Chen, O.
    Lositsky, Y. Yeshurun, A. Wiesel, U. Hasson, 2016, Nature Communications,
    7, 12141. https://doi.org/10.1038/ncomms12141
+
+.. [Nastase2019] "Measuring shared responses across subjects using
+   intersubject correlation." S. A. Nastase, V. Gazzola, U. Hasson,
+   C. Keysers, 2019, Social Cognitive and Affective Neuroscience, 14,
+   667-685. https://doi.org/10.1093/scan/nsz037
 """
 
 # Authors: Sam Nastase, Christopher Baldassano, Qihong Lu,
@@ -405,7 +410,7 @@ def _check_isc_input(iscs, pairwise=False):
     # Check if incoming pairwise matrix is vectorized triangle
     if pairwise:
         try:
-            test_square = squareform(iscs[:, 0])
+            test_square = squareform(iscs[:, 0], force='tomatrix')
             n_subjects = test_square.shape[0]
         except ValueError:
             raise ValueError("For pairwise input, ISCs must be the "
@@ -663,10 +668,9 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     distribution of summary statistics. The p-value corresponds to either a
     'two-sided', 'left'-, or 'right'-sided (default) test, as specified by
     side. According to Chen et al., 2016, this is the preferred nonparametric
-    approach for controlling false positive rates (FPR) for one-sample tests
-    in the pairwise approach. The efficacy of this approach for controlling
-    FPRs in the leave-one-out approach has not yet been systematically
-    evaluated.
+    approach for controlling false positive rates (FPRs) for one-sample tests
+    in the pairwise approach. Note that the bootstrap hypothesis test may not
+    strictly control FPRs in the leave-one-out approach.
 
     The implementation is based on the work in [Chen2016]_ and
     [HallWilson1991]_.
@@ -709,8 +713,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on bootstrap hypothesis test
 
-    distribution : ndarray, bootstraps by voxels (optional)
-        Bootstrap distribution if return_bootstrap=True
+    distribution : ndarray, n_bootstraps by voxels
+        Bootstrap distribution
 
     """
 
@@ -751,12 +755,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
             for voxel_iscs in iscs.T:
 
                 # Square the triangle and fill diagonal
-                voxel_iscs = squareform(voxel_iscs)
+                voxel_iscs = squareform(voxel_iscs, force='tomatrix')
                 np.fill_diagonal(voxel_iscs, 1)
-
-                # Check that pairwise ISC matrix is square and symmetric
-                assert voxel_iscs.shape[0] == voxel_iscs.shape[1]
-                assert np.allclose(voxel_iscs, voxel_iscs.T)
 
                 # Shuffle square correlation matrix and get triangle
                 voxel_sample = voxel_iscs[subject_sample, :][:, subject_sample]
@@ -1066,8 +1066,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     leave-one-out approach, ISC values for two groups should be stacked
     along first dimension (vertically) and a group_assignment list (or 1d
     array) of same length as the number of subjects should be provided to
-    indicate groups. In the pairwise approach, pairwise ISCs should be
-    computed the across both groups at once; i.e. the pairwise ISC matrix
+    indicate groups. In the pairwise approach, pairwise ISCs should have
+    been computed across both groups at once; i.e. the pairwise ISC matrix
     should be shaped N x N where N is the total number of subjects across
     both groups, and should contain between-group ISC pairs. Pairwise ISC
     input should correspond to the vectorized upper triangle of the square
@@ -1087,8 +1087,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     The p-value corresponds to either a 'two-sided', 'left'-, or 'right'-sided
     (default) test, as specified by side. According to Chen et al., 2016,
     this is the preferred nonparametric approach for controlling false
-    positive rates (FPR) for two-sample tests. This approach may yield
-    inflated FPRs for one-sample tests.
+    positive rates (FPRs) for two-sample tests. Note that the permutation test
+    may not strictly control FPRs for one-sample tests.
 
     The implementation is based on the work in [Chen2016]_.
 
@@ -1123,8 +1123,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
     p : float, p-value
         p-value based on permutation test
 
-    distribution : ndarray, permutations by voxels (optional)
-        Permutation distribution if return_bootstrap=True
+    distribution : ndarray, n_permutations by voxels
+        Permutation distribution
     """
 
     # Standardize structure of input data
@@ -1280,7 +1280,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     False. Returns the observed ISC and p-values, as well as the null
     distribution of ISCs computed on randomly time-shifted data. The p-value
     corresponds to either a 'two-sided', 'left'-, or 'right'-sided (default)
-    test, as specified by side.
+    test, as specified by side. Note that circular time-shift randomization
+    may not strictly control false positive rates (FPRs).
 
     The implementation is based on the work in [Kauppi2010]_ and
     [Kauppi2014]_.
@@ -1322,8 +1323,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on time-shifting randomization test
 
-    distribution : ndarray, time-shifts by voxels (optional)
-        Time-shifted null distribution if return_bootstrap=True
+    distribution : ndarray, n_shifts by voxels
+        Time-shifted null distribution
     """
 
     # Check response time series input format
@@ -1348,7 +1349,7 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         else:
             prng = np.random.RandomState(random_state)
 
-        # Get a random set of shifts based on number of TRs,
+        # Get a random set of shifts based on number of TRs
         shifts = prng.choice(np.arange(n_TRs), size=n_subjects,
                              replace=True)
 
@@ -1435,7 +1436,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     to False. Returns the observed ISC and p-values, as well as the null
     distribution of ISCs computed on phase-randomized data. The p-value
     corresponds to either a 'two-sided', 'left'-, or 'right'-sided (default)
-    test, as specified by side.
+    test, as specified by side. Note that phase randomization may not
+    strictly control false positive rates (FPRs).
 
     The implementation is based on the work in [Lerner2011]_ and
     [Simony2016]_.
@@ -1476,8 +1478,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
     p : float, p-value
         p-value based on time-shifting randomization test
 
-    distribution : ndarray, time-shifts by voxels (optional)
-        Time-shifted null distribution if return_bootstrap=True
+    distribution : ndarray, n_shifts by voxels
+        Phase-shifted null distribution
     """
 
     # Check response time series input format
