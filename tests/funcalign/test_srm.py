@@ -118,7 +118,7 @@ def test_can_instantiate():
     print("Test: different number of samples per subject")
 
     # Check save/load functionality for fitted SRM
-    srm_fn = '/Users/snastase/Work/srm-example.npz'
+    srm_fn = tmp_path
     s.save(srm_fn)
     s_load = brainiak.funcalign.srm.load(srm_fn)
     assert np.array_equal(s.s_, s_load.s_)
