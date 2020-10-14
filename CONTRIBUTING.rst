@@ -373,7 +373,7 @@ To make a release:
        twine upload dist/brainiak-$v.tar.gz
 
 10. Upload Conda package (repeat command for all OSes and Python
-   versions); requires the ``anaconda-client`` Conda package::
+    versions); requires the ``anaconda-client`` Conda package::
 
        anaconda upload -u brainiak \
        $CONDA_HOME/conda-bld/<OS>/brainiak-$v-<python_version>.tar.bz2
