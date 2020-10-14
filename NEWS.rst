@@ -2,6 +2,50 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.11 (2020-10-14)
+==========================
+
+Features
+--------
+
+- matnormal: New package for matrix-normal models. (`#341
+  <https://github.com/brainiak/brainiak/pull/341>`_)
+- fmrisim: Add real-time generator. (`#460
+  <https://github.com/brainiak/brainiak/pull/460>`_)
+- isc: Add 'side' option to randomization tests. (`#477
+  <https://github.com/brainiak/brainiak/pull/477>`_)
+- reconstruct: Add 2D expansion to IEM module. (`#482
+  <https://github.com/brainiak/brainiak/pull/482>`_)
+- funcalign: Add save/load functionality to SRM. (`#484
+  <https://github.com/brainiak/brainiak/pull/484>`_)
+
+Bugfixes
+--------
+
+- isc: Fix pairwise bootstrap to tolerate NaNs. (`#475
+  <https://github.com/brainiak/brainiak/pull/475>`_)
+
+Documentation improvements
+--------------------------
+
+- fmrisim: Add details for noise_dict. (`#474
+  <https://github.com/brainiak/brainiak/pull/474>`_)
+- isc: Update permutation doc to clarify pairwise groups. (`#476
+  <https://github.com/brainiak/brainiak/pull/476>`_)
+- isc: Add caveats about false positive rates. (`#480
+  <https://github.com/brainiak/brainiak/pull/480>`_)
+- Remove ``--no-use-pep517`` Pip installation flag, superfluous with
+  Pip >= 20.2 (`#479 <https://github.com/brainiak/brainiak/pull/479>`_)
+
+Deprecations and removals
+-------------------------
+
+- reconstruct: Rename IEM class. (`#482
+  <https://github.com/brainiak/brainiak/pull/482>`_)
+- Drop support for Python 3.5, which is no longer supported by NumPy. (`#479
+  <https://github.com/brainiak/brainiak/pull/479>`_)
+
+
 BrainIAK 0.10 (2020-02-06)
 ==========================
 
@@ -10,7 +54,7 @@ Features
 
 - reconstruct: Add inverted encoding model (IEM) for recreating continuous
   representations in new package for reconstruction methods. (`#364
-  <https://github.com/brainiak/brainiak/pull/364/files>`_)
+  <https://github.com/brainiak/brainiak/pull/364>`_)
 - funcalign: Add FastSRM module for input data that does not fit in RAM.
   (`#421 <https://github.com/brainiak/brainiak/pull/421>`_)
 - fmrisim: Update to how drift is calculated and used. (`#437
