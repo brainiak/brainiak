@@ -332,7 +332,6 @@ To make a release:
        cd brainiak-$v
        ./pr-check.sh
        cd -
-       rm -r brainiak-$v
 
 5. Create and test Conda packages (repeat command for all OSes and Python
    versions); requires the ``conda-build`` Conda package; make sure you create
@@ -357,6 +356,8 @@ To make a release:
        docker tag v$v-$(date +%Y%m%d) brainiak/brainiak
        # test
        # run pr-check.sh in docker
+       # cleanup
+       rm -r brainiak-$v
 
 7. Build the documentation::
 
