@@ -113,7 +113,7 @@ def load(file):
     ----------
 
     file : str, file-like object, or pathlib.Path
-    The .npz file to read containing fitted SRM saved using srm.save
+        The .npz file to read containing fitted SRM saved using srm.save
 
     Returns
     --------
@@ -454,13 +454,14 @@ class SRM(BaseEstimator, TransformerMixin):
         ----------
 
         file : str, file-like object, or pathlib.Path
-        Filename (string), open file (file-like object) or pathlib.Path
-        where the fitted SRM will be saved. If file is a string or a Path,
-        the .npz extension will be appended to the filename if it is not
-        already there.
+            Filename (string), open file (file-like object) or pathlib.Path
+            where the fitted SRM will be saved. If file is a string or a Path,
+            the .npz extension will be appended to the filename if it is not
+            already there.
 
         Returns
-        --------
+        -------
+
         None
         """
 
