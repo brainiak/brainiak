@@ -113,7 +113,7 @@ checks from ``pr-check.sh`` using the steps bellow::
   source ../brainiak_pr_venv/bin/activate
 
   # install brainiak in editable mode and developer dependencies
-  python3 -m pip install --no-use-pep517 -U -r requirements-dev.txt
+  python3 -m pip install -U -r requirements-dev.txt
 
   # static analysis
   ./run-checks.sh
@@ -302,64 +302,98 @@ Before making a release, ensure that:
 To make a release:
 
 1. Choose a release number, ``v``. We follow `Semantic Versioning
-   <http://semver.org>`_, although we omit the patch number when it is 0.
+   <http://semver.org>`_, although we omit the patch number when it is 0::
 
-2. Prepare the release notes::
+       export v=0.11
 
-       git checkout -b release-v<v>
-       towncrier --version <v>
+2. Prepare the release notes; may require manual additions for PRs without
+   release notes in ``docs/newsfragments``::
+
+       git checkout -b release-v$v
+       towncrier --version $v
        ./pr-check.sh
-       git commit -a -m "Add release notes for v<v>"
-       git push --set-upstream origin release-v<v>
+       git commit -a -m "Add release notes for v$v"
+       git push --set-upstream origin release-v$v
        <Create a PR; merge the PR.>
        git checkout master
        git pull --ff-only
-       git branch -d release-v<v>
+       git branch -d release-v$v
 
 3. Tag the release::
 
-       git tag v<v>
+       git tag v$v
 
 4. Create and test the source distribution package::
 
+       # build
        python3 setup.py sdist
-       tar -xf dist/brainiak-<v>.tar.gz
-       cd brainiak-<v>
+       # test
+       tar -xf dist/brainiak-$v.tar.gz
+       cd brainiak-$v
        ./pr-check.sh
        cd -
-       rm -r brainiak-<v>
 
-5. Push release::
-
-       git push --tags
-       twine upload dist/brainiak-<v>.tar.gz
-
-
-7. Create and test Conda packages (repeat command for all OSes and Python
-   versions); requires the ``conda-build`` Conda package::
+5. Create and test Conda packages (repeat command for all OSes and Python
+   versions); requires the ``conda-build`` Conda package; make sure you create
+   the tag on all the machines::
        
-       .conda/bin/build
+       # build and test in a single script
+       # On Linux machine
+       .conda/bin/build 3.7
+       .conda/bin/build 3.8
+       # On macOS machine
+       git tag v$v
+       .conda/bin/build 3.7
+       .conda/bin/build 3.8
 
-8. Upload the built Conda package (repeat command for all OSes and Python
-   versions); requires the ``anaconda-client`` Conda package::
+6. Build the Docker image (requires brainiak-tutorials checkout)::
 
-       anaconda upload -u brainiak \
-       $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
-
-9. Build and push the Docker image (requires brainiak-tutorials checkout)::
-
+       # build
+       # clone if needed
+       git clone git@github.com:brainiak/brainiak-tutorials.git tutorials
        cd tutorials && git pull --ff-only && cd -
        docker build --no-cache -t brainiak/brainiak .
-       docker push brainiak/brainiak
+       docker tag v$v-$(date +%Y%m%d) brainiak/brainiak
+       # test
+       # run pr-check.sh in docker
+       # cleanup
+       rm -r brainiak-$v
 
-10. Build and publish the documentation::
+7. Build the documentation::
 
        cd docs
        make
        cd -
+
+8. Push tag::
+
+       git push upstream v$v
+
+9. Upload sdist::
+
+       twine upload dist/brainiak-$v.tar.gz
+
+10. Upload Conda package (repeat command for all OSes and Python
+    versions); requires the ``anaconda-client`` Conda package::
+
+       anaconda upload -u brainiak \
+       $CONDA_HOME/conda-bld/<OS>/brainiak-$v-<python_version>.tar.bz2
+
+11. Push Docker image::
+
+       docker push brainiak/brainiak
+
+12. Publish the documentation::
+
        cd ../brainiak.github.io
+       git checkout -b release-v$v
        rm -r docs
        cp -ir ../brainiak/docs/_build/html docs
-       git commit -a -m "Update docs to v<v>"
-       git push
+       git commit -a -m "Update docs to v$v"
+       # use your fork
+       git push --set-upstream origin release-v$v
+       <Create a PR; merge the PR.>
+       git checkout master
+       git pull --ff-only
+       git branch -d release-v$v
        cd -
