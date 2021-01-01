@@ -17,6 +17,23 @@ from scipy.optimize import minimize
 logger = logging.getLogger(__name__)
 
 
+def assert_monotonicity(fun, rtol=1e-3):
+    """
+    Check that the loss is monotonically decreasing
+    after called function.
+    tol > 0 allows for some slop due to numerics
+    """
+    def wrapper(classref, *args, **kwargs):
+        loss_before = classref.lossfn(None)
+        print(f"loss before {fun} is {loss_before}")
+        res = fun(classref, *args, **kwargs)
+        loss_after = classref.lossfn(None)
+        print(f"loss after {fun} is {loss_after}")
+        assert loss_after-loss_before <= abs(loss_before*rtol), f"loss increased on {fun}"
+        return res
+    return wrapper
+
+
 class DPMNSRM(BaseEstimator):
     """Probabilistic SRM, aka SRM with marginalization over W (and optionally,
     orthonormal S). In contrast to SRM (Chen et al. 2015), this estimates
@@ -27,8 +44,8 @@ class DPMNSRM(BaseEstimator):
 
     def __init__(self, n_features=5, time_noise_cov=CovIdentity,
                  space_noise_cov=CovIdentity, w_cov=CovIdentity,
-                 s_constraint="gaussian", optMethod="L-BFGS-B", optCtrl={},
-                 improvement_tol=1e-5, algorithm="ECM"):
+                 s_constraint="ortho", optMethod="L-BFGS-B", optCtrl={},
+                 improvement_tol=1e-5, algorithm="ECME"):
 
         self.k = n_features
         self.s_constraint = s_constraint
@@ -36,11 +53,14 @@ class DPMNSRM(BaseEstimator):
         self.algorithm = algorithm
         if s_constraint == "ortho":
             logger.info("Orthonormal S selected")
+            if w_cov is CovIdentity:
+                raise RuntimeError("Orthonormal S with w_cov=I makes S not identifiable\
+                (since it always appears as an inner product), please use another w_cov")
         elif s_constraint == "gaussian":
             logger.info("Gaussian S selected")
             if w_cov is not CovIdentity:
-                logger.warn("Gaussian S means w_cov can be I w.l.o.g., using\
-                 more general covs not recommended")
+                logger.warn(f"Gaussian S means w_cov can be I w.l.o.g., ignoring passed in\
+                w_cov={w_cov}")
         else:
             raise RuntimeError(
                 f"Unknown s_constraint! Expected 'ortho' or 'gaussian', got {s_constraint}!")
@@ -55,8 +75,12 @@ class DPMNSRM(BaseEstimator):
 
         self.optCtrl, self.optMethod = optCtrl, optMethod
 
-    def logp_margw(self, X):
-        """ MatnormSRM Log-likelihood with marginal"""
+    def logp(self, X, S=None):
+        """ MatnormSRM marginal log-likelihood, integrating over W"""
+        
+        if S is None:
+            S = self.S
+
         subj_space_covs = [CovScaleMixin(base_cov=self.space_cov,
                                          scale=1/self.rhoprec[j]) for j in range(self.n)]
         if self.marg_cov_class is CovIdentity:
@@ -64,7 +88,7 @@ class DPMNSRM(BaseEstimator):
                 input_tensor=[matnorm_logp_marginal_col(X[j],
                                                         row_cov=subj_space_covs[j],
                                                         col_cov=self.time_cov,
-                                                        marg=self.S,
+                                                        marg=S,
                                                         marg_cov=CovIdentity(size=self.k))
                               for j in range(self.n)], name="lik_logp")
 
@@ -74,7 +98,7 @@ class DPMNSRM(BaseEstimator):
                                                         row_cov=subj_space_covs[j],
                                                         col_cov=self.time_cov,
                                                         marg=tf.matmul(
-                                               self.marg_cov.L, self.S),
+                                               self.marg_cov.L, S),
                                            marg_cov=CovIdentity(size=self.k))
                               for j in range(self.n)], name="lik_logp")
         else:
@@ -84,17 +108,21 @@ class DPMNSRM(BaseEstimator):
                 input_tensor=[matnorm_logp_marginal_col(X[j],
                                                         row_cov=subj_space_covs[j],
                                                         col_cov=self.time_cov,
-                                                        marg=self.S,
+                                                        marg=S,
                                                         marg_cov=self.marg_cov)
                               for j in range(self.n)], name="lik_logp")
 
-    def Q_fun_margw(self, Strp, X):
+    def Q_fun(self, X, S=None):
+        
+        if S is None:
+            S = self.S
+
         # shorthands for readability
-        kt = self.k * self.t
+        kpt = self.k + self.t
         nv = self.n * self.v
 
         mean = X - self.b - tf.matmul(self.w_prime,
-                                      tf.tile(tf.expand_dims(self.S, 0),
+                                      tf.tile(tf.expand_dims(S, 0),
                                               [self.n, 1, 1]))
 
         # covs don't support batch ops (yet!) (TODO):
@@ -115,33 +143,35 @@ class DPMNSRM(BaseEstimator):
         if self.s_constraint == "gaussian":
             s_quad_form = - \
                 tf.linalg.trace(tf.matmul(self.time_cov.solve(
-                    tf.transpose(a=self.S)), self.S))
-            det_terms = -(self.v*self.n+self.k) * self.time_cov.logdet -\
-                kt*self.n*self.space_cov.logdet +\
-                kt*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
+                    tf.transpose(a=S)), S))
+            det_terms = -(nv+self.k) * self.time_cov.logdet -\
+                kpt*self.n*self.space_cov.logdet +\
+                kpt*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
                 nv*self.marg_cov.logdet
         else:
+            # s_quad_form = -tf.linalg.trace(self.time_cov._prec)
             s_quad_form = 0
-            det_terms = -(self.v*self.n)*self.time_cov.logdet -\
-                kt*self.n*self.space_cov.logdet +\
-                kt*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
+            det_terms = -nv*self.time_cov.logdet -\
+                (self.n+self.t)*self.space_cov.logdet +\
+                self.t*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
                 nv*self.marg_cov.logdet
 
         trace_prod = -tf.reduce_sum(input_tensor=self.rhoprec / self.rhoprec_prime) *\
             tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *\
             (tf.linalg.trace(tf.matmul(self.wcov_prime, self.marg_cov._prec +
-                                       tf.matmul(self.S, self.time_cov.solve(
-                                           tf.transpose(a=self.S))))))
+                                       tf.matmul(S, self.time_cov.solve(
+                                           tf.transpose(a=S))))))
 
         return 0.5 * (det_terms +
                       x_quad_form +
                       w_quad_form +
                       trace_prod +
                       s_quad_form)
-
+    
+    @assert_monotonicity
     def estep_margw(self, X):
 
-        wchol = tf.linalg.cholesky(self.marg_cov._prec +
+        wchol = tf.linalg.cholesky(tf.eye(self.k, dtype=tf.float64) +
                                    tf.matmul(self.S, self.time_cov.solve(
                                        tf.transpose(a=self.S))))
 
@@ -155,36 +185,43 @@ class DPMNSRM(BaseEstimator):
 
         # rhoprec doesn't change
         # vcov doesn't change
-        self.w_prime.assign(w_prime)
-        self.wcov_prime.assign(wcov_prime)
+        self.w_prime.assign(w_prime, read_value=False)
+        self.wcov_prime.assign(wcov_prime, read_value=False)
 
-
+    @assert_monotonicity
     def mstep_b_margw(self, X):
-        return tf.expand_dims(tf.reduce_sum(
-                    input_tensor=[self.time_cov.solve(tf.transpose(a=X[j] -
-                                                                   tf.matmul(self.w_prime[j], self.S)))
-                                  for j in range(self.n)], axis=1) /
-                              tf.reduce_sum(input_tensor=self.time_cov._prec), -1)
+        resids_transpose = [tf.transpose(X[j] - self.w_prime[j] @ self.S) for j in range(self.n)]
+        numerator = [tf.reduce_sum(tf.transpose(self.time_cov.solve(r)), axis=1) for r in resids_transpose]
+        denominator = tf.reduce_sum(self.time_cov._prec)
+        
+        self.b.assign(tf.stack([n/denominator for n in numerator])[...,None], read_value=False)
 
-    def mstep_S_nonortho(self, X):
-        wtw = tf.reduce_sum(
-            input_tensor=[tf.matmul(self.w_prime[j],
-                                    self.space_cov.solve(
-                                        self.w_prime[j]),
-                                    transpose_a=True) *
-                          self.rhoprec[j] for j in range(self.n)], axis=0)
+    @assert_monotonicity
+    def mstep_S(self, X):
+        if self.s_constraint == "gaussian":
+            wtw = tf.reduce_sum(
+                input_tensor=[tf.matmul(self.w_prime[j],
+                                        self.space_cov.solve(
+                                            self.w_prime[j]),
+                                        transpose_a=True) *
+                                self.rhoprec[j] for j in range(self.n)], axis=0)
 
-        wtx = tf.reduce_sum(
-            input_tensor=[tf.matmul(self.w_prime[j],
-                                    self.space_cov.solve(
-                                        X[j]-self.b[j]),
-                                    transpose_a=True) *
-                          self.rhoprec[j] for j in range(self.n)], axis=0)
+            wtx = tf.reduce_sum(
+                input_tensor=[tf.matmul(self.w_prime[j],
+                                        self.space_cov.solve(
+                                            X[j]-self.b[j]),
+                                        transpose_a=True) *
+                                self.rhoprec[j] for j in range(self.n)], axis=0)
 
-        return tf.linalg.solve(wtw + tf.reduce_sum(input_tensor=self.rhoprec_prime / self.rhoprec) *
-                               tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *
-                               self.wcov_prime + tf.eye(self.k, dtype=tf.float64), wtx)
+            self.S.assign(tf.linalg.solve(wtw + tf.reduce_sum(input_tensor=self.rhoprec_prime / self.rhoprec) *
+                                    tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *
+                                    self.wcov_prime + tf.eye(self.k, dtype=tf.float64), wtx), read_value=False)
 
+        elif self.s_constraint == "ortho":
+            new_Strp = self.solver.solve(self.problem, x=self.S.numpy().T)
+            self.S.assign(new_Strp.T, read_value=False)
+
+    @assert_monotonicity
     def mstep_rhoprec_margw(self, X):
 
         mean = X - self.b -\
@@ -205,34 +242,19 @@ class DPMNSRM(BaseEstimator):
 
         shared_term = (1/self.rhoprec_prime) *\
             tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *\
-            tf.linalg.trace(tf.matmul(self.wcov_prime,
-                                      self.marg_cov._prec +
-                                      tf.matmul(self.S,
-                                                self.time_cov.solve(
-                                                    tf.transpose(a=self.S)))))
+            (tf.linalg.trace(self.marg_cov.solve(self.wcov_prime)) +
+                tf.linalg.trace(self.S @ self.time_cov.solve(tf.transpose(self.S))))
+        
         rho_hat_unscaled = mean_trace + w_trace + shared_term
 
-        return (self.v*(self.k+self.t)) / rho_hat_unscaled
+        self.rhoprec.assign((self.v*(self.k+self.t)) / rho_hat_unscaled, read_value=False)
 
-    def mstep_margw(self, X):
-        # closed form parts
-        self.b = self.mstep_b_margw(X)
-        self.rhoprec = self.mstep_rhoprec_margw(X)
-
-        # optimization parts:
-        # Stiefel manifold for orthonormal S (if ortho_s)
-        if self.s_constraint == "ortho":
-            new_Strp = self.solver.solve(self.problem, x=self.S.numpy().T)
-            self.S.assign(new_Strp.T)
-        else:
-            # if it's not ortho, it's just least squares update
-            self.S.assign(self.mstep_S_nonortho(X))
-        # L-BFGS for residual covs
+    @assert_monotonicity
+    def mstep_covs(self):
         for cov in [self.space_cov, self.time_cov, self.marg_cov]:
             if len(cov.get_optimize_vars()) > 0:
-                def lossfn(Q): return -self.Q_fun_margw(self.S, X)
                 val_and_grad = make_val_and_grad(
-                    lossfn, cov.get_optimize_vars())
+                    self.lossfn, cov.get_optimize_vars())
 
                 x0 = pack_trainable_vars(cov.get_optimize_vars())
 
@@ -240,7 +262,19 @@ class DPMNSRM(BaseEstimator):
                     fun=val_and_grad, x0=x0, jac=True, method=self.optMethod,
                     **self.optCtrl
                 )
-                assert opt_results.success, "L-BFGS for covariances failed!"
+                assert opt_results.success, f"L-BFGS for covariances failed with message: {opt_results.message}"
+
+    def mstep_margw(self, X):
+        # closed form parts
+        self.mstep_b_margw(X)
+        # self.mstep_rhoprec_margw(X)
+
+        # optimization parts:
+        # Stiefel manifold for orthonormal S (if ortho_s)
+        self.mstep_S(X)
+
+        # L-BFGS for residual covs
+        self.mstep_covs()
 
     def _init_vars(self, X, svd_init=False):
         self.n = len(X)
@@ -272,7 +306,7 @@ class DPMNSRM(BaseEstimator):
         self.wcov_prime = tf.Variable(np.eye(self.k), name="wcov_prime")
         self.vcov_prime = tf.Variable(np.eye(self.v), name="vcov_prime")
 
-    def fit(self, X, max_iter=10, y=None, convergence_tol=1e-3):
+    def fit(self, X, max_iter=10, y=None, svd_init=False, rtol=1e-3, gtol=1e-7):
         """
         find S marginalizing W
 
@@ -286,62 +320,82 @@ class DPMNSRM(BaseEstimator):
 
         # in case we get a list, and/or int16s or float32s
         X = np.array(X).astype(np.float64)
-        self._init_vars(X)
+        self._init_vars(X, svd_init=svd_init)
 
         if self.algorithm == "ECME":
-            def loss(x): return -self.logp_margw(X)
+            self.lossfn = lambda theta: -self.logp(X)
+            _loss_pymanopt = lambda Strp: -self.logp(X, tf.transpose(Strp))
             loss_name = "-Marginal Lik"
         elif self.algorithm == "ECM":
-            def loss(x): return -self.Q_fun_margw(X)
+            self.lossfn = lambda theta: -self.Q_fun(X)
+            _loss_pymanopt = lambda Strp: -self.Q_fun(X, tf.transpose(Strp))
             loss_name = "-ELPD (Q)"
 
-        def wrapped_Q(Strp, X):
-            return -self.Q_fun_margw(Strp, X)
-
-        lossfn_Q = TensorFlow(wrapped_Q)
+        loss_pymanopt = TensorFlow(_loss_pymanopt)
 
         s_trp_manifold = Stiefel(self.t, self.k)
-        self.solver = TrustRegions(logverbosity=0)
-        self.problem = Problem(manifold=s_trp_manifold, cost=lossfn_Q)
-
+        self.solver = TrustRegions()
+        self.problem = Problem(manifold=s_trp_manifold, cost=loss_pymanopt)
+        
+        prevloss = self.lossfn(None)
+        converged = False
         for em_iter in range(max_iter):
 
-            q_start = self.Q_fun_margw(self.S, X)
-            logger.info(f"Iter {em_iter}, {loss_name} at start {q_start}")
-            print(f"Iter {em_iter}, {loss_name} at start {q_start}")
+            logger.info(f"Iter {em_iter}, {loss_name} at start {prevloss}")
+            # print(f"Iter {em_iter}, {loss_name} at start {q_start}")
 
             # ESTEP
             self.estep_margw(X)
-            q_end_estep = self.Q_fun_margw(self.S, X)
-            logger.info(f"Iter {em_iter}, {loss_name} at estep end {q_end_estep}")
-            print(f"Iter {em_iter}, {loss_name} at estep end {q_end_estep}")
-
+            currloss = self.lossfn(None)
+            logger.info(f"Iter {em_iter}, {loss_name} at estep end {currloss}")
+            print(f"Iter {em_iter}, {loss_name} at estep end {currloss}")
+            assert currloss - prevloss <= 0.1 , f"{loss_name} increased in E-step!"
+            prevloss = currloss
             # MSTEP
             self.mstep_margw(X)
 
-            q_end_mstep = self.Q_fun_margw(self.S, X)
-            logger.info("Iter %i, Q at mstep end %f" % (em_iter, q_end_mstep))
-            print("Iter %i, Q at mstep end %f" % (em_iter, q_end_mstep))
-            assert q_end_estep >= q_start, "Q increased in E-step!"
-            assert q_end_mstep >= q_end_estep, "Q increased in M-step!"
+            currloss = self.lossfn(None)
+            logger.info(f"Iter {em_iter}, {loss_name} at mstep end {currloss}")
+            print("Iter %i, Q at mstep end %f" % (em_iter, currloss))
+            currloss = self.lossfn(None)
+            assert currloss - prevloss <= 0.1, f"{loss_name} increased in M-step!"
 
-            # converged = check_convergence()
+            if prevloss - currloss < abs(rtol * prevloss):
+                break
+                converged = True
+                converged_reason = "rtol"
+            elif self._loss_gradnorm() < gtol:
+                break
+                converged = True
+                converged_reason = "gtol"
 
-            # Convergence checks: tol on just delta-loss or
-            # we check w, rho, and sigma_v (since we
-            # use them for reconstruction/projection)?
-
-        # if converged:
-        #     logger.info("Converged in %i iterations" % i)
-        # else:
-        #     logger.warn("Not converged to tolerance!\
-        #                  Results may not be reliable")
+        if converged:
+            logger.info(f"Converged in {em_iter} iterations with by metric {converged_reason}")
+        else:
+            logger.warn("Not converged to tolerance!\
+                         Results may not be reliable")
         self.w_ = self.w_prime.numpy()
         self.s_ = self.S.numpy()
         self.rho_ = 1/self.rhoprec.numpy()
 
-        self.final_loss_ = q_end_mstep
-        self.logp_ = self.logp_margw(X)
+        self.final_loss_ = self.lossfn(None)
+        self.logp_ = self.logp(X)
+
+    def _loss_gradnorm(self):
+
+        params = [self.S, self.rhoprec]  +\
+                    self.space_cov.get_optimize_vars() +\
+                    self.time_cov.get_optimize_vars()  +\
+                    self.marg_cov.get_optimize_vars()
+        if self.algorithm == "ECM":
+            # if ECME, marginal likelihood is independent 
+            # of W sufficient statistic
+            params.append(self.w_prime)
+
+        val_and_grad = make_val_and_grad(self.lossfn, params)
+        packed_params = pack_trainable_vars(params)
+        _, grad = val_and_grad(packed_params)
+        return np.linalg.norm(grad, np.inf)
 
     def _condition(self, x):
         s = np.linalg.svd(x, compute_uv=False)
