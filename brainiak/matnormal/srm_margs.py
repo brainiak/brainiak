@@ -26,7 +26,7 @@ class MNSRM(BaseEstimator):
     """Probabilistic SRM, aka SRM with marginalization over S (and 
     orthonormal W). This generalizes SRM (Chen et al. 2015) by allowing
     arbitrary kronecker-structured residual covariance. Inference is
-    performed by ECM algorithm. 
+    performed by ECM algorithm.
     """
 
     def __init__(self, n_features=5, time_noise_cov=CovIdentity,
@@ -156,13 +156,13 @@ class MNSRM(BaseEstimator):
         X = tf.stack(X, name="X")
 
         if svd_init:
-            xsvd = [np.linalg.svd(x) for x in X]
+            xinit = [np.linalg.svd(x) for x in X]
         else:
-            xsvd = [np.linalg.svd(np.random.normal(
+            xinit = [np.linalg.svd(np.random.normal(
                 size=(self.v, self.t))) for i in range(self.n)]
 
-        w_init = [sv[0][:, :self.k] for sv in xsvd]
-        s_init = np.average([sv[2][:self.k, :] for sv in xsvd], 0)
+        w_init = [sv[0][:, :self.k] for sv in xinit]
+        s_init = np.average([sv[2][:self.k, :] for sv in xinit], 0)
 
         # parameters
         self.b = tf.Variable(np.random.normal(
@@ -179,7 +179,6 @@ class MNSRM(BaseEstimator):
         self.tcov_prime = tf.Variable(np.eye(self.t), name="wcov_prime")
 
         # Pymanopt setup
-
         # now we fool pymanopt into thinking we prepicked
         # number of args even though we use varargs
         def wrapped_Q(*args):
