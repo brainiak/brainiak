@@ -13,8 +13,8 @@ import tensorflow as tf
 def mnsrm_fakedata(): 
     np.random.seed(1)
     tf.random.set_seed(1)
-    voxels = 10
-    samples = 50
+    voxels = 100
+    samples = 500
     subjects = 2
     features = 3
 
@@ -27,7 +27,7 @@ def mnsrm_fakedata():
 
     S = np.vstack((x, y, z))
     
-    rho = (0.1+np.random.normal(subjects)) ** 2
+    rho = (0.1*np.random.normal(subjects)) ** 2
 
     X = []
     W = []
@@ -59,7 +59,7 @@ def test_mnsrm_margw(mnsrm_fakedata, svd_init, algo,
     model = DPMNSRM(n_features=features,algorithm=algo,
                     time_noise_cov=time_cov, space_noise_cov=space_cov)
     assert model, "Cannot instantiate DPMNSRM!"
-    model.fit(X, max_iter=10, svd_init=svd_init, rtol=0.01, gtol=1e-3)
+    model.fit(X, max_iter=20, svd_init=svd_init, rtol=1e-5, gtol=1e-7)
 
     assert model.s_.shape == (features, samples), "S wrong shape!"
 
