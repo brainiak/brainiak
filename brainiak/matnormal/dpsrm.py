@@ -1,7 +1,4 @@
 import tensorflow as tf
-from pymanopt import Problem
-from pymanopt.manifolds import Stiefel
-from pymanopt.solvers import TrustRegions
 from sklearn.base import BaseEstimator
 from brainiak.matnormal.covs import (CovIdentity,
                                      CovScaleMixin,
@@ -11,7 +8,6 @@ from brainiak.matnormal.matnormal_likelihoods import (
     matnorm_logp_marginal_col)
 from brainiak.matnormal.utils import pack_trainable_vars, make_val_and_grad
 import logging
-from pymanopt.function import TensorFlow
 from scipy.optimize import minimize
 
 logger = logging.getLogger(__name__)
@@ -43,27 +39,15 @@ class DPMNSRM(BaseEstimator):
     """
 
     def __init__(self, n_features=5, time_noise_cov=CovIdentity,
-                 space_noise_cov=CovIdentity, w_cov=CovIdentity,
-                 s_constraint="ortho", optMethod="L-BFGS-B", optCtrl={},
+                 space_noise_cov=CovIdentity,
+                 optMethod="L-BFGS-B", optCtrl={},
                  improvement_tol=1e-5, algorithm="ECME"):
 
         self.k = n_features
-        self.s_constraint = s_constraint
+        # self.s_constraint = s_constraint
         self.improvement_tol = improvement_tol
         self.algorithm = algorithm
-        if s_constraint == "ortho":
-            logger.info("Orthonormal S selected")
-            if w_cov is CovIdentity:
-                raise RuntimeError("Orthonormal S with w_cov=I makes S not identifiable\
-                (since it always appears as an inner product), please use another w_cov")
-        elif s_constraint == "gaussian":
-            logger.info("Gaussian S selected")
-            if w_cov is not CovIdentity:
-                logger.warn(f"Gaussian S means w_cov can be I w.l.o.g., ignoring passed in\
-                w_cov={w_cov}")
-        else:
-            raise RuntimeError(
-                f"Unknown s_constraint! Expected 'ortho' or 'gaussian', got {s_constraint}!")
+        self.marg_cov_class = CovIdentity
 
         if algorithm not in ["ECM", "ECME"]:
             raise RuntimeError(
@@ -71,7 +55,6 @@ class DPMNSRM(BaseEstimator):
 
         self.time_noise_cov_class = time_noise_cov
         self.space_noise_cov_class = space_noise_cov
-        self.marg_cov_class = w_cov
 
         self.optCtrl, self.optMethod = optCtrl, optMethod
 
@@ -83,34 +66,13 @@ class DPMNSRM(BaseEstimator):
 
         subj_space_covs = [CovScaleMixin(base_cov=self.space_cov,
                                          scale=1/self.rhoprec[j]) for j in range(self.n)]
-        if self.marg_cov_class is CovIdentity:
-            return tf.reduce_sum(
-                input_tensor=[matnorm_logp_marginal_col(X[j],
-                                                        row_cov=subj_space_covs[j],
-                                                        col_cov=self.time_cov,
-                                                        marg=S,
-                                                        marg_cov=CovIdentity(size=self.k))
-                              for j in range(self.n)], name="lik_logp")
-
-        elif self.marg_cov_class is CovUnconstrainedCholesky:
-            return tf.reduce_sum(
-                input_tensor=[matnorm_logp_marginal_col(X[j],
-                                                        row_cov=subj_space_covs[j],
-                                                        col_cov=self.time_cov,
-                                                        marg=tf.matmul(
-                                               self.marg_cov.L, S),
-                                           marg_cov=CovIdentity(size=self.k))
-                              for j in range(self.n)], name="lik_logp")
-        else:
-            logger.warn("ECME with cov that is not identity or unconstrained may\
-                        yield numerical instabilities! Use ECM for now.")
-            return tf.reduce_sum(
-                input_tensor=[matnorm_logp_marginal_col(X[j],
-                                                        row_cov=subj_space_covs[j],
-                                                        col_cov=self.time_cov,
-                                                        marg=S,
-                                                        marg_cov=self.marg_cov)
-                              for j in range(self.n)], name="lik_logp")
+        return tf.reduce_sum(
+            input_tensor=[matnorm_logp_marginal_col(X[j],
+                                                    row_cov=subj_space_covs[j],
+                                                    col_cov=self.time_cov,
+                                                    marg=S,
+                                                    marg_cov=CovIdentity(size=self.k))
+                            for j in range(self.n)], name="lik_logp")
 
     def Q_fun(self, X, S=None):
         
@@ -140,21 +102,13 @@ class DPMNSRM(BaseEstimator):
                                  self.rhoprec[j]
                                  for j in range(self.n)], axis=0))
 
-        if self.s_constraint == "gaussian":
-            s_quad_form = - \
-                tf.linalg.trace(tf.matmul(self.time_cov.solve(
-                    tf.transpose(a=S)), S))
-            det_terms = -(nv+self.k) * self.time_cov.logdet -\
-                kpt*self.n*self.space_cov.logdet +\
-                kpt*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
-                nv*self.marg_cov.logdet
-        else:
-            # s_quad_form = -tf.linalg.trace(self.time_cov._prec)
-            s_quad_form = 0
-            det_terms = -nv*self.time_cov.logdet -\
-                (self.n+self.t)*self.space_cov.logdet +\
-                self.t*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
-                nv*self.marg_cov.logdet
+        s_quad_form = - \
+            tf.linalg.trace(tf.matmul(self.time_cov.solve(
+                tf.transpose(a=S)), S))
+        det_terms = -(nv+self.k) * self.time_cov.logdet -\
+            kpt*self.n*self.space_cov.logdet +\
+            kpt*self.v*tf.reduce_sum(input_tensor=tf.math.log(self.rhoprec)) -\
+            nv*self.marg_cov.logdet
 
         trace_prod = -tf.reduce_sum(input_tensor=self.rhoprec / self.rhoprec_prime) *\
             tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *\
@@ -198,28 +152,23 @@ class DPMNSRM(BaseEstimator):
 
     @assert_monotonicity
     def mstep_S(self, X):
-        if self.s_constraint == "gaussian":
-            wtw = tf.reduce_sum(
-                input_tensor=[tf.matmul(self.w_prime[j],
-                                        self.space_cov.solve(
-                                            self.w_prime[j]),
-                                        transpose_a=True) *
-                                self.rhoprec[j] for j in range(self.n)], axis=0)
+        wtw = tf.reduce_sum(
+            input_tensor=[tf.matmul(self.w_prime[j],
+                                    self.space_cov.solve(
+                                        self.w_prime[j]),
+                                    transpose_a=True) *
+                            self.rhoprec[j] for j in range(self.n)], axis=0)
 
-            wtx = tf.reduce_sum(
-                input_tensor=[tf.matmul(self.w_prime[j],
-                                        self.space_cov.solve(
-                                            X[j]-self.b[j]),
-                                        transpose_a=True) *
-                                self.rhoprec[j] for j in range(self.n)], axis=0)
+        wtx = tf.reduce_sum(
+            input_tensor=[tf.matmul(self.w_prime[j],
+                                    self.space_cov.solve(
+                                        X[j]-self.b[j]),
+                                    transpose_a=True) *
+                            self.rhoprec[j] for j in range(self.n)], axis=0)
 
-            self.S.assign(tf.linalg.solve(wtw + tf.reduce_sum(input_tensor=self.rhoprec_prime / self.rhoprec) *
-                                    tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *
-                                    self.wcov_prime + tf.eye(self.k, dtype=tf.float64), wtx), read_value=False)
-
-        elif self.s_constraint == "ortho":
-            new_Strp = self.solver.solve(self.problem, x=self.S.numpy().T)
-            self.S.assign(new_Strp.T, read_value=False)
+        self.S.assign(tf.linalg.solve(wtw + tf.reduce_sum(input_tensor=self.rhoprec_prime / self.rhoprec) *
+                                tf.linalg.trace(self.space_cov.solve(self.vcov_prime)) *
+                                self.wcov_prime + tf.eye(self.k, dtype=tf.float64), wtx), read_value=False)
 
     @assert_monotonicity
     def mstep_rhoprec_margw(self, X):
@@ -267,10 +216,7 @@ class DPMNSRM(BaseEstimator):
     def mstep_margw(self, X):
         # closed form parts
         self.mstep_b_margw(X)
-        # self.mstep_rhoprec_margw(X)
-
-        # optimization parts:
-        # Stiefel manifold for orthonormal S (if ortho_s)
+        self.mstep_rhoprec_margw(X)
         self.mstep_S(X)
 
         # L-BFGS for residual covs
@@ -324,18 +270,11 @@ class DPMNSRM(BaseEstimator):
 
         if self.algorithm == "ECME":
             self.lossfn = lambda theta: -self.logp(X)
-            _loss_pymanopt = lambda Strp: -self.logp(X, tf.transpose(Strp))
             loss_name = "-Marginal Lik"
         elif self.algorithm == "ECM":
             self.lossfn = lambda theta: -self.Q_fun(X)
-            _loss_pymanopt = lambda Strp: -self.Q_fun(X, tf.transpose(Strp))
             loss_name = "-ELPD (Q)"
 
-        loss_pymanopt = TensorFlow(_loss_pymanopt)
-
-        s_trp_manifold = Stiefel(self.t, self.k)
-        self.solver = TrustRegions()
-        self.problem = Problem(manifold=s_trp_manifold, cost=loss_pymanopt)
         
         prevloss = self.lossfn(None)
         converged = False
@@ -348,7 +287,6 @@ class DPMNSRM(BaseEstimator):
             self.estep_margw(X)
             currloss = self.lossfn(None)
             logger.info(f"Iter {em_iter}, {loss_name} at estep end {currloss}")
-            print(f"Iter {em_iter}, {loss_name} at estep end {currloss}")
             assert currloss - prevloss <= 0.1 , f"{loss_name} increased in E-step!"
             prevloss = currloss
             # MSTEP
@@ -356,7 +294,6 @@ class DPMNSRM(BaseEstimator):
 
             currloss = self.lossfn(None)
             logger.info(f"Iter {em_iter}, {loss_name} at mstep end {currloss}")
-            print("Iter %i, Q at mstep end %f" % (em_iter, currloss))
             currloss = self.lossfn(None)
             assert currloss - prevloss <= 0.1, f"{loss_name} increased in M-step!"
 
