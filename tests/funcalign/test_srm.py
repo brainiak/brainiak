@@ -15,7 +15,7 @@ from sklearn.exceptions import NotFittedError
 import pytest
 
 
-def test_can_instantiate():
+def test_can_instantiate(tmp_path):
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
     assert s, "Invalid SRM instance!"
@@ -116,6 +116,21 @@ def test_can_instantiate():
     with pytest.raises(ValueError):
         s.fit(X)
     print("Test: different number of samples per subject")
+
+    # Check save/load functionality for fitted SRM
+    srm_path = tmp_path / 'srm.npz'
+    s.save(srm_path)
+    s_load = brainiak.funcalign.srm.load(srm_path)
+    assert np.array_equal(s.s_, s_load.s_)
+    for w, wl in zip(s.w_, s_load.w_):
+        assert np.array_equal(w, wl)
+    assert np.array_equal(s.sigma_s_, s_load.sigma_s_)
+    assert np.array_equal(s.mu_, s_load.mu_)
+    assert np.array_equal(s.rho2_, s_load.rho2_)
+    assert s.features == s_load.features
+    assert s.n_iter == s_load.n_iter
+    assert s.rand_seed == s_load.rand_seed
+    print("Test: save/load functionality")
 
 
 def test_new_subject():

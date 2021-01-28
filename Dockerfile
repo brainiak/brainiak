@@ -30,15 +30,14 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY dist/brainiak-* /mnt/brainiak
+COPY brainiak-* /mnt/brainiak
 
 WORKDIR /mnt/brainiak
 
 COPY tutorials/tutorials tutorials
 
 RUN set -e \
-    && python3 -m pip install --user -U "pip<10" \
-    && python3 -m pip install --user -U . \
+    && python3 -m pip install --user -U pip \
     && python3 -m pip install --user -U -r tutorials/requirements.txt \
     && for example in examples/*/requirements.txt; \
         do python3 -m pip install --user -U -r $example ; done \

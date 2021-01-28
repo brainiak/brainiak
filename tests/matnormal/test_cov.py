@@ -15,6 +15,7 @@ from brainiak.matnormal.covs import (
     CovUnconstrainedCholeskyWishartReg,
     CovUnconstrainedInvCholesky,
     CovKroneckerFactored,
+    CovScaleMixin,
 )
 
 # X is m x n, so A sould be m x p
@@ -307,7 +308,6 @@ def test_raises(seeded_rng):
         CovUnconstrainedInvCholesky(invSigma=np.eye(3), size=4)
     with pytest.raises(RuntimeError):
         CovUnconstrainedInvCholesky()
-
 
 
 def test_CovScaleMixin():

@@ -93,7 +93,7 @@ Installing and upgrading
 The Brain Imaging Analysis Kit is available on PyPI. You can install it (or
 upgrade to the latest version) using the following command::
 
-    python3 -m pip install --no-use-pep517 -U brainiak
+    python3 -m pip install -U brainiak
 
 .. warning::
     Running `python setup.py install` might fail. It is recommended to install using pip.

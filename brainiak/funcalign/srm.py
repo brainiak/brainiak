@@ -106,6 +106,41 @@ def _init_w_transforms(data, features, random_states, comm=MPI.COMM_SELF):
     return w, voxels
 
 
+def load(file):
+    """Load fitted SRM from .npz file.
+
+    Parameters
+    ----------
+
+    file : str, file-like object, or pathlib.Path
+        The .npz file to read containing fitted SRM saved using srm.save
+
+    Returns
+    --------
+
+    srm : fitted SRM model
+    """
+
+    # Load file and extract SRM attributes
+    loaded = np.load(file)
+    w_ = [s for s in loaded['w_']]
+    s_ = loaded['s_']
+    sigma_s_ = loaded['sigma_s_']
+    mu_ = [s for s in loaded['mu_']]
+    rho2_ = loaded['rho2_']
+    features, n_iter, rand_seed = loaded['kwargs']
+
+    # Initialize new SRM object and attach loaded attributes
+    srm = SRM(n_iter=n_iter, features=features, rand_seed=rand_seed)
+    srm.w_ = w_
+    srm.s_ = s_
+    srm.sigma_s_ = sigma_s_
+    srm.mu_ = mu_
+    srm.rho2_ = rho2_
+
+    return srm
+
+
 class SRM(BaseEstimator, TransformerMixin):
     """Probabilistic Shared Response Model (SRM)
 
@@ -411,6 +446,38 @@ class SRM(BaseEstimator, TransformerMixin):
         w = self._update_transform_subject(X, self.s_)
 
         return w
+
+    def save(self, file):
+        """Save fitted SRM to .npz file.
+
+        Parameters
+        ----------
+
+        file : str, file-like object, or pathlib.Path
+            Filename (string), open file (file-like object) or pathlib.Path
+            where the fitted SRM will be saved. If file is a string or a Path,
+            the .npz extension will be appended to the filename if it is not
+            already there.
+
+        Returns
+        -------
+
+        None
+        """
+
+        # Check if the model has been estimated
+        if hasattr(self, 'w_') is False:
+            raise NotFittedError("The model fit has not been run yet.")
+
+        np.savez_compressed(
+            file,
+            w_=self.w_,
+            s_=self.s_,
+            sigma_s_=self.sigma_s_,
+            mu_=self.mu_,
+            rho2_=self.rho2_,
+            kwargs=np.array([self.features, self.n_iter, self.rand_seed])
+        )
 
     def _srm(self, data):
         """Expectation-Maximization algorithm for fitting the probabilistic SRM.

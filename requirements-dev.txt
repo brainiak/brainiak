@@ -1,4 +1,4 @@
--e .  # Installing BrainIAK here ensures no requirement conflict.
+-e .[matnormal]  # Installing BrainIAK here ensures no requirement conflict.
 coverage
 flake8
 flake8-print
