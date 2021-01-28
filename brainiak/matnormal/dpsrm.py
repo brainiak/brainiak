@@ -21,10 +21,8 @@ def assert_monotonicity(fun, rtol=1e-3):
     """
     def wrapper(classref, *args, **kwargs):
         loss_before = classref.lossfn(None)
-        print(f"loss before {fun} is {loss_before}")
         res = fun(classref, *args, **kwargs)
         loss_after = classref.lossfn(None)
-        print(f"loss after {fun} is {loss_after}")
         assert loss_after-loss_before <= abs(loss_before*rtol), f"loss increased on {fun}"
         return res
     return wrapper
