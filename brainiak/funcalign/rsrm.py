@@ -108,7 +108,7 @@ class RSRM(BaseEstimator, TransformerMixin):
     def __init__(self, n_iter=10, features=50, gamma=1.0, rand_seed=0):
         self.n_iter = n_iter
         self.features = features
-        self.lam = gamma
+        self.gamma = gamma
         self.rand_seed = rand_seed
 
     def fit(self, X):
@@ -123,7 +123,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         logger.info('Starting RSRM')
 
         # Check that the regularizer value is positive
-        if 0.0 >= self.lam:
+        if 0.0 >= self.gamma:
             raise ValueError("Gamma parameter should be positive.")
 
         # Check the number of subjects
@@ -216,7 +216,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         R = None
         for i in range(self.n_iter):
             R = self.w_[subject].T.dot(X - S)
-            S = self._shrink(X - self.w_[subject].dot(R), self.lam)
+            S = self._shrink(X - self.w_[subject].dot(R), self.gamma)
         return R, S
 
     def transform_subject(self, X):
@@ -249,7 +249,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         s = np.zeros_like(X)
         for i in range(self.n_iter):
             w = self._update_transform_subject(X, s, self.r_)
-            s = self._shrink(X - w.dot(self.r_), self.lam)
+            s = self._shrink(X - w.dot(self.r_), self.gamma)
 
         return w, s
 
@@ -286,17 +286,17 @@ class RSRM(BaseEstimator, TransformerMixin):
         R = self._update_shared_response(X, S, W, features)
 
         if logger.isEnabledFor(logging.INFO):
-            objective = self._objective_function(X, W, R, S, self.lam)
+            objective = self._objective_function(X, W, R, S, self.gamma)
             logger.info('Objective function %f' % objective)
 
         # Main loop
         for i in range(self.n_iter):
             W = self._update_transforms(X, S, R)
-            S = self._update_individual(X, W, R, self.lam)
+            S = self._update_individual(X, W, R, self.gamma)
             R = self._update_shared_response(X, S, W, features)
             # Print objective function every iteration
             if logger.isEnabledFor(logging.INFO):
-                objective = self._objective_function(X, W, R, S, self.lam)
+                objective = self._objective_function(X, W, R, S, self.gamma)
                 logger.info('Objective function %f' % objective)
 
         return W, R, S
