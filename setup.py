@@ -116,7 +116,9 @@ setup(
     use_scm_version=True,
     setup_requires=[
         'cython',
-        'numpy!=1.17.*',
+        # https://github.com/numpy/numpy/issues/14189
+        # https://github.com/brainiak/brainiak/issues/493
+        'numpy!=1.17.*,<1.20',
         'pybind11>=1.7',
         'scipy!=1.0.0',
         'setuptools_scm',
@@ -128,7 +130,8 @@ setup(
         'mpi4py>=3',
         'nitime',
         # https://github.com/numpy/numpy/issues/14189
-        'numpy!=1.17.*',
+        # https://github.com/brainiak/brainiak/issues/493
+        'numpy!=1.17.*,<1.20',
         'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         'scipy!=1.0.0',
