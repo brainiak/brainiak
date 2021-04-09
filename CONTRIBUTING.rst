@@ -72,8 +72,10 @@ step-by-step description of our recommended workflow:
      git push --set-upstream origin new-feature  # only for the first push
      git push  # for all subsequent pushes
 
-9. When your feature is ready, make a pull request on GitHub. After your
-   feature is accepted, update your ``master`` branch and delete your feature
+9. When your feature is ready, make a PR on GitHub. If you collaborate with
+   others on the code, credit them using Co-authored-by_; if you are merging a
+   PR, credit all authors using Co-authored-by_ in the PR squash message. After
+   your PR is merged, update your ``master`` branch and delete your feature
    branch::
 
      git checkout master
@@ -88,6 +90,8 @@ requests`_ for more information.
    https://pip.pypa.io/en/latest/development/#adding-a-news-entry
 .. _GitHub help for collaborating on projects using issues and pull requests:
    https://help.github.com/categories/collaborating-on-projects-using-issues-and-pull-requests/
+.. _Co-authored-by:
+   https://help.github.com/en/github/committing-changes-to-your-project/creating-a-commit-with-multiple-authors
 
 All pull requests are automatically tested using the ``pr-check.sh`` script.
 You should test you contributions yourself on your computer using
@@ -298,63 +302,98 @@ Before making a release, ensure that:
 To make a release:
 
 1. Choose a release number, ``v``. We follow `Semantic Versioning
-   <http://semver.org>`_, although we omit the patch number when it is 0.
+   <http://semver.org>`_, although we omit the patch number when it is 0::
 
-2. Prepare the release notes::
+       export v=0.11
 
-       git checkout -b release-v<v>
-       towncrier --version <v>
+2. Prepare the release notes; may require manual additions for PRs without
+   release notes in ``docs/newsfragments``::
+
+       git checkout -b release-v$v
+       towncrier --version $v
        ./pr-check.sh
-       git commit -a -m "Add release notes for v<v>"
-       git push --set-upstream origin release-v<v>
+       git commit -a -m "Add release notes for v$v"
+       git push --set-upstream origin release-v$v
        <Create a PR; merge the PR.>
        git checkout master
        git pull --ff-only
-       git branch -d release-v<v>
+       git branch -d release-v$v
 
 3. Tag the release::
 
-       git tag v<v>
+       git tag v$v
 
 4. Create and test the source distribution package::
 
+       # build
        python3 setup.py sdist
-       tar -xf dist/brainiak-<v>.tar.gz
-       cd brainiak-<v>
+       # test
+       tar -xf dist/brainiak-$v.tar.gz
+       cd brainiak-$v
        ./pr-check.sh
        cd -
-       rm -r brainiak-<v>
 
-5. Push release::
-
-       git push --tags
-       twine upload dist/brainiak-<v>.tar.gz
-
-
-7. Create and test Conda packages (repeat command for all OSes and Python
-   versions); requires the ``conda-build`` Conda package::
+5. Create and test Conda packages (repeat command for all OSes and Python
+   versions); requires the ``conda-build`` Conda package; make sure you create
+   the tag on all the machines::
        
-       .conda/bin/build
+       # build and test in a single script
+       # On Linux machine
+       .conda/bin/build 3.7
+       .conda/bin/build 3.8
+       # On macOS machine
+       git tag v$v
+       .conda/bin/build 3.7
+       .conda/bin/build 3.8
 
-8. Upload the built Conda package (repeat command for all OSes and Python
-   versions); requires the ``anaconda-client`` Conda package::
+6. Build the Docker image (requires brainiak-tutorials checkout)::
 
-       anaconda upload -u brainiak \
-       $CONDA_HOME/conda-bld/<OS>/brainiak-<v>-<python_version>.tar.bz2
-
-9. Build and push the Docker image::
-
+       # build
+       # clone if needed
+       git clone git@github.com:brainiak/brainiak-tutorials.git tutorials
+       cd tutorials && git pull --ff-only && cd -
        docker build --no-cache -t brainiak/brainiak .
-       docker push brainiak/brainiak
+       docker tag v$v-$(date +%Y%m%d) brainiak/brainiak
+       # test
+       # run pr-check.sh in docker
+       # cleanup
+       rm -r brainiak-$v
 
-10. Build and publish the documentation::
+7. Build the documentation::
 
        cd docs
        make
        cd -
+
+8. Push tag::
+
+       git push upstream v$v
+
+9. Upload sdist::
+
+       twine upload dist/brainiak-$v.tar.gz
+
+10. Upload Conda package (repeat command for all OSes and Python
+    versions); requires the ``anaconda-client`` Conda package::
+
+       anaconda upload -u brainiak \
+       $CONDA_HOME/conda-bld/<OS>/brainiak-$v-<python_version>.tar.bz2
+
+11. Push Docker image::
+
+       docker push brainiak/brainiak
+
+12. Publish the documentation::
+
        cd ../brainiak.github.io
+       git checkout -b release-v$v
        rm -r docs
        cp -ir ../brainiak/docs/_build/html docs
-       git commit -a -m "Update docs to v<v>"
-       git push
+       git commit -a -m "Update docs to v$v"
+       # use your fork
+       git push --set-upstream origin release-v$v
+       <Create a PR; merge the PR.>
+       git checkout master
+       git pull --ff-only
+       git branch -d release-v$v
        cd -

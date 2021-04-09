@@ -2,6 +2,114 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.11 (2020-10-14)
+==========================
+
+Features
+--------
+
+- matnormal: New package for matrix-normal models. (`#341
+  <https://github.com/brainiak/brainiak/pull/341>`_)
+- fmrisim: Add real-time generator. (`#460
+  <https://github.com/brainiak/brainiak/pull/460>`_)
+- isc: Add 'side' option to randomization tests. (`#477
+  <https://github.com/brainiak/brainiak/pull/477>`_)
+- reconstruct: Add 2D expansion to IEM module. (`#482
+  <https://github.com/brainiak/brainiak/pull/482>`_)
+- funcalign: Add save/load functionality to SRM. (`#484
+  <https://github.com/brainiak/brainiak/pull/484>`_)
+
+Bugfixes
+--------
+
+- isc: Fix pairwise bootstrap to tolerate NaNs. (`#475
+  <https://github.com/brainiak/brainiak/pull/475>`_)
+
+Documentation improvements
+--------------------------
+
+- fmrisim: Add details for noise_dict. (`#474
+  <https://github.com/brainiak/brainiak/pull/474>`_)
+- isc: Update permutation doc to clarify pairwise groups. (`#476
+  <https://github.com/brainiak/brainiak/pull/476>`_)
+- isc: Add caveats about false positive rates. (`#480
+  <https://github.com/brainiak/brainiak/pull/480>`_)
+- Remove ``--no-use-pep517`` Pip installation flag, superfluous with
+  Pip >= 20.2 (`#479 <https://github.com/brainiak/brainiak/pull/479>`_)
+
+Deprecations and removals
+-------------------------
+
+- reconstruct: Rename IEM class. (`#482
+  <https://github.com/brainiak/brainiak/pull/482>`_)
+- Drop support for Python 3.5, which is no longer supported by NumPy. (`#479
+  <https://github.com/brainiak/brainiak/pull/479>`_)
+
+
+BrainIAK 0.10 (2020-02-06)
+==========================
+
+Features
+--------
+
+- reconstruct: Add inverted encoding model (IEM) for recreating continuous
+  representations in new package for reconstruction methods. (`#364
+  <https://github.com/brainiak/brainiak/pull/364>`_)
+- funcalign: Add FastSRM module for input data that does not fit in RAM.
+  (`#421 <https://github.com/brainiak/brainiak/pull/421>`_)
+- fmrisim: Update to how drift is calculated and used. (`#437
+  <https://github.com/brainiak/brainiak/pull/437>`_)
+- searchlight: Allow processing single voxels. (`#440
+  <https://github.com/brainiak/brainiak/pull/440>`_)
+- eventseg: Add split-merge feature to improve fits when event lengths are
+  highly uneven. (`#451 <https://github.com/brainiak/brainiak/issues/451>`_)
+
+
+Documentation improvements
+--------------------------
+
+- Add ``--no-use-pep517`` Pip installation flag for compatibility with
+  Pip >= 19.1.1. (`#454 <https://github.com/brainiak/brainiak/pull/454>`_)
+
+
+BrainIAK 0.9.1 (2019-08-27)
+===========================
+
+Features
+--------
+
+- Added Conda packages for Python 3.7.
+
+
+BrainIAK 0.9 (2019-06-18)
+=========================
+
+Features
+--------
+
+- isc: Revamped ISC/ISFC functionality with more statistical tests. (`#384
+  <https://github.com/brainiak/brainiak/issues/384>`_)
+- utils: phase_randomize outputs phase-scrambled input data, not tied to
+  ISC/ISFC. (`#396 <https://github.com/brainiak/brainiak/issues/396>`_)
+- utils: p_from_null no longer estimates distribution, simply returns p-value.
+  (`#397 <https://github.com/brainiak/brainiak/issues/397>`_)
+- isc: Analyses will now tolerate NaNs or tolerate a proportion of NaNs. (`#398
+  <https://github.com/brainiak/brainiak/issues/398>`_)
+- isc: Output either vectorized triangle and diagonal or square matrices.
+  (`#399 <https://github.com/brainiak/brainiak/issues/399>`_)
+- isc: Asymmetric ISFC analysis can now be performed based on a targets array.
+  (`#409 <https://github.com/brainiak/brainiak/issues/409>`_)
+- Added tutorials to Docker image. (`#425
+  <https://github.com/brainiak/brainiak/pull/425>`_)
+
+Deprecations and removals
+-------------------------
+
+- isfc: ISC/ISFC have a new API and are available in `brainiak.isc`, not
+  ``brainiak.isfc``. (`#384
+  <https://github.com/brainiak/brainiak/issues/384>`_)
+
+
 BrainIAK 0.8 (2018-11-06)
 =========================
 
@@ -17,6 +125,8 @@ Features
 - fmrisim: Added fitting procedure for SFNR and SNR parameters. Updated AR to
   be ARMA, involving both the generation and estimation. (`#372
   <https://github.com/brainiak/brainiak/pull/372>`_)
+- searchlight: Halved memory usage when ``pool_size=1``. (`#386
+  <https://github.com/brainiak/brainiak/pull/386>`_)
 - reprsimil: Added an option in BRSA to set the prior of SNR to be "equal"
   across all voxels. (`#387
   <https://github.com/brainiak/brainiak/pull/387>`_)

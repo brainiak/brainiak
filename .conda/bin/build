@@ -5,7 +5,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 python_version=$1
 if [ -z "$python_version" ]
 then
-    python_version=3.6
+    python_version=3.7
 fi
 
 export BRAINIAK_HOME=$DIR/../../
@@ -21,4 +21,12 @@ then
     CONDA_HOME="$HOME"/miniconda3
 fi
 
-"$CONDA_HOME"/bin/conda build --python=$python_version "$DIR"/..
+if [ $(which xcrun) ]
+then
+    sdk_path=$(xcrun --show-sdk-path)
+    variants_prefix="--variants"
+    variants="{'CONDA_BUILD_SYSROOT': ['${sdk_path}']}"
+fi
+
+"$CONDA_HOME"/bin/conda build --python=$python_version \
+    "$variants_prefix" "$variants" "$DIR"/..

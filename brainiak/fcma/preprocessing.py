@@ -30,11 +30,11 @@ from ..image import mask_images, multimask_images
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "RandomType",
-    "prepare_fcma_data",
     "generate_epochs_info",
+    "prepare_fcma_data",
     "prepare_mvpa_data",
     "prepare_searchlight_mvpa_data",
+    "RandomType",
 ]
 
 

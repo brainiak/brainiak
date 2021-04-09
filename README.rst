@@ -35,6 +35,13 @@ Otherwise, or if you want to compile from source, install the requirements (see
 
     python3 -m pip install brainiak
 
+Note that to use the ``brainiak.matnormal`` package, you need to install
+additional dependencies. As of October 2020, the required versions are not
+available as Conda packages, so you should install from PyPI, even when using
+Conda::
+
+    python3 -m pip install -U tensorflow tensorflow-probability
+
 Note that we do not support Windows.
 
 

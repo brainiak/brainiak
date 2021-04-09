@@ -40,16 +40,28 @@ from pymanopt.manifolds import Product
 from pymanopt.solvers import ConjugateGradient
 from pymanopt import Problem
 from pymanopt.manifolds import Stiefel
+import pymanopt
+
 import gc
 
 from brainiak.utils import utils
 from brainiak.funcalign import srm
 
 __all__ = [
-    "SSSRM"
+    "SSSRM",
 ]
 
 logger = logging.getLogger(__name__)
+
+# FIXME workaround for Theano failure on macOS Conda builds
+# https://travis-ci.org/github/brainiak/brainiak/jobs/689445834#L1414
+# Inspired by workaround from PyMC3
+# https://github.com/pymc-devs/pymc3/pull/3767
+theano.config.gcc.cxxflags = "-Wno-c++11-narrowing"
+
+# FIXME workaround for pymanopt only working with tensorflow 1.
+# We don't use pymanopt+TF so we just let pymanopt pretend TF doesn't exist.
+pymanopt.tools.autodiff._tensorflow.tf = None
 
 
 class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):

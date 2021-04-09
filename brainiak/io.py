@@ -15,6 +15,7 @@
 
 __all__ = [
     "load_boolean_mask",
+    "load_images",
     "load_images_from_dir",
     "load_labels",
     "save_as_nifti_file",
@@ -56,6 +57,10 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
     ------
     SpatialImage
         Image.
+
+    Examples
+    --------
+    >>> images = list(io.load_images_from_dir("face_scene", "bet.nii.gz"))
     """
     if isinstance(in_dir, str):
         in_dir = Path(in_dir)

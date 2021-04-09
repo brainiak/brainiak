@@ -196,4 +196,4 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 apidoc:
-	sphinx-apidoc -f -M -o . ../brainiak
+	sphinx-apidoc -f -M -o . ../brainiak ../brainiak/fcma/cython_blas.*

@@ -24,7 +24,7 @@ from brainiak.searchlight.searchlight import Diamond, Ball
 """
 
 
-def cube_sfn(l, msk, myrad, bcast_var):
+def cube_sfn(data, msk, myrad, bcast_var):
     if np.all(msk) and np.any(msk):
         return 1.0
     return None
@@ -90,7 +90,7 @@ def test_searchlight_with_cube_poolsize_1():
                     assert global_outputs[i, j, k] is None
 
 
-def diamond_sfn(l, msk, myrad, bcast_var):
+def diamond_sfn(data, msk, myrad, bcast_var):
     assert not np.any(msk[~Diamond(3).mask_])
     if np.all(msk[Diamond(3).mask_]):
         return 1.0
@@ -127,7 +127,7 @@ def test_searchlight_with_diamond():
                     assert global_outputs[i, j, k] is None
 
 
-def ball_sfn(l, msk, myrad, bcast_var):
+def ball_sfn(data, msk, myrad, bcast_var):
     x, y, z = np.mgrid[-myrad:myrad+1, -myrad:myrad+1, -myrad:myrad+1]
     correct_mask = np.square(x) + np.square(y) + np.square(z) <= myrad ** 2
     assert not np.any(msk[~Ball(3).mask_])
@@ -174,10 +174,10 @@ def test_instantiate():
     assert sl
 
 
-def voxel_test_sfn(l, msk, myrad, bcast):
+def voxel_test_sfn(data, msk, myrad, bcast):
     rad = bcast.rad
     # Check each point
-    for subj in l:
+    for subj in data:
         for _tr in range(subj.shape[3]):
             tr = subj[:, :, :, _tr]
             midpt = tr[rad, rad, rad]
@@ -189,7 +189,7 @@ def voxel_test_sfn(l, msk, myrad, bcast):
                                                         d2-rad, 0]))
 
     # Determine midpoint
-    midpt = l[0][rad, rad, rad, 0]
+    midpt = data[0][rad, rad, rad, 0]
     midpt = (midpt[0], midpt[1], midpt[2])
 
     for d0 in range(msk.shape[0]):
@@ -203,10 +203,13 @@ def voxel_test_sfn(l, msk, myrad, bcast):
     return midpt
 
 
-def block_test_sfn(l, msk, myrad, bcast_var, extra_params):
-    outmat = l[0][:, :, :, 0]
+def block_test_sfn(data, msk, myrad, bcast_var, extra_params):
+    outmat = data[0][:, :, :, 0]
     outmat[~msk] = None
-    return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
+    if myrad == 0:
+        return outmat
+    else:
+        return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
 
 
 def test_correctness():  # noqa: C901
@@ -286,6 +289,7 @@ def test_correctness():  # noqa: C901
         block_test(data, mask, max_blk_edge, rad)
 
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=1)
+    do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=1, max_blk_edge=4, rad=0)
     do_test(dim0=7, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=1, dim1=5, dim2=9, ntr=5, nsubj=5, max_blk_edge=4, rad=1)
     do_test(dim0=0, dim1=10, dim2=8, ntr=5, nsubj=5, max_blk_edge=4, rad=1)

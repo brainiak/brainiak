@@ -21,7 +21,7 @@ Source
 Requirements
 ============
 
-We support Linux and MacOS with Python version 3.4 or higher. Most of the
+We support Linux and MacOS with Python version 3.5 or higher. Most of the
 dependencies will be installed automatically. However, a few need to be
 installed manually.
 
@@ -94,6 +94,9 @@ The Brain Imaging Analysis Kit is available on PyPI. You can install it (or
 upgrade to the latest version) using the following command::
 
     python3 -m pip install -U brainiak
+
+.. warning::
+    Running `python setup.py install` might fail. It is recommended to install using pip.
 
 Note that you may see a ``Failed building wheel for brainiak`` message (`issue
 #61`_). Installation will proceed despite this failure. You can safely ignore it

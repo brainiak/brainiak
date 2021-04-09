@@ -1,28 +1,23 @@
-branches:
-  only:
-    - master
-
 matrix:
   include:
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       language: python
-      python: 3.4
+      python: 3.6
       addons: &linux_addons
         apt: &apt
           packages:
             - build-essential libgomp1 libmpich-dev mpich
 
     - os: linux
-      dist: trusty
+      dist: xenial
       sudo: required
       language: python
-      python: 3.5
+      python: 3.8
       addons: *linux_addons
 
     - os: osx
-      osx_image: xcode7.3
       language: generic
       env: &macos_env
         - CC=/usr/local/opt/llvm/bin/clang
@@ -36,14 +31,16 @@ matrix:
 
     # Build and test conda packages
     - os: linux
-      dist: trusty
+      dist: xenial
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: .conda/bin/build
 
     - os: osx
-      osx_image: xcode8
       install: ./.conda/bin/install-miniconda
-      script: ./.conda/bin/build
+      script: .conda/bin/build
+  allow_failures:
+    - os: linux
+      script: .conda/bin/build
 
 install:
     - python3 -m pip install -U pip codecov

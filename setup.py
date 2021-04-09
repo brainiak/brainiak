@@ -7,8 +7,8 @@ import sys
 import setuptools
 from copy import deepcopy
 
-assert sys.version_info >= (3, 4), (
-    "Please use Python version 3.4 or higher, "
+assert sys.version_info >= (3, 5), (
+    "Please use Python version 3.5 or higher, "
     "lower versions are not supported"
 )
 
@@ -82,7 +82,7 @@ class BuildExt(build_ext):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
-        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.7',
+        c_opts['unix'] += ['-stdlib=libc++', '-mmacosx-version-min=10.9',
                            '-ftemplate-depth-1024']
 
     def build_extensions(self):
@@ -116,25 +116,41 @@ setup(
     use_scm_version=True,
     setup_requires=[
         'cython',
-        'numpy',
+        # https://github.com/numpy/numpy/issues/14189
+        # https://github.com/brainiak/brainiak/issues/493
+        'numpy!=1.17.*,<1.20',
         'pybind11>=1.7',
+        'scipy!=1.0.0',
         'setuptools_scm',
     ],
     install_requires=[
         'cython',
-        'mpi4py',
+        # Previous versions fail of the Anaconda package fail on MacOS:
+        # https://travis-ci.org/brainiak/brainiak/jobs/545838666
+        'mpi4py>=3',
         'nitime',
-        'numpy',
+        # https://github.com/numpy/numpy/issues/14189
+        # https://github.com/brainiak/brainiak/issues/493
+        'numpy!=1.17.*,<1.20',
         'scikit-learn[alldeps]>=0.18',
-        'scipy!=1.0.0',  # See https://github.com/scipy/scipy/pull/8082
+        # See https://github.com/scipy/scipy/pull/8082
+        'scipy!=1.0.0',
         'statsmodels',
         'pymanopt',
-        'theano',
+        'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
         'pybind11>=1.7',
         'psutil',
         'nibabel',
-        'typing'
+        'joblib',
+        'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
+        'pydicom',
     ],
+    extras_require={
+        'matnormal': [
+            'tensorflow',
+            'tensorflow_probability',
+        ],
+    },
     author='Princeton Neuroscience Institute and Intel Corporation',
     author_email='mihai.capota@intel.com',
     url='http://brainiak.org',
@@ -145,7 +161,7 @@ setup(
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     packages=find_packages(),
-    package_data={'brainiak.utils': ['grey_matter_mask.npy']},
-    python_requires='>=3.4',
+    include_package_data=True,
+    python_requires='>=3.5',
     zip_safe=False,
 )
