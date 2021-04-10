@@ -126,6 +126,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         The number of voxels may be different between subjects. However, the
         number of samples for the alignment data must be the same across
         subjects. The number of labeled samples per subject can be different.
+        Note that unlike SRM, DetSRM does not handle vector shifts (intercepts)
+        across subjects.
 
         The Semi-Supervised Shared Response Model is approximated using the
         Block-Coordinate Descent (BCD) algorithm proposed in [Turek2016]_.
