@@ -78,7 +78,7 @@ class BuildExt(build_ext):
     # FIXME Workaround for using the Intel compiler by setting the CC env var
     # Other uses of ICC (e.g., cc binary linked to icc) are not supported
     if (('CC' in os.environ and 'icc' in os.environ['CC'])
-            or 'icc' in sysconfig.get_config_var('CC')):
+            or (sysconfig.get_config_var('CC') and 'icc' in sysconfig.get_config_var('CC'))):
         c_opts['unix'] += ['-lirc', '-lintlc']
 
     if sys.platform == 'darwin':
