@@ -182,10 +182,14 @@ def test_new_subject():
         s.transform_subject(X[0].T)
 
     # Check that it does run to compute a new subject
-    new_w = s.transform_subject(X[0])
+    new_w, new_mu = s.transform_subject(X[0])
+    np.shape(new_w)
+    np.shape(new_mu)
     assert new_w.shape[1] == features, (
         "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
         "Invalid computation of SRM! (wrong # voxels for new subject)")
 
     # Check that these analyses work with the deterministic SRM too
@@ -204,10 +208,12 @@ def test_new_subject():
         ds.transform_subject(X[0].T)
 
     # Check that it does run to compute a new subject
-    new_w = ds.transform_subject(X[0])
+    new_w, new_mu = ds.transform_subject(X[0])
     assert new_w.shape[1] == features, (
         "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
         "Invalid computation of SRM! (wrong # voxels for new subject)")
 
 
@@ -294,10 +300,12 @@ def test_det_srm():
             "Invalid computation of DetSRM! (wrong # samples after transform)")
 
     # Check that it does run to compute a new subject
-    new_w = model.transform_subject(X[0])
+    new_w, new_mu = model.transform_subject(X[0])
     assert new_w.shape[1] == features, (
         "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
         "Invalid computation of SRM! (wrong # voxels for new subject)")
 
     # Check that it does NOT run with non-matching number of subjects
