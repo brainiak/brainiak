@@ -899,17 +899,17 @@ class DetSRM(BaseEstimator, TransformerMixin):
         # compute subject specific intercept
         self.mu_ = [np.mean(data[s], axis=1) for s in range(subjects)]
         # center the data
-        data_centered = [data[s] - self.mu_[s][:, np.newaxis]
-                         for s in range(subjects)]
+        data = [data[s] - self.mu_[s][:, np.newaxis]
+                for s in range(subjects)]
 
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
-        w, _ = _init_w_transforms(data_centered, self.features, random_states)
-        shared_response = self._compute_shared_response(data_centered, w)
+        w, _ = _init_w_transforms(data, self.features, random_states)
+        shared_response = self._compute_shared_response(data, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
             objective = self._objective_function(
-                data_centered, w, shared_response)
+                data, w, shared_response)
             logger.info('Objective function %f' % objective)
 
         # Main loop of the algorithm
@@ -918,7 +918,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
-                a_subject = data_centered[subject].dot(shared_response.T)
+                a_subject = data[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
                 u_subject, _, v_subject = np.linalg.svd(
@@ -926,12 +926,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 w[subject] = u_subject.dot(v_subject)
 
             # Update the shared response:
-            shared_response = self._compute_shared_response(data_centered, w)
+            shared_response = self._compute_shared_response(data, w)
 
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
                 objective = self._objective_function(
-                    data_centered, w, shared_response)
+                    data, w, shared_response)
                 logger.info('Objective function %f' % objective)
 
         return w, shared_response

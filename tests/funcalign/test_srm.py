@@ -371,7 +371,6 @@ def test_vector_shift_detsrm():
     import brainiak.funcalign.srm
     import numpy as np
     from scipy.linalg import qr
-    import matplotlib.pyplot as plt
     np.random.seed(0)
     nvoxels = 2
     ntps = 4
