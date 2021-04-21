@@ -319,7 +319,7 @@ def test_det_srm():
     print("Test: different number of samples per subject")
 
 
-def test_vector_shift():
+def test_vector_shift_srm():
     import brainiak.funcalign.srm
     import numpy as np
     from scipy.linalg import qr
@@ -357,6 +357,55 @@ def test_vector_shift():
     X_shared = srm.fit_transform(X)
     # map the new subject to the pre-trained SRM -- estimate W and intercept
     W_hat, mu_hat = srm.transform_subject(X_new)
+    SX_new = W_hat.T @ (X_new - mu_hat[:, np.newaxis])
+    # check all subjects in the training set are aligned (small frobenius diff)
+    for i in np.arange(nsubjs):
+        assert np.linalg.norm(X_shared[0] - X_shared[i], ord='fro') < 1e-10, (
+            'subject is misaligned with subject 0')
+    # check the new subject is also aligned (small frobenius diff)
+    assert np.linalg.norm(X_shared[0] - SX_new, ord='fro') < 1e-10, (
+        'the new subject is misaligned with subject 0')
+
+
+def test_vector_shift_detsrm():
+    import brainiak.funcalign.srm
+    import numpy as np
+    from scipy.linalg import qr
+    import matplotlib.pyplot as plt
+    np.random.seed(0)
+    nvoxels = 2
+    ntps = 4
+    nsubjs = 3
+    # initialize S
+    S = np.random.uniform(size=(nvoxels, ntps))
+    # preallocate
+    W_truth = [None] * nsubjs
+    X = [None] * nsubjs
+    intercept = [None] * nsubjs
+    # make simulated data, such that each subject is
+    # X_i = W_i.T @ S + intercept
+    # ... where W_i is a random ortho matrix and intercept is a random vector
+    for i in range(nsubjs):
+        # sample an ortho matrix
+        H = np.random.randn(nvoxels, nvoxels)
+        W_truth[i], _ = qr(H)
+        # sample an intercept
+        intercept[i] = np.random.randn(nvoxels)
+        # simulate the i-th subject
+        X[i] = W_truth[i].T @ S + intercept[i][:, np.newaxis]
+    # make a new subject
+    # sample an ortho matrix
+    H = np.random.randn(nvoxels, nvoxels)
+    W_new, _ = qr(H)
+    # sample an intercept
+    intercept_new = np.random.randn(nvoxels)
+    # simulate a new subject
+    X_new = W_new.T @ S + intercept_new[:, np.newaxis]
+    # fit SRM on the training set, X
+    detsrm = brainiak.funcalign.srm.DetSRM(features=nvoxels)
+    X_shared = detsrm.fit_transform(X)
+    # map the new subject to the pre-trained SRM -- estimate W and intercept
+    W_hat, mu_hat = detsrm.transform_subject(X_new)
     SX_new = W_hat.T @ (X_new - mu_hat[:, np.newaxis])
     # check all subjects in the training set are aligned (small frobenius diff)
     for i in np.arange(nsubjs):

@@ -658,6 +658,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
     s_ : array, shape=[features, samples]
         The shared response.
 
+    mu_ : list of array, element i has shape=[voxels_i]
+        The voxel means over the samples for each subject.
+
     random_state_: `RandomState`
         Random number generator initialized using rand_seed
 
@@ -665,8 +668,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
     ----
 
         The number of voxels may be different between subjects. However, the
-        number of samples must be the same across subjects. Note that unlike
-        SRM, DetSRM does not handle vector shifts (intercepts) across subjects.
+        number of samples must be the same across subjects.
 
         The Deterministic Shared Response Model is approximated using the
         Block Coordinate Descent (BCD) algorithm proposed in [Chen2015]_.
@@ -751,7 +753,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         s = [None] * len(X)
         for subject in range(len(X)):
-            s[subject] = self.w_[subject].T.dot(X[subject])
+            s[subject] = self.w_[subject].T.dot(
+                X[subject] - self.mu_[subject][:, np.newaxis])
         return s
 
     def _objective_function(self, data, w, s):
@@ -826,11 +829,16 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Wi : array, shape=[voxels, features]
             The orthogonal transform (mapping) :math:`W_i` for the subject.
+
+        mu : 1D array, shape=[voxels]
+            The voxel means for the new subject
         """
-        A = Xi.dot(S.T)
+        # estimate the intercept and center the data
+        mu = np.mean(Xi, axis=1)
+        A = (Xi - mu[:, np.newaxis]).dot(S.T)
         # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
-        return U.dot(V)
+        return U.dot(V), mu
 
     def transform_subject(self, X):
         """Transform a new subject using the existing model.
@@ -888,13 +896,20 @@ class DetSRM(BaseEstimator, TransformerMixin):
             np.random.RandomState(self.random_state_.randint(2 ** 32))
             for i in range(len(data))]
 
+        # compute subject specific intercept
+        self.mu_ = [np.mean(data[s], axis=1) for s in range(subjects)]
+        # center the data
+        data_centered = [data[s] - self.mu_[s][:, np.newaxis]
+                         for s in range(subjects)]
+
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
-        w, _ = _init_w_transforms(data, self.features, random_states)
-        shared_response = self._compute_shared_response(data, w)
+        w, _ = _init_w_transforms(data_centered, self.features, random_states)
+        shared_response = self._compute_shared_response(data_centered, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
-            objective = self._objective_function(data, w, shared_response)
+            objective = self._objective_function(
+                data_centered, w, shared_response)
             logger.info('Objective function %f' % objective)
 
         # Main loop of the algorithm
@@ -903,7 +918,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
-                a_subject = data[subject].dot(shared_response.T)
+                a_subject = data_centered[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
                 u_subject, _, v_subject = np.linalg.svd(
@@ -911,11 +926,12 @@ class DetSRM(BaseEstimator, TransformerMixin):
                 w[subject] = u_subject.dot(v_subject)
 
             # Update the shared response:
-            shared_response = self._compute_shared_response(data, w)
+            shared_response = self._compute_shared_response(data_centered, w)
 
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
-                objective = self._objective_function(data, w, shared_response)
+                objective = self._objective_function(
+                    data_centered, w, shared_response)
                 logger.info('Objective function %f' % objective)
 
         return w, shared_response
