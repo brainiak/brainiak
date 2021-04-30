@@ -452,9 +452,6 @@ class SRM(BaseEstimator, TransformerMixin):
         w = self._update_transform_subject(X - mu[:, np.newaxis], self.s_)
         return w, mu
 
-        # w = self._update_transform_subject(X, self.s_)
-        # return w
-
     def save(self, file):
         """Save fitted SRM to .npz file.
 
