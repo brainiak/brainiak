@@ -7,7 +7,7 @@ package:
   # Repeating name because of the following issue:
   # https://github.com/conda/conda-build/issues/2475
   name: brainiak
-  version: {{ GIT_DESCRIBE_TAG[1:] }}
+  version: {{ environ.get('GIT_DESCRIBE_TAG', 'v0.1.dev1')[1:] }}
 
 about:
   home: {{ data.get('url') }}
@@ -18,7 +18,7 @@ source:
   path: ../
 
 build:
-  number: {{ GIT_DESCRIBE_NUMBER }}
+  number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   script_env:
 
     # We need the source directory because conda removes source / working

@@ -73,7 +73,7 @@ function exit_with_error_and_venv {
     exit_with_error "$1"
 }
 
-if [ $(which conda) ]
+if [ -z $IGNORE_CONDA ] && [ $(which conda) ]
 then
     export PYTHONNOUSERSITE=True
     create_venv=create_conda_venv
@@ -113,27 +113,13 @@ python3 -m pip install -U pip || \
 # brainiak will also be installed together with the developer dependencies, but
 # we install it first here to check that installation succeeds without the
 # developer dependencies.
-python3 -m pip install $ignore_installed -U -e . || \
+python3 -m pip install $ignore_installed -U -e .[matnormal] || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
 # install developer dependencies
 python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
-# Source a user-specified Bash script to customize the installation.
-# This option is not supported and should not be documented in user docs.
-# In particular we use it on our CentOS 6 Jenkins server with .conda/bin/
-customization_script_flag=$1
-if [ ${customization_script_flag:-default} = "--customization-script" ]
-then
-    customization_script=$2
-    if [ ${customization_script:-default} = "default" ]
-    then
-        exit_with_error_and_venv "Must specify customization script"
-    else
-        source $customization_script
-    fi
-fi
 
 # static analysis
 ./run-checks.sh || \

@@ -16,6 +16,7 @@ from collections import namedtuple
 
 import numpy as np
 from mpi4py import MPI
+import conftest
 
 from brainiak.searchlight.searchlight import Searchlight
 from brainiak.searchlight.searchlight import Diamond, Ball
@@ -30,6 +31,7 @@ def cube_sfn(data, msk, myrad, bcast_var):
     return None
 
 
+@conftest.skip_non_fork
 def test_searchlight_with_cube():
     sl = Searchlight(sl_rad=3)
     comm = MPI.COMM_WORLD
@@ -97,6 +99,7 @@ def diamond_sfn(data, msk, myrad, bcast_var):
     return None
 
 
+@conftest.skip_non_fork
 def test_searchlight_with_diamond():
     sl = Searchlight(sl_rad=3, shape=Diamond)
     comm = MPI.COMM_WORLD
@@ -136,6 +139,7 @@ def ball_sfn(data, msk, myrad, bcast_var):
     return None
 
 
+@conftest.skip_non_fork
 def test_searchlight_with_ball():
     sl = Searchlight(sl_rad=3, shape=Ball)
     comm = MPI.COMM_WORLD
@@ -212,6 +216,7 @@ def block_test_sfn(data, msk, myrad, bcast_var, extra_params):
         return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
 
 
+@conftest.skip_non_fork
 def test_correctness():  # noqa: C901
     def voxel_test(data, mask, max_blk_edge, rad):
 
