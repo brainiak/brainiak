@@ -33,6 +33,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'myst_nb',
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'sphinx.ext.doctest',
@@ -290,3 +291,6 @@ texinfo_documents = [
 #texinfo_no_detailmenu = False
 
 napoleon_include_special_with_doc = True
+
+# Myst-nb
+execution_timeout = -1
