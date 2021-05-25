@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import conftest
+
 from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
 from brainiak.searchlight.searchlight import Searchlight
 from sklearn import svm
@@ -23,6 +25,7 @@ from numpy.random import RandomState
 prng = RandomState(1234567890)
 
 
+@conftest.skip_non_fork
 def test_mvpa_voxel_selection():
     data = prng.rand(5, 5, 5, 8).astype(np.float32)
     # all MPI processes read the mask; the mask file is small

@@ -37,7 +37,7 @@ if [ -z $mpi_command ]
 then
     mpi_command=mpiexec
 fi
-$mpi_command -n 2 coverage run -m pytest
+$mpi_command -n 2 coverage run -m mpi4py -m pytest
 
 # Coverage produces empty files which trigger warnings on combine
 find . -name ".coverage.*" -size 0 -print0 | xargs -0 rm -f

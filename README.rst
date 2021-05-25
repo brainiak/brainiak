@@ -1,8 +1,9 @@
 Brain Imaging Analysis Kit
 ==========================
 
-.. image:: https://travis-ci.org/brainiak/brainiak.svg?branch=master
-    :target: https://travis-ci.org/brainiak/brainiak
+.. image:: https://github.com/brainiak/brainiak/actions/workflows/main.yml/badge.svg
+    :alt: Status of GitHub Actions workflow
+    :target: https://github.com/brainiak/brainiak/actions
 
 .. image:: https://codecov.io/gh/brainiak/brainiak/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/brainiak/brainiak

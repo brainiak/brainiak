@@ -3,6 +3,7 @@ from distutils import sysconfig
 from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import os
+import site
 import sys
 import setuptools
 from copy import deepcopy
@@ -11,6 +12,9 @@ assert sys.version_info >= (3, 5), (
     "Please use Python version 3.5 or higher, "
     "lower versions are not supported"
 )
+
+# https://github.com/pypa/pip/issues/7953#issuecomment-645133255
+site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
 
 here = os.path.abspath(os.path.dirname(__file__))
 
