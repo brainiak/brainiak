@@ -1,0 +1,46 @@
+on: [pull_request]
+jobs:
+  pypi:
+    env:
+      IGNORE_CONDA: true
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-latest]
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: mpi4py/setup-mpi@v1
+      - run: |
+          python3 -m pip install -U pip
+      - if: ${{ contains(matrix.os, 'ubuntu') }}
+        run: |
+          ./pr-check.sh
+      - if: ${{ contains(matrix.os, 'macos') }}
+        run: |
+          export CC=$(brew --prefix)/opt/llvm/bin/clang
+          export CXX=$(brew --prefix)/opt/llvm/bin/clang++
+          export LDFLAGS="-L/usr/local/opt/llvm/lib
+          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+          ./pr-check.sh
+      - uses: codecov/codecov-action@v1
+  conda:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-latest]
+        python-version: [3.8]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          channels: conda-forge
+          python-version: ${{ matrix.python-version }}
+      - run: |
+          export CONDA_HOME=$CONDA
+          conda install conda-build
+          .conda/bin/build ${{ matrix.python-version }}

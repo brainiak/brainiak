@@ -12,6 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import conftest
+
 from brainiak.fcma.voxelselector import VoxelSelector
 from scipy.stats.mstats import zscore
 from sklearn import svm
@@ -37,6 +39,7 @@ def create_epoch():
     return mat
 
 
+@conftest.skip_non_fork
 def test_voxel_selection():
     fake_raw_data = [create_epoch() for i in range(8)]
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
@@ -80,6 +83,7 @@ def test_voxel_selection():
             "results")
 
 
+@conftest.skip_non_fork
 def test_voxel_selection_with_two_masks():
     fake_raw_data1 = [create_epoch() for i in range(8)]
     fake_raw_data2 = [create_epoch() for i in range(8)]
