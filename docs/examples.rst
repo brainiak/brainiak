@@ -4,4 +4,4 @@ Examples
 
 .. toctree::
 
-   examples/Event_Segmentation
+   examples/iem_example_synthetic_RF_data
