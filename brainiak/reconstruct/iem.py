@@ -306,7 +306,7 @@ class InvertedEncoding1D(BaseEstimator):
 
         return score_value
 
-    def get_params(self):
+    def get_params(self, deep: bool = True):
         """Returns model parameters.
 
         Returns
@@ -785,7 +785,7 @@ class InvertedEncoding2D(BaseEstimator):
             score_value = cosine_distances(y.T, yhat.T)
         return score_value[0, :]
 
-    def get_params(self):
+    def get_params(self, deep: bool = True):
         """Returns model parameters.
 
         Returns

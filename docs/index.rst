@@ -11,6 +11,7 @@ Table of contents
 .. toctree::
 
    installation
+   examples
    release_notes
    api
    contributing
