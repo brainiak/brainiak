@@ -62,8 +62,6 @@ def solve_det_marginal(x, sigma, A, Q):
         logging.DEBUG,
         f"lemma_factor condition={lemma_cond}",
     )
-    logging.log(logging.DEBUG, f"Q condition={_condition(Q._cov)}")
-    logging.log(logging.DEBUG, f"sigma condition={_condition(sigma._cov)}")
     logging.log(
         logging.DEBUG,
         f"sigma max={tf.reduce_max(input_tensor=A)}," +

@@ -620,3 +620,33 @@ class CovKroneckerFactored(CovBase):
             z = tf_solve_lower_triangular_masked_kron(self.L, X, self.mask)
             x = tf_solve_upper_triangular_masked_kron(self.L, z, self.mask)
         return x
+
+
+class CovScaleMixin:
+    """ wraps a Cov, adds a scaler (e.g. for subject-specific variances)
+    """
+    def __init__(self, base_cov, scale=1.0):
+        self._baseCov = base_cov
+        self._scale = scale
+
+    @property
+    def logdet(self):
+        """ log|Sigma|
+        """
+        return self._baseCov.logdet + tf.math.log(self._scale) * self._baseCov.size
+
+    def solve(self, X):
+        """Given this Sigma and some X, compute :math:`Sigma^{-1} * x`
+        """
+        return self._baseCov.solve(X) / self._scale
+
+    def _cov(self):
+        """return Sigma
+        """
+        return self._baseCov._cov * self._scale
+    
+    def _prec(self):
+        """ Sigma^{-1}. Override me with more efficient
+             implementation in subclasses
+        """
+        return self._baseCov.Sigma_inv / self._scale
