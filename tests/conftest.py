@@ -1,9 +1,11 @@
+
 import multiprocessing
 
 from mpi4py import MPI
 import pytest
 import numpy
 import random
+from brainiak.fcma.classifier import Classifier
 import tensorflow
 
 

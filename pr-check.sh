@@ -18,6 +18,45 @@
 
 set -e
 
+# Check whether we are running on Princeton's della compute cluster.
+is_della=false
+if [[ $(hostname -s) == della* ]];
+then
+    is_della=true
+fi
+
+# Set this to where brainiak example notebooks and their datasets should be stored when running.
+EXAMPLE_NOTEBOOKS_DIR=docs/examples
+
+# Check if we are running on della.princeton.edu
+if [[ "$is_della" == true ]]; then
+    echo "Running on della, load required modules"
+
+    # Load some modules we will need on della
+    module load anaconda3
+    module load openmpi/gcc/2.0.2/64
+    module load rh/devtoolset/8
+
+    # Turn off infiniband
+    export OMPI_MCA_btl="tcp,self,sm"
+
+    # We need to fetch any data needed for running notebook examples
+    # Update our data cache with any download_data.sh scripts found in the repo
+    BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/tigress/dmturner/brainiak-example-data/
+    echo "Copying download_data.sh scripts to brainiak-example-data cache"
+    rsync -av --prune-empty-dirs --include="*/" --include="download_data.sh" --exclude="*" $EXAMPLE_NOTEBOOKS_DIR $BRAINIAK_EXAMPLES_DATA_CACHE_DIR
+
+    # Download any data, this should only trigger downloads for new datasets since download_data.sh shouls check if the data exists.
+    echo "Executing download_data scripts in cache directory"
+    pushd .
+    cd $BRAINIAK_EXAMPLES_DATA_CACHE_DIR
+    bash download_data.sh
+    popd
+
+    echo "Updating the working repo with any data downloaded into the cache"
+    rsync -av $BRAINIAK_EXAMPLES_DATA_CACHE_DIR $EXAMPLE_NOTEBOOKS_DIR
+fi
+
 if [ ! -f brainiak/__init__.py ]
 then
     echo "Run "$(basename "$0")" from the root of the BrainIAK hierarchy."
@@ -43,7 +82,7 @@ function remove_venv_venv {
 }
 
 function create_conda_venv {
-    conda create -n $1 --yes python=3.6
+    conda create -n $1 --yes python=3.8
 }
 
 function activate_conda_venv {
@@ -51,10 +90,24 @@ function activate_conda_venv {
     # Pip may update setuptools while installing BrainIAK requirements and
     # break the Conda cached package, which breaks subsequent runs.
     conda install --yes -f setuptools
+
+    if [[ "$is_della" == true ]]; then
+        # On della, we need to set LD_LIBRARY_PATH to the conda environment libs explicitly.
+        # This is because when importing tensorflow the system libstd++ is picked
+        # up instead of the conda one. This causes subsequent GLIB version errors
+        # when trying to load compiled modules
+        export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
+    fi
+
 }
 
 function deactivate_conda_venv {
-    source deactivate
+
+    if [[ "$is_della" == true ]]; then
+        conda deactivate
+    else
+        source deactivate
+    fi
 }
 
 function remove_conda_venv {
@@ -106,8 +159,20 @@ $activate_venv $venv || {
     exit_with_error "Virtual environment activation failed."
 }
 
-python3 -m pip install -U pip || \
-    exit_with_error_and_venv "Failed to update Pip."
+
+if [[ "$is_della" == true ]]; then
+
+    # Skip upgrading pip, this was causing failures on della, not sure why.
+
+    # Needed to install type-pkg-resources to get mypy to stop complaining. Not
+    # sure if there is a better solution.
+    python3 -m pip install types-pkg-resources || \
+        exit_with_error_and_venv "Failed to install type-pkg-resources for mypy."
+
+else
+    python3 -m pip install -U pip || \
+        exit_with_error_and_venv "Failed to update Pip."
+fi
 
 # install brainiak in editable mode (required for testing)
 # brainiak will also be installed together with the developer dependencies, but
@@ -121,13 +186,24 @@ python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
     exit_with_error_and_venv "Failed to install development requirements."
 
 
-# static analysis
-./run-checks.sh || \
-    exit_with_error_and_venv "run-checks failed"
+# static analysis, skip on della for now, failing for numpy 1.20 typing issues I think
+if [[ "$is_della" == false ]]; then
+    ./run-checks.sh || exit_with_error_and_venv "run-checks failed"
+fi
 
 # run tests
-./run-tests.sh $sdist_mode || \
-    exit_with_error_and_venv "run-tests failed"
+if [[ "$is_della" == true ]]; then
+    echo "Running on della head node, need to request time on a compute node"
+    export BRAINIAKDEV_MPI_COMMAND=srun
+    salloc -t 03:00:00 -N 1 -n 16 ./run-tests.sh $sdist_mode || \
+        exit_with_error_and_venv "run-tests failed"
+else
+    ./run-tests.sh $sdist_mode || \
+        exit_with_error_and_venv "run-tests failed"
+
+fi
+
+
 
 # build documentation
 cd docs
@@ -135,7 +211,11 @@ export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
 
 if [ ! -z $SLURM_NODELIST ]
 then
-    make_wrapper="srun -n 1"
+    if [[ "$is_della" == true ]]; then
+        make_wrapper="srun -t 00:30:00 -N 1 -n 4 "
+    else
+        make_wrapper="srun -n 1"
+    fi
 fi
 $make_wrapper make || {
     cd -

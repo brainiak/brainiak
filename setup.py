@@ -122,7 +122,7 @@ setup(
         'cython',
         # https://github.com/numpy/numpy/issues/14189
         # https://github.com/brainiak/brainiak/issues/493
-        'numpy!=1.17.*,<1.20',
+        'numpy',
         'pybind11>=1.7',
         'scipy!=1.0.0',
         'setuptools_scm',
