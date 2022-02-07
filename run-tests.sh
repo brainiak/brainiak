@@ -37,7 +37,15 @@ if [ -z $mpi_command ]
 then
     mpi_command=mpiexec
 fi
+echo "Using mpi command: ${mpi_command}"
 $mpi_command -n 2 coverage run -m mpi4py -m pytest
+
+# Check whether we are running on Princeton's della compute cluster.
+# If so, run the notebook tests separately
+if [[ $(hostname -s) == della* ]];
+then
+    pytest -s --durations=0 tests/test_notebooks.py --enable_notebook_tests
+fi
 
 # Coverage produces empty files which trigger warnings on combine
 find . -name ".coverage.*" -size 0 -print0 | xargs -0 rm -f

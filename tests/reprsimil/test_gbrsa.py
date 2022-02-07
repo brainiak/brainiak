@@ -303,7 +303,7 @@ def test_gradient():
             s[:, None, None] * a[:, None, None]
 
     # test if the gradients are correct
-    print(log_fixed_terms)
+    # print(log_fixed_terms)
     ll0, deriv0 = gbrsa._sum_loglike_marginalized(L_vec, s2XTAcorrX,
                                                   YTAcorrY_diag, sXTAcorrY,
                                                   half_log_det_X0TAX0,

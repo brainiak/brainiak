@@ -4,6 +4,9 @@ import pytest
 
 from testbook import testbook
 
+
+enable_notebook_tests = pytest.mark.skipif(not pytest.config.option.enable_notebook_tests, reason="needs --enable_notebook_tests option to run")
+
 notebook_files = glob.glob("docs/examples/**/*.ipynb", recursive=True)
 
 # Exclude the rt-cloud notebook, we need to write a custom test for this one
@@ -40,6 +43,7 @@ def chdir_back_to_root():
     os.chdir(cwd)
 
 
+@enable_notebook_tests
 @pytest.mark.parametrize("notebook_file", notebook_files)
 def test_notebook(notebook_file):
 
