@@ -197,7 +197,7 @@ fi
 if [[ "$is_della" == true ]]; then
     echo "Running on della head node, need to request time on a compute node"
     export BRAINIAKDEV_MPI_COMMAND=srun
-    salloc -t 00:10:00 -N 1 -n 16 ./run-tests.sh $sdist_mode || \
+    salloc -t 03:00:00 -N 1 -n 16 ./run-tests.sh $sdist_mode || \
         exit_with_error_and_venv "run-tests failed"
 else
     ./run-tests.sh $sdist_mode || \
