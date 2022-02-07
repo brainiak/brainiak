@@ -150,11 +150,11 @@ if [[ "$is_della" == true ]]; then
 
     # We need to fetch any data needed for running notebook examples
     # Update our data cache with any download_data.sh scripts found in the repo
-    BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/tigress/dmturner/brainiak_tests/brainiak-example-data/
+    BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/tigress/dmturner/brainiak_tests/brainiak-example-data
     echo "Copying download_data.sh scripts to brainiak-example-data cache"
-    rsync -av --prune-empty-dirs --include="*/" --include="download_data.sh" --exclude="*" $EXAMPLE_NOTEBOOKS_DIR $BRAINIAK_EXAMPLES_DATA_CACHE_DIR
+    rsync -av --prune-empty-dirs --include="*/" --include="download_data.sh" --exclude="*" $EXAMPLE_NOTEBOOKS_DIR/ $BRAINIAK_EXAMPLES_DATA_CACHE_DIR/
 
-    # Download any data, this should only trigger downloads for new datasets since download_data.sh shouls check if the data exists.
+    # Download any data, this should only trigger downloads for new datasets since download_data.sh should check if the data exists.
     echo "Executing download_data scripts in cache directory"
     pushd .
     cd $BRAINIAK_EXAMPLES_DATA_CACHE_DIR
@@ -162,7 +162,7 @@ if [[ "$is_della" == true ]]; then
     popd
 
     echo "Updating the working repo with any data downloaded into the cache"
-    rsync -av $BRAINIAK_EXAMPLES_DATA_CACHE_DIR $EXAMPLE_NOTEBOOKS_DIR
+    rsync -av $BRAINIAK_EXAMPLES_DATA_CACHE_DIR/ $EXAMPLE_NOTEBOOKS_DIR/
 
     # Skip upgrading pip, this was causing failures on della, not sure why.
 
