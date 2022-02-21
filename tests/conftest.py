@@ -21,12 +21,12 @@ def pytest_addoption(parser):
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--enable_notebook_tests"):
         # --enable_notebook_tests given in cli: do not skip notebook tests
+        return
+    else:
         enable_notebook_tests = pytest.mark.skip(reason="needs --enable_notebook_tests option to run")
         for item in items:
             if "notebook" in item.keywords:
                 item.add_marker(enable_notebook_tests)
-    else:
-        return
 
 @pytest.fixture
 def seeded_rng():

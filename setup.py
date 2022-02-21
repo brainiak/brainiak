@@ -152,7 +152,7 @@ setup(
     extras_require={
         'matnormal': [
             'tensorflow',
-            'tensorflow_probability',
+            'tensorflow_probability<=0.15.0',
         ],
     },
     author='Princeton Neuroscience Institute and Intel Corporation',

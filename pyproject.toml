@@ -23,3 +23,8 @@ title_format = "BrainIAK {version} ({project_date})"
     directory = "removal"
     name = "Deprecations and removals"
     showcontent = true
+
+[tool.pytest.ini_options]
+markers = [
+    "notebook: marks example notebook tests",
+]

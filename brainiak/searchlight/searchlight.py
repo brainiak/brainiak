@@ -70,7 +70,7 @@ class Cube(Shape):
     def __init__(self, rad):
         super().__init__(rad)
         self.rad = rad
-        self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.mask_ = np.ones((2*rad+1, 2*rad+1, 2*rad+1), dtype=bool)
 
 
 class Diamond(Shape):
@@ -90,7 +90,7 @@ class Diamond(Shape):
     """
     def __init__(self, rad):
         super().__init__(rad)
-        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
@@ -116,7 +116,7 @@ class Ball(Shape):
     """
     def __init__(self, rad):
         super().__init__(rad)
-        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=np.bool)
+        self.mask_ = np.zeros((2*rad+1, 2*rad+1, 2*rad+1), dtype=bool)
         for r1 in range(2*self.rad+1):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
@@ -462,7 +462,7 @@ class Searchlight:
         global_outputs = self.comm.gather(local_outputs)
 
         # Coalesce results
-        outmat = np.empty(self.mask.shape, dtype=np.object)
+        outmat = np.empty(self.mask.shape, dtype=object)
         if rank == 0:
             for go_rank in global_outputs:
                 for (pt, mat) in go_rank:
@@ -536,7 +536,7 @@ def _singlenode_searchlight(data, msk, mysl_rad, bcast_var, extra_params):
     voxel_fn = extra_params[0]
     shape_mask = extra_params[1]
     min_active_voxels_proportion = extra_params[2]
-    outmat = np.empty(msk.shape, dtype=np.object)
+    outmat = np.empty(msk.shape, dtype=object)
     if mysl_rad > 0:
         outmat = outmat[mysl_rad:-mysl_rad,
                         mysl_rad:-mysl_rad,

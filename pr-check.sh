@@ -33,13 +33,14 @@ if [[ "$is_della" == true ]]; then
     echo "Running on della, load required modules"
 
     # Load some modules we will need on della
-    module load anaconda3
-    module load rh/devtoolset/8
+    module load anaconda3/2021.11
+    #module load rh/devtoolset/8
 
     # Load openmpi and turn off infiniband
-    module load openmpi/gcc/2.0.2/64
+    # module load openmpi/gcc/2.0.2/64
+    module load openmpi/gcc/4.1.0
     export MPICC=$(which mpicc)
-    export OMPI_MCA_btl="tcp,self,sm"
+    export OMPI_MCA_btl="vader,self,tcp"
 
 fi
 
