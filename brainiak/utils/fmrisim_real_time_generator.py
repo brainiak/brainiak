@@ -35,7 +35,7 @@ import numpy as np  # type: ignore
 import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
-from pkg_resources import resource_stream
+from pkg_resources import resource_stream  # type: ignore
 from nibabel.nifti1 import Nifti1Image
 import gzip
 

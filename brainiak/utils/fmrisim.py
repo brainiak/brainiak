@@ -85,7 +85,7 @@ import numpy as np
 # https://github.com/PyCQA/pyflakes/issues/248
 import numpy.matlib  # noqa: F401
 from numpy.linalg import LinAlgError
-from pkg_resources import resource_stream
+from pkg_resources import resource_stream  # type: ignore
 from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage

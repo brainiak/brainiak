@@ -22,7 +22,7 @@ import pytest
 import os
 import time
 import glob
-from pkg_resources import resource_stream
+from pkg_resources import resource_stream  # type: ignore
 from typing import Dict
 from nibabel.nifti1 import Nifti1Image
 import gzip
