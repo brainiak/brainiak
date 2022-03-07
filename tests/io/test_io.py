@@ -79,7 +79,7 @@ def test_load_images_data_shape(
 
 def test_load_boolean_mask(mask_path: Path) -> None:
     mask = io.load_boolean_mask(mask_path)
-    assert mask.dtype == np.bool
+    assert mask.dtype == bool
 
 
 def test_load_boolean_mask_predicate(mask_path: Path) -> None:

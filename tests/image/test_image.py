@@ -92,7 +92,7 @@ def mask() -> np.ndarray:
                      [[0, 0, 0, 0],
                       [0, 0, 0, 0],
                       [0, 0, 0, 0],
-                      [0, 0, 0, 0]]], dtype=np.bool)
+                      [0, 0, 0, 0]]], dtype=bool)
 
 
 @pytest.fixture

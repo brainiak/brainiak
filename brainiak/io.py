@@ -127,7 +127,7 @@ def load_boolean_mask(path: Union[str, Path],
     if predicate is not None:
         mask = predicate(data)
     else:
-        mask = data.astype(np.bool)
+        mask = data.astype(bool)
     return mask
 
 
