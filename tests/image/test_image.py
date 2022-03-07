@@ -126,7 +126,7 @@ def multimasked_images(masked_data) -> Iterable[Iterable[np.ndarray]]:
     masked_data_2 = np.concatenate(([[2]], masked_data[1:, :]))
     return [[masked_data, np.concatenate(([[0]], masked_data)),
              masked_data[:-1, :]],
-            [masked_data_2, np.concatenate(([[0]], masked_data_2)),
+            [masked_data_2, np.concatenate((np.array([[0]]), masked_data_2)),
              masked_data_2[:-1, :]]]
 
 
