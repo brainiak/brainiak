@@ -113,14 +113,14 @@ function exit_with_error_and_venv {
     exit_with_error "$1"
 }
 
-if [ -z $IGNORE_CONDA ] && [ $(which conda) ]
+if [ -z "$IGNORE_CONDA" ] && [ "$(which conda)" ]
 then
     export PYTHONNOUSERSITE=True
     create_venv=create_conda_venv
     activate_venv=activate_conda_venv
     deactivate_venv=deactivate_conda_venv
     remove_venv=remove_conda_venv
-    ignore_installed="--ignore-installed"
+    #ignore_installed="--ignore-installed"
 else
     create_venv=create_venv_venv
     activate_venv=activate_venv_venv
