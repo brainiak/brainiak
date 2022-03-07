@@ -166,12 +166,6 @@ if [[ "$is_della" == true ]]; then
     rsync -av $BRAINIAK_EXAMPLES_DATA_CACHE_DIR/ $EXAMPLE_NOTEBOOKS_DIR/
 
     # Skip upgrading pip, this was causing failures on della, not sure why.
-
-    # Needed to install type-pkg-resources to get mypy to stop complaining. Not
-    # sure if there is a better solution.
-    python3 -m pip install types-pkg-resources || \
-        exit_with_error_and_venv "Failed to install type-pkg-resources for mypy."
-
 else
     python3 -m pip install -U pip || \
         exit_with_error_and_venv "Failed to update Pip."
