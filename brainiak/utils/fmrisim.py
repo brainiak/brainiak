@@ -78,7 +78,7 @@ used by others (Welvaert & Rosseel, 2013)
 import logging
 
 from itertools import product
-from statsmodels.tsa.arima_model import ARMA
+from statsmodels.tsa.arima.model import ARIMA
 import math
 import numpy as np
 # See pyflakes issue #248
@@ -1270,15 +1270,15 @@ def _calc_ARMA_noise(volume,
 
         # Pull out the ARMA values (depends on order)
         try:
-            model = ARMA(demeaned_timecourse, [auto_reg_order, ma_order])
-            model_fit = model.fit(disp=False)
+            model = ARIMA(demeaned_timecourse,
+                          order=[auto_reg_order, 0, ma_order])
+            model_fit = model.fit()
             params = model_fit.params
         except (ValueError, LinAlgError):
             params = np.ones(auto_reg_order + ma_order + 1) * np.nan
 
-        # Add to the list
         auto_reg_rho_all[voxel_counter, :] = params[1:auto_reg_order + 1]
-        ma_all[voxel_counter, :] = params[auto_reg_order + 1:]
+        ma_all[voxel_counter, :] = params[auto_reg_order + 1:-1]
 
     # Average all of the values and then convert them to a list
     auto_reg_rho = np.nanmean(auto_reg_rho_all, 0).tolist()

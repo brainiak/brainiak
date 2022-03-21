@@ -139,7 +139,7 @@ setup(
         'scikit-learn[alldeps]>=0.18',
         # See https://github.com/scipy/scipy/pull/8082
         'scipy!=1.0.0',
-        'statsmodels<=0.12',
+        'statsmodels',
         'pymanopt',
         'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
         'pybind11>=1.7',
