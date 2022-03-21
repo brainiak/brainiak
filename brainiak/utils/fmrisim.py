@@ -83,7 +83,6 @@ import math
 import numpy as np
 # See pyflakes issue #248
 # https://github.com/PyCQA/pyflakes/issues/248
-import numpy.matlib  # noqa: F401
 from numpy.linalg import LinAlgError
 from pkg_resources import resource_stream  # type: ignore
 from scipy import stats
@@ -945,7 +944,7 @@ def apply_signal(signal_function,
     if timecourses == 1:
         # If there is only one time course supplied then duplicate it for
         # every voxel
-        signal_function = np.matlib.repmat(signal_function, 1, len(idxs[0]))
+        signal_function = np.tile(signal_function, (1, len(idxs[0])))
 
     elif len(idxs[0]) != timecourses:
         raise IndexError('The number of non-zero voxels in the volume and '
