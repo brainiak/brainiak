@@ -33,11 +33,14 @@ from sklearn.utils import assert_all_finite
 from sklearn.utils.validation import NotFittedError
 from sklearn.utils.multiclass import unique_labels
 
-# Workaround for Theano for numpy after 1.20.3, see: https://github.com/numpy/numpy/issues/21079
+# Workaround for Theano for numpy after 1.20.3, see:
+# https://github.com/numpy/numpy/issues/21079
 try:
-        np.__config__.blas_opt_info = np.__config__.blas_ilp64_opt_info
+    import numpy.distutils
+    blas_info = np.__config__.blas_ilp64_opt_info  # type: ignore
+    numpy.distutils.__config__.blas_opt_info = blas_info  # type: ignore
 except Exception:
-        pass
+    pass
 
 import theano
 import theano.tensor as T
