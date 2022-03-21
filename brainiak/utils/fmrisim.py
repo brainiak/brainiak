@@ -1176,8 +1176,7 @@ def _calc_snr(volume,
     # Dilate the mask in order to ensure that non-brain voxels are far from
     # the brain
     if dilation > 0:
-        mask_dilated = ndimage.morphology.binary_dilation(mask,
-                                                          iterations=dilation)
+        mask_dilated = ndimage.binary_dilation(mask, iterations=dilation)
     else:
         mask_dilated = mask
 
