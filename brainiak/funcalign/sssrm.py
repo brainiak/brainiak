@@ -32,6 +32,13 @@ from sklearn.base import BaseEstimator, TransformerMixin, ClassifierMixin
 from sklearn.utils import assert_all_finite
 from sklearn.utils.validation import NotFittedError
 from sklearn.utils.multiclass import unique_labels
+
+# Workaround for Theano for numpy after 1.20.3, see: https://github.com/numpy/numpy/issues/21079
+try:
+        np.__config__.blas_opt_info = np.__config__.blas_ilp64_opt_info
+except Exception:
+        pass
+
 import theano
 import theano.tensor as T
 import theano.compile.sharedvalue as S
