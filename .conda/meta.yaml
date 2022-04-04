@@ -38,6 +38,7 @@ requirements:
     - pip
     - mpich
     - openmp
+    - libgcc
     {% for req in data.get('setup_requires', [])
         if req not in conda_package_nonexistent -%}
     - {{req}}
@@ -47,6 +48,7 @@ requirements:
     - python
     - mpich
     - openmp
+    - libgcc
     {% for req in data.get('install_requires', [])
         if req not in conda_package_nonexistent -%}
     - {{req}}

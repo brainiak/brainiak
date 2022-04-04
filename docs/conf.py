@@ -57,6 +57,8 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+suppress_warnings = ["myst.header"]
+
 # General information about the project.
 project = 'brainiak'
 copyright = '2016, Princeton Neuroscience Institute and Intel Corporation'
