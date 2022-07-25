@@ -240,8 +240,8 @@ class SRM(BaseEstimator, TransformerMixin):
                     "Not all ranks have same number of subjects")
 
         # Collect size information
-        shape0 = np.zeros((number_subjects,), dtype=np.int)
-        shape1 = np.zeros((number_subjects,), dtype=np.int)
+        shape0 = np.zeros((number_subjects,), dtype=int)
+        shape1 = np.zeros((number_subjects,), dtype=int)
 
         for subject in range(number_subjects):
             if X[subject] is not None:
