@@ -148,7 +148,6 @@ $activate_venv $venv || {
 
 
 if [[ "$is_della" == true ]]; then
-
     # We need to fetch any data needed for running notebook examples
     # Update our data cache with any download_data.sh scripts found in the repo
     BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/tigress/dmturner/brainiak_tests/brainiak-example-data
@@ -172,15 +171,9 @@ else
 fi
 
 # install brainiak in editable mode (required for testing)
-# brainiak will also be installed together with the developer dependencies, but
-# we install it first here to check that installation succeeds without the
-# developer dependencies.
-python3 -m pip install $ignore_installed -U -e .[matnormal] || \
+# Install with all dependencies (testing, documentation, examples, etc.)
+python3 -m pip install $ignore_installed -U -e .[all] || \
     exit_with_error_and_venv "Failed to install BrainIAK."
-
-# install developer dependencies
-python3 -m pip install $ignore_installed -U -r requirements-dev.txt || \
-    exit_with_error_and_venv "Failed to install development requirements."
 
 
 # static analysis, skip on della for now, failing for numpy 1.20 typing issues I think
@@ -192,12 +185,11 @@ fi
 if [[ "$is_della" == true ]]; then
     echo "Running on della head node, need to request time on a compute node"
     export BRAINIAKDEV_MPI_COMMAND=srun
-    salloc -t 03:00:00 -N 1 -n 16 ./run-tests.sh $sdist_mode || \
+    salloc -t 03:00:00 -N 1 -n 16 sh run-tests.sh $sdist_mode || \
         exit_with_error_and_venv "run-tests failed"
 else
     ./run-tests.sh $sdist_mode || \
         exit_with_error_and_venv "run-tests failed"
-
 fi
 
 

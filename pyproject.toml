@@ -28,3 +28,15 @@ title_format = "BrainIAK {version} ({project_date})"
 markers = [
     "notebook: marks example notebook tests",
 ]
+
+[build-system]
+requires = [
+    "setuptools>=42", 
+    "wheel",
+    "pybind11>=2.9.0",
+    "scipy!=1.0.0",
+    "cython",
+    "oldest-supported-numpy",
+    "setuptools_scm",
+]
+build-backend = "setuptools.build_meta"

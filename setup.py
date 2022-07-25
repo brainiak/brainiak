@@ -16,13 +16,6 @@ assert sys.version_info >= (3, 5), (
 # https://github.com/pypa/pip/issues/7953#issuecomment-645133255
 site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
 
-here = os.path.abspath(os.path.dirname(__file__))
-
-# Get the long description from the README file
-with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
-    long_description = f.read()
-
-
 ext_modules = [
     Extension(
         'brainiak.factoranalysis.tfa_extension',
@@ -115,57 +108,67 @@ class BuildExt(build_ext):
         ])
 
 
-setup(
-    name='brainiak',
-    use_scm_version=True,
-    setup_requires=[
-        'cython',
-        # https://github.com/numpy/numpy/issues/14189
-        # https://github.com/brainiak/brainiak/issues/493
-        'numpy',
-        'pybind11>=1.7',
-        'scipy!=1.0.0',
-        'setuptools_scm',
-    ],
-    install_requires=[
-        'cython',
-        # Previous versions fail of the Anaconda package fail on MacOS:
-        # https://travis-ci.org/brainiak/brainiak/jobs/545838666
-        'mpi4py>=3',
-        'nitime',
-        # https://github.com/numpy/numpy/issues/14189
-        # https://github.com/brainiak/brainiak/issues/493
-        'numpy',
-        'scikit-learn[alldeps]>=0.18',
-        # See https://github.com/scipy/scipy/pull/8082
-        'scipy!=1.0.0',
-        'statsmodels',
-        'pymanopt',
-        'theano>=1.0.4',  # See https://github.com/Theano/Theano/pull/6671
-        'pybind11>=1.7',
-        'psutil',
-        'nibabel',
-        'joblib',
-        'wheel',  # See https://github.com/astropy/astropy-helpers/issues/501
-        'pydicom',
-    ],
-    extras_require={
-        'matnormal': [
+extras = {
+    "dev": [
+		"pytest",
+		"coverage",
+		"flake8",
+		"flake8-print",
+		"mypy",
+		"myst-nb",
+		"restructuredtext-lint",
+		"setuptools_scm",
+		"sphinx",
+		"sphinx_rtd_theme",
+		"towncrier",
+		"numdifftools",
+		"testbook"
+	],
+
+	'matnormal': [
             'tensorflow',
             'tensorflow_probability<=0.15.0',
         ],
-    },
-    author='Princeton Neuroscience Institute and Intel Corporation',
-    author_email='mihai.capota@intel.com',
-    url='http://brainiak.org',
-    description='Brain Imaging Analysis Kit',
-    license='Apache 2',
-    keywords='neuroscience, algorithm, fMRI, distributed, scalable',
-    long_description=long_description,
+
+	# All requirements for notebook examples in docs/examples
+    "examples": [
+		"nilearn",
+		"nxviz<=0.6.3",
+		"nltools",
+		"timecorr",
+		"seaborn",
+		"holoviews",
+		"pyOpenSSL",
+		"awscli",
+		"bcrypt",
+		"indexed_gzip",
+		"inflect",
+		"ipython",
+		"jupyter",
+		"mypy",
+		"nibabel",
+		"nilearn",
+		"nodejs",
+		"numpy",
+		"pydicom",
+		"requests",
+		"rpyc",
+		"scikit-learn",
+		"scipy",
+		"toml",
+		"tornado",
+		"websocket-client",
+		"wsaccel",
+		"inotify",
+		"pybids",
+		"watchdog"
+	],
+}
+extras["all"] = sum(extras.values(), [])
+
+
+setup(
+    extras_require=extras,
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
-    packages=find_packages(),
-    include_package_data=True,
-    python_requires='>=3.5',
-    zip_safe=False,
 )
