@@ -95,7 +95,7 @@ class Diamond(Shape):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
                     if (cityblock((r1, r2, r3),
-                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                                  (self.rad, self.rad, self.rad)) <= self.rad):
                         self.mask_[r1, r2, r3] = True
 
 
@@ -121,7 +121,7 @@ class Ball(Shape):
             for r2 in range(2*self.rad+1):
                 for r3 in range(2*self.rad+1):
                     if (euclidean((r1, r2, r3),
-                                 (self.rad, self.rad, self.rad)) <= self.rad):
+                                  (self.rad, self.rad, self.rad)) <= self.rad):
                         self.mask_[r1, r2, r3] = True
 
 
