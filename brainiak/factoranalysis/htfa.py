@@ -724,7 +724,7 @@ class HTFA(TFA):
         m = 0
         outer_converged = np.array([0])
         while m < self.max_global_iter and not outer_converged[0]:
-            if(self.verbose):
+            if (self.verbose):
                 logger.info("HTFA global iter %d " % (m))
             # root broadcast first 4 fields of global_prior to all nodes
             self.comm.Bcast(self.global_prior_, root=0)

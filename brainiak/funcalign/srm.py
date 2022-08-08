@@ -51,7 +51,8 @@ logger = logging.getLogger(__name__)
 
 
 def _init_w_transforms(data, features, random_states, comm=MPI.COMM_SELF):
-    """Initialize the mappings (Wi) for the SRM with random orthogonal matrices.
+    """Initialize the mappings (Wi) for the SRM with random orthogonal
+    matrices.
 
     Parameters
     ----------
@@ -480,7 +481,8 @@ class SRM(BaseEstimator, TransformerMixin):
         )
 
     def _srm(self, data):
-        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+        """Expectation-Maximization algorithm for fitting the probabilistic
+        SRM.
 
         Parameters
         ----------
@@ -854,7 +856,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
         return w
 
     def _srm(self, data):
-        """Expectation-Maximization algorithm for fitting the probabilistic SRM.
+        """Expectation-Maximization algorithm for fitting the probabilistic
+        SRM.
 
         Parameters
         ----------
