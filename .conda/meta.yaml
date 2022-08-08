@@ -1,5 +1,5 @@
 {% set conda_package_nonexistent = (
-    "pymanopt",
+    "pymanopt<=0.2.5",
 ) %}
 {% set data = load_setup_py_data() %}
 
