@@ -296,4 +296,4 @@ napoleon_include_special_with_doc = True
 
 # Myst-nb
 execution_timeout = -1
-jupyter_execute_notebooks = "off"
+nb_execution_mode = "off"
