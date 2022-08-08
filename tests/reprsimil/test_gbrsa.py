@@ -586,7 +586,7 @@ def test_grid_flatten_num_int():
 
     tol = 1e-3
     assert (np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
-            'Error of log likelihood calculation exceeds the tolerance'
+        'Error of log likelihood calculation exceeds the tolerance'
 
     # Now test the log normal prior
     s = brainiak.reprsimil.brsa.GBRSA(n_iter=1, auto_nuisance=False,
@@ -627,4 +627,4 @@ def test_grid_flatten_num_int():
 
     tol = 1e-3
     assert (np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
-            'Error of log likelihood calculation exceeds the tolerance'
+        'Error of log likelihood calculation exceeds the tolerance'
