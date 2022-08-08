@@ -4,5 +4,6 @@ extend-ignore =
     # Print restriction only applies to libraries
     T001,
     T003,
+    T201,
     # Docstrings
     D,
