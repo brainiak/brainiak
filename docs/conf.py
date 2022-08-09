@@ -58,6 +58,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 suppress_warnings = ["myst.header"]
+# Suppress HTFA Holoviews content
+suppress_warnings = ["mystnb.unknown_mime_type"]
 
 # General information about the project.
 project = 'brainiak'
