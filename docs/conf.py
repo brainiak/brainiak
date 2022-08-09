@@ -295,5 +295,5 @@ texinfo_documents = [
 napoleon_include_special_with_doc = True
 
 # Myst-nb
-execution_timeout = -1
+nb_execution_timeout = -1
 nb_execution_mode = "off"
