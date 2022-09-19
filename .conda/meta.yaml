@@ -34,17 +34,19 @@ requirements:
 
   host:
     - python
-    - setuptools
     - pip
     - mpich
     - openmp
-    {% for req in data.get('setup_requires', [])
-        if req not in conda_package_nonexistent -%}
-    - {{req}}
-    {% endfor %}
+    - setuptools>=42 
+    - wheel
+    - pybind11>=2.9.0
+    - scipy!=1.0.0
+    - cython
+    - numpy
 
   run:
     - python
+    - {{ pin_compatible('numpy') }}
     - mpich
     - openmp
     - tensorflow
