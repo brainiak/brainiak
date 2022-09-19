@@ -145,7 +145,7 @@ extras = {
 		"inflect",
 		"ipython",
 		"jupyter",
-                "git+https://github.com/python/mypy.git",
+                "mypy @ git+https://github.com/python/mypy.git",
 		"nibabel",
 		"nilearn",
 		"nodejs",
