@@ -58,6 +58,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 suppress_warnings = ["myst.header"]
+# Suppress HTFA Holoviews content
+suppress_warnings = ["mystnb.unknown_mime_type"]
 
 # General information about the project.
 project = 'brainiak'
@@ -295,5 +297,6 @@ texinfo_documents = [
 napoleon_include_special_with_doc = True
 
 # Myst-nb
-execution_timeout = -1
+myst_heading_anchors = 7
+nb_execution_timeout = -1
 nb_execution_mode = "off"
