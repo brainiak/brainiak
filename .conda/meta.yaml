@@ -43,6 +43,7 @@ requirements:
     - scipy!=1.0.0
     - cython
     - numpy
+    - setuptools_scm
 
   run:
     - python
