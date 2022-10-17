@@ -44,8 +44,8 @@ $mpi_command -n 2 coverage run -m mpi4py -m pytest
 # If so, run the notebook tests separately
 if [[ $(hostname -s) == della* ]];
 then
-    echo "Running notebook tests on della"
-    $mpi_command -n 2 pytest -s --durations=0 tests/test_notebooks.py --enable_notebook_tests
+    echo "Running non-MPI notebook tests on della"
+    $mpi_command -n 1 pytest -s --durations=0 tests/test_notebooks.py --enable_notebook_tests
 fi
 
 # Coverage produces empty files which trigger warnings on combine

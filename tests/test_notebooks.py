@@ -7,8 +7,17 @@ from testbook import testbook
 
 nb_files = glob.glob("docs/examples/**/*.ipynb", recursive=True)
 
-# Exclude the rt-cloud notebook, we need to write a custom test for this one
-# nb_files = [f for f in nb_files if 'real-time' not in f]
+mpi_notebooks = ['SRM', 'htfa', 'FCMA']
+
+nb_tests = []
+for f in nb_files:
+    # Mark notebooks that need MPI to skip for now, we are having some issues on della
+    if any([nb in f for nb in mpi_notebooks]):
+        nb_tests.append(pytest.param(f, marks=pytest.mark.skip("notebooks that require MPI are WIP on della")))
+    elif 'rtcloud' in f:
+        nb_tests.append(pytest.param(f, marks=pytest.mark.skip("rtcloud is failing on della")))
+    else:
+        nb_tests.append(f)
 
 
 # Helper function to mark specific notebooks as expected failure.
@@ -51,7 +60,7 @@ def chdir_back_to_root():
 
 
 @pytest.mark.notebook
-@pytest.mark.parametrize("notebook_file", nb_files)
+@pytest.mark.parametrize("notebook_file", nb_tests)
 def test_notebook(notebook_file):
 
     os.chdir(os.path.dirname(notebook_file))
