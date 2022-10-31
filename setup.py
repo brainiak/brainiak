@@ -36,36 +36,6 @@ ext_modules = [
 ]
 
 
-# As of Python 3.6, CCompiler has a `has_flag` method.
-# cf http://bugs.python.org/issue26689
-def has_flag(compiler, flagname):
-    """Return a boolean indicating whether a flag name is supported on
-    the specified compiler.
-    """
-    import tempfile
-    with tempfile.NamedTemporaryFile('w', suffix='.cpp') as f:
-        f.write('int main (int argc, char **argv) { return 0; }')
-        try:
-            compiler.compile([f.name], extra_postargs=[flagname])
-        except setuptools.distutils.errors.CompileError:
-            return False
-    return True
-
-
-def cpp_flag(compiler):
-    """Return the -std=c++[11/14] compiler flag.
-
-    The c++14 is prefered over c++11 (when it is available).
-    """
-    if has_flag(compiler, '-std=c++14'):
-        return '-std=c++14'
-    elif has_flag(compiler, '-std=c++11'):
-        return '-std=c++11'
-    else:
-        raise RuntimeError('Unsupported compiler -- at least C++11 support '
-                           'is needed!')
-
-
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
@@ -93,8 +63,8 @@ class BuildExt(build_ext):
             ext.extra_link_args = deepcopy(opts)
             lang = ext.language or self.compiler.detect_language(ext.sources)
             if lang == 'c++':
-                ext.extra_compile_args.append(cpp_flag(self.compiler))
-                ext.extra_link_args.append(cpp_flag(self.compiler))
+                ext.extra_compile_args.append("-std=c++11")
+                ext.extra_link_args.append("-std=c++11"))
         build_ext.build_extensions(self)
 
     def finalize_options(self):
