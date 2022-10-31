@@ -16,7 +16,7 @@ for f in nb_files:
         nb_tests.append(pytest.param(f, marks=pytest.mark.skip("notebooks that require MPI are WIP on della")))
     elif 'rtcloud' in f:
         nb_tests.append(pytest.param(f, marks=pytest.mark.skip("rtcloud is failing on della")))
-     elif 'Matrix-normal' in f:
+    elif 'Matrix-normal' in f:
         nb_tests.append(pytest.param(f, marks=pytest.mark.skip("Matrix-normal notebook is flaky, disabled for now")))
     else:
         nb_tests.append(f)
