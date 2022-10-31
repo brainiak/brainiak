@@ -64,7 +64,7 @@ class BuildExt(build_ext):
             lang = ext.language or self.compiler.detect_language(ext.sources)
             if lang == 'c++':
                 ext.extra_compile_args.append("-std=c++11")
-                ext.extra_link_args.append("-std=c++11"))
+                ext.extra_link_args.append("-std=c++11")
         build_ext.build_extensions(self)
 
     def finalize_options(self):
