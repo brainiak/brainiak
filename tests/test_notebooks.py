@@ -7,7 +7,7 @@ from testbook import testbook
 
 nb_files = glob.glob("docs/examples/**/*.ipynb", recursive=True)
 
-mpi_notebooks = ['SRM', 'htfa', 'FCMA']
+mpi_notebooks = ['htfa', 'FCMA']
 
 nb_tests = []
 for f in nb_files:
@@ -16,6 +16,8 @@ for f in nb_files:
         nb_tests.append(pytest.param(f, marks=pytest.mark.skip("notebooks that require MPI are WIP on della")))
     elif 'rtcloud' in f:
         nb_tests.append(pytest.param(f, marks=pytest.mark.skip("rtcloud is failing on della")))
+     elif 'Matrix-normal' in f:
+        nb_tests.append(pytest.param(f, marks=pytest.mark.skip("Matrix-normal notebook is flaky, disabled for now")))
     else:
         nb_tests.append(f)
 
@@ -33,7 +35,6 @@ def mark_xfail(nb, **kwargs):
         )
 
     nb_files[nb_index] = pytest.param(nb, marks=pytest.mark.xfail(**kwargs))
-
 
 # mark_xfail('rtcloud_notebook.ipynb',
 #           reason="Needs to have a web server installed, "
