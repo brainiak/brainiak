@@ -38,7 +38,7 @@ for f in nb_files:
             )
         )
     else:
-        nb_tests.append(f)
+        nb_tests.append(f) # type: ignore
 
 
 # Helper function to mark specific notebooks as expected failure.
