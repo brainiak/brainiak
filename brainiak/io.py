@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 from pathlib import Path
-from typing import Callable, Iterable, List, Union
+from typing import Optional, Callable, Iterable, List, Union
 
 import logging
 import nibabel as nib
@@ -104,7 +104,8 @@ def load_images(image_paths: Iterable[Union[str, Path]]
 
 
 def load_boolean_mask(path: Union[str, Path],
-                      predicate: Callable[[np.ndarray], np.ndarray] = None
+                      predicate: Optional[
+                          Callable[[np.ndarray], np.ndarray]] = None
                       ) -> np.ndarray:
     """Load boolean nibabel.SpatialImage mask.
 
