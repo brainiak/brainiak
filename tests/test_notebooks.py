@@ -16,12 +16,17 @@ for f in nb_files:
     if any([nb in f for nb in mpi_notebooks]):
         nb_tests.append(
             pytest.param(
-                f, marks=pytest.mark.skip("notebooks that require MPI are WIP on della")
+                f,
+                marks=pytest.mark.skip(
+                    "notebooks that require MPI are WIP on della"
+                ),
             )
         )
     elif "rtcloud" in f:
         nb_tests.append(
-            pytest.param(f, marks=pytest.mark.skip("rtcloud is failing on della"))
+            pytest.param(
+                f, marks=pytest.mark.skip("rtcloud is failing on della")
+            )
         )
     elif "Matrix-normal" in f:
         nb_tests.append(
