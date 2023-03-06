@@ -33,7 +33,7 @@ if [[ "$is_della" == true ]]; then
     echo "Running on della, load required modules"
 
     # Load some modules we will need on della
-    module load anaconda3/2021.11
+    module load anaconda3/2022.10
     #module load rh/devtoolset/8
 
     # Load openmpi and turn off infiniband
