@@ -1,0 +1,19 @@
+on: [pull_request]
+jobs:
+  pypi:
+    env:
+      IGNORE_CONDA: true
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: |
+          python3 -m pip install -U pip
+      - run: |
+          chmod a+x pr-check.sh
+          ./pr-check.sh
