@@ -69,7 +69,7 @@ function remove_venv_venv {
 }
 
 function create_conda_venv {
-    conda create -n $1 --yes python=3.8
+    conda create -n $1 --yes python=3.10
 }
 
 function activate_conda_venv {
@@ -150,7 +150,7 @@ $activate_venv $venv || {
 if [[ "$is_della" == true ]]; then
     # We need to fetch any data needed for running notebook examples
     # Update our data cache with any download_data.sh scripts found in the repo
-    BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/tigress/dmturner/brainiak_tests/brainiak-example-data
+    BRAINIAK_EXAMPLES_DATA_CACHE_DIR=/scratch/gpfs/dmturner/brainiak_tests/brainiak-example-data
     echo "Copying download_data.sh scripts to brainiak-example-data cache"
     rsync -av --prune-empty-dirs --include="*/" --include="download_data.sh" --exclude="*" $EXAMPLE_NOTEBOOKS_DIR/ $BRAINIAK_EXAMPLES_DATA_CACHE_DIR/
 
