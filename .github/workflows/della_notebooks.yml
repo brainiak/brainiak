@@ -1,6 +1,6 @@
 on: [pull_request]
 jobs:
-  pypi:
+  notebook_tests:
     env:
       IGNORE_CONDA: true
     runs-on: self-hosted
