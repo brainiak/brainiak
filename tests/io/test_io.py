@@ -63,7 +63,7 @@ def test_load_images_from_dir_data_shape(
         expected_n_subjects: int
         ) -> None:
     for i, image in enumerate(io.load_images_from_dir(in_dir, "bet.nii.gz")):
-        assert image.get_data().shape == (64, 64, 26, 10)
+        assert image.get_fdata().shape == (64, 64, 26, 10)
     assert i + 1 == expected_n_subjects
 
 
@@ -73,7 +73,7 @@ def test_load_images_data_shape(
         expected_n_subjects: int
         ) -> None:
     for i, image in enumerate(io.load_images(image_paths)):
-        assert image.get_data().shape == (64, 64, 26, 10)
+        assert image.get_fdata().shape == (64, 64, 26, 10)
     assert i + 1 == expected_n_subjects
 
 
@@ -103,4 +103,4 @@ def test_save_as_nifti_file(tmpdir) -> None:
     out_file = str(tmpdir / "nifti.nii")
     shape = (4, 4, 4)
     io.save_as_nifti_file(np.ones(shape), np.eye(4), out_file)
-    assert nib.load(out_file).get_data().shape == shape
+    assert nib.load(out_file).get_fdata().shape == shape

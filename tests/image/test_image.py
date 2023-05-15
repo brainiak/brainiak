@@ -103,7 +103,7 @@ def masked_data() -> np.ndarray:
 @pytest.fixture
 def images(spatial_image: SpatialImage) -> Iterable[SpatialImage]:
     images = [spatial_image]
-    image_data = spatial_image.get_data().copy()
+    image_data = spatial_image.get_fdata().copy()
     image_data[1, 1, 1, 0] = 2
     images.append(Nifti1Pair(image_data, np.eye(4)))
     return images

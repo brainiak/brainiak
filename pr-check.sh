@@ -33,12 +33,11 @@ if [[ "$is_della" == true ]]; then
     echo "Running on della, load required modules"
 
     # Load some modules we will need on della
-    module load anaconda3/2022.10
-    #module load rh/devtoolset/8
+    module load anaconda3/2023.3
 
     # Load openmpi and turn off infiniband
     # module load openmpi/gcc/2.0.2/64
-    module load openmpi/gcc/4.1.0
+    module load openmpi/gcc/4.1.2
     export MPICC=$(which mpicc)
     export OMPI_MCA_btl="vader,self,tcp"
 
@@ -69,7 +68,7 @@ function remove_venv_venv {
 }
 
 function create_conda_venv {
-    conda create -n $1 --yes python=3.10
+    conda create -n $1 --yes python=3.8
 }
 
 function activate_conda_venv {
@@ -165,6 +164,11 @@ if [[ "$is_della" == true ]]; then
     rsync -av $BRAINIAK_EXAMPLES_DATA_CACHE_DIR/ $EXAMPLE_NOTEBOOKS_DIR/
 
     # Skip upgrading pip, this was causing failures on della, not sure why.
+
+    # Install mpi4py first, no cache director
+    pip install mpi4py --no-cache-dir || \
+        exit_with_error_and_venv "Failed to install mpi4py."
+
 else
     python3 -m pip install -U pip || \
         exit_with_error_and_venv "Failed to update Pip."

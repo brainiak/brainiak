@@ -130,7 +130,7 @@ def mask_image(
     ValueError
         Image data and masks have different shapes.
     """
-    image_data = image.get_data()
+    image_data = image.get_fdata()
     if image_data.shape[:3] != mask.shape:
         raise ValueError("Image data and mask have different shapes.")
     if data_type is not None:

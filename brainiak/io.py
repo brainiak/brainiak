@@ -124,7 +124,7 @@ def load_boolean_mask(path: Union[str, Path],
     """
     if not isinstance(path, str):
         path = str(path)
-    data = nib.load(path).get_data()
+    data = nib.load(path).get_fdata()
     if predicate is not None:
         mask = predicate(data)
     else:

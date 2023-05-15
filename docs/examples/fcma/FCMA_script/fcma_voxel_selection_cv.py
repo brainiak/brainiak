@@ -51,7 +51,7 @@ if __name__ == '__main__':
         # create output_dir
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-            
+
     # Load in the volumes, mask and labels
     images = io.load_images_from_dir(data_dir, suffix=suffix)
     mask = io.load_boolean_mask(mask_file)
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     # Parse the epoch data for useful dimensions
     epochs_per_subj = epoch_list[0].shape[1]
     num_subjs = len(epoch_list)
-    
+
     # Preprocess the data and prepare for FCMA
     raw_data, _, labels = prepare_fcma_data(images, epoch_list, mask)
 
@@ -68,48 +68,48 @@ if __name__ == '__main__':
     file_str = output_dir + '/fc_no' + str(left_out_subj) + '_'
     start_idx = int(int(left_out_subj) * epochs_per_subj)
     end_idx = int(start_idx + epochs_per_subj)
-    
+
     # Take out the idxs corresponding to all participants but this one
     subsampled_idx = list(set(range(len(labels))) - set(range(start_idx, end_idx)))
     labels_subsampled = [labels[i] for i in subsampled_idx]
     raw_data_subsampled = [raw_data[i] for i in subsampled_idx]
-    
+
     # Set up the voxel selection object for fcma
     vs = VoxelSelector(labels_subsampled, epochs_per_subj, num_subjs - 1, raw_data_subsampled)
-    
+
     # for cross validation, use SVM with precomputed kernel
     clf = SVC(kernel='precomputed', shrinking=False, C=1)
     results = vs.run(clf)
-    
+
     # this output is just for result checking
     if MPI.COMM_WORLD.Get_rank()==0:
         logger.info(
             'correlation-based voxel selection is done'
         )
-        
+
         # Load in the mask with nibabel
         mask_img = nib.load(mask_file)
-        mask = mask_img.get_data().astype(np.bool)
-        
+        mask = mask_img.get_fdata().astype(np.bool)
+
         # Preset the volumes
         score_volume = np.zeros(mask.shape, dtype=np.float32)
         score = np.zeros(len(results), dtype=np.float32)
         seq_volume = np.zeros(mask.shape, dtype=np.int)
         seq = np.zeros(len(results), dtype=np.int)
-        
+
         # Write a text document of the voxel selection results
         with open(file_str + 'result_list.txt', 'w') as fp:
             for idx, tuple in enumerate(results):
                 fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
-                
+
                 # Store the score for each voxel
                 score[tuple[0]] = tuple[1]
                 seq[tuple[0]] = idx
-                
+
         # Convert the list into a volume
         score_volume[mask] = score
         seq_volume[mask] = seq
-        
+
         # Save volume
         io.save_as_nifti_file(score_volume, mask_img.affine,
                                 file_str + 'result_score.nii.gz')
