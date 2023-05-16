@@ -1,8 +1,6 @@
 on: [pull_request]
 jobs:
   notebook_tests:
-    env:
-      IGNORE_CONDA: false
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
