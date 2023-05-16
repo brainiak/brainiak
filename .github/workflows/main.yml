@@ -21,11 +21,12 @@ jobs:
           ./pr-check.sh
       - if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          export CC=$(brew --prefix llvm)/bin/clang
-          export CXX=$(brew --prefix llvm)/bin/clang++
-          export LDFLAGS="-L$(brew --prefix llvm)/lib
-          -Wl,-rpath,$(brew --prefix llvm)/lib $LDFLAGS"
-          export CPPFLAGS="-I$(brew --prefix llvm)/include $CPPFLAGS"
+          export CLANG_PREFIX=$(brew --prefix llvm@15)
+          export CC=$CLANG_PREFIX/bin/clang
+          export CXX=$CLANG_PREFIX/bin/clang++
+          export LDFLAGS="-L$CLANG_PREFIX/lib
+          -Wl,-rpath,$CLANG_PREFIX/lib $LDFLAGS"
+          export CPPFLAGS="-I$CLANG_PREFIX/include $CPPFLAGS"
           ./pr-check.sh
       - uses: codecov/codecov-action@v1
   conda:
