@@ -198,23 +198,27 @@ fi
 
 
 
-# build documentation
-cd docs
-export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
+# build documentation, only if not della
+if [[ "$is_della" == true ]]; then
+    echo "Skipping docs build on della"
+else
+    cd docs
+    export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
 
-if [ ! -z $SLURM_NODELIST ]
-then
-    if [[ "$is_della" == true ]]; then
-        make_wrapper="srun -t 00:30:00 -N 1 -n 4 "
-    else
-        make_wrapper="srun -n 1"
+    if [ ! -z $SLURM_NODELIST ]
+    then
+        if [[ "$is_della" == true ]]; then
+            make_wrapper="srun -t 00:30:00 -N 1 -n 4 "
+        else
+            make_wrapper="srun -n 1"
+        fi
     fi
-fi
-$make_wrapper make || {
+    $make_wrapper make || {
+        cd -
+        exit_with_error_and_venv "make docs failed"
+    }
     cd -
-    exit_with_error_and_venv "make docs failed"
-}
-cd -
+fi
 
 $deactivate_venv
 $remove_venv $venv
