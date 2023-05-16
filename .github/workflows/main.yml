@@ -32,6 +32,7 @@ jobs:
           export LDFLAGS="-L$CLANG_PREFIX/lib
           -Wl,-rpath,$CLANG_PREFIX/lib $LDFLAGS"
           export CPPFLAGS="-I$CLANG_PREFIX/include $CPPFLAGS"
+          brew install libomp
           ./pr-check.sh
       - uses: codecov/codecov-action@v1
   conda:
