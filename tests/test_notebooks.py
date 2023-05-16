@@ -7,7 +7,7 @@ from testbook import testbook
 
 nb_files = glob.glob("docs/examples/**/*.ipynb", recursive=True)
 
-mpi_notebooks = ["htfa", "FCMA"]
+mpi_notebooks = ["htfa", "FCMA", "SRM"]
 
 nb_tests = []
 for f in nb_files:
