@@ -319,7 +319,8 @@ def _get_input_names(data_dict):
     if data_dict.get('template_path') is None:
         vol = resource_stream(__name__,
                               "sim_parameters/sub_template.nii.gz").read()
-        template_path = Nifti1Image.from_bytes(gzip.decompress(vol)).get_fdata()
+        template_path = Nifti1Image.from_bytes(
+            gzip.decompress(vol)).get_fdata()
     else:
         template_path = data_dict['template_path']
 
