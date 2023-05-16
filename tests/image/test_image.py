@@ -71,7 +71,7 @@ def spatial_image() -> SpatialImage:
                                  [[0, 0, 0, 0],
                                   [0, 0, 0, 0],
                                   [0, 0, 0, 0],
-                                  [0, 0, 0, 0]]]]).reshape(4, 4, 4, 1),
+                                  [0, 0, 0, 0]]]], dtype=float).reshape(4, 4, 4, 1),
                       np.eye(4))
 
 
