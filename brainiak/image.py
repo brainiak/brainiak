@@ -134,7 +134,7 @@ def mask_image(
     if image_data.shape[:3] != mask.shape:
         raise ValueError("Image data and mask have different shapes.")
     if data_type is not None:
-        cast_data = image_data.astype(data_type)
+        cast_data: np.ndarray = image_data.astype(data_type)
     else:
         cast_data = image_data
     return cast_data[mask]
@@ -183,5 +183,5 @@ def mask_images(images: Iterable[SpatialImage], mask: np.ndarray,
     np.ndarray
         Masked image.
     """
-    for images in multimask_images(images, (mask,), image_type):
-        yield images[0]
+    for imgs in multimask_images(images, (mask,), image_type):  # type: ignore
+        yield imgs[0]  # type: ignore

@@ -103,4 +103,4 @@ def test_save_as_nifti_file(tmpdir) -> None:
     out_file = str(tmpdir / "nifti.nii")
     shape = (4, 4, 4)
     io.save_as_nifti_file(np.ones(shape), np.eye(4), out_file)
-    assert nib.load(out_file).get_fdata().shape == shape
+    assert nib.load(out_file).get_fdata().shape == shape        # type: ignore

@@ -69,7 +69,7 @@ def load_images_from_dir(in_dir: Union[str, Path], suffix: str = "nii.gz",
         logger.debug(
             'Starting to read file %s', f
         )
-        yield nib.load(str(f))
+        yield nib.load(str(f))  # type: ignore
 
 
 def load_images(image_paths: Iterable[Union[str, Path]]
@@ -100,7 +100,7 @@ def load_images(image_paths: Iterable[Union[str, Path]]
         logger.debug(
             'Starting to read file %s', string_path
         )
-        yield nib.load(string_path)
+        yield nib.load(string_path)  # type: ignore
 
 
 def load_boolean_mask(path: Union[str, Path],
@@ -124,7 +124,7 @@ def load_boolean_mask(path: Union[str, Path],
     """
     if not isinstance(path, str):
         path = str(path)
-    data = nib.load(path).get_fdata()
+    data = nib.load(path).get_fdata()  # type: ignore
     if predicate is not None:
         mask = predicate(data)
     else:

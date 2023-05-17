@@ -31,17 +31,20 @@ import gzip
 with pytest.raises(TypeError):
     gen.generate_data()  # type: ignore
 
-data_dict = {}  # type: Dict
+data_dict: Dict = {}
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
-data_dict['ROI_A_file'] = np.asanyarray(Nifti1Image.from_bytes(gzip.decompress(
-    vol)).dataobj)
+data_dict["ROI_A_file"] = np.asanyarray(
+    Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
+)
 vol = resource_stream(gen.__name__, "sim_parameters/ROI_B.nii.gz").read()
-data_dict['ROI_B_file'] = np.asanyarray(Nifti1Image.from_bytes(gzip.decompress(
-    vol)).dataobj)
+data_dict["ROI_B_file"] = np.asanyarray(
+    Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
+)
 vol = resource_stream(gen.__name__,
                       "sim_parameters/sub_template.nii.gz").read()
-data_dict['template_path'] = np.asanyarray(Nifti1Image.from_bytes(gzip.decompress(
-    vol)).dataobj)
+data_dict["template_path"] = np.asanyarray(
+    Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
+)
 noise_dict_file = resource_stream(gen.__name__,
                                   "sim_parameters/sub_noise_dict.txt").read()
 data_dict['noise_dict_file'] = noise_dict_file
