@@ -96,7 +96,7 @@ extras = {
 	],
 
 	'matnormal': [
-            'tensorflow',
+            'tensorflow<=2.12.0',
             'tensorflow_probability<=0.15.0',
         ],
 
