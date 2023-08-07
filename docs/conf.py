@@ -301,13 +301,3 @@ myst_heading_anchors = 7
 nb_execution_timeout = -1
 nb_execution_mode = "off"
 
-
-# Check intersphinx reference targets exist
-nitpicky = True
-
-# Temporary solution to nilearn/nilearn#3800
-# See also scikit-learn/scikit-learn#26761
-nitpick_ignore = [
-    ("py:class", "pipeline.Pipeline"),
-    ("py:class", "utils.metadata_routing.MetadataRequest"),
-]
