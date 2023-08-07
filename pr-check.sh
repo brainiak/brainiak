@@ -41,6 +41,9 @@ if [[ "$is_della" == true ]]; then
     export MPICC=$(which mpicc)
     export OMPI_MCA_btl="vader,self,tcp"
 
+    # Issues with pip using tmp on della
+    export TMPDIR=/scratch/gpfs/dmturner/tmp
+
 fi
 
 if [ ! -f brainiak/__init__.py ]
