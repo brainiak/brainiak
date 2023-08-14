@@ -228,9 +228,9 @@ def _collect_size_information(X, datasets, comm):
     ds_list = datasets.get_datasets_list()
     for ds in ds_list:
         # initialization
-        shape0[ds] = np.zeros((datasets.num_subj,), dtype=np.int)
-        shape1[ds] = np.zeros((datasets.num_subj,), dtype=np.int)
-        data_exist[ds] = np.zeros((datasets.num_subj,), dtype=np.int)
+        shape0[ds] = np.zeros((datasets.num_subj,), dtype=np.int32)
+        shape1[ds] = np.zeros((datasets.num_subj,), dtype=np.int32)
+        data_exist[ds] = np.zeros((datasets.num_subj,), dtype=np.int32)
         ds_idx = datasets.dataset_to_idx[ds]
         # collect size information of each dataset
         if X[ds] is not None:
