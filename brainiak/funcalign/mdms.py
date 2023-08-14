@@ -80,8 +80,7 @@ def _init_w_transforms(voxels, features, random_states, datasets):
     -------
 
     w : dict of array, w[s] has shape=[voxels[s], features] where s is the
-    name
-        of the subject.
+        name of the subject.
         The initialized orthogonal transforms (mappings) :math:`W_s` for each
         subject.
 
