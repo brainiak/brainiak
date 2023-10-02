@@ -36,20 +36,20 @@ requirements:
     - python
     - pip
     - mpich
-    - openmp
+    - llvm-openmp
     - setuptools>=42 
     - wheel
     - pybind11>=2.9.0
     - scipy!=1.0.0
     - cython
-    - numpy
+    - {{ pin_compatible('numpy') }}
     - setuptools_scm
 
   run:
     - python
     - {{ pin_compatible('numpy') }}
     - mpich
-    - openmp
+    - llvm-openmp
     - tensorflow
     - tensorflow-probability
     {% for req in data.get('install_requires', [])

@@ -38,15 +38,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04]
-        #os: [ubuntu-20.04, macos-latest]
+        os: [ubuntu-20.04, macos-latest]
         python-version: [3.8]
     steps:
       - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: mamba-org/setup-micromamba@v1
         with:
-          channels: conda-forge
-          python-version: ${{ matrix.python-version }}
+          environment-name: test-env
+          create-args: >-
+            python=${{ matrix.python-version }}
+            boa
       - run: |
           export CONDA_HOME=$CONDA
           conda install conda-build
