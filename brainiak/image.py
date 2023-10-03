@@ -24,7 +24,7 @@ __all__ = [
 
 import itertools
 
-from typing import Iterable, Sequence, Type, TypeVar
+from typing import Optional, Iterable, Sequence, Type, TypeVar
 
 import numpy as np
 
@@ -104,8 +104,11 @@ class SingleConditionSpec(ConditionSpec):
         return condition_idxs[unique_epoch_idxs]
 
 
-def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
-               ) -> np.ndarray:
+def mask_image(
+        image: SpatialImage,
+        mask: np.ndarray,
+        data_type: Optional[type] = None
+        ) -> np.ndarray:
     """Mask image after optionally casting its type.
 
     Parameters
@@ -127,19 +130,21 @@ def mask_image(image: SpatialImage, mask: np.ndarray, data_type: type = None
     ValueError
         Image data and masks have different shapes.
     """
-    image_data = image.get_data()
+    image_data = image.get_fdata()
     if image_data.shape[:3] != mask.shape:
         raise ValueError("Image data and mask have different shapes.")
     if data_type is not None:
-        cast_data = image_data.astype(data_type)
+        cast_data: np.ndarray = image_data.astype(data_type)
     else:
         cast_data = image_data
     return cast_data[mask]
 
 
-def multimask_images(images: Iterable[SpatialImage],
-                     masks: Sequence[np.ndarray], image_type: type = None
-                     ) -> Iterable[Sequence[np.ndarray]]:
+def multimask_images(
+        images: Iterable[SpatialImage],
+        masks: Sequence[np.ndarray],
+        image_type: Optional[type] = None
+        ) -> Iterable[Sequence[np.ndarray]]:
     """Mask images with multiple masks.
 
     Parameters
@@ -161,7 +166,7 @@ def multimask_images(images: Iterable[SpatialImage],
 
 
 def mask_images(images: Iterable[SpatialImage], mask: np.ndarray,
-                image_type: type = None) -> Iterable[np.ndarray]:
+                image_type: Optional[type] = None) -> Iterable[np.ndarray]:
     """Mask images.
 
     Parameters
@@ -178,5 +183,5 @@ def mask_images(images: Iterable[SpatialImage], mask: np.ndarray,
     np.ndarray
         Masked image.
     """
-    for images in multimask_images(images, (mask,), image_type):
-        yield images[0]
+    for imgs in multimask_images(images, (mask,), image_type):  # type: ignore
+        yield imgs[0]  # type: ignore

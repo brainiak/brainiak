@@ -56,23 +56,32 @@ class TestUniqueLabelConditionSpec:
 
 @pytest.fixture
 def spatial_image() -> SpatialImage:
-    return Nifti1Pair(np.array([[[[0, 0, 0, 0],
-                                  [0, 0, 0, 0],
-                                  [0, 0, 0, 0],
-                                  [0, 0, 0, 0]],
-                                 [[0, 0, 0, 0],
-                                  [0, 1, 0, 0],
-                                  [0, 0, 1, 0],
-                                  [0, 0, 0, 0]],
-                                 [[0, 0, 0, 0],
-                                  [0, 0, 1, 0],
-                                  [0, 1, 0, 0],
-                                  [0, 0, 0, 0]],
-                                 [[0, 0, 0, 0],
-                                  [0, 0, 0, 0],
-                                  [0, 0, 0, 0],
-                                  [0, 0, 0, 0]]]]).reshape(4, 4, 4, 1),
-                      np.eye(4))
+    return Nifti1Pair(
+        np.array(
+            [
+                [
+                    [[0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0]],
+                    [[0, 0, 0, 0],
+                     [0, 1, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 0, 0, 0]],
+                    [[0, 0, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 1, 0, 0],
+                     [0, 0, 0, 0]],
+                    [[0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0]],
+                ]
+            ],
+            dtype=float,
+        ).reshape(4, 4, 4, 1),
+        np.eye(4),
+    )
 
 
 @pytest.fixture
@@ -92,7 +101,7 @@ def mask() -> np.ndarray:
                      [[0, 0, 0, 0],
                       [0, 0, 0, 0],
                       [0, 0, 0, 0],
-                      [0, 0, 0, 0]]], dtype=np.bool)
+                      [0, 0, 0, 0]]], dtype=bool)
 
 
 @pytest.fixture
@@ -103,7 +112,7 @@ def masked_data() -> np.ndarray:
 @pytest.fixture
 def images(spatial_image: SpatialImage) -> Iterable[SpatialImage]:
     images = [spatial_image]
-    image_data = spatial_image.get_data().copy()
+    image_data = spatial_image.get_fdata().copy()
     image_data[1, 1, 1, 0] = 2
     images.append(Nifti1Pair(image_data, np.eye(4)))
     return images
@@ -126,7 +135,7 @@ def multimasked_images(masked_data) -> Iterable[Iterable[np.ndarray]]:
     masked_data_2 = np.concatenate(([[2]], masked_data[1:, :]))
     return [[masked_data, np.concatenate(([[0]], masked_data)),
              masked_data[:-1, :]],
-            [masked_data_2, np.concatenate(([[0]], masked_data_2)),
+            [masked_data_2, np.concatenate((np.array([[0]]), masked_data_2)),
              masked_data_2[:-1, :]]]
 
 

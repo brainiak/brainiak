@@ -1,0 +1,20 @@
+# Workflow file for test runs on Princeton's della cluster. This only runs on self
+# hosted runners. The pr-check script detects that it is running on della and 
+# runs tests of notebooks that require larger resources than GitHub Actions hosted
+# runners provide. It would probably be better to move a lot of that logic to this
+# file in the future.
+
+on: [pull_request]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  notebook_tests:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          chmod a+x pr-check.sh
+          ./pr-check.sh

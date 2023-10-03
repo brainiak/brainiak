@@ -191,8 +191,8 @@ class RSRM(BaseEstimator, TransformerMixin):
         return r, s
 
     def _transform_new_data(self, X, subject):
-        """Transform new data for a subjects by projecting to the shared subspace and
-        computing the individual information.
+        """Transform new data for a subjects by projecting to the shared
+        subspace and computing the individual information.
 
         Parameters
         ----------

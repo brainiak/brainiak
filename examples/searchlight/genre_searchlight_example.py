@@ -1,4 +1,4 @@
-# The following code is designed to perform a searchlight at every voxel in the brain looking at the difference in pattern similarity between musical genres (i.e. classical and jazz). In the study where the data was obtained, subjects were required to listen to a set of 16 songs twice (two runs) in an fMRI scanner. The 16 songs consisted of 8 jazz songs and 8 classical songs. The goal of this searchlight is to find voxels that seem to represent distinct information about these different musical genres. Presumably, these voxels would be found in the auditory cortex which happens to be the most organized system in the brain for processing sound information. 
+# The following code is designed to perform a searchlight at every voxel in the brain looking at the difference in pattern similarity between musical genres (i.e. classical and jazz). In the study where the data was obtained, subjects were required to listen to a set of 16 songs twice (two runs) in an fMRI scanner. The 16 songs consisted of 8 jazz songs and 8 classical songs. The goal of this searchlight is to find voxels that seem to represent distinct information about these different musical genres. Presumably, these voxels would be found in the auditory cortex which happens to be the most organized system in the brain for processing sound information.
 
 import numpy as np
 import time
@@ -25,7 +25,7 @@ if rank == 0:
     d1_reshape = np.reshape(data1_rand,(91*109*91,16))
     d2_reshape = np.reshape(data2_rand,(91*109*91,16))
     a1 = load_img('a1plus_2mm.nii.gz')
-    a1_vec = np.reshape(a1.get_data(),(91*109*91))
+    a1_vec = np.reshape(a1.get_fdata(),(91*109*91))
     a1_idx = np.nonzero(a1_vec)
     for i in range(8):
         d1_reshape[a1_idx[0],i] += classical
@@ -44,9 +44,9 @@ else:
     data1 = None
     data2 = None
 
-# Load mask 
+# Load mask
 mask_img = load_img('MNI152_T1_2mm_brain_mask.nii')
-mask_img = mask_img.get_data()
+mask_img = mask_img.get_fdata()
 
 # Definte function that takes the difference between within vs. between genre comparisons
 def corr2_coeff(AB,msk,myrad,bcast_var):

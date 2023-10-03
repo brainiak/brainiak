@@ -29,7 +29,7 @@ prng = RandomState(1234567890)
 def test_mvpa_voxel_selection():
     data = prng.rand(5, 5, 5, 8).astype(np.float32)
     # all MPI processes read the mask; the mask file is small
-    mask = np.ones([5, 5, 5], dtype=np.bool)
+    mask = np.ones([5, 5, 5], dtype=bool)
     mask[0, 0, :] = False
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject

@@ -498,7 +498,7 @@ class HTFA(TFA):
 
         if rank == 0:
             idx = np.random.choice(n_local_subj, 1)
-            self.global_prior_, self.global_centers_cov,\
+            self.global_prior_, self.global_centers_cov, \
                 self.global_widths_var = self.get_template(R[idx[0]])
             self.global_centers_cov_scaled =\
                 self.global_centers_cov / float(self.n_subj)
@@ -724,7 +724,7 @@ class HTFA(TFA):
         m = 0
         outer_converged = np.array([0])
         while m < self.max_global_iter and not outer_converged[0]:
-            if(self.verbose):
+            if (self.verbose):
                 logger.info("HTFA global iter %d " % (m))
             # root broadcast first 4 fields of global_prior to all nodes
             self.comm.Bcast(self.global_prior_, root=0)

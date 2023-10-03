@@ -86,7 +86,7 @@ def test_distributed_srm():  # noqa: C901
     s.fit(X)
     from pathlib import Path
     sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npz")['sr']
-    assert(np.allclose(sr_v0_4, s.s_))
+    assert (np.allclose(sr_v0_4, s.s_))
 
     assert len(s.w_) == subjects, (
         "Invalid computation of SRM! (wrong # subjects in W)")

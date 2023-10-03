@@ -199,5 +199,5 @@ def test_sym_ll():
     hmm_backward.set_event_patterns(np.flip(ev_pat.T, axis=1))
     _, ll_backward = hmm_backward.find_events(D_backward, var=1)
 
-    assert (ll_forward == ll_backward),\
+    assert np.allclose(ll_forward, ll_backward),\
         "Log-likelihood not symmetric forward/backward"
