@@ -47,7 +47,7 @@ requirements:
 
   run:
     - python
-    - {{ pin_compatible('numpy') }}
+    - numpy<=1.23.1
     - mpich
     - llvm-openmp
     - tensorflow
