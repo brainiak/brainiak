@@ -87,8 +87,8 @@ if __name__ == '__main__':
         score_volume = np.nan_to_num(score_volume.astype(np.float))
         io.save_as_nifti_file(score_volume, mask_image.affine,
                                    'result_score.nii.gz')
-        seq_volume = np.zeros(mask.shape, dtype=np.int)
-        seq = np.zeros(len(results), dtype=np.int)
+        seq_volume = np.zeros(mask.shape, dtype=int)
+        seq = np.zeros(len(results), dtype=int)
         with open('result_list.txt', 'w') as fp:
             for idx, tuple in enumerate(results):
                 fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')
