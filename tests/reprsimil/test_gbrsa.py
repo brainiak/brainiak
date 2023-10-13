@@ -303,7 +303,7 @@ def test_gradient():
             s[:, None, None] * a[:, None, None]
 
     # test if the gradients are correct
-    print(log_fixed_terms)
+    # print(log_fixed_terms)
     ll0, deriv0 = gbrsa._sum_loglike_marginalized(L_vec, s2XTAcorrX,
                                                   YTAcorrY_diag, sXTAcorrY,
                                                   half_log_det_X0TAX0,
@@ -585,7 +585,7 @@ def test_grid_flatten_num_int():
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
     tol = 1e-3
-    assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
+    assert (np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'
 
     # Now test the log normal prior
@@ -626,5 +626,5 @@ def test_grid_flatten_num_int():
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
     tol = 1e-3
-    assert(np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
+    assert (np.isclose(LL_total_scipy, LL_total, rtol=tol)), \
         'Error of log likelihood calculation exceeds the tolerance'

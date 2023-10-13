@@ -4078,13 +4078,13 @@ class GBRSA(BRSA):
         return scan_onsets
 
     def _bin_exp(self, n_bin, scale=1.0):
-        """ Calculate the bin locations to approximate exponential distribution.
-            It breaks the cumulative probability of exponential distribution
-            into n_bin equal bins, each covering 1 / n_bin probability. Then it
-            calculates the center of mass in each bins and returns the
-            centers of mass. So, it approximates the exponential distribution
-            with n_bin of Delta function weighted by 1 / n_bin, at the
-            locations of these centers of mass.
+        """ Calculate the bin locations to approximate exponential
+            distribution. It breaks the cumulative probability of
+            exponential distribution into n_bin equal bins, each covering
+            1 / n_bin probability. Then it calculates the center of mass in
+            each bins and returns the centers of mass. So, it approximates the
+            exponential distribution with n_bin of Delta function weighted by
+            1 / n_bin, at the locations of these centers of mass.
         Parameters:
         -----------
         n_bin: int

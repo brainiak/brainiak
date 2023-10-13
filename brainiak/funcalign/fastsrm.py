@@ -238,7 +238,7 @@ def _check_imgs_array(imgs):
     for i in range(n_subjects):
         for j in range(n_sessions):
             if not (isinstance(imgs[i, j], str) or isinstance(
-                    imgs[i, j], np.str_) or isinstance(imgs[i, j], np.str)):
+                    imgs[i, j], np.str_) or isinstance(imgs[i, j], str)):
                 raise ValueError("imgs[%i, %i] is stored using "
                                  "type %s which is not a str" %
                                  (i, j, type(imgs[i, j])))
@@ -337,7 +337,7 @@ def check_atlas(atlas, n_components=None):
         return None
 
     if not (isinstance(atlas, np.ndarray) or isinstance(atlas, str)
-            or isinstance(atlas, np.str_) or isinstance(atlas, np.str)):
+            or isinstance(atlas, np.str_) or isinstance(atlas, str)):
         raise ValueError("Atlas is stored using "
                          "type %s which is neither np.ndarray or str" %
                          type(atlas))

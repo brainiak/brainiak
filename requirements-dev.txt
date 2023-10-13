@@ -16,3 +16,4 @@ numdifftools
 
 # examples
 matplotlib
+testbook

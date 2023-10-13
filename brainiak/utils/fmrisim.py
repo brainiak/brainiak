@@ -78,14 +78,13 @@ used by others (Welvaert & Rosseel, 2013)
 import logging
 
 from itertools import product
-from statsmodels.tsa.arima_model import ARMA
+from statsmodels.tsa.arima.model import ARIMA
 import math
 import numpy as np
 # See pyflakes issue #248
 # https://github.com/PyCQA/pyflakes/issues/248
-import numpy.matlib  # noqa: F401
 from numpy.linalg import LinAlgError
-from pkg_resources import resource_stream
+from pkg_resources import resource_stream  # type: ignore
 from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage
@@ -945,7 +944,7 @@ def apply_signal(signal_function,
     if timecourses == 1:
         # If there is only one time course supplied then duplicate it for
         # every voxel
-        signal_function = np.matlib.repmat(signal_function, 1, len(idxs[0]))
+        signal_function = np.tile(signal_function, (1, len(idxs[0])))
 
     elif len(idxs[0]) != timecourses:
         raise IndexError('The number of non-zero voxels in the volume and '
@@ -1176,8 +1175,7 @@ def _calc_snr(volume,
     # Dilate the mask in order to ensure that non-brain voxels are far from
     # the brain
     if dilation > 0:
-        mask_dilated = ndimage.morphology.binary_dilation(mask,
-                                                          iterations=dilation)
+        mask_dilated = ndimage.binary_dilation(mask, iterations=dilation)
     else:
         mask_dilated = mask
 
@@ -1270,15 +1268,15 @@ def _calc_ARMA_noise(volume,
 
         # Pull out the ARMA values (depends on order)
         try:
-            model = ARMA(demeaned_timecourse, [auto_reg_order, ma_order])
-            model_fit = model.fit(disp=False)
+            model = ARIMA(demeaned_timecourse,
+                          order=[auto_reg_order, 0, ma_order])
+            model_fit = model.fit()
             params = model_fit.params
         except (ValueError, LinAlgError):
             params = np.ones(auto_reg_order + ma_order + 1) * np.nan
 
-        # Add to the list
         auto_reg_rho_all[voxel_counter, :] = params[1:auto_reg_order + 1]
-        ma_all[voxel_counter, :] = params[auto_reg_order + 1:]
+        ma_all[voxel_counter, :] = params[auto_reg_order + 1:-1]
 
     # Average all of the values and then convert them to a list
     auto_reg_rho = np.nanmean(auto_reg_rho_all, 0).tolist()

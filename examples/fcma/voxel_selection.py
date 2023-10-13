@@ -86,11 +86,11 @@ if __name__ == '__main__':
         )
         #print(results[0:100])
         mask_img = nib.load(mask_file)
-        mask = mask_img.get_data().astype(np.bool)
+        mask = mask_img.get_fdata().astype(np.bool)
         score_volume = np.zeros(mask.shape, dtype=np.float32)
         score = np.zeros(len(results), dtype=np.float32)
-        seq_volume = np.zeros(mask.shape, dtype=np.int)
-        seq = np.zeros(len(results), dtype=np.int)
+        seq_volume = np.zeros(mask.shape, dtype=int)
+        seq = np.zeros(len(results), dtype=int)
         with open('result_list.txt', 'w') as fp:
             for idx, tuple in enumerate(results):
                 fp.write(str(tuple[0]) + ' ' + str(tuple[1]) + '\n')

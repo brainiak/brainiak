@@ -370,7 +370,7 @@ def prepare_searchlight_mvpa_data(images, conditions, data_type=np.float32,
 
     logger.info('start to apply masks and separate epochs')
     for sid, f in enumerate(images):
-        data = f.get_data().astype(data_type)
+        data = f.get_fdata().astype(data_type)
         [d1, d2, d3, d4] = data.shape
         if random == RandomType.REPRODUCIBLE:
             data = data.reshape((d1 * d2 * d3, d4))

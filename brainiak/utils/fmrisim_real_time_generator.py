@@ -35,7 +35,7 @@ import numpy as np  # type: ignore
 import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
-from pkg_resources import resource_stream
+from pkg_resources import resource_stream  # type: ignore
 from nibabel.nifti1 import Nifti1Image
 import gzip
 
@@ -123,7 +123,7 @@ def _generate_ROIs(ROI_file,
     if isinstance(ROI_file, str):
         logger.info('Loading', ROI_file)
         nii = nibabel.load(ROI_file)
-        ROI = nii.get_data()
+        ROI = nii.get_fdata()
     else:
         ROI = ROI_file
 
@@ -305,13 +305,13 @@ def _get_input_names(data_dict):
     # Load in the ROIs
     if data_dict.get('ROI_A_file') is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_A.nii.gz").read()
-        ROI_A_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
+        ROI_A_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_fdata()
     else:
         ROI_A_file = data_dict['ROI_A_file']
 
     if data_dict.get('ROI_B_file') is None:
         vol = resource_stream(__name__, "sim_parameters/ROI_B.nii.gz").read()
-        ROI_B_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
+        ROI_B_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_fdata()
     else:
         ROI_B_file = data_dict['ROI_B_file']
 
@@ -319,7 +319,8 @@ def _get_input_names(data_dict):
     if data_dict.get('template_path') is None:
         vol = resource_stream(__name__,
                               "sim_parameters/sub_template.nii.gz").read()
-        template_path = Nifti1Image.from_bytes(gzip.decompress(vol)).get_data()
+        template_path = Nifti1Image.from_bytes(
+            gzip.decompress(vol)).get_fdata()
     else:
         template_path = data_dict['template_path']
 
@@ -381,7 +382,7 @@ def generate_data(outputDir,
     # Load in the template data (it may already be loaded if doing a test)
     if isinstance(template_path, str):
         template_nii = nibabel.load(template_path)
-        template = template_nii.get_data()
+        template = template_nii.get_fdata()
     else:
         template = template_path
 

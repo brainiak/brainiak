@@ -39,7 +39,7 @@ def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwm
         mask = nib.load(mask_file.name)
     affine = mask.get_affine()
     if mask_file is None:
-        mask_data = mask.get_data()
+        mask_data = mask.get_fdata()
         if mask_data.ndim == 4:
             #get mask in 3D
             img_data_type = mask.header.get_data_dtype()
@@ -49,7 +49,7 @@ def extract_data(nifti_file, mask_file, out_file, zscore, detrend, smoothing_fwm
         else:
             mask_data = mask_data.astype(bool)
     else:
-        mask_data = mask.get_data().astype(bool)
+        mask_data = mask.get_fdata().astype(bool)
 
     #get voxel coordinates
     R = np.float64(np.argwhere(mask_data))

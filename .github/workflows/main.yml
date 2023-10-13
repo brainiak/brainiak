@@ -1,4 +1,9 @@
-on: [pull_request]
+on: [pull_request, push]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pypi:
     env:
@@ -7,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, macos-latest]
-        python-version: [3.8]
+        python-version: ["3.8", "3.9", "3.10"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -21,11 +26,12 @@ jobs:
           ./pr-check.sh
       - if: ${{ contains(matrix.os, 'macos') }}
         run: |
-          export CC=$(brew --prefix)/opt/llvm/bin/clang
-          export CXX=$(brew --prefix)/opt/llvm/bin/clang++
-          export LDFLAGS="-L/usr/local/opt/llvm/lib
-          -Wl,-rpath,/usr/local/opt/llvm/lib $LDFLAGS"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include $CPPFLAGS"
+          export CLANG_PREFIX=$(brew --prefix llvm@15)
+          export CC=$CLANG_PREFIX/bin/clang
+          export CXX=$CLANG_PREFIX/bin/clang++
+          export LDFLAGS="-L$CLANG_PREFIX/lib
+          -Wl,-rpath,$CLANG_PREFIX/lib $LDFLAGS -L/usr/local/opt/libomp/lib"
+          export CPPFLAGS="-I$CLANG_PREFIX/include $CPPFLAGS -I/usr/local/opt/libomp/include"
           ./pr-check.sh
       - uses: codecov/codecov-action@v1
   conda:
@@ -36,10 +42,12 @@ jobs:
         python-version: [3.8]
     steps:
       - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: mamba-org/setup-micromamba@v1
         with:
-          channels: conda-forge
-          python-version: ${{ matrix.python-version }}
+          environment-name: test-env
+          create-args: >-
+            python=${{ matrix.python-version }}
+            boa
       - run: |
           export CONDA_HOME=$CONDA
           conda install conda-build

@@ -40,8 +40,8 @@ def test_searchlight_with_cube():
     dim0, dim1, dim2 = (50, 50, 50)
     ntr = 30
     nsubj = 3
-    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
-    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+    mask = np.zeros((dim0, dim1, dim2), dtype=bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=object)
             if i % size == rank
             else None
             for i in range(0, nsubj)]
@@ -70,8 +70,8 @@ def test_searchlight_with_cube_poolsize_1():
     dim0, dim1, dim2 = (50, 50, 50)
     ntr = 30
     nsubj = 3
-    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
-    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+    mask = np.zeros((dim0, dim1, dim2), dtype=bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=object)
             if i % size == rank
             else None
             for i in range(0, nsubj)]
@@ -108,8 +108,8 @@ def test_searchlight_with_diamond():
     dim0, dim1, dim2 = (50, 50, 50)
     ntr = 30
     nsubj = 3
-    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
-    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+    mask = np.zeros((dim0, dim1, dim2), dtype=bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=object)
             if i % size == rank
             else None
             for i in range(0, nsubj)]
@@ -148,8 +148,8 @@ def test_searchlight_with_ball():
     dim0, dim1, dim2 = (50, 50, 50)
     ntr = 30
     nsubj = 3
-    mask = np.zeros((dim0, dim1, dim2), dtype=np.bool)
-    data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+    mask = np.zeros((dim0, dim1, dim2), dtype=bool)
+    data = [np.empty((dim0, dim1, dim2, ntr), dtype=object)
             if i % size == rank
             else None
             for i in range(0, nsubj)]
@@ -286,7 +286,7 @@ def test_correctness():  # noqa: C901
         rank = comm.rank
         size = comm.size
         mask = np.random.choice([True, False], (dim0, dim1, dim2))
-        data = [np.empty((dim0, dim1, dim2, ntr), dtype=np.object)
+        data = [np.empty((dim0, dim1, dim2, ntr), dtype=object)
                 if i % size == rank
                 else None
                 for i in range(0, nsubj)]
