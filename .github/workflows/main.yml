@@ -1,4 +1,10 @@
-on: [pull_request, push]
+on:
+  pull_request:
+  push:
+  release:
+    types:
+      - published
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -51,4 +57,11 @@ jobs:
       - run: |
           export CONDA_HOME=$CONDA
           conda install conda-build
-          .conda/bin/build ${{ matrix.python-version }}
+          out_dir=`mktemp -d -t compilation-XXXXXXXXXX`
+          .conda/bin/build ${{ matrix.python-version }} $out_dir
+          package_path=`find $out_dir -name "*.tar.bz2"`
+          echo "Package path: ${{env.package_path}}"
+      - uses: actions/upload-artifact@v3
+        with:
+          path:  ${{env.package_path}}
+  

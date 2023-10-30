@@ -8,6 +8,12 @@ then
     python_version=3.7
 fi
 
+out_dir=$2
+if [ -z "$out_dir" ]
+then
+    out_dir=conda_build_out_dir/
+fi
+
 export BRAINIAK_HOME=$DIR/../../
 
 # See run-tests.sh
@@ -28,5 +34,5 @@ then
     variants="{'CONDA_BUILD_SYSROOT': ['${sdk_path}']}"
 fi
 
-"$CONDA_HOME"/bin/conda build --python=$python_version \
+"$CONDA_HOME"/bin/conda build --output-folder $out_dir --python=$python_version \
     "$variants_prefix" "$variants" "$DIR"/..
