@@ -48,20 +48,24 @@ jobs:
         python-version: ['3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v2
-      - uses: mamba-org/setup-micromamba@v1
+      - name: Setup micromamba and boa
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-name: test-env
           create-args: >-
             python=${{ matrix.python-version }}
             boa
-      - run: |
+      - name: Build and test package
+        id: build-package
+        run: |
           export CONDA_HOME=$CONDA
-          conda install conda-build
           out_dir=`mktemp -d -t compilation-XXXXXXXXXX`
           .conda/bin/build ${{ matrix.python-version }} $out_dir
           package_path=`find $out_dir -name "*.tar.bz2"`
           echo "Package path: ${package_path}"
+          echo "PACKAGE_PATH=${package_path}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-artifact@v3
         with:
-          path: ${{env.package_path}}
+          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
   
