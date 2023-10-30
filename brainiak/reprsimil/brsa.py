@@ -2322,7 +2322,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                 - np.dot(invX0TAX0_X0TAX_ele.T, dX0TAY_drho1[:, i_v]) \
                 - np.dot(dXTAX0_drho1[i_v, :, :], invX0TAX0_X0TAY_ele) \
                 + np.linalg.multi_dot([invX0TAX0_X0TAX_ele.T,
-                                dX0TAX0_drho1[i_v, :, :], invX0TAX0_X0TAY_ele])
+                                       dX0TAX0_drho1[i_v, :, :],
+                                       invX0TAX0_X0TAY_ele])
             dYTAcorrY_drho1_ele = dYTAY_drho1[i_v] \
                 - np.dot(dX0TAY_drho1[:, i_v], invX0TAX0_X0TAY_ele) * 2\
                 + np.dot(np.dot(invX0TAX0_X0TAY_ele, dX0TAX0_drho1[i_v, :, :]),
@@ -2332,7 +2333,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                    - np.einsum('ij,ij', X0TAX0_i[i_v, :, :],
                                dX0TAX0_drho1[i_v, :, :]) * 0.5
                    - np.einsum('ij,ij', LAMBDA[i_v, :, :],
-                               np.linalg.multi_dot([L.T, dXTAcorrX_drho1_ele, L]))
+                               np.linalg.multi_dot([L.T,
+                                                    dXTAcorrX_drho1_ele, L]))
                    * (SNR2[i_v] * 0.5)
                    - dYTAcorrY_drho1_ele * 0.5 / sigma2[i_v]
                    + SNR2[i_v] / sigma2[i_v]
@@ -2340,8 +2342,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                             YTAcorrXL_LAMBDA_LT[i_v, :])
                    - (0.5 * SNR2[i_v]**2 / sigma2[i_v])
                    * np.linalg.multi_dot([YTAcorrXL_LAMBDA_LT[i_v, :],
-                                   dXTAcorrX_drho1_ele,
-                            YTAcorrXL_LAMBDA_LT[i_v, :]]))
+                                          dXTAcorrX_drho1_ele,
+                                          YTAcorrXL_LAMBDA_LT[i_v, :]]))
 
         deriv = np.empty(np.size(param))
         deriv[idx_param_fitU['Cholesky']] = deriv_L[l_idx]
@@ -2478,7 +2480,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
             deriv_c_space = \
                 (np.linalg.multi_dot([invK_tilde_log_SNR, dK_tilde_dl2_space,
-                        invK_tilde_log_SNR]) / tau2 / 2.0
+                                      invK_tilde_log_SNR]) / tau2 / 2.0
                  - np.sum(inv_K_tilde * dK_tilde_dl2_space) / 2.0)\
                 * dl2_dc_space
 
@@ -2492,8 +2494,9 @@ class BRSA(BaseEstimator, TransformerMixin):
                 dK_tilde_dl2_inten = inten_dist2 * K_major \
                     / 2.0 / l2_inten**2
                 deriv_c_inten = \
-                    (np.linalg.multi_dot([invK_tilde_log_SNR, dK_tilde_dl2_inten,
-                            invK_tilde_log_SNR]) / tau2 / 2.0
+                    (np.linalg.multi_dot([invK_tilde_log_SNR,
+                                          dK_tilde_dl2_inten,
+                                          invK_tilde_log_SNR]) / tau2 / 2.0
                      - np.sum(inv_K_tilde * dK_tilde_dl2_inten) / 2.0)\
                     * dl2_dc_inten
                 # Prior on the length scale
@@ -2573,7 +2576,7 @@ class BRSA(BaseEstimator, TransformerMixin):
 
         deriv_L = np.dot(XTAcorrY, LAMBDA_LTXTAcorrY.T) / sigma2 \
             - np.linalg.multi_dot([XTAcorrXL, LAMBDA_LTXTAcorrY,
-                     LAMBDA_LTXTAcorrY.T]) / sigma2 \
+                                   LAMBDA_LTXTAcorrY.T]) / sigma2 \
             - np.linalg.solve(LAMBDA_i, XTAcorrXL.T).T * n_V
 
         # These terms are used to construct derivative to a1.
@@ -2586,7 +2589,7 @@ class BRSA(BaseEstimator, TransformerMixin):
         dXTAcorrX_drho1 = dXTAX_drho1 - dXTAX0_drho1_invX0TAX0_X0TAX \
             - dXTAX0_drho1_invX0TAX0_X0TAX.T \
             + np.linalg.multi_dot([invX0TAX0_X0TAX.T, dX0TAX0_drho1,
-                     invX0TAX0_X0TAX])
+                                   invX0TAX0_X0TAX])
         dLTXTAcorrXL_drho1 = np.linalg.multi_dot([L.T, dXTAcorrX_drho1, L])
 
         dYTAY_drho1 = - YTDY_diag + 2 * rho1 * YTFY_diag
@@ -2604,7 +2607,7 @@ class BRSA(BaseEstimator, TransformerMixin):
             - np.dot(dXTAX0_drho1, invX0TAX0_X0TAY) \
             - np.dot(invX0TAX0_X0TAX.T, dX0TAY_drho1) \
             + np.linalg.multi_dot([invX0TAX0_X0TAX.T, dX0TAX0_drho1,
-                     invX0TAX0_X0TAY])
+                                   invX0TAX0_X0TAY])
 
         deriv_a1 = 2.0 / (np.pi * (1 + a1**2)) \
             * (n_V * (- n_run * rho1 / (1 - rho1**2)
@@ -2673,8 +2676,9 @@ class BRSA(BaseEstimator, TransformerMixin):
             # preparation for the variable below
             dYTAcorrY_drho1_ele = dYTAY_drho1[i_v] \
                 - np.dot(dX0TAY_drho1[:, i_v], invX0TAX0_X0TAY_ele) * 2\
-                + np.linalg.multi_dot([invX0TAX0_X0TAY_ele, dX0TAX0_drho1[i_v, :, :],
-                         invX0TAX0_X0TAY_ele])
+                + np.linalg.multi_dot([invX0TAX0_X0TAY_ele,
+                                       dX0TAX0_drho1[i_v, :, :],
+                                       invX0TAX0_X0TAY_ele])
             deriv_a1[i_v] = 2 / np.pi / (1 + a1[i_v]**2) \
                 * (- n_run * rho1[i_v] / (1 - rho1[i_v]**2)
                    - np.einsum('ij,ij', X0TAX0_i[i_v, :, :],
@@ -3368,10 +3372,10 @@ class GBRSA(BRSA):
         for i_r in range(np.size(rho1)):
             XTAcorrX[i_r, :, :] -= \
                 np.linalg.multi_dot([XTAX0[i_r, :, :], X0TAX0_i[i_r, :, :],
-                       XTAX0[i_r, :, :].T])
+                                     XTAX0[i_r, :, :].T])
             XTAcorrY[i_r, :, :] -= np.linalg.multi_dot([XTAX0[i_r, :, :],
-                                                 X0TAX0_i[i_r, :, :],
-                                          X0TAY[i_r, :, :]])
+                                                        X0TAX0_i[i_r, :, :],
+                                                        X0TAY[i_r, :, :]])
             YTAcorrY_diag[i_r, :] -= np.sum(
                 X0TAY[i_r, :, :] * np.dot(X0TAX0_i[i_r, :, :],
                                           X0TAY[i_r, :, :]), axis=0)
@@ -3637,8 +3641,8 @@ class GBRSA(BRSA):
                         X0TAX0_i[subj][grid, :, :],
                         (X0TAY[subj][grid, :, :]
                          - np.linalg.multi_dot([XTAX0[subj][grid, :, :].T,
-                                         L_LAMBDA_LT[grid, :, :],
-                                  sXTAcorrY[subj][grid, :, :]])
+                                                L_LAMBDA_LT[grid, :, :],
+                                                sXTAcorrY[subj][grid, :, :]])
                          * all_SNR_grids[grid]))
             if np.max(np.abs(param_change)) < self.tol:
                 logger.info('The change of parameters is smaller than '
@@ -3814,7 +3818,8 @@ class GBRSA(BRSA):
         LAMBDA_i = np.empty((n_grid, rank, rank))
         for grid in np.arange(n_grid):
             LAMBDA_i[grid, :, :] = np.linalg.multi_dot([L.T,
-                                                 s2XTAcorrX[grid, :, :], L])
+                                                        s2XTAcorrX[grid, :, :],
+                                                        L])
         LAMBDA_i += np.identity(rank)
         # dimension: n_grid * rank * rank
         Chol_LAMBDA_i = np.linalg.cholesky(LAMBDA_i)
