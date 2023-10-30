@@ -38,8 +38,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-latest]
-        python-version: [3.8]
+        os: [ubuntu-20.04, macos-latest, macos-latest-xlarge]
+        python-version: [3.8, 3.9, 3.10, 3.11]
     steps:
       - uses: actions/checkout@v2
       - uses: mamba-org/setup-micromamba@v1
