@@ -59,6 +59,7 @@ jobs:
         id: build-package
         run: |
           export CONDA_HOME=$CONDA
+          conda install conda-build
           out_dir=`mktemp -d -t compilation-XXXXXXXXXX`
           .conda/bin/build ${{ matrix.python-version }} $out_dir
           package_path=`find $out_dir -name "*.tar.bz2"`
