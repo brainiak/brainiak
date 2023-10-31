@@ -62,9 +62,7 @@ jobs:
           conda install conda-build
           out_dir="${{ matrix.os }}-build"
           .conda/bin/build ${{ matrix.python-version }} $out_dir
-          package_path=`find $out_dir -name "*.tar.bz2"`
-          echo "Package path: ${package_path}"
-          echo "PACKAGE_PATH=${package_path}" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_PATH=${out_dir}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v3
         with:
