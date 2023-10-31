@@ -84,20 +84,10 @@ jobs:
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
 
       - name: List files in artifact
-        run: |
-          ls -l ${{ steps.build-package.outputs.PACKAGE_PATH }}
+        run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
 
       - name: Upload to Anaconda
         # if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          for dirname in ${{ steps.build-package.outputs.PACKAGE_PATH }}/*; do
-            if [ -d "$dirname" ]; then
-              for filename in $dirname/*; do
-                if [ "${filename: -8}" == ".tar.bz2" ]; then
-                  echo "anaconda upload $filename"
-                  # anaconda upload $filename
-                fi
-              done
-            fi
-          done
+          find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
