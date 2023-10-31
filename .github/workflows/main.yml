@@ -75,7 +75,7 @@ jobs:
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-#    if: github.event_name == 'release' && github.event.action == 'published'
+   if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
       - uses: actions/download-artifact@v3
@@ -87,7 +87,7 @@ jobs:
         run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
 
       - name: Upload to Anaconda
-        # if: github.event_name == 'release' && github.event.action == 'published'
+        if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
           find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
