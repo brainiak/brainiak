@@ -44,7 +44,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v2
@@ -90,7 +90,16 @@ jobs:
           ls -l ${{ steps.build-package.outputs.PACKAGE_PATH }}
 
       - name: Upload to Anaconda
-        if: github.event_name == 'release' && github.event.action == 'published'
+        # if: github.event_name == 'release' && github.event.action == 'published'
         run: |
-          export CONDA_HOME=$CONDA
-          anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload ${{ steps.build-package.outputs.PACKAGE_PATH }} --force
+          export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
+          SHORT_SHA="$(git rev-parse --short $GITHUB_SHA)"
+          for dirname in ${{ steps.build-package.outputs.PACKAGE_PATH }}/*; do
+            if [ -d "$dirname" ]; then
+              for filename in $dirname/*; do
+                if [ "${filename: -8}" == ".tar.bz2" ]; then
+                  echo "anaconda upload $filename"
+                  # anaconda upload $filename
+                fi
+              done
+            fi
