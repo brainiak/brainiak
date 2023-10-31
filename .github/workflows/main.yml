@@ -93,7 +93,6 @@ jobs:
         # if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          SHORT_SHA="$(git rev-parse --short $GITHUB_SHA)"
           for dirname in ${{ steps.build-package.outputs.PACKAGE_PATH }}/*; do
             if [ -d "$dirname" ]; then
               for filename in $dirname/*; do
