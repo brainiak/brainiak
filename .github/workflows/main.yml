@@ -69,4 +69,28 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
-  
+
+  publish_conda:
+    needs: [conda]
+    name: Publish to Anaconda
+    environment: anaconda
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+#    if: github.event_name == 'release' && github.event.action == 'published'
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
+
+      - name: List files in artifact
+        run: |
+          ls -l ${{ steps.build-package.outputs.PACKAGE_PATH }}
+
+      - name: Upload to Anaconda
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          export CONDA_HOME=$CONDA
+          anaconda -t ${{ secrets.ANACONDA_TOKEN }} upload ${{ steps.build-package.outputs.PACKAGE_PATH }} --force
