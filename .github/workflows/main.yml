@@ -1,4 +1,10 @@
-on: [pull_request, push]
+on:
+  pull_request:
+  push:
+  release:
+    types:
+      - published
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -38,17 +44,79 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-latest]
-        python-version: [3.8]
+        os: [ubuntu-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v2
-      - uses: mamba-org/setup-micromamba@v1
+      - name: Setup micromamba and boa
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-name: test-env
           create-args: >-
             python=${{ matrix.python-version }}
             boa
-      - run: |
+      - name: Build and test package
+        id: build-package
+        run: |
           export CONDA_HOME=$CONDA
           conda install conda-build
-          .conda/bin/build ${{ matrix.python-version }}
+          out_dir="${{ matrix.os }}-build"
+          .conda/bin/build ${{ matrix.python-version }} $out_dir
+          echo "PACKAGE_PATH=${out_dir}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
+
+  publish_conda:
+    needs: [conda]
+    name: Publish to Anaconda
+    environment: anaconda
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: artifact
+          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
+
+      - name: List files in artifact
+        run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
+
+      - name: Upload to Anaconda
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
+          find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
+
+  dist:
+    name: Distribution build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: hynek/build-and-inspect-python-package@v1
+        
+  publish_pypi:
+    name: Publish to PyPI
+    needs: [dist]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/brainiak
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: Packages
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
