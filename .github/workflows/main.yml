@@ -60,11 +60,9 @@ jobs:
         run: |
           export CONDA_HOME=$CONDA
           conda install conda-build
-          out_dir=`mktemp -d -t compilation-XXXXXXXXXX`
+          out_dir="${{ matrix.os }}-build"
           .conda/bin/build ${{ matrix.python-version }} $out_dir
-          package_path=`find $out_dir -name "*.tar.bz2"`
-          echo "Package path: ${package_path}"
-          echo "PACKAGE_PATH=${package_path}" >> "$GITHUB_OUTPUT"
+          echo "PACKAGE_PATH=${out_dir}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v3
         with:
@@ -86,23 +84,13 @@ jobs:
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
 
       - name: List files in artifact
-        run: |
-          ls -l ${{ steps.build-package.outputs.PACKAGE_PATH }}
+        run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
 
       - name: Upload to Anaconda
-        # if: github.event_name == 'release' && github.event.action == 'published'
+        if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          for dirname in ${{ steps.build-package.outputs.PACKAGE_PATH }}/*; do
-            if [ -d "$dirname" ]; then
-              for filename in $dirname/*; do
-                if [ "${filename: -8}" == ".tar.bz2" ]; then
-                  echo "anaconda upload $filename"
-                  # anaconda upload $filename
-                fi
-              done
-            fi
-          done
+          find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
 
   dist:
     name: Distribution build
@@ -118,6 +106,9 @@ jobs:
   publish_pypi:
     name: Publish to PyPI
     needs: [dist]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/brainiak
     permissions:
       id-token: write
     runs-on: ubuntu-latest
