@@ -103,3 +103,32 @@ jobs:
               done
             fi
           done
+
+  dist:
+    name: Distribution build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: hynek/build-and-inspect-python-package@v1
+        
+  publish_pypi:
+    name: Publish to PyPI
+    needs: [dist]
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sp-repo-review
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: Packages
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
