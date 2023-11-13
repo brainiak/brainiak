@@ -77,7 +77,7 @@ jobs:
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-#    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
       - uses: actions/download-artifact@v3
@@ -118,9 +118,6 @@ jobs:
   publish_pypi:
     name: Publish to PyPI
     needs: [dist]
-    environment:
-      name: pypi
-      url: https://pypi.org/p/sp-repo-review
     permissions:
       id-token: write
     runs-on: ubuntu-latest
