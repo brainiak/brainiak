@@ -1,10 +1,7 @@
 on:
   pull_request:
   push:
-  release:
-    types:
-      - published
-
+  
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -69,13 +66,13 @@ jobs:
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
 
   publish_conda:
-    needs: [conda]
+    needs: [conda, pypi]
     name: Publish to Anaconda
     environment: anaconda
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
 
     steps:
       - uses: actions/download-artifact@v3
@@ -87,7 +84,6 @@ jobs:
         run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
 
       - name: Upload to Anaconda
-        if: github.event_name == 'release' && github.event.action == 'published'
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
           find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
@@ -105,14 +101,14 @@ jobs:
         
   publish_pypi:
     name: Publish to PyPI
-    needs: [dist]
+    needs: [dist, pypi, conda]
     environment:
       name: pypi
       url: https://pypi.org/p/brainiak
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v3
         with:
