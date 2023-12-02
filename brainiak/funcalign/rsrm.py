@@ -97,7 +97,8 @@ class RSRM(BaseEstimator, TransformerMixin):
 
         The number of voxels may be different between subjects. However, the
         number of timepoints for the alignment data must be the same across
-        subjects.
+        subjects. Note that unlike SRM, DetSRM does not handle vector shifts
+        (intercepts) across subjects.
 
         The Robust Shared Response Model is approximated using the
         Block-Coordinate Descent (BCD) algorithm proposed in [Turek2017]_.
@@ -380,7 +381,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         func = .0
         for i in range(subjs):
             func += 0.5 * np.sum((X[i] - W[i].dot(R) - S[i])**2) \
-                    + gamma * np.sum(np.abs(S[i]))
+                + gamma * np.sum(np.abs(S[i]))
         return func
 
     @staticmethod
@@ -473,7 +474,7 @@ class RSRM(BaseEstimator, TransformerMixin):
         # Project the subject data with the individual component removed into
         # the shared subspace and average over all subjects.
         for i in range(subjs):
-            R += W[i].T.dot(X[i]-S[i])
+            R += W[i].T.dot(X[i] - S[i])
         R /= subjs
         return R
 

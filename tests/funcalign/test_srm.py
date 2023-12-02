@@ -44,7 +44,7 @@ def test_can_instantiate(tmp_path):
     W = []
     Q, R = np.linalg.qr(np.random.random((voxels, features)))
     W.append(Q)
-    X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+    X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
@@ -59,7 +59,7 @@ def test_can_instantiate(tmp_path):
     for subject in range(1, subjects):
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
-        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+        X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     # Check that runs with 2 subject
     s.fit(X)
@@ -81,7 +81,7 @@ def test_can_instantiate(tmp_path):
         difference = np.linalg.norm(X[subject] - s.w_[subject].dot(s.s_),
                                     'fro')
         datanorm = np.linalg.norm(X[subject], 'fro')
-        assert difference/datanorm < 1.0, "Model seems incorrectly computed."
+        assert difference / datanorm < 1.0, "Model seems incorrectly computed."
     assert s.s_.shape[0] == features, (
         "Invalid computation of SRM! (wrong # features in S)")
     assert s.s_.shape[1] == samples, (
@@ -106,7 +106,7 @@ def test_can_instantiate(tmp_path):
 
     # Check that it does not run without enough samples (TRs).
     with pytest.raises(ValueError):
-        s.set_params(features=(samples+1))
+        s.set_params(features=(samples + 1))
         s.fit(X)
     print("Test: not enough samples")
 
@@ -162,12 +162,12 @@ def test_new_subject():
     W = []
     Q, R = np.linalg.qr(np.random.random((voxels, features)))
     W.append(Q)
-    X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+    X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     for subject in range(1, subjects):
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
-        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+        X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
@@ -182,11 +182,15 @@ def test_new_subject():
         s.transform_subject(X[0].T)
 
     # Check that it does run to compute a new subject
-    new_w = s.transform_subject(X[0])
+    new_w, new_mu = s.transform_subject(X[0])
+    np.shape(new_w)
+    np.shape(new_mu)
     assert new_w.shape[1] == features, (
-            "Invalid computation of SRM! (wrong # features for new subject)")
+        "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
-            "Invalid computation of SRM! (wrong # voxels for new subject)")
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
 
     # Check that these analyses work with the deterministic SRM too
     ds = brainiak.funcalign.srm.DetSRM(n_iter=5, features=features)
@@ -204,11 +208,13 @@ def test_new_subject():
         ds.transform_subject(X[0].T)
 
     # Check that it does run to compute a new subject
-    new_w = ds.transform_subject(X[0])
+    new_w, new_mu = ds.transform_subject(X[0])
     assert new_w.shape[1] == features, (
-            "Invalid computation of SRM! (wrong # features for new subject)")
+        "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
-            "Invalid computation of SRM! (wrong # voxels for new subject)")
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
 
 
 def test_det_srm():
@@ -239,7 +245,7 @@ def test_det_srm():
     W = []
     Q, R = np.linalg.qr(np.random.random((voxels, features)))
     W.append(Q)
-    X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+    X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     # Check that transform does NOT run before fitting the model
     with pytest.raises(NotFittedError):
@@ -254,7 +260,7 @@ def test_det_srm():
     for subject in range(1, subjects):
         Q, R = np.linalg.qr(np.random.random((voxels, features)))
         W.append(Q)
-        X.append(Q.dot(S) + 0.1*np.random.random((voxels, samples)))
+        X.append(Q.dot(S) + 0.1 * np.random.random((voxels, samples)))
 
     # Check that runs with 2 subject
     model.fit(X)
@@ -274,7 +280,7 @@ def test_det_srm():
                                     - model.w_[subject].dot(model.s_),
                                     'fro')
         datanorm = np.linalg.norm(X[subject], 'fro')
-        assert difference/datanorm < 1.0, "Model seems incorrectly computed."
+        assert difference / datanorm < 1.0, "Model seems incorrectly computed."
     assert model.s_.shape[0] == features, (
         "Invalid computation of DetSRM! (wrong # features in S)")
     assert model.s_.shape[1] == samples, (
@@ -294,11 +300,13 @@ def test_det_srm():
             "Invalid computation of DetSRM! (wrong # samples after transform)")
 
     # Check that it does run to compute a new subject
-    new_w = model.transform_subject(X[0])
+    new_w, new_mu = model.transform_subject(X[0])
     assert new_w.shape[1] == features, (
-            "Invalid computation of SRM! (wrong # features for new subject)")
+        "Invalid computation of SRM! (wrong # features for new subject)")
     assert new_w.shape[0] == voxels, (
-            "Invalid computation of SRM! (wrong # voxels for new subject)")
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
+    assert new_mu.shape[0] == voxels, (
+        "Invalid computation of SRM! (wrong # voxels for new subject)")
 
     # Check that it does NOT run with non-matching number of subjects
     with pytest.raises(ValueError):
@@ -307,7 +315,7 @@ def test_det_srm():
 
     # Check that it does not run without enough samples (TRs).
     with pytest.raises(ValueError):
-        model.set_params(features=(samples+1))
+        model.set_params(features=(samples + 1))
         model.fit(X)
     print("Test: not enough samples")
 
@@ -317,3 +325,99 @@ def test_det_srm():
     with pytest.raises(ValueError):
         model.fit(X)
     print("Test: different number of samples per subject")
+
+
+def test_vector_shift_srm():
+    import brainiak.funcalign.srm
+    import numpy as np
+    from scipy.linalg import qr
+    np.random.seed(0)
+    nvoxels = 2
+    ntps = 4
+    nsubjs = 3
+    # initialize S
+    S = np.random.uniform(size=(nvoxels, ntps))
+    # preallocate
+    W_truth = [None] * nsubjs
+    X = [None] * nsubjs
+    intercept = [None] * nsubjs
+    # make simulated data, such that each subject is
+    # X_i = W_i.T @ S + intercept
+    # ... where W_i is a random ortho matrix and intercept is a random vector
+    for i in range(nsubjs):
+        # sample an ortho matrix
+        H = np.random.randn(nvoxels, nvoxels)
+        W_truth[i], _ = qr(H)
+        # sample an intercept
+        intercept[i] = np.random.randn(nvoxels)
+        # simulate the i-th subject
+        X[i] = W_truth[i].T @ S + intercept[i][:, np.newaxis]
+    # make a new subject
+    # sample an ortho matrix
+    H = np.random.randn(nvoxels, nvoxels)
+    W_new, _ = qr(H)
+    # sample an intercept
+    intercept_new = np.random.randn(nvoxels)
+    # simulate a new subject
+    X_new = W_new.T @ S + intercept_new[:, np.newaxis]
+    # fit SRM on the training set, X
+    srm = brainiak.funcalign.srm.SRM(features=nvoxels)
+    X_shared = srm.fit_transform(X)
+    # map the new subject to the pre-trained SRM -- estimate W and intercept
+    W_hat, mu_hat = srm.transform_subject(X_new)
+    SX_new = W_hat.T @ (X_new - mu_hat[:, np.newaxis])
+    # check all subjects in the training set are aligned (small frobenius diff)
+    for i in np.arange(nsubjs):
+        assert np.linalg.norm(X_shared[0] - X_shared[i], ord='fro') < 1e-10, (
+            'subject is misaligned with subject 0')
+    # check the new subject is also aligned (small frobenius diff)
+    assert np.linalg.norm(X_shared[0] - SX_new, ord='fro') < 1e-10, (
+        'the new subject is misaligned with subject 0')
+
+
+def test_vector_shift_detsrm():
+    import brainiak.funcalign.srm
+    import numpy as np
+    from scipy.linalg import qr
+    np.random.seed(0)
+    nvoxels = 2
+    ntps = 4
+    nsubjs = 3
+    # initialize S
+    S = np.random.uniform(size=(nvoxels, ntps))
+    # preallocate
+    W_truth = [None] * nsubjs
+    X = [None] * nsubjs
+    intercept = [None] * nsubjs
+    # make simulated data, such that each subject is
+    # X_i = W_i.T @ S + intercept
+    # ... where W_i is a random ortho matrix and intercept is a random vector
+    for i in range(nsubjs):
+        # sample an ortho matrix
+        H = np.random.randn(nvoxels, nvoxels)
+        W_truth[i], _ = qr(H)
+        # sample an intercept
+        intercept[i] = np.random.randn(nvoxels)
+        # simulate the i-th subject
+        X[i] = W_truth[i].T @ S + intercept[i][:, np.newaxis]
+    # make a new subject
+    # sample an ortho matrix
+    H = np.random.randn(nvoxels, nvoxels)
+    W_new, _ = qr(H)
+    # sample an intercept
+    intercept_new = np.random.randn(nvoxels)
+    # simulate a new subject
+    X_new = W_new.T @ S + intercept_new[:, np.newaxis]
+    # fit SRM on the training set, X
+    detsrm = brainiak.funcalign.srm.DetSRM(features=nvoxels)
+    X_shared = detsrm.fit_transform(X)
+    # map the new subject to the pre-trained SRM -- estimate W and intercept
+    W_hat, mu_hat = detsrm.transform_subject(X_new)
+    SX_new = W_hat.T @ (X_new - mu_hat[:, np.newaxis])
+    # check all subjects in the training set are aligned (small frobenius diff)
+    for i in np.arange(nsubjs):
+        assert np.linalg.norm(X_shared[0] - X_shared[i], ord='fro') < 1e-10, (
+            'subject is misaligned with subject 0')
+    # check the new subject is also aligned (small frobenius diff)
+    assert np.linalg.norm(X_shared[0] - SX_new, ord='fro') < 1e-10, (
+        'the new subject is misaligned with subject 0')
