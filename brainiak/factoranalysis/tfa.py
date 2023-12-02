@@ -150,7 +150,7 @@ class TFA(BaseEstimator):
             max_num_voxel=5000,
             seed=100,
             verbose=False):
-        self.miter = max_iter
+        self.max_iter = max_iter
         self.threshold = threshold
         self.K = K
         self.nlss_method = nlss_method
@@ -858,7 +858,7 @@ class TFA(BaseEstimator):
         inner_converged = False
         np.random.seed(self.seed)
         n = 0
-        while n < self.miter and not inner_converged:
+        while n < self.max_iter and not inner_converged:
             self._fit_tfa_inner(
                 data,
                 R,
