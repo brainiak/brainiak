@@ -42,3 +42,4 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
+version_file = "brainiak/_version.py"
