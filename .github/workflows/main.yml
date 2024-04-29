@@ -2,10 +2,9 @@ on:
   pull_request:
   push:
   
-
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   pypi:
@@ -14,8 +13,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-14]
+        os: [ubuntu-20.04, macos-latest]
         python-version: ["3.9", "3.10", "3.11"]
+      fail-fast: false
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
