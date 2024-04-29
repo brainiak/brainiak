@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "brainiak"
 description = "Brain Imaging Analysis Kit"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 readme = "README.rst"
 license = { file = "LICENSE" }
 authors = [
