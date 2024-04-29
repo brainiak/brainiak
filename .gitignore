@@ -1,3 +1,7 @@
+brainiak/_version.py
+
+venv/
+
 *.iml
 *.eggs
 *.mat

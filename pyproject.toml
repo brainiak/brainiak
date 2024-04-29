@@ -1,42 +1,189 @@
+[build-system]
+requires = [
+    "setuptools>=60", 
+    "setuptools_scm>=8.0",
+    "wheel",
+    "pybind11>=2.9.0",
+    "scipy!=1.0.0",
+    "cython",
+    "oldest-supported-numpy",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brainiak"
+description = "Brain Imaging Analysis Kit"
+requires-python = ">=3.7"
+readme = "README.rst"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Princeton Neuroscience Institute and Intel Corporation", email = "mihai.capota@intel.com" }
+]
+maintainers = [
+    { name = "Mihai Capota", email = "mihai.capota@intel.com" }
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: C++",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+    "Typing :: Typed"
+]
+keywords = ["neuroscience", "algorithm", "fMRI", "distributed", "scalable"]
+
+dynamic = ["version"]
+
+dependencies = [
+    "numpy<=1.23.1",
+    "mpi4py>=3",              # https://travis-ci.org/brainiak/brainiak/jobs/545838666
+    "nitime",
+    "scikit-learn>=0.18",
+    "scipy!=1.0.0",
+    "statsmodels",
+    "pymanopt<=0.2.5",
+    "theano>=1.0.4",          # See https://github.com/Theano/Theano/pull/6671
+    "psutil",
+    "nibabel",
+    "joblib",
+    "wheel",                 # See https://github.com/astropy/astropy-helpers/issues/501
+    "pydicom"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "coverage",
+    "flake8",
+    "flake8-print",
+    "mypy",
+    "myst-nb",
+    "restructuredtext-lint",
+    "setuptools_scm",
+    "sphinx",
+    "sphinx_rtd_theme",
+    "towncrier",
+    "numdifftools",
+    "testbook"
+]
+
+matnormal = [
+    'tensorflow<=2.12.0',
+    'tensorflow_probability<=0.15.0',
+]
+
+examples = [
+    "nilearn",
+    "nxviz<=0.6.3",
+    "nltools",
+    "timecorr",
+    "seaborn",
+    "holoviews",
+    "pyOpenSSL",
+    "awscli",
+    "bcrypt",
+    "indexed_gzip",
+    "inflect",
+    "ipython",
+    "jupyter",
+    "mypy",
+    "nibabel",
+    "nilearn",
+    "nodejs",
+    "numpy",
+    "pydicom",
+    "requests",
+    "rpyc",
+    "scikit-learn",
+    "scipy",
+    "toml",
+    "tornado",
+    "websocket-client",
+    "wsaccel",
+    "inotify",
+    "pybids",
+    "watchdog"
+]
+
+all=['brainiak[dev,matnormal,examples]']
+
+[project.urls]
+Homepage = "http://brainiak.org"
+Documentation = "https://brainiak.org/docs/"
+"Bug Tracker" = "https://github.com/brainiak/brainiak/issues"
+Changelog = "https://brainiak.org/docs/release_notes.html"
+Chat = "https://gitter.im/brainiak/brainiak"
+
+[tool.setuptools_scm]
+write_to = "brainiak/_version.py"
+
+[tool.flake8]
+max-complexity = 10
+extend-ignore = [
+    "D",  # Docstrings
+    "E721",
+    "E231"
+]
+
+[tool.coverage.run]
+source = ["brainiak"]
+branch = true
+concurrency = "multiprocessing"
+parallel = true
+
+[tool.coverage.report]
+fail_under = 90
+
+[tool.pytest.ini_options]
+addopts = "-s --durations=0"
+markers = [
+    "notebook: marks example notebook tests",
+]
+
 [tool.towncrier]
 directory = "docs/newsfragments"
 package = "brainiak"
 template = "docs/newsfragments/_template.jinja"
 title_format = "BrainIAK {version} ({project_date})"
 
-    [[tool.towncrier.type]]
-    directory = "feature"
-    name = "Features"
-    showcontent = true
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features"
+showcontent = true
 
-    [[tool.towncrier.type]]
-    directory = "bugfix"
-    name = "Bugfixes"
-    showcontent = true
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bugfixes"
+showcontent = true
 
-    [[tool.towncrier.type]]
-    directory = "doc"
-    name = "Documentation improvements"
-    showcontent = true
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Documentation improvements"
+showcontent = true
 
-    [[tool.towncrier.type]]
-    directory = "removal"
-    name = "Deprecations and removals"
-    showcontent = true
-
-[tool.pytest.ini_options]
-markers = [
-    "notebook: marks example notebook tests",
-]
-
-[build-system]
-requires = [
-    "setuptools>=42", 
-    "wheel",
-    "pybind11>=2.9.0",
-    "scipy!=1.0.0",
-    "cython",
-    "oldest-supported-numpy",
-    "setuptools_scm",
-]
-build-backend = "setuptools.build_meta"
+[[tool.towncrier.type]]
+directory = "removal"
+name = "Deprecations and removals"
+showcontent = true

@@ -5,13 +5,7 @@ from setuptools.command.build_ext import build_ext
 import os
 import site
 import sys
-import setuptools
 from copy import deepcopy
-
-assert sys.version_info >= (3, 5), (
-    "Please use Python version 3.5 or higher, "
-    "lower versions are not supported"
-)
 
 # https://github.com/pypa/pip/issues/7953#issuecomment-645133255
 site.ENABLE_USER_SITE = "--user" in sys.argv[1:]
@@ -78,67 +72,7 @@ class BuildExt(build_ext):
         ])
 
 
-extras = {
-    "dev": [
-		"pytest",
-		"coverage",
-		"flake8",
-		"flake8-print",
-		"mypy",
-		"myst-nb",
-		"restructuredtext-lint",
-		"setuptools_scm",
-		"sphinx",
-		"sphinx_rtd_theme",
-		"towncrier",
-		"numdifftools",
-		"testbook"
-	],
-
-	'matnormal': [
-            'tensorflow<=2.12.0',
-            'tensorflow_probability<=0.15.0',
-        ],
-
-	# All requirements for notebook examples in docs/examples
-    "examples": [
-		"nilearn",
-		"nxviz<=0.6.3",
-		"nltools",
-		"timecorr",
-		"seaborn",
-		"holoviews",
-		"pyOpenSSL",
-		"awscli",
-		"bcrypt",
-		"indexed_gzip",
-		"inflect",
-		"ipython",
-		"jupyter",
-                "mypy",
-		"nibabel",
-		"nilearn",
-		"nodejs",
-		"numpy",
-		"pydicom",
-		"requests",
-		"rpyc",
-		"scikit-learn",
-		"scipy",
-		"toml",
-		"tornado",
-		"websocket-client",
-		"wsaccel",
-		"inotify",
-		"pybids",
-		"watchdog"
-	],
-}
-extras["all"] = sum(extras.values(), [])
-
-
 setup(
-    extras_require=extras,
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
 )
