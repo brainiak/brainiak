@@ -29,6 +29,7 @@ jobs:
           ./pr-check.sh
       - if: ${{ contains(matrix.os, 'macos') }}
         run: |
+          brew install libomp
           export CLANG_PREFIX=$(brew --prefix llvm@15)
           export CC=$CLANG_PREFIX/bin/clang
           export CXX=$CLANG_PREFIX/bin/clang++
