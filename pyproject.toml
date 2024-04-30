@@ -139,18 +139,10 @@ Chat = "https://gitter.im/brainiak/brainiak"
 [tool.setuptools_scm]
 write_to = "brainiak/_version.py"
 
-[tool.flake8]
-max-complexity = 10
-extend-ignore = [
-    "D",  # Docstrings
-    "E721",
-    "E231"
-]
-
 [tool.coverage.run]
 source = ["brainiak"]
 branch = true
-concurrency = "multiprocessing"
+concurrency = ["multiprocessing"]
 parallel = true
 
 [tool.coverage.report]
