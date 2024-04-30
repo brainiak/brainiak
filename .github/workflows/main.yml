@@ -14,8 +14,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-      fail-fast: false
+        python-version: ["3.9", "3.10", "3.11"]
+      fail-fast: true
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -44,9 +44,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11']
     steps:
       - uses: actions/checkout@v2
+      
+      - if: ${{ contains(matrix.os, 'macos') }}
+        uses: conda-incubator/setup-miniconda@v3
+      
       - name: Setup micromamba and boa
         uses: mamba-org/setup-micromamba@v1
         with:
