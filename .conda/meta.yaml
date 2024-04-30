@@ -47,7 +47,7 @@ requirements:
 
   run:
     - python
-    - numpy<=1.23.1
+    - numpy
     - mpich
     - llvm-openmp
     - tensorflow
