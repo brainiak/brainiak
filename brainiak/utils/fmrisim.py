@@ -1094,7 +1094,7 @@ def _calc_sfnr(volume,
     Returns
     -------
 
-    snr : float 
+    snr : float
         The SFNR of the volume
 
     """
@@ -1163,7 +1163,7 @@ def _calc_snr(volume,
     Returns
     -------
 
-    snr : float 
+    snr : float
         The SNR of the volume
 
     """
@@ -3320,7 +3320,7 @@ def generate_1d_gaussian_rfs(n_voxels, feature_resolution, feature_range,
         voxel_tuning = np.linspace(range_start, range_stop, n_voxels + 1)
         voxel_tuning = voxel_tuning[0:-1]
         voxel_tuning = np.floor(voxel_tuning).astype(int)
-    gaussian = signal.gaussian(feature_resolution, rf_size)
+    gaussian = signal.windows.gaussian(feature_resolution, rf_size)
     voxel_rfs = np.zeros((n_voxels, feature_resolution))
     for i in range(0, n_voxels):
         voxel_rfs[i, :] = np.roll(gaussian, voxel_tuning[i] -
