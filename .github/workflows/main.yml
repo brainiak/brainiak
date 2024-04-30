@@ -22,8 +22,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - uses: mpi4py/setup-mpi@v1
-      - name: Setup tmate session
-        uses: mxschmitt/action-tmate@v3
       - run: |
           python3 -m pip install -U pip
       - if: ${{ contains(matrix.os, 'ubuntu') }}
