@@ -37,13 +37,13 @@ requirements:
     - pip
     - mpich
     - llvm-openmp
-    - setuptools>=42 
+    - setuptools>=60 
     - wheel
     - pybind11>=2.9.0
     - scipy!=1.0.0
     - cython
-    - numpy<=1.23.1
-    - setuptools_scm
+    - numpy
+    - setuptools_scm>=8.0
 
   run:
     - python
