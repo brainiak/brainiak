@@ -37,7 +37,7 @@ jobs:
           -Wl,-rpath,$CLANG_PREFIX/lib $LDFLAGS -L/usr/local/opt/libomp/lib"
           export CPPFLAGS="-I$CLANG_PREFIX/include $CPPFLAGS -I/usr/local/opt/libomp/include"
           ./pr-check.sh
-      - uses: codecov/codecov-action@v1
+      # - uses: codecov/codecov-action@v1
   conda:
     runs-on: ${{ matrix.os }}
     strategy:
