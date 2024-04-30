@@ -17,7 +17,7 @@
 set -e
 set -o pipefail
 
-flake8 --config setup.cfg brainiak
+flake8 --config .flake8 brainiak
 flake8 --config tests/.flake8 tests
 mypy --ignore-missing-imports brainiak tests/[!_]*
 rst-lint ./*.rst | { grep -v "is clean.$" || true; }
