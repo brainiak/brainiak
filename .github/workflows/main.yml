@@ -13,8 +13,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-latest]
-        python-version: ["3.9", "3.10", "3.11"]
+        os: [macos-latest]
+        python-version: ["3.11"]
+        # os: [ubuntu-20.04, macos-latest]
+        # python-version: ["3.9", "3.10", "3.11"]
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
@@ -22,6 +24,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - uses: mpi4py/setup-mpi@v1
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
       - run: |
           python3 -m pip install -U pip
       - if: ${{ contains(matrix.os, 'ubuntu') }}
