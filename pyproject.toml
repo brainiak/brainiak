@@ -158,7 +158,9 @@ before-all = [
 [tool.cibuildwheel.macos]
 before-all = [
     "brew install libomp mpi4py",
+    "export MPICC=$(which mpicc)"
 ]
+environment = {CC='/usr/bin/clang', CXX='/usr/bin/clang++' }
 
 [tool.coverage.run]
 source = ["brainiak"]
