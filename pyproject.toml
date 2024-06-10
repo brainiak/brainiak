@@ -152,12 +152,18 @@ skip = ["*-win32", "pp*"]
 
 [tool.cibuildwheel.linux]
 before-all = [
-    "yum -y install mpich",
-    "export MPICC=$(which mpicc)"
+    "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
 before-test = [
-    "yum -y install mpich",
-    "export MPICC=$(which mpicc)"
+    "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+]
+
+[tool.cibuildwheel.windows]
+before-all = [
+    "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+]
+before-test = [
+    "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
 
 [tool.cibuildwheel.macos]
