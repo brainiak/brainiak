@@ -153,12 +153,15 @@ skip = ["*-win32", "pp*"]
 [tool.cibuildwheel.linux]
 before-all = [
     "yum -y install mpich",
+    "export MPICC=$(which mpicc)"
 ]
 
 [tool.cibuildwheel.macos]
 before-all = [
-    "brew install libomp mpi4py",
-    "export MPICC=$(which mpicc)"
+    "brew install libomp mpi4py llvm",
+    "export MPICC=$(which mpicc)",
+    "export CC=$(brew --prefix llvm)/bin/clang",
+    "export CXX=$(brew --prefix llvm)/bin/clang++"
 ]
 environment = {CC='/usr/bin/clang', CXX='/usr/bin/clang++' }
 
