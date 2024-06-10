@@ -145,6 +145,9 @@ write_to = "brainiak/_version.py"
  sdist.include = ["brainiak/_version.py"]
  cmake.build-type = "Release"
 
+[tool.cibuildwheel]
+test-requires = "pytest"
+test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 
 [tool.coverage.run]
 source = ["brainiak"]
