@@ -124,7 +124,10 @@ factor_native(py::array_t<double, py::array::c_style | py::array::forcecast> F_a
   int64_t *Iy = (int64_t*) Iy_buf.ptr;
   int64_t *Iz = (int64_t*) Iz_buf.ptr;
 
-  double invW[K];
+  std::vector<double> invW(K);
+  std::vector<double> Tx(nx);
+  std::vector<double> Ty(ny);
+  std::vector<double> Tz(nz);
   double tmp1 = 0.0;
   double tmp2 = 0.0;
   double tmp3 = 0.0;
@@ -132,9 +135,7 @@ factor_native(py::array_t<double, py::array::c_style | py::array::forcecast> F_a
   #pragma omp parallel for
   for(int k = 0 ; k < K; k++)
   {
-      double Tx[nx];
-      double Ty[ny];
-      double Tz[nz];
+      
       invW[k] = 1.0/W[k];
       for(int x = 0 ; x < nx;  x++)
       {   
