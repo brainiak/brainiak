@@ -31,12 +31,8 @@ jobs:
         run: |
           brew install libomp llvm
           export CLANG_PREFIX=$(brew --prefix llvm)
-          export OMP_PREFIX=$(brew --prefix libomp)
           export CC=$CLANG_PREFIX/bin/clang
           export CXX=$CLANG_PREFIX/bin/clang++
-          export LDFLAGS="-L$CLANG_PREFIX/lib
-          -Wl,-rpath,$CLANG_PREFIX/lib $LDFLAGS -L$OMP_PREFIX/lib"
-          export CPPFLAGS="-I$CLANG_PREFIX/include $CPPFLAGS -I$OMP_PREFIX/include"
           ./pr-check.sh
       # - uses: codecov/codecov-action@v1
 
@@ -45,8 +41,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # os: [ubuntu-latest, windows-latest, macos-13, macos-14]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4

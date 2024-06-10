@@ -148,10 +148,11 @@ write_to = "brainiak/_version.py"
 [tool.cibuildwheel]
 test-requires = "pytest"
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
+skip = ["*-win32", "pp*"]
 
 [tool.cibuildwheel.linux]
 before-all = [
-    "yum install mpich",
+    "yum -y install mpich",
 ]
 
 [tool.cibuildwheel.macos]
