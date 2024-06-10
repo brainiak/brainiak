@@ -17,7 +17,6 @@
 #include "Python.h"
 #include <omp.h>
 #include <iostream>
-#include <sys/time.h>
 #include <math.h>
 #include <algorithm>
 #include <inttypes.h>
