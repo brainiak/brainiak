@@ -17,11 +17,12 @@
 #include "Python.h"
 #include <omp.h>
 #include <iostream>
-#include <sys/time.h>
-#include <math.h>
+#include <cmath>
 #include <inttypes.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+
+using namespace std;
 
 namespace py = pybind11;
 
