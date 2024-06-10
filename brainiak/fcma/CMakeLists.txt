@@ -7,8 +7,12 @@ add_custom_command(
   DEPENDS cython_blas.pyx
   VERBATIM)
 
+find_package(OpenMP REQUIRED)
+
 python_add_library(cython_blas MODULE cython_blas.c WITH_SOABI)
 pybind11_add_module(fcma_extension MODULE src/fcma_extension.cc)
+
+target_link_libraries(fcma_extension PRIVATE OpenMP::OpenMP_CXX)
 
 install(TARGETS cython_blas DESTINATION ${SKBUILD_PROJECT_NAME}/fcma)
 install(TARGETS fcma_extension LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME}/fcma)
