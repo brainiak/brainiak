@@ -155,6 +155,10 @@ before-all = [
     "yum -y install mpich",
     "export MPICC=$(which mpicc)"
 ]
+before-test = [
+    "yum -y install mpich",
+    "export MPICC=$(which mpicc)"
+]
 
 [tool.cibuildwheel.macos]
 before-all = [
@@ -163,7 +167,12 @@ before-all = [
     "export CC=$(brew --prefix llvm)/bin/clang",
     "export CXX=$(brew --prefix llvm)/bin/clang++"
 ]
-environment = {CC='/usr/bin/clang', CXX='/usr/bin/clang++' }
+before-test = [
+    "brew install libomp mpi4py llvm",
+    "export MPICC=$(which mpicc)",
+    "export CC=$(brew --prefix llvm)/bin/clang",
+    "export CXX=$(brew --prefix llvm)/bin/clang++"
+]
 
 [tool.coverage.run]
 source = ["brainiak"]
