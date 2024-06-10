@@ -15,9 +15,13 @@ venv/
 *.nii
 *.nii.gz
 *.png
-*.txt
 *.zip
 *.pkl
+
+temp.txt
+docs/examples/fmrisim/Condition_A.txt
+docs/examples/fmrisim/Condition_B.txt
+
 
 data
 tutorials
