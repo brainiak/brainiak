@@ -153,24 +153,18 @@ skip = ["*-win32", "pp*"]
 environment = { PIP_EXTRA_INDEX_URL = "https://pypi.anaconda.org/mpi4py/simple" }
 
 [tool.cibuildwheel.linux]
-test-extras = ["impi-rt"]
+test-extras = ["all", "dev", "impi-rt"]
 
 [tool.cibuildwheel.windows]
-test-extras = ["impi-rt"]
+test-extras = ["all", "dev", "impi-rt"]
 
 [tool.cibuildwheel.macos]
-before-all = [
-    "brew install libomp mpi4py llvm",
-    "export MPICC=$(which mpicc)",
-    "export CC=$(brew --prefix llvm)/bin/clang",
-    "export CXX=$(brew --prefix llvm)/bin/clang++"
-]
-before-test = [
-    "brew install libomp mpi4py llvm",
-    "export MPICC=$(which mpicc)",
-    "export CC=$(brew --prefix llvm)/bin/clang",
-    "export CXX=$(brew --prefix llvm)/bin/clang++"
-]
+before-all = "brew install libomp mpi4py llvm"
+
+[tool.cibuildwheel.macos.environment]
+MPICC="$(which mpicc)"
+CC="$(brew --prefix llvm)/bin/clang"
+CXX="$(brew --prefix llvm)/bin/clang++"
 
 [tool.coverage.run]
 source = ["brainiak"]
