@@ -146,7 +146,7 @@ write_to = "brainiak/_version.py"
  cmake.build-type = "Release"
 
 [tool.cibuildwheel]
-test-extras = ["all", "dev"]
+test-extras = ["matnormal", "dev"]
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 skip = ["*-win32", "pp*"]
 
@@ -164,7 +164,6 @@ before-all = "brew install libomp mpich llvm"
 [tool.cibuildwheel.macos.environment]
 CC="$(brew --prefix llvm)/bin/clang"
 CXX="$(brew --prefix llvm)/bin/clang++"
-MPICC="$(which mpicc)"
 
 [tool.coverage.run]
 source = ["brainiak"]
