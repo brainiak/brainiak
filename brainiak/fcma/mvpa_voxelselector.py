@@ -79,7 +79,7 @@ class MVPAVoxelSelector:
                  sl
                  ):
         self.data = data
-        self.mask = mask.astype(np.bool)
+        self.mask = mask.astype(bool)
         self.labels = labels
         self.num_folds = num_folds
         self.sl = sl
