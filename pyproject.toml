@@ -148,7 +148,7 @@ write_to = "brainiak/_version.py"
 [tool.cibuildwheel]
 test-requires = "pytest"
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
-test-extras = ["all", "dev"]
+test-extras = ["all"]
 skip = ["*-win32", "pp*"]
 environment = { PIP_EXTRA_INDEX_URL = "https://pypi.anaconda.org/mpi4py/simple" }
 
@@ -159,7 +159,7 @@ test-extras = ["all", "dev", "impi-rt"]
 test-extras = ["all", "dev", "impi-rt"]
 
 [tool.cibuildwheel.macos]
-before-all = "brew install libomp mpi4py llvm"
+before-all = "brew install libomp mpich llvm"
 
 [tool.cibuildwheel.macos.environment]
 MPICC="$(which mpicc)"
