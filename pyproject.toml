@@ -158,15 +158,13 @@ before-test = "python -m pip install impi-rt mpi4py --extra-index-url https://py
 before-all = "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 before-test = [
     "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-    "echo %PATH%"
+    "echo %PATH%",
+    "pip show -f impi-rt"
 ]
 
 [tool.cibuildwheel.macos]
-before-all = "brew install libomp mpich llvm"
+before-all = ["brew install mpich", ".cibw/build_libomp_macos.sh"]
 
-[tool.cibuildwheel.macos.environment]
-CC="$(brew --prefix llvm)/bin/clang"
-CXX="$(brew --prefix llvm)/bin/clang++"
 
 [tool.coverage.run]
 source = ["brainiak"]
