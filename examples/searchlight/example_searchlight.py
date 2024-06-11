@@ -39,7 +39,7 @@ weight = 1
 
 # Generate data
 data = np.random.random((dim,dim,dim,ntr)) if rank == 0 else None
-mask = np.zeros((dim,dim,dim), dtype=np.bool)
+mask = np.zeros((dim,dim,dim), dtype=bool)
 for i in range(dim):
   for j in range(dim):
     for k in range(dim):
