@@ -31,12 +31,15 @@ markers = [
 
 [build-system]
 requires = [
-    "setuptools>=42", 
+    "setuptools>=62", 
     "wheel",
     "pybind11>=2.9.0",
     "scipy!=1.0.0",
     "cython",
     "oldest-supported-numpy",
-    "setuptools_scm",
+    "setuptools_scm>=8",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+version_file = "brainiak/_version.py"
