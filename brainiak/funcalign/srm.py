@@ -297,8 +297,8 @@ class SRM(BaseEstimator, TransformerMixin):
         s = [None] * len(X)
         for subject in range(len(X)):
             if X[subject] is not None:
-                s[subject] = self.w_[subject].T.dot(X[subject])
-
+                s[subject] = self.w_[subject].T.dot(
+                    X[subject] - self.mu_[subject][:, np.newaxis])
         return s
 
     def _init_structures(self, data, subjects):
@@ -420,7 +420,10 @@ class SRM(BaseEstimator, TransformerMixin):
 
     def transform_subject(self, X):
         """Transform a new subject using the existing model.
-        The subject is assumed to have recieved equivalent stimulation
+        The subject is assumed to have recieved equivalent stimulation. In
+        particular, to transform the new subject X with w and mu, one can do
+        the following:
+            shared_X = w.T @ (X - mu[:, np.newaxis])
 
         Parameters
         ----------
@@ -433,6 +436,8 @@ class SRM(BaseEstimator, TransformerMixin):
 
         w : 2D array, shape=[voxels, features]
             Orthogonal mapping `W_{new}` for new subject
+        mu : 1D array, shape=[voxels]
+            The voxel means for the new subject
 
         """
         # Check if the model exist
@@ -443,10 +448,10 @@ class SRM(BaseEstimator, TransformerMixin):
         if X.shape[1] != self.s_.shape[1]:
             raise ValueError("The number of timepoints(TRs) does not match the"
                              "one in the model.")
-
-        w = self._update_transform_subject(X, self.s_)
-
-        return w
+        # get the intercept for mean centering, as procrustes doesn't handle it
+        mu = np.mean(X, axis=1)
+        w = self._update_transform_subject(X - mu[:, np.newaxis], self.s_)
+        return w, mu
 
     def save(self, file):
         """Save fitted SRM to .npz file.
@@ -564,7 +569,7 @@ class SRM(BaseEstimator, TransformerMixin):
             for subject in range(subjects):
                 if data[subject] is not None:
                     wt_invpsi_x += (w[subject].T.dot(x[subject])) \
-                                   / rho2[subject]
+                        / rho2[subject]
                     trace_xt_invsigma2_x += trace_xtx[subject] / rho2[subject]
 
             wt_invpsi_x = self.comm.reduce(wt_invpsi_x, op=MPI.SUM)
@@ -651,6 +656,9 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
     s_ : array, shape=[features, samples]
         The shared response.
+
+    mu_ : list of array, element i has shape=[voxels_i]
+        The voxel means over the samples for each subject.
 
     random_state_: `RandomState`
         Random number generator initialized using rand_seed
@@ -744,8 +752,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         s = [None] * len(X)
         for subject in range(len(X)):
-            s[subject] = self.w_[subject].T.dot(X[subject])
-
+            s[subject] = self.w_[subject].T.dot(
+                X[subject] - self.mu_[subject][:, np.newaxis])
         return s
 
     def _objective_function(self, data, w, s):
@@ -820,11 +828,16 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         Wi : array, shape=[voxels, features]
             The orthogonal transform (mapping) :math:`W_i` for the subject.
+
+        mu : 1D array, shape=[voxels]
+            The voxel means for the new subject
         """
-        A = Xi.dot(S.T)
+        # estimate the intercept and center the data
+        mu = np.mean(Xi, axis=1)
+        A = (Xi - mu[:, np.newaxis]).dot(S.T)
         # Solve the Procrustes problem
         U, _, V = np.linalg.svd(A, full_matrices=False)
-        return U.dot(V)
+        return U.dot(V), mu
 
     def transform_subject(self, X):
         """Transform a new subject using the existing model.
@@ -883,13 +896,20 @@ class DetSRM(BaseEstimator, TransformerMixin):
             np.random.RandomState(self.random_state_.randint(2 ** 32))
             for i in range(len(data))]
 
+        # compute subject specific intercept
+        self.mu_ = [np.mean(data[s], axis=1) for s in range(subjects)]
+        # center the data
+        data = [data[s] - self.mu_[s][:, np.newaxis]
+                for s in range(subjects)]
+
         # Initialization step: initialize the outputs with initial values,
         # voxels with the number of voxels in each subject.
         w, _ = _init_w_transforms(data, self.features, random_states)
         shared_response = self._compute_shared_response(data, w)
         if logger.isEnabledFor(logging.INFO):
             # Calculate the current objective function value
-            objective = self._objective_function(data, w, shared_response)
+            objective = self._objective_function(
+                data, w, shared_response)
             logger.info('Objective function %f' % objective)
 
         # Main loop of the algorithm
@@ -910,7 +930,8 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
             if logger.isEnabledFor(logging.INFO):
                 # Calculate the current objective function value
-                objective = self._objective_function(data, w, shared_response)
+                objective = self._objective_function(
+                    data, w, shared_response)
                 logger.info('Objective function %f' % objective)
 
         return w, shared_response
