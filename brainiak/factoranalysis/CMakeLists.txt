@@ -1,7 +1,11 @@
 pybind11_add_module(tfa_extension tfa_extension.cpp)
 
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(tfa_extension PUBLIC OpenMP::OpenMP_CXX)
+else()
 
-target_link_libraries(tfa_extension PRIVATE OpenMP::OpenMP_CXX)
+
+endif()
 
 install(TARGETS tfa_extension LIBRARY DESTINATION ${SKBUILD_PROJECT_NAME}/factoranalysis)
