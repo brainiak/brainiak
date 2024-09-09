@@ -179,8 +179,9 @@ fi
 
 # install brainiak in editable mode (required for testing)
 # Install with all dependencies (testing, documentation, examples, etc.)
-python3 -m pip install $ignore_installed -U -e \
-    -v --config-settings=cmake.verbose=true --config-settings=logging.level=INFO .[all] || \
+python3 -m pip install $ignore_installed -U \
+    -v --config-settings=cmake.verbose=true --config-settings=logging.level=INFO \
+    -e .[all] || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
 
