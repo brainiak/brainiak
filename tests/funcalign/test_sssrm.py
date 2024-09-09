@@ -14,6 +14,7 @@
 import pytest
 
 
+@pytest.mark.xfail(reason="Theano issues.")
 def test_instance():
     import os
     os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
@@ -22,6 +23,7 @@ def test_instance():
     model = brainiak.funcalign.sssrm.SSSRM()
     assert model, "Invalid SSSRM instance!"
 
+@pytest.mark.xfail(reason="Theano issues.")
 
 def test_wrong_input():
     import os
@@ -122,6 +124,7 @@ def test_wrong_input():
         model_bad.fit(X, y, Z)
     print("Test: running SSSRM with wrong gamma")
 
+@pytest.mark.xfail(reason="Theano issues.")
 
 def test_sssrm():
     import os
