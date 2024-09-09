@@ -759,6 +759,7 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
         reduced_data_list = np.reshape(reduced_data_list,
                                        (n_subjects, n_sessions))
     else:
+        reduced_data_list_array = np.array(reduced_data_list, dtype=object)
         if len(np.array(reduced_data_list).shape) == 1:
             reduced_data_list = np.reshape(reduced_data_list,
                                            (n_subjects, n_sessions))
