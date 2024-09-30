@@ -15,7 +15,6 @@
 // */
 //
 #include "Python.h"
-#include <omp.h>
 #include <iostream>
 #include <math.h>
 #include <algorithm>
