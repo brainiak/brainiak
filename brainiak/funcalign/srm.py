@@ -517,7 +517,7 @@ class SRM(BaseEstimator, TransformerMixin):
         subjects = len(data)
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2 ** 32))
+            np.random.RandomState(self.random_state_.randint(2 ** 32, dtype=np.int64))
             for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
@@ -880,7 +880,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
         self.random_state_ = np.random.RandomState(self.rand_seed)
         random_states = [
-            np.random.RandomState(self.random_state_.randint(2 ** 32))
+            np.random.RandomState(self.random_state_.randint(2 ** 32, dtype=np.int64))
             for i in range(len(data))]
 
         # Initialization step: initialize the outputs with initial values,
@@ -898,7 +898,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
-                a_subject = data[subject].dot(shared_response.T).astype(float)
+                a_subject = data[subject].dot(shared_response.T)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
                 u_subject, _, v_subject = np.linalg.svd(
