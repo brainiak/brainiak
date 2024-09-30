@@ -45,6 +45,7 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+      - uses: mpi4py/setup-mpi@v1
 
       # Used to host cibuildwheel
       - uses: actions/setup-python@v5

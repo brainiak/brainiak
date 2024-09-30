@@ -157,11 +157,10 @@ before-all = "python -m pip install impi-rt mpi4py --extra-index-url https://pyp
 before-test = "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 
 [tool.cibuildwheel.windows]
-before-all = "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 before-test = [
-    "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
-test-command = "venv-test/library/bin/mpiexec.exe -n 2 python -m mpi4py -m pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
 before-all = ["brew install mpich", ".cibw/build_libomp_macos.sh"]
