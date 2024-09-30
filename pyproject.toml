@@ -150,7 +150,7 @@ write_to = "brainiak/_version.py"
 test-extras = ["matnormal", "dev"]
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 archs = ["auto64"]
-skip = ["pp*", "cp312*", "cp313*", "cp314*"]
+skip = ["pp*", "cp312*", "cp313*", "cp314*", "musllinux*"]
 
 [tool.cibuildwheel.linux]
 before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
