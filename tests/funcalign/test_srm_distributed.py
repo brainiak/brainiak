@@ -151,5 +151,3 @@ def test_distributed_srm():  # noqa: C901
     if rank == 0:
         print("Test: different number of samples per subject")
 
-
-test_distributed_srm()
