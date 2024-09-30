@@ -581,7 +581,7 @@ def test_grid_flatten_num_int():
                                            n_C, n_T, n_V, n_X0,
                                            n_grid, rank)
     result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
-    scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
+    scipy_sum = scipy.integrate.simpson(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
     tol = 1e-3
@@ -622,7 +622,7 @@ def test_grid_flatten_num_int():
                                            n_C, n_T, n_V, n_X0,
                                            n_grid, rank)
     result_sum, max_value, result_exp = utils.sumexp_stable(LL_raw)
-    scipy_sum = scipy.integrate.simps(y=result_exp, axis=0)
+    scipy_sum = scipy.integrate.simpson(y=result_exp, axis=0)
     LL_total_scipy = np.sum(np.log(scipy_sum) + max_value)
 
     tol = 1e-3

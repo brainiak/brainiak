@@ -116,7 +116,7 @@ examples = [
     "requests",
     "rpyc",
     "scikit-learn",
-    "scipy",
+    "scipy>=1.6.0",
     "toml",
     "tornado",
     "websocket-client",
