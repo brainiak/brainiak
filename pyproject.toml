@@ -159,8 +159,9 @@ before-test = "python -m pip install impi-rt mpi4py --extra-index-url https://py
 before-all = "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 before-test = [
     "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+    # We need to add venv/libary/bin to the PATH to pick up mpiexec
+    "set PATH=%PATH%;%VIRTUAL_ENV%\\Library\\bin",
     "echo %PATH%",
-    "pip show -f impi-rt"
 ]
 
 [tool.cibuildwheel.macos]
