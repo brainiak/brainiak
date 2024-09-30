@@ -898,7 +898,7 @@ class DetSRM(BaseEstimator, TransformerMixin):
 
             # Update each subject's mapping transform W_i:
             for subject in range(subjects):
-                a_subject = data[subject].dot(shared_response.T)
+                a_subject = data[subject].dot(shared_response.T).astype(float)
                 perturbation = np.zeros(a_subject.shape)
                 np.fill_diagonal(perturbation, 0.001)
                 u_subject, _, v_subject = np.linalg.svd(
