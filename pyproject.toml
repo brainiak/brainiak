@@ -146,9 +146,10 @@ write_to = "brainiak/_version.py"
  cmake.build-type = "Release"
 
 [tool.cibuildwheel]
+# Build all python versions less than 3.12
 test-extras = ["matnormal", "dev"]
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
-skip = ["*-win32", "pp*"]
+skip = ["*-win32", "pp*", "cp312*", "cp313*", "cp314*"]
 
 [tool.cibuildwheel.linux]
 before-all = "python -m pip install impi-rt mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
