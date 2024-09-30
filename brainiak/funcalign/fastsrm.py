@@ -755,11 +755,20 @@ def reduce_data(imgs, atlas, n_jobs=1, low_ram=False, temp_dir=None):
                                     temp_dir=temp_dir)
         for i in range(n_subjects) for j in range(n_sessions))
 
+    # Check if reduced_data_list is ragged, in this case, we need to create a
+    # numpy array with dtype=object, numpy no longer does this automatically
+    try:
+        reduced_data_list = np.array(reduced_data_list)
+    except ValueError as ex:
+        if "setting an array element with a sequence" in str(ex):
+            reduced_data_list = np.array(reduced_data_list, dtype=object)
+        else:
+            raise ex
+
     if low_ram:
         reduced_data_list = np.reshape(reduced_data_list,
                                        (n_subjects, n_sessions))
     else:
-        reduced_data_list_array = np.array(reduced_data_list, dtype=object)
         if len(np.array(reduced_data_list).shape) == 1:
             reduced_data_list = np.reshape(reduced_data_list,
                                            (n_subjects, n_sessions))
