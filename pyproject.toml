@@ -155,19 +155,21 @@ skip = ["pp*", "cp312*", "cp313*", "cp314*"]
 [tool.cibuildwheel.linux]
 before-all = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-    "yum --disablerepo=epel install -y mpich",
+    "yum --disablerepo=epel install -y openmpi",
 ]
 before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+test-command = "/usr/lib64/openmpi/bin/mpiexec --allow-run-as-root -n 2 python -m mpi4py -m pytest {project}/tests"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*"
-before-all = "apk add mpich"
+before-all = "apk add -y openmpi"
 
 [tool.cibuildwheel.windows]
 before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 before-test = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
+test-command = "python -m mpi4py -m pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
 before-all = [
