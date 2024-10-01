@@ -155,9 +155,13 @@ skip = ["pp*", "cp312*", "cp313*", "cp314*"]
 [tool.cibuildwheel.linux]
 before-all = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-    "yum install -y mpich",
+    "yum --disablerepo=epel install -y mpich",
 ]
 before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*"
+before-all = "apk add mpich"
 
 [tool.cibuildwheel.windows]
 before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
