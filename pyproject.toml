@@ -155,8 +155,7 @@ skip = ["pp*", "cp312*", "cp313*", "cp314*"]
 [tool.cibuildwheel.linux]
 before-all = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-    "apt-get update",
-    "apt-get install -y mpich",
+    "yum install -y mpich",
 ]
 #before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 
