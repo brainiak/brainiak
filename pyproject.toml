@@ -157,13 +157,13 @@ before-all = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
     "yum install -y mpich",
 ]
-#before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 
 [tool.cibuildwheel.windows]
 before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-#before-test = [
-#    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-#]
+before-test = [
+    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+]
 
 [tool.cibuildwheel.macos]
 before-all = [
