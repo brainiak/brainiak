@@ -150,4 +150,3 @@ def test_distributed_srm():  # noqa: C901
         s.fit(X)
     if rank == 0:
         print("Test: different number of samples per subject")
-

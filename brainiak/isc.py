@@ -782,7 +782,8 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
                                 axis=0))
 
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED,
+                                                          dtype=np.int64))
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
@@ -1231,7 +1232,8 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
         # Update random state for next iteration
         if not exact_permutations:
             random_state = np.random.RandomState(prng.randint(
-                                                    0, MAX_RANDOM_SEED))
+                0, MAX_RANDOM_SEED,
+                dtype=np.int64))
 
     # Convert distribution to numpy array
     distribution = np.array(distribution)
@@ -1392,7 +1394,8 @@ def timeshift_isc(data, pairwise=False, summary_statistic='median',
         distribution.append(shifted_isc)
 
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED,
+                                                          dtype=np.int64))
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)
@@ -1535,7 +1538,8 @@ def phaseshift_isc(data, pairwise=False, summary_statistic='median',
         distribution.append(shifted_isc)
 
         # Update random state for next iteration
-        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED))
+        random_state = np.random.RandomState(prng.randint(0, MAX_RANDOM_SEED,
+                                                          dtype=np.int64))
 
     # Convert distribution to numpy array
     distribution = np.vstack(distribution)

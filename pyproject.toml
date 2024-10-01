@@ -150,20 +150,27 @@ write_to = "brainiak/_version.py"
 test-extras = ["matnormal", "dev"]
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 archs = ["auto64"]
-skip = ["pp*", "cp312*", "cp313*", "cp314*", "musllinux*"]
+skip = ["pp*", "cp312*", "cp313*", "cp314*"]
 
 [tool.cibuildwheel.linux]
-before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+before-all = [
+    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+    "sudo apt-get update",
+    "sudo apt-get install -y mpich",
+]
+#before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
 
 [tool.cibuildwheel.windows]
 before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-before-test = [
-    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-]
+#before-test = [
+#    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+#]
 
 [tool.cibuildwheel.macos]
-before-all = ["brew install mpich", ".cibw/build_libomp_macos.sh"]
+before-all = [
+    "brew install mpich",
+    ".cibw/build_libomp_macos.sh"
+]
 
 
 [tool.coverage.run]
