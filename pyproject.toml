@@ -150,7 +150,11 @@ write_to = "brainiak/_version.py"
 test-extras = ["matnormal", "dev"]
 test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 archs = ["auto64"]
-skip = ["pp*", "cp312*", "cp313*", "cp314*"]
+skip = [
+    "pp*",
+    "cp312*", "cp313*", "cp314*", # Theano issues with Python 3.12 and above
+    "musllinux*",                 # Tensorflow wheels are not available for musllinux
+]
 
 [tool.cibuildwheel.linux]
 environment = {"MPICC"="/usr/lib64/openmpi/bin/mpicc", "MPIEXEC"="/usr/lib64/openmpi/bin/mpiexec"}
@@ -171,7 +175,7 @@ before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anacon
 before-test = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
-#test-command = "mpiexec python -m mpi4py -m pytest {project}/tests"
+test-command = "mpiexec python -m mpi4py -m pytest {project}/tests -k test_sssrm"
 
 [tool.cibuildwheel.macos]
 before-all = [
