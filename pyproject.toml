@@ -154,8 +154,7 @@ skip = ["pp*", "cp312*", "cp313*", "cp314*"]
 
 [tool.cibuildwheel.linux]
 before-all = [
-    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-    "yum --disablerepo=epel install -y openmpi",
+    "yum --disablerepo=epel install -y openmpi openmpi-devel",
 
     # Add the openmpi libraries to LD_LIBRARY_PATH and mpiexec to PATH
     "echo '/usr/lib64/openmpi/lib' > /etc/ld.so.conf.d/openmpi.conf",
