@@ -1653,7 +1653,9 @@ class BRSA(BaseEstimator, TransformerMixin):
             rho = np.zeros(np.shape(x)[1])
             sigma2 = np.zeros(np.shape(x)[1])
             for c in np.arange(np.shape(x)[1]):
-                rho[c], sigma2[c] = alg.AR_est_YW(x[:, c], 1)
+                result = alg.AR_est_YW(x[:, c], 1)
+                rho[c] = result[0].item()
+                sigma2[c] = result[1]
         return rho, sigma2
 
     def _forward_step(self, Y, T_X, Var_X, Var_dX, rho_e, sigma2_e, weight):

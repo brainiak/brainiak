@@ -84,7 +84,7 @@ import numpy as np
 # See pyflakes issue #248
 # https://github.com/PyCQA/pyflakes/issues/248
 from numpy.linalg import LinAlgError
-from pkg_resources import resource_stream  # type: ignore
+from importlib.resources import files
 from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage
@@ -2283,8 +2283,10 @@ def mask_brain(volume,
     if mask_self is True:
         mask_raw = volume
     elif template_name is None:
-        mfn = resource_stream(__name__, "sim_parameters/grey_matter_mask.npy")
-        mask_raw = np.load(mfn)
+        re_file = (files('brainiak')
+                   .joinpath('utils/sim_parameters/grey_matter_mask.npy'))
+        with re_file.open("rb") as f:
+            mask_raw = np.load(f)
     else:
         mask_raw = np.load(template_name)
 

@@ -332,10 +332,10 @@ class HTFA(TFA):
                 (prior_widths_mean_var[k] + self.global_widths_var_scaled)
             observation_mean = np.mean(next_widths)
             tmp = common * self.global_widths_var_scaled
-            self.global_posterior_[self.map_offset[1] + k] = \
+            self.global_posterior_[self.map_offset[1].item() + k] = \
                 prior_widths_mean_var[k] * common * observation_mean +\
                 tmp * prior_widths[k]
-            self.global_posterior_[self.map_offset[3] + k] = \
+            self.global_posterior_[self.map_offset[3].item() + k] = \
                 prior_widths_mean_var[k] * tmp
 
         return self

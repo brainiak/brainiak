@@ -52,6 +52,7 @@ The implementation is based on the work in [Hasson2004]_, [Kauppi2014]_,
 #          Mai Nguyen, and Mor Regev
 # Princeton University, 2018
 
+import math
 import numpy as np
 import logging
 from scipy.spatial.distance import squareform
@@ -1159,7 +1160,7 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
 
     # Check for exact test for two groups
     else:
-        if n_permutations < np.math.factorial(n_subjects):
+        if n_permutations < math.factorial(n_subjects):
             logger.info("Two-sample approximate permutation test using "
                         "group randomization with Monte Carlo resampling.")
             exact_permutations = None
@@ -1168,10 +1169,10 @@ def permutation_isc(iscs, group_assignment=None, pairwise=False,  # noqa: C901
                         "randomization with {0}! "
                         "({1}) iterations.".format(
                                 n_subjects,
-                                np.math.factorial(n_subjects)))
+                                math.factorial(n_subjects)))
             exact_permutations = list(permutations(
                 np.arange(len(group_assignment))))
-            n_permutations = np.math.factorial(n_subjects)
+            n_permutations = math.factorial(n_subjects)
 
     # If one group, just get observed summary statistic
     if group_parameters['n_groups'] == 1:

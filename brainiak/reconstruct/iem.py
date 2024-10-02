@@ -921,9 +921,10 @@ class InvertedEncoding2D(BaseEstimator):
         trigrid = np.zeros((0, 2))
         xbase = np.expand_dims(np.arange(self.channel_limits[0][0],
                                          self.channel_limits[0][1],
-                                         x_dist), 1)
+                                         x_dist.item()), 1)
         for yi, y in enumerate(np.arange(self.channel_limits[1][0],
-                                         self.channel_limits[1][1], y_dist)):
+                                         self.channel_limits[1][1],
+                                         y_dist.item())):
             if (yi % 2) == 0:
                 xx = xbase.copy()
                 yy = np.ones((xx.size, 1)) * y

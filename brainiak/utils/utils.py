@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import math
 import numpy as np
 import re
 import warnings
@@ -281,11 +282,11 @@ class ReadDesign:
         self.n_TR = np.size(self.design_task, axis=0)
         self.cols_nuisance = np.array([])
         if self.include_orth:
-            self.cols_nuisance = np.int0(
+            self.cols_nuisance = np.intp(
                 np.sort(np.append(self.cols_nuisance,
                                   np.where(self.column_types == 0)[0])))
         if self.include_pols:
-            self.cols_nuisance = np.int0(
+            self.cols_nuisance = np.intp(
                 np.sort(np.append(self.cols_nuisance,
                                   np.where(self.column_types == -1)[0])))
         if np.size(self.cols_nuisance) > 0:
@@ -468,7 +469,7 @@ def gen_design(stimtime_files, scan_duration, TR, style='FSL',
         design = [np.empty([int(np.round(duration / TR)), n_C])
                   for duration in scan_duration]
     else:
-        design = [np.empty([int(np.round(scan_duration / TR)), n_C])]
+        design = [np.empty([int(np.round(scan_duration.item() / TR)), n_C])]
     scan_onoff = np.insert(np.cumsum(scan_duration), 0, 0)
     if style == 'FSL':
         design_info = _read_stimtime_FSL(stimtime_files, n_C, n_S, scan_onoff)
@@ -777,10 +778,10 @@ def phase_randomize(data, voxelwise=False, random_state=None):
 
     if not voxelwise:
         phase_shifts = (prng.rand(len(pos_freq), 1, n_subjects)
-                        * 2 * np.math.pi)
+                        * 2 * math.pi)
     else:
         phase_shifts = (prng.rand(len(pos_freq), n_voxels, n_subjects)
-                        * 2 * np.math.pi)
+                        * 2 * math.pi)
 
     # Fast Fourier transform along time dimension of data
     fft_data = fft(data, axis=0)
