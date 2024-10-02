@@ -151,8 +151,8 @@ test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 archs = ["auto64"]
 skip = [
     "pp*",
-#    "cp312*", "cp313*", "cp314*", # Theano issues with Python 3.12 and above
-    "musllinux*",                 # Tensorflow wheels are not available for musllinux
+    "cp313*", "cp314*",  # Tensorflow wheels are not available for Python 3.13 and 3.14
+    "musllinux*",        # Tensorflow wheels are not available for musllinux
 ]
 
 [tool.cibuildwheel.linux]
@@ -164,23 +164,23 @@ before-all = [
 before-test = "CC=$MPICC pip install mpi4py"
 test-command = "$MPIEXEC --allow-run-as-root -n 2 python -m mpi4py -m pytest {project}/tests"
 
-[[tool.cibuildwheel.overrides]]
-select = "*-musllinux*"
-environment = {"MPICC"="/usr/bin/mpicc", "MPIEXEC"="/usr/bin/mpiexec"}
-before-all = "apk add openmpi openmpi-dev"
-
 [tool.cibuildwheel.windows]
-before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-before-test = [
-    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-]
-test-command = "python -m mpi4py -m pytest {project}/tests"
+#before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
+#before-test = [
+#    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
+#]
+test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
 before-all = [
     "brew install mpich",
     ".cibw/build_libomp_macos.sh"
 ]
+
+#[[tool.cibuildwheel.overrides]]
+#select = "*-musllinux*"
+#environment = {"MPICC"="/usr/bin/mpicc", "MPIEXEC"="/usr/bin/mpiexec"}
+#before-all = "apk add openmpi openmpi-dev"
 
 
 [tool.coverage.run]
