@@ -159,11 +159,11 @@ before-all = [
     # Add the openmpi libraries to LD_LIBRARY_PATH and mpiexec to PATH
     "echo '/usr/lib64/openmpi/lib' > /etc/ld.so.conf.d/openmpi.conf",
     "ldconfig",
-    "echo 'export PATH=/usr/lib64/openmpi/bin:$PATH' >> /etc/profile",
-    "source /etc/profile",
+#    "echo 'export PATH=/usr/lib64/openmpi/bin:$PATH' >> /etc/profile",
+#    "source /etc/profile",
 ]
 before-test = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-test-command = "mpiexec --allow-run-as-root -n 2 python -m mpi4py -m pytest {project}/tests"
+test-command = "/usr/lib64/openmpi/bin/mpiexec --allow-run-as-root -n 2 python -m mpi4py -m pytest {project}/tests"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*"
@@ -174,7 +174,7 @@ before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anacon
 before-test = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
-#test-command = "python -m mpi4py -m pytest {project}/tests"
+test-command = "python -m mpi4py -m pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
 before-all = [
