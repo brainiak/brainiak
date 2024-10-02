@@ -21,7 +21,17 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+
+      # Use intel mpi on windows
       - uses: mpi4py/setup-mpi@v1
+        if: ${{ contains(matrix.os, 'windows') }}
+        with:
+          mpi: intel
+
+      # Else, use the default for the OS and setup-mpi action
+      - uses: mpi4py/setup-mpi@v1
+        if: ${{ !contains(matrix.os, 'windows') }}
+
       - run: |
           python3 -m pip install -U pip
       - if: ${{ contains(matrix.os, 'ubuntu') }}
