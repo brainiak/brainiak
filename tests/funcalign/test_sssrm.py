@@ -15,6 +15,7 @@ import pytest
 
 import brainiak.funcalign.sssrm
 
+
 def test_instance():
     model = brainiak.funcalign.sssrm.SSSRM()
     assert model, "Invalid SSSRM instance!"

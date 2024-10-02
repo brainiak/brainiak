@@ -289,7 +289,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         p = [None] * len(X_shared)
         for subject in range(len(X_shared)):
             sumexp, _, exponents = utils.sumexp_stable(
-                self.theta_.T.dot(X_shared[subject]) + self.bias_[:, np.newaxis])
+                self.theta_.T.dot(X_shared[subject]) +
+                self.bias_[:, np.newaxis])
             p[subject] = self.classes_[
                 (exponents / sumexp[np.newaxis, :]).argmax(axis=0)]
 
@@ -435,9 +436,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             indices = tf.range(total_samples)
             gather_indices = tf.stack([indices, labels_tf], axis=1)
             log_probs = tf.gather_nd(log_p_y_given_x, gather_indices)
-            f = -constf2 * tf.reduce_sum(log_probs / weights_tf) + 0.5 * tf.reduce_sum(theta_tf ** 2)
+            f = (-constf2 * tf.reduce_sum(log_probs / weights_tf) +
+                 0.5 * tf.reduce_sum(theta_tf ** 2))
             return f
-
 
         problem = Problem(manifold=manifold, cost=cost)
         solver = ConjugateGradient(min_gradient_norm=1e-6, verbosity=0)
@@ -497,30 +498,43 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             logger.info('Subject Wi %d' % subject)
             # Solve for subject i
 
-            data_srm_subject_tf = tf.constant(data_align[subject].astype(np.float64))
-            constf1 = tf.constant((1 - self.alpha) * 0.5 / data_align[subject].shape[1], dtype=tf.float64)
+            data_srm_subject_tf = tf.constant(
+                data_align[subject].astype(np.float64))
+            constf1 = tf.constant(
+                (1 - self.alpha) * 0.5 / data_align[subject].shape[1],
+                dtype=tf.float64)
 
             manifold = Stiefel(w[subject].shape[0], w[subject].shape[1])
 
             if data_sup[subject] is not None:
-                data_sup_subject_tf = tf.constant(data_sup[subject].astype(np.float64))
+                data_sup_subject_tf = tf.constant(
+                    data_sup[subject].astype(np.float64))
                 labels_tf_subj = tf.constant(labels[subject], dtype=tf.int32)
-                constf2 = tf.constant(-self.alpha / self.gamma / data_sup[subject].shape[1], dtype=tf.float64)
+                constf2 = tf.constant(
+                    -self.alpha / self.gamma / data_sup[subject].shape[1],
+                    dtype=tf.float64)
 
                 @function.tensorflow(manifold)
                 def cost(w_tf):
-                    f1 = constf1 * tf.reduce_sum((data_srm_subject_tf - tf.matmul(w_tf, s_tf)) ** 2)
-                    logits = tf.transpose(tf.matmul(theta_tf, tf.matmul(tf.transpose(w_tf), data_sup_subject_tf))) + bias_tf
+                    diff = (data_srm_subject_tf - tf.matmul(w_tf, s_tf))
+                    f1 = constf1 * tf.reduce_sum(diff ** 2)
+                    w_by_data = tf.matmul(tf.transpose(w_tf),
+                                          data_sup_subject_tf)
+                    logits = tf.transpose(
+                        tf.matmul(theta_tf, w_by_data)) + bias_tf
                     log_p_y_given_x = tf.nn.log_softmax(logits)
-                    indices = tf.range(data_sup_subject_tf.shape[1], dtype=tf.int32)
-                    gather_indices = tf.stack([indices, labels_tf_subj], axis=1)
+                    indices = tf.range(data_sup_subject_tf.shape[1],
+                                       dtype=tf.int32)
+                    gather_indices = tf.stack([indices, labels_tf_subj],
+                                              axis=1)
                     log_probs = tf.gather_nd(log_p_y_given_x, gather_indices)
                     f2 = constf2 * tf.reduce_sum(log_probs)
                     return f1 + f2
             else:
                 @function.tensorflow(manifold)
                 def cost(w_tf):
-                    f1 = constf1 * tf.reduce_sum((data_srm_subject_tf - tf.matmul(w_tf, s_tf)) ** 2)
+                    diff = (data_srm_subject_tf - tf.matmul(w_tf, s_tf))
+                    f1 = constf1 * tf.reduce_sum(diff ** 2)
                     return f1
 
             f_subject = self._objective_function_subject(data_align[subject],
@@ -531,7 +545,9 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
             minstep = np.amin(((10 ** -np.floor(np.log10(f_subject))), 1e-1))
 
             problem = Problem(manifold=manifold, cost=cost)
-            solver = ConjugateGradient(min_gradient_norm=1e-2, min_step_size=minstep, verbosity=0)
+            solver = ConjugateGradient(min_gradient_norm=1e-2,
+                                       min_step_size=minstep,
+                                       verbosity=0)
             w_init = w[subject].astype(np.float64)
             result = solver.run(problem, initial_point=w_init)
             w[subject] = result.point
@@ -705,7 +721,8 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         samples = data.shape[1]
 
-        thetaT_wi_zi_plus_bias = theta.T.dot(w.T.dot(data)) + bias[:, np.newaxis]
+        thetaT_wi_zi_plus_bias = (theta.T.dot(w.T.dot(data)) +
+                                  bias[:, np.newaxis])
         sum_exp, max_value, _ = utils.sumexp_stable(thetaT_wi_zi_plus_bias)
         sum_exp_values = np.log(sum_exp) + max_value
 
