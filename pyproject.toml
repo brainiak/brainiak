@@ -151,8 +151,8 @@ test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
 archs = ["auto64"]
 skip = [
     "pp*",
-    "cp313*", "cp314*",  # Tensorflow wheels are not available for Python 3.13 and 3.14
-    "musllinux*",        # Tensorflow wheels are not available for musllinux
+    "cp313*", "cp314*",     # Tensorflow wheels are not available for Python 3.13 and 3.14
+    "*musllinux*",          # Tensorflow wheels are not available for musllinux
 ]
 
 [tool.cibuildwheel.linux]
