@@ -13,25 +13,16 @@
 #  limitations under the License.
 import pytest
 
+import brainiak.funcalign.sssrm
 
-@pytest.mark.xfail(reason="Theano issues.")
 def test_instance():
-    import os
-    os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
-    import brainiak.funcalign.sssrm
-
     model = brainiak.funcalign.sssrm.SSSRM()
     assert model, "Invalid SSSRM instance!"
 
 
-@pytest.mark.xfail(reason="Theano issues.")
 def test_wrong_input():
-    import os
-    os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
-
     from sklearn.utils.validation import NotFittedError
     import numpy as np
-    import brainiak.funcalign.sssrm
 
     voxels = 100
     align_samples = 400
@@ -125,13 +116,8 @@ def test_wrong_input():
     print("Test: running SSSRM with wrong gamma")
 
 
-@pytest.mark.xfail(reason="Theano issues.")
 def test_sssrm():
-    import os
-    os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
-
     import numpy as np
-    import brainiak.funcalign.sssrm
 
     voxels = 100
     align_samples = 400

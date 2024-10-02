@@ -15,12 +15,7 @@ import scipy.io
 from scipy.stats import stats
 import numpy as np
 
-# Define the Theano flags to use cpu and float64 before theano is imported in brainiak
-import os
-os.environ['THEANO_FLAGS'] = 'device=cpu, floatX=float64'
-
 import brainiak.funcalign.sssrm
-
 
 
 # Load the input data that contains the movie stimuli for unsupervised training with SS-SRM

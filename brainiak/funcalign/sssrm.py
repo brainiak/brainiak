@@ -33,24 +33,12 @@ from sklearn.utils import assert_all_finite
 from sklearn.utils.validation import NotFittedError
 from sklearn.utils.multiclass import unique_labels
 
-# Workaround for Theano for numpy after 1.20.3, see:
-# https://github.com/numpy/numpy/issues/21079
-try:
-    import numpy.distutils
-    blas_info = np.__config__.blas_ilp64_opt_info  # type: ignore
-    numpy.distutils.__config__.blas_opt_info = blas_info  # type: ignore
-except Exception:
-    pass
-
-import theano
-import theano.tensor as T
-import theano.compile.sharedvalue as S
+import tensorflow as tf
 from pymanopt.manifolds import Euclidean
 from pymanopt.manifolds import Product
-from pymanopt.solvers import ConjugateGradient
-from pymanopt import Problem
+from pymanopt.optimizers import ConjugateGradient
+from pymanopt import Problem, function
 from pymanopt.manifolds import Stiefel
-import pymanopt
 
 import gc
 
@@ -62,16 +50,6 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-
-# FIXME workaround for Theano failure on macOS Conda builds
-# https://travis-ci.org/github/brainiak/brainiak/jobs/689445834#L1414
-# Inspired by workaround from PyMC3
-# https://github.com/pymc-devs/pymc3/pull/3767
-theano.config.gcc.cxxflags = "-Wno-c++11-narrowing"
-
-# FIXME workaround for pymanopt only working with tensorflow 1.
-# We don't use pymanopt+TF so we just let pymanopt pretend TF doesn't exist.
-pymanopt.tools.autodiff._tensorflow.tf = None
 
 
 class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
@@ -288,7 +266,6 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         Parameters
         ----------
-
         X : list of 2D arrays, element i has shape=[voxels_i, samples_i]
             Each element in the list contains the fMRI data of one subject
             The number of voxels should be according to each subject at
@@ -312,7 +289,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         p = [None] * len(X_shared)
         for subject in range(len(X_shared)):
             sumexp, _, exponents = utils.sumexp_stable(
-                self.theta_.T.dot(X_shared[subject]) + self.bias_)
+                self.theta_.T.dot(X_shared[subject]) + self.bias_[:, np.newaxis])
             p[subject] = self.classes_[
                 (exponents / sumexp[np.newaxis, :]).argmax(axis=0)]
 
@@ -443,35 +420,35 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         features = w[0].shape[1]
         total_samples = weights.size
 
-        data_th = S.shared(data_stacked.astype(theano.config.floatX))
-        val_ = S.shared(labels_stacked)
-        total_samples_S = S.shared(total_samples)
-        theta_th = T.matrix(name='theta', dtype=theano.config.floatX)
-        bias_th = T.col(name='bias', dtype=theano.config.floatX)
-        constf2 = S.shared(self.alpha / self.gamma, allow_downcast=True)
-        weights_th = S.shared(weights)
+        data_tf = tf.constant(data_stacked, dtype=tf.float64)
+        labels_tf = tf.constant(labels_stacked, dtype=tf.int32)
+        weights_tf = tf.constant(weights, dtype=tf.float64)
+        constf2 = tf.constant(self.alpha / self.gamma, dtype=tf.float64)
 
-        log_p_y_given_x = \
-            T.log(T.nnet.softmax((theta_th.T.dot(data_th.T)).T + bias_th.T))
-        f = -constf2 * T.sum((log_p_y_given_x[T.arange(total_samples_S), val_])
-                             / weights_th) + 0.5 * T.sum(theta_th ** 2)
+        manifold = Product([Euclidean(features, classes),
+                            Euclidean(1, classes)])
 
-        manifold = Product((Euclidean(features, classes),
-                            Euclidean(classes, 1)))
-        problem = Problem(manifold=manifold, cost=f, arg=[theta_th, bias_th],
-                          verbosity=0)
-        solver = ConjugateGradient(mingradnorm=1e-6)
-        solution = solver.solve(problem)
-        theta = solution[0]
-        bias = solution[1]
+        @function.tensorflow(manifold)
+        def cost(theta_tf, bias_tf):
+            logits = tf.matmul(data_tf, theta_tf) + bias_tf
+            log_p_y_given_x = tf.nn.log_softmax(logits)
+            indices = tf.range(total_samples)
+            gather_indices = tf.stack([indices, labels_tf], axis=1)
+            log_probs = tf.gather_nd(log_p_y_given_x, gather_indices)
+            f = -constf2 * tf.reduce_sum(log_probs / weights_tf) + 0.5 * tf.reduce_sum(theta_tf ** 2)
+            return f
 
-        del constf2
-        del theta_th
-        del bias_th
-        del data_th
-        del val_
-        del solver
-        del solution
+
+        problem = Problem(manifold=manifold, cost=cost)
+        solver = ConjugateGradient(min_gradient_norm=1e-6, verbosity=0)
+
+        # Initialize variables
+        theta_init = np.zeros((features, classes), dtype=np.float64)
+        bias_init = np.zeros((1, classes), dtype=np.float64)
+        solution = solver.run(problem, initial_point=[theta_init, bias_init])
+
+        theta = solution.point[0]
+        bias = solution.point[1].flatten()
 
         return theta, bias
 
@@ -512,67 +489,52 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
         """
         subjects = len(data_align)
 
-        s_th = S.shared(s.astype(theano.config.floatX))
-        theta_th = S.shared(theta.T.astype(theano.config.floatX))
-        bias_th = S.shared(bias.T.astype(theano.config.floatX),
-                           broadcastable=(True, False))
+        s_tf = tf.constant(s.astype(np.float64))
+        theta_tf = tf.constant(theta.T.astype(np.float64))
+        bias_tf = tf.constant(bias[np.newaxis, :].astype(np.float64))
 
         for subject in range(subjects):
             logger.info('Subject Wi %d' % subject)
             # Solve for subject i
-            # Create the theano function
-            w_th = T.matrix(name='W', dtype=theano.config.floatX)
-            data_srm_subject = \
-                S.shared(data_align[subject].astype(theano.config.floatX))
-            constf1 = \
-                S.shared((1 - self.alpha) * 0.5 / data_align[subject].shape[1],
-                         allow_downcast=True)
-            f1 = constf1 * T.sum((data_srm_subject - w_th.dot(s_th))**2)
+
+            data_srm_subject_tf = tf.constant(data_align[subject].astype(np.float64))
+            constf1 = tf.constant((1 - self.alpha) * 0.5 / data_align[subject].shape[1], dtype=tf.float64)
+
+            manifold = Stiefel(w[subject].shape[0], w[subject].shape[1])
 
             if data_sup[subject] is not None:
-                lr_samples_S = S.shared(data_sup[subject].shape[1])
-                data_sup_subject = \
-                    S.shared(data_sup[subject].astype(theano.config.floatX))
-                labels_S = S.shared(labels[subject])
-                constf2 = S.shared(-self.alpha / self.gamma
-                                   / data_sup[subject].shape[1],
-                                   allow_downcast=True)
+                data_sup_subject_tf = tf.constant(data_sup[subject].astype(np.float64))
+                labels_tf_subj = tf.constant(labels[subject], dtype=tf.int32)
+                constf2 = tf.constant(-self.alpha / self.gamma / data_sup[subject].shape[1], dtype=tf.float64)
 
-                log_p_y_given_x = T.log(T.nnet.softmax((theta_th.dot(
-                    w_th.T.dot(data_sup_subject))).T + bias_th))
-                f2 = constf2 * T.sum(
-                    log_p_y_given_x[T.arange(lr_samples_S), labels_S])
-                f = f1 + f2
+                @function.tensorflow(manifold)
+                def cost(w_tf):
+                    f1 = constf1 * tf.reduce_sum((data_srm_subject_tf - tf.matmul(w_tf, s_tf)) ** 2)
+                    logits = tf.transpose(tf.matmul(theta_tf, tf.matmul(tf.transpose(w_tf), data_sup_subject_tf))) + bias_tf
+                    log_p_y_given_x = tf.nn.log_softmax(logits)
+                    indices = tf.range(data_sup_subject_tf.shape[1], dtype=tf.int32)
+                    gather_indices = tf.stack([indices, labels_tf_subj], axis=1)
+                    log_probs = tf.gather_nd(log_p_y_given_x, gather_indices)
+                    f2 = constf2 * tf.reduce_sum(log_probs)
+                    return f1 + f2
             else:
-                f = f1
+                @function.tensorflow(manifold)
+                def cost(w_tf):
+                    f1 = constf1 * tf.reduce_sum((data_srm_subject_tf - tf.matmul(w_tf, s_tf)) ** 2)
+                    return f1
 
-            # Define the problem and solve
             f_subject = self._objective_function_subject(data_align[subject],
                                                          data_sup[subject],
                                                          labels[subject],
                                                          w[subject],
                                                          s, theta, bias)
-            minstep = np.amin(((10**-np.floor(np.log10(f_subject))), 1e-1))
-            manifold = Stiefel(w[subject].shape[0], w[subject].shape[1])
-            problem = Problem(manifold=manifold, cost=f, arg=w_th, verbosity=0)
-            solver = ConjugateGradient(mingradnorm=1e-2, minstepsize=minstep)
-            w[subject] = np.array(solver.solve(
-                problem, x=w[subject].astype(theano.config.floatX)))
-            if data_sup[subject] is not None:
-                del f2
-                del log_p_y_given_x
-                del data_sup_subject
-                del labels_S
-            del solver
-            del problem
-            del manifold
-            del f
-            del f1
-            del data_srm_subject
-            del w_th
-        del theta_th
-        del bias_th
-        del s_th
+            minstep = np.amin(((10 ** -np.floor(np.log10(f_subject))), 1e-1))
+
+            problem = Problem(manifold=manifold, cost=cost)
+            solver = ConjugateGradient(min_gradient_norm=1e-2, min_step_size=minstep, verbosity=0)
+            w_init = w[subject].astype(np.float64)
+            result = solver.run(problem, initial_point=w_init)
+            w[subject] = result.point
 
         # Run garbage collector to avoid filling up the memory
         gc.collect()
@@ -743,7 +705,7 @@ class SSSRM(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         samples = data.shape[1]
 
-        thetaT_wi_zi_plus_bias = theta.T.dot(w.T.dot(data)) + bias
+        thetaT_wi_zi_plus_bias = theta.T.dot(w.T.dot(data)) + bias[:, np.newaxis]
         sum_exp, max_value, _ = utils.sumexp_stable(thetaT_wi_zi_plus_bias)
         sum_exp_values = np.log(sum_exp) + max_value
 

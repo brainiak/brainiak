@@ -62,8 +62,7 @@ dependencies = [
     "scikit-learn>=0.18",
     "scipy!=1.0.0",
     "statsmodels",
-    "pymanopt<=0.2.5",
-    "theano>=1.0.4",          # See https://github.com/Theano/Theano/pull/6671
+    "pymanopt",
     "psutil",
     "nibabel",
     "joblib",
