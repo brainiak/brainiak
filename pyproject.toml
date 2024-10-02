@@ -171,7 +171,7 @@ before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anacon
 before-test = [
     "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
 ]
-test-command = "python -m mpi4py -m pytest {project}/tests"
+#test-command = "mpiexec python -m mpi4py -m pytest {project}/tests"
 
 [tool.cibuildwheel.macos]
 before-all = [

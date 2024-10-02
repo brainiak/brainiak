@@ -26,7 +26,7 @@ jobs:
       - uses: mpi4py/setup-mpi@v1
         if: ${{ contains(matrix.os, 'windows') }}
         with:
-          mpi: intel
+          mpi: intelmpi
 
       # Else, use the default for the OS and setup-mpi action
       - uses: mpi4py/setup-mpi@v1
@@ -55,7 +55,16 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+
+      # Use intel mpi on windows
       - uses: mpi4py/setup-mpi@v1
+        if: ${{ contains(matrix.os, 'windows') }}
+        with:
+          mpi: intelmpi
+
+      # Else, use the default for the OS and setup-mpi action
+      - uses: mpi4py/setup-mpi@v1
+        if: ${{ !contains(matrix.os, 'windows') }}
 
       # Used to host cibuildwheel
       - uses: actions/setup-python@v5
