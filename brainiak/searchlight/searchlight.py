@@ -152,9 +152,17 @@ class Searchlight:
         intersection of the global (brain) mask and the `Shape` mask. The
         seed (central) voxel of the searchlight region is taken into
         consideration.
+
+    pool_size: int
+        Maximum number of processes running the function in parallel.
+        If None, number of available hardware threads, considering cpusets
+        restrictions. This value will be overridden by any pool_size passed
+        to run or run_block_function by the user.
+
     """
     def __init__(self, sl_rad=1, max_blk_edge=10, shape=Cube,
-                 min_active_voxels_proportion=0):
+                 min_active_voxels_proportion=0,
+                 pool_size=None):
         assert sl_rad >= 0, 'sl_rad should not be negative'
         assert max_blk_edge > 0, 'max_blk_edge should be positive'
         self.sl_rad = sl_rad
@@ -163,6 +171,7 @@ class Searchlight:
         self.comm = MPI.COMM_WORLD
         self.shape = shape(sl_rad).mask_
         self.bcast_var = None
+        self.pool_size = pool_size
 
     def _get_ownership(self, data):
         """Determine on which rank each subject currently resides
@@ -422,6 +431,11 @@ class Searchlight:
 
         results = []
         usable_cpus = usable_cpu_count()
+
+        # The user specified a pool_size on the searchlight object, so use that
+        if pool_size is None and self.pool_size is not None:
+            pool_size = self.pool_size
+
         if pool_size is None:
             processes = usable_cpus
         else:
@@ -513,6 +527,9 @@ class Searchlight:
         and None elsewhere.
 
         """
+        # The user specified a pool_size on the searchlight object, so use that
+        if pool_size is None and self.pool_size is not None:
+            pool_size = self.pool_size
 
         extra_block_fn_params = (voxel_fn, self.shape,
                                  self.min_active_voxels_proportion)
