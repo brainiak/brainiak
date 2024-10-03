@@ -18,11 +18,12 @@
 """
 import numpy as np
 from brainiak.utils import fmrisim_real_time_generator as gen
+from importlib.resources import files
 import pytest
 import os
 import time
 import glob
-from pkg_resources import resource_stream  # type: ignore
+
 from typing import Dict
 from nibabel.nifti1 import Nifti1Image
 import gzip
@@ -32,21 +33,31 @@ with pytest.raises(TypeError):
     gen.generate_data()  # type: ignore
 
 data_dict: Dict = {}
-vol = resource_stream(gen.__name__, "sim_parameters/ROI_A.nii.gz").read()
+
+rf = files('brainiak').joinpath('utils/sim_parameters/ROI_A.nii.gz')
+with rf.open("rb") as f:
+    vol = f.read()
 data_dict["ROI_A_file"] = np.asanyarray(
     Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
 )
-vol = resource_stream(gen.__name__, "sim_parameters/ROI_B.nii.gz").read()
+
+rf = files('brainiak').joinpath('utils/sim_parameters/ROI_B.nii.gz')
+with rf.open("rb") as f:
+    vol = f.read()
 data_dict["ROI_B_file"] = np.asanyarray(
     Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
 )
-vol = resource_stream(gen.__name__,
-                      "sim_parameters/sub_template.nii.gz").read()
+rf = files('brainiak').joinpath('utils/sim_parameters/sub_template.nii.gz')
+with rf.open("rb") as f:
+    vol = f.read()
 data_dict["template_path"] = np.asanyarray(
     Nifti1Image.from_bytes(gzip.decompress(vol)).dataobj
 )
-noise_dict_file = resource_stream(gen.__name__,
-                                  "sim_parameters/sub_noise_dict.txt").read()
+
+rf = files('brainiak').joinpath('utils/sim_parameters/sub_noise_dict.txt')
+with rf.open("rb") as f:
+    noise_dict_file = f.read()
+
 data_dict['noise_dict_file'] = noise_dict_file
 data_dict['numTRs'] = 30
 data_dict['event_duration'] = 2

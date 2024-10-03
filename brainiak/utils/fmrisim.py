@@ -84,12 +84,14 @@ import numpy as np
 # See pyflakes issue #248
 # https://github.com/PyCQA/pyflakes/issues/248
 from numpy.linalg import LinAlgError
-from importlib.resources import files
+
 from scipy import stats
 from scipy import signal
 import scipy.ndimage as ndimage
 import copy
 from scipy import optimize
+
+from importlib.resources import files
 
 __all__ = [
     "apply_signal",
@@ -2283,9 +2285,9 @@ def mask_brain(volume,
     if mask_self is True:
         mask_raw = volume
     elif template_name is None:
-        re_file = (files('brainiak')
-                   .joinpath('utils/sim_parameters/grey_matter_mask.npy'))
-        with re_file.open("rb") as f:
+        rf = files('brainiak').joinpath(
+            'utils/sim_parameters/grey_matter_mask.npy')
+        with rf.open('rb') as f:
             mask_raw = np.load(f)
     else:
         mask_raw = np.load(template_name)

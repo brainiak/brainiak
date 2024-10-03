@@ -35,11 +35,14 @@ import numpy as np  # type: ignore
 import pydicom as dicom
 from brainiak.utils import fmrisim as sim  # type: ignore
 import logging
-from pkg_resources import resource_stream  # type: ignore
 from nibabel.nifti1 import Nifti1Image
 import gzip
 
+from pathlib import Path
+
 __all__ = ["generate_data"]
+
+from importlib.resources import files
 
 logger = logging.getLogger(__name__)
 
@@ -304,21 +307,27 @@ def _get_input_names(data_dict):
 
     # Load in the ROIs
     if data_dict.get('ROI_A_file') is None:
-        vol = resource_stream(__name__, "sim_parameters/ROI_A.nii.gz").read()
+        rf = files('brainiak').joinpath('utils/sim_parameters/ROI_A.nii.gz')
+        with rf.open("rb") as f:
+            vol = f.read()
         ROI_A_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_fdata()
     else:
         ROI_A_file = data_dict['ROI_A_file']
 
     if data_dict.get('ROI_B_file') is None:
-        vol = resource_stream(__name__, "sim_parameters/ROI_B.nii.gz").read()
+        rf = files('brainiak').joinpath('utils/sim_parameters/ROI_B.nii.gz')
+        with rf.open("rb") as f:
+            vol = f.read()
         ROI_B_file = Nifti1Image.from_bytes(gzip.decompress(vol)).get_fdata()
     else:
         ROI_B_file = data_dict['ROI_B_file']
 
     # Get the path to the template
     if data_dict.get('template_path') is None:
-        vol = resource_stream(__name__,
-                              "sim_parameters/sub_template.nii.gz").read()
+        rf = files('brainiak').joinpath(
+            'utils/sim_parameters/sub_template.nii.gz')
+        with rf.open("rb") as f:
+            vol = f.read()
         template_path = Nifti1Image.from_bytes(
             gzip.decompress(vol)).get_fdata()
     else:
@@ -326,9 +335,10 @@ def _get_input_names(data_dict):
 
     # Load in the noise dict if supplied
     if data_dict.get('noise_dict_file') is None:
-        file = resource_stream(__name__,
-                               'sim_parameters/sub_noise_dict.txt').read()
-        noise_dict_file = file
+        rf = files('brainiak').joinpath(
+            'utils/sim_parameters/sub_noise_dict.txt')
+        with rf.open("rb") as f:
+            noise_dict_file = f.read()
     else:
         noise_dict_file = data_dict['noise_dict_file']
 
@@ -371,7 +381,7 @@ def generate_data(outputDir,
     data_dict.update(user_settings)
 
     # If the folder doesn't exist then make it
-    os.system('mkdir -p %s' % outputDir)
+    Path(outputDir).mkdir(parents=True, exist_ok=True)
 
     logger.info('Load template of average voxel value')
 
