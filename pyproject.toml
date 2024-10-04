@@ -159,12 +159,9 @@ skip = [
 [tool.cibuildwheel.linux]
 before-all = [
     "yum --disablerepo=epel install -y openmpi openmpi-devel",
-
-    # Add to path to profile.d so that it is available in the PATH
-    "echo 'export PATH=/usr/lib64/openmpi/bin:$PATH' > /etc/profile.d/openmpi.sh",
-    "source /etc/profile.d/openmpi.sh",
 ]
-before-build = "which mpicc"
+before-build = "export PATH=/usr/lib64/openmpi/bin:$PATH"
+before-test = "export PATH=/usr/lib64/openmpi/bin:$PATH"
 
 #[tool.cibuildwheel.linux.environment]
 #MPICC = "/usr/lib64/openmpi/bin/mpicc"
