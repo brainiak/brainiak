@@ -81,21 +81,28 @@ def test_X():
     R = []
     R.append([1, 2, 3])
     # Check that does NOT run with wrong data type
-    with pytest.raises(TypeError, match="Each scanner coordinate matrix should be an array"):
+    with pytest.raises(
+            TypeError,
+            match="Each scanner coordinate matrix should be an array"):
         htfa.fit(X, R=R)
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError, match="Each scanner coordinate matrix should be 2D array"):
+    with pytest.raises(
+            TypeError,
+            match="Each scanner coordinate matrix should be 2D array"):
         htfa.fit(X, R=R)
 
     R = []
     for s in np.arange(n_subj):
         R.append(np.random.rand(n_voxel - 1, 3))
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError, match="n_voxel should be the same in X\[idx\] and R\[idx\]"):
+    with pytest.raises(
+            TypeError,
+            match=r"n_voxel should be the same in X\[idx\] and R\[idx\]"):
         htfa.fit(X, R=R)
+
 
 @pytest.mark.mpiexec(n=2)
 def test_can_run():
@@ -160,9 +167,12 @@ def test_can_run():
 
 def test_dummy():
     """
-    This is a dummy test to work around for the issue of pytest and pytest-mpiexec. See here
-    the discussion of the same issue in pytest-forked:
+    This is a dummy test to work around for the issue of pytest and
+    pytest-mpiexec. See here the discussion of the same issue in
+    pytest-forked:
 
-    https://github.com/pytest-dev/pytest-forked/issues/67#issuecomment-1964718720
+    https://github.com/pytest-dev/pytest-forked/issues/67
+    #issuecomment-1964718720
+
     """
     pass

@@ -49,7 +49,8 @@ def test_voxel_selection(pool_size):
     fake_raw_data = [create_epoch(prng) for i in range(8)]
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
-    vs = VoxelSelector(labels, 4, 2, fake_raw_data, voxel_unit=1, process_num=process_num)
+    vs = VoxelSelector(labels, 4, 2, fake_raw_data, voxel_unit=1,
+                       process_num=process_num)
     # test scipy normalization
     fake_corr = prng.rand(1, 4, 5).astype(np.float32)
     fake_corr = vs._correlation_normalization(fake_corr)
@@ -128,10 +129,12 @@ def test_voxel_selection_with_two_masks(pool_size):
             "voxel selection via logistic regression does not provide correct "
             "results")
 
+
 def test_dummy():
     """
-    This is a dummy test to work around for the issue of pytest and pytest-mpiexec. See here
-    the discussion of the same issue in pytest-forked:
+    This is a dummy test to work around for the issue of pytest and
+    pytest-mpiexec. See here the discussion of the same issue in
+    pytest-forked:
 
     https://github.com/pytest-dev/pytest-forked/issues/67#issuecomment-1964718720
     """

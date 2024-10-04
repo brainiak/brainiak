@@ -241,7 +241,8 @@ def test_correctness(pool_size):  # noqa: C901
         sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
         sl.distribute(data, mask)
         sl.broadcast(MaskRadBcast(mask, rad))
-        global_outputs = sl.run_searchlight(voxel_test_sfn, pool_size=pool_size)
+        global_outputs = sl.run_searchlight(voxel_test_sfn,
+                                            pool_size=pool_size)
 
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):
@@ -272,7 +273,8 @@ def test_correctness(pool_size):  # noqa: C901
         sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
         sl.distribute(data, mask)
         sl.broadcast(mask)
-        global_outputs = sl.run_block_function(block_test_sfn, pool_size=pool_size)
+        global_outputs = sl.run_block_function(block_test_sfn,
+                                               pool_size=pool_size)
 
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):
