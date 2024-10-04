@@ -158,8 +158,11 @@ skip = [
 [tool.cibuildwheel.linux]
 before-all = [
     "yum --disablerepo=epel install -y openmpi openmpi-devel",
+
+    # OpenMPI doesn't like being run as root, lets add a user to run tests from
+    'adduser mpiuser',
 ]
-test-command="OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1 OMPI_ALLOW_RUN_AS_ROOT=1 pytest {project}/tests"
+test-command="su - mpiuser -c 'pytest {project}/tests'"
 
 [tool.cibuildwheel.linux.environment]
 PATH = "/usr/lib64/openmpi/bin:$PATH"
