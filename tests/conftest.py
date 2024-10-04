@@ -61,7 +61,7 @@ def pool_size():
         return 1
 
     # OpenMPI has issues with fork, so we need to set the pool_size to 1
-    if MPI.get_vendor()[0].contains("Open MPI"):
+    if "Open MPI" in MPI.get_vendor()[0]:
         return 1
 
     # On Windows, we need to set the pool_size to 1 for intel mpi and msmpi
