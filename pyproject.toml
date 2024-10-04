@@ -159,7 +159,7 @@ skip = [
 before-all = [
     "yum --disablerepo=epel install -y openmpi openmpi-devel",
 ]
-environment = { "PATH"="/usr/lib64/openmpi/bin" }
+environment = { "PATH"="/usr/lib64/openmpi/bin:$PATH" }
 
 [tool.cibuildwheel.macos]
 before-all = [
