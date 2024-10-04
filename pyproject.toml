@@ -157,24 +157,19 @@ skip = [
 ]
 
 [tool.cibuildwheel.linux]
-environment = {"MPICC"="/usr/lib64/openmpi/bin/mpicc", "MPIEXEC"="/usr/lib64/openmpi/bin/mpiexec"}
 before-all = [
     "yum --disablerepo=epel install -y openmpi openmpi-devel",
-    "CC=$MPICC pip install mpi4py",
+    "export PATH=/usr/lib64/openmpi/bin:$PATH",
 ]
-before-test = "CC=$MPICC pip install mpi4py"
-test-command = "$MPIEXEC --allow-run-as-root -n 2 python -m mpi4py -m pytest {project}/tests"
 
-[tool.cibuildwheel.windows]
-#before-all = "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple"
-#before-test = [
-#    "python -m pip install mpi4py --extra-index-url https://pypi.anaconda.org/mpi4py/simple",
-#]
-test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
+#[tool.cibuildwheel.linux.environment]
+#MPICC = "/usr/lib64/openmpi/bin/mpicc"
+#MPIEXEC = "/usr/lib64/openmpi/bin/mpiexec"
+#OMPI_ALLOW_RUN_AS_ROOT = 1
+#OMPI_ALLOW_RUN_AS_ROOT_CONFIRM = 1
 
 [tool.cibuildwheel.macos]
 before-all = [
-    "brew install mpich",
     ".cibw/build_libomp_macos.sh"
 ]
 
