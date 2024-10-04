@@ -13,6 +13,8 @@
 #  limitations under the License.
 """Brain Imaging Analysis Kit."""
 
+from ._version import version as __version__
+
 import sys
 
 if sys.version_info < (3, 5):
