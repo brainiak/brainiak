@@ -162,8 +162,8 @@ before-all = [
 
 [tool.cibuildwheel.linux.environment]
 PATH = "/usr/lib64/openmpi/bin:$PATH"
-OMPI_ALLOW_RUN_AS_ROOT = "1"
-OMPI_ALLOW_RUN_AS_ROOT_CONFIRM = "1"
+OMPI_ALLOW_RUN_AS_ROOT = 1
+OMPI_ALLOW_RUN_AS_ROOT_CONFIRM = 1
 
 [tool.cibuildwheel.macos]
 before-all = [
