@@ -16,10 +16,12 @@ from collections import namedtuple
 
 import numpy as np
 from mpi4py import MPI
-import conftest
+
+import pytest
 
 from brainiak.searchlight.searchlight import Searchlight
 from brainiak.searchlight.searchlight import Diamond, Ball
+
 
 """Distributed Searchlight Test
 """
@@ -31,8 +33,8 @@ def cube_sfn(data, msk, myrad, bcast_var):
     return None
 
 
-@conftest.skip_non_fork
-def test_searchlight_with_cube():
+@pytest.mark.mpiexec(n=2)
+def test_searchlight_with_cube(pool_size):
     sl = Searchlight(sl_rad=3)
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -50,7 +52,7 @@ def test_searchlight_with_cube():
     mask[10:17, 10:17, 10:17] = True
 
     sl.distribute(data, mask)
-    global_outputs = sl.run_searchlight(cube_sfn)
+    global_outputs = sl.run_searchlight(cube_sfn, pool_size=pool_size)
 
     if rank == 0:
         assert global_outputs[13, 13, 13] == 1.0
@@ -62,6 +64,7 @@ def test_searchlight_with_cube():
                     assert global_outputs[i, j, k] is None
 
 
+@pytest.mark.mpiexec(n=2)
 def test_searchlight_with_cube_poolsize_1():
     sl = Searchlight(sl_rad=3)
     comm = MPI.COMM_WORLD
@@ -99,8 +102,8 @@ def diamond_sfn(data, msk, myrad, bcast_var):
     return None
 
 
-@conftest.skip_non_fork
-def test_searchlight_with_diamond():
+@pytest.mark.mpiexec(n=2)
+def test_searchlight_with_diamond(pool_size):
     sl = Searchlight(sl_rad=3, shape=Diamond)
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -118,7 +121,7 @@ def test_searchlight_with_diamond():
     mask[10:17, 10:17, 10:17] = Diamond(3).mask_
 
     sl.distribute(data, mask)
-    global_outputs = sl.run_searchlight(diamond_sfn)
+    global_outputs = sl.run_searchlight(diamond_sfn, pool_size=pool_size)
 
     if rank == 0:
         assert global_outputs[13, 13, 13] == 1.0
@@ -139,8 +142,8 @@ def ball_sfn(data, msk, myrad, bcast_var):
     return None
 
 
-@conftest.skip_non_fork
-def test_searchlight_with_ball():
+@pytest.mark.mpiexec(n=2)
+def test_searchlight_with_ball(pool_size):
     sl = Searchlight(sl_rad=3, shape=Ball)
     comm = MPI.COMM_WORLD
     rank = comm.rank
@@ -158,7 +161,7 @@ def test_searchlight_with_ball():
     mask[10:17, 10:17, 10:17] = Ball(3).mask_
 
     sl.distribute(data, mask)
-    global_outputs = sl.run_searchlight(ball_sfn)
+    global_outputs = sl.run_searchlight(ball_sfn, pool_size=pool_size)
 
     if rank == 0:
         assert global_outputs[13, 13, 13] == 1.0
@@ -216,8 +219,8 @@ def block_test_sfn(data, msk, myrad, bcast_var, extra_params):
         return outmat[myrad:-myrad, myrad:-myrad, myrad:-myrad]
 
 
-@conftest.skip_non_fork
-def test_correctness():  # noqa: C901
+@pytest.mark.mpiexec(n=2, timeout=120)
+def test_correctness(pool_size):  # noqa: C901
     def voxel_test(data, mask, max_blk_edge, rad):
 
         comm = MPI.COMM_WORLD
@@ -238,7 +241,7 @@ def test_correctness():  # noqa: C901
         sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
         sl.distribute(data, mask)
         sl.broadcast(MaskRadBcast(mask, rad))
-        global_outputs = sl.run_searchlight(voxel_test_sfn)
+        global_outputs = sl.run_searchlight(voxel_test_sfn, pool_size=pool_size)
 
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):
@@ -269,7 +272,7 @@ def test_correctness():  # noqa: C901
         sl = Searchlight(sl_rad=rad, max_blk_edge=max_blk_edge)
         sl.distribute(data, mask)
         sl.broadcast(mask)
-        global_outputs = sl.run_block_function(block_test_sfn)
+        global_outputs = sl.run_block_function(block_test_sfn, pool_size=pool_size)
 
         if rank == 0:
             for d0 in range(rad, global_outputs.shape[0]-rad):

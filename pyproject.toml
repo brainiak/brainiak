@@ -84,7 +84,8 @@ dev = [
     "sphinx_rtd_theme",
     "towncrier",
     "numdifftools",
-    "testbook"
+    "testbook",
+    "pytest-mpiexec"
 ]
 
 matnormal = [
@@ -147,7 +148,7 @@ write_to = "brainiak/_version.py"
 [tool.cibuildwheel]
 # Build all python versions less than 3.12
 test-extras = ["matnormal", "dev"]
-test-command = "mpiexec -n 2 python -m mpi4py -m pytest {project}/tests"
+test-command = "python -m pytest {project}/tests"
 archs = ["auto64"]
 skip = [
     "pp*",

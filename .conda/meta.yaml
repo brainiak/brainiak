@@ -1,5 +1,5 @@
 {% set conda_package_nonexistent = (
-    "pymanopt<=0.2.5",
+    "pymanopt",
 ) %}
 {% set data = load_setup_py_data() %}
 
@@ -60,7 +60,7 @@ requirements:
 test:
   commands:
     - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf
-    - mpiexec -n 2 pytest $BRAINIAK_HOME
+    - pytest $BRAINIAK_HOME
 
       # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
     - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'

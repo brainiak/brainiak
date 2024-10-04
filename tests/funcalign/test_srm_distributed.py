@@ -16,6 +16,7 @@ import pytest
 from mpi4py import MPI
 
 
+@pytest.mark.mpiexec(n=2)
 def test_distributed_srm():  # noqa: C901
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
