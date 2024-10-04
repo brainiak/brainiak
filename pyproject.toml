@@ -146,7 +146,6 @@ write_to = "brainiak/_version.py"
  cmake.build-type = "Release"
 
 [tool.cibuildwheel]
-# Build all python versions less than 3.12
 test-extras = ["matnormal", "dev"]
 test-command = "python -m pytest {project}/tests"
 archs = ["auto64"]
@@ -160,25 +159,12 @@ skip = [
 before-all = [
     "yum --disablerepo=epel install -y openmpi openmpi-devel",
 ]
-before-build = "export PATH=/usr/lib64/openmpi/bin:$PATH"
-before-test = "export PATH=/usr/lib64/openmpi/bin:$PATH"
-
-#[tool.cibuildwheel.linux.environment]
-#MPICC = "/usr/lib64/openmpi/bin/mpicc"
-#MPIEXEC = "/usr/lib64/openmpi/bin/mpiexec"
-#OMPI_ALLOW_RUN_AS_ROOT = 1
-#OMPI_ALLOW_RUN_AS_ROOT_CONFIRM = 1
+environment = { "PATH"="/usr/lib64/openmpi/bin" }
 
 [tool.cibuildwheel.macos]
 before-all = [
     ".cibw/build_libomp_macos.sh"
 ]
-
-#[[tool.cibuildwheel.overrides]]
-#select = "*-musllinux*"
-#environment = {"MPICC"="/usr/bin/mpicc", "MPIEXEC"="/usr/bin/mpiexec"}
-#before-all = "apk add openmpi openmpi-dev"
-
 
 [tool.coverage.run]
 source = ["brainiak"]
