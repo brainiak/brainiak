@@ -147,7 +147,7 @@ write_to = "brainiak/_version.py"
 
 [tool.cibuildwheel]
 test-extras = ["matnormal", "dev"]
-test-command = "pytest {project}/tests"
+test-command = "python -m pytest {project}/tests"
 archs = ["auto64"]
 skip = [
     "pp*",
@@ -162,7 +162,7 @@ before-all = [
     # OpenMPI doesn't like being run as root, lets add a user to run tests from
     'adduser mpiuser',
 ]
-test-command="su - mpiuser -c 'pytest {project}/tests'"
+test-command="su - mpiuser -c 'python -m {project}/tests'"
 
 [tool.cibuildwheel.linux.environment]
 PATH = "/usr/lib64/openmpi/bin:$PATH"
