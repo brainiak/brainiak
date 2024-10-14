@@ -68,6 +68,5 @@ test:
     - conda inspect objects -p $PREFIX brainiak  # [osx]
   requires:
     - pytest
-    - pytest-mpiexec
     - testbook
     - numdifftools
