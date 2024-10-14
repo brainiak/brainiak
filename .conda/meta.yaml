@@ -68,12 +68,13 @@ requirements:
     - tensorflow
 
 test:
+  source_files:
+    - tests
+    - pyproject.toml
+  imports:
+    - braniak
   commands:
-    - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf
-    - pytest $BRAINIAK_HOME
-
-      # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
-    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
+    - pytest
     - conda inspect linkages -p $PREFIX brainiak  # [not win]
     - conda inspect objects -p $PREFIX brainiak  # [osx]
   requires:
