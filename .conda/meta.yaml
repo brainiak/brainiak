@@ -72,7 +72,7 @@ test:
     - tests
     - pyproject.toml
   imports:
-    - braniak
+    - brainiak
   commands:
     - pytest
     - conda inspect linkages -p $PREFIX brainiak  # [not win]
