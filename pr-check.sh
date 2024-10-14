@@ -46,7 +46,7 @@ if [[ "$is_della" == true ]]; then
 
 fi
 
-if [ ! -f brainiak/__init__.py ]
+if [ ! -f src/brainiak/__init__.py ]
 then
     echo "Run "$(basename "$0")" from the root of the BrainIAK hierarchy."
     exit 1

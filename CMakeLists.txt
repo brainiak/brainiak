@@ -10,6 +10,6 @@ find_package(
 set(PYBIND11_NEWPYTHON ON)
 find_package(pybind11 CONFIG REQUIRED)
 
-add_subdirectory(brainiak/fcma)
-add_subdirectory(brainiak/factoranalysis)
-add_subdirectory(brainiak/eventseg)
+add_subdirectory(src/brainiak/fcma)
+add_subdirectory(src/brainiak/factoranalysis)
+add_subdirectory(src/brainiak/eventseg)
