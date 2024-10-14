@@ -96,8 +96,8 @@ jobs:
         if: ${{ contains(matrix.os, 'ubuntu') }} or ${{ contains(matrix.os, 'macos') }}
         run: |
           python -m pip install setuptools_scm
-            export BRAINIAK_VERSION=$(python -m setuptools_scm)")
-            echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
+          export BRAINIAK_VERSION=$(python -m setuptools_scm)
+          echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
 
       - if: ${{ contains(matrix.os, 'macos') }}
         uses: conda-incubator/setup-miniconda@v3
