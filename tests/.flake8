@@ -9,3 +9,4 @@ extend-ignore =
     E231,
     # Docstrings
     D,
+    C901

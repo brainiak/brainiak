@@ -8,6 +8,8 @@ import numpy
 import random
 import tensorflow
 
+pytest_plugins = ["tests.pytest_mpiexec_plugin"]
+
 
 def pytest_configure(config):
     config.option.xmlpath = "junit-{}.xml".format(MPI.COMM_WORLD.Get_rank())

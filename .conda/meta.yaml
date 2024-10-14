@@ -65,6 +65,7 @@ requirements:
     - joblib
     - wheel
     - pydicom
+    - tensorflow
 
 test:
   commands:

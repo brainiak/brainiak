@@ -85,7 +85,6 @@ dev = [
     "towncrier",
     "numdifftools",
     "testbook",
-    "pytest-mpiexec"
 ]
 
 matnormal = [
@@ -159,12 +158,12 @@ skip = [
 before-all = [
     "yum --disablerepo=epel install -y mpich mpich-devel",
 ]
-
-# Annoyingly, mpi4py=4.0.0 is not compatible with the very old version
-# of mpich that is available in manylinux2014 image. Issue is fixed here
-# https://github.com/mpi4py/mpi4py/issues/537
-# We need to install mpi4py from git to get the fix until the next release
-before-test = "python -m pip install --upgrade git+https://github.com/mpi4py/mpi4py.git"
+#
+## Annoyingly, mpi4py=4.0.0 is not compatible with the very old version
+## of mpich that is available in manylinux2014 image. Issue is fixed here
+## https://github.com/mpi4py/mpi4py/issues/537
+## We need to install mpi4py from git to get the fix until the next release
+#before-test = "python -m pip install --upgrade git+https://github.com/mpi4py/mpi4py.git"
 
 [tool.cibuildwheel.linux.environment]
 PATH = "/usr/lib64/mpich/bin:$PATH"
