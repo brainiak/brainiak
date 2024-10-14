@@ -8,8 +8,6 @@ import numpy
 import random
 import tensorflow
 
-# Add tests directory to path
-sys.path.append("tests")
 
 pytest_plugins = ["tests.pytest_mpiexec_plugin"]
 
