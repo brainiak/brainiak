@@ -9,7 +9,7 @@ package:
   name: brainiak
 
   # Can't find a good way to get this from setuptools_scm. This needs to be defined before running conda-build
-  version: {{ environ.get('BRAINIAK_VERSION'}}
+  version: {{ environ.get('BRAINIAK_VERSION') }}
 
 about:
   home: {{ data.get('url') }}
