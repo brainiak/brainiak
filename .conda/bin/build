@@ -34,9 +34,5 @@ then
     variants="{'CONDA_BUILD_SYSROOT': ['${sdk_path}']}"
 fi
 
-# Get BRAINIAK version from setuptools_scm
-conda install -y setuptools_scm
-export BRAINIAK_VERSION=$(python3 -m setuptools_scm)
-
 "$CONDA_HOME"/bin/conda build --output-folder $out_dir --python=$python_version \
     "$variants_prefix" "$variants" "$DIR"/..

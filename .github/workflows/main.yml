@@ -89,7 +89,16 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      
+
+      # Can't figure out a way to get the package version from setuptools_scm inside the conda build
+      # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
+      - name: Run setuptools_scm to get package version and store in enviroment variable BRAINIAK_VERSION
+        if: ${{ contains(matrix.os, 'ubuntu') }} or ${{ contains(matrix.os, 'macos') }}
+        run: |
+          python -m pip install setuptools_scm
+            export BRAINIAK_VERSION=$(python -m setuptools_scm)")
+            echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
+
       - if: ${{ contains(matrix.os, 'macos') }}
         uses: conda-incubator/setup-miniconda@v3
       
