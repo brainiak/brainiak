@@ -80,3 +80,4 @@ test:
     - pytest
     - testbook
     - numdifftools
+    - pytest-reportlog
