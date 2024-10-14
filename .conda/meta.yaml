@@ -37,25 +37,25 @@ requirements:
     - pip
     - mpich
     - llvm-openmp
-    - setuptools>=60 
-    - wheel
+    - scikit-build-core
+    - setuptools_scm>=8.0
     - pybind11>=2.9.0
     - scipy!=1.0.0
     - cython
-    - numpy
-    - setuptools_scm>=8.0
 
   run:
     - python
     - numpy
-    - mpich
-    - llvm-openmp
-    - tensorflow
-    - tensorflow-probability
-    {% for req in data.get('install_requires', [])
-        if req not in conda_package_nonexistent -%}
-    - {{req}}
-    {% endfor %}
+    - mpi4py>=3
+    - nitime
+    - scikit-learn>=0.18
+    - scipy!=1.0.0
+    - statsmodels
+    - psutil
+    - nibabel
+    - joblib
+    - wheel
+    - pydicom
 
 test:
   commands:
@@ -68,5 +68,6 @@ test:
     - conda inspect objects -p $PREFIX brainiak  # [osx]
   requires:
     - pytest
+    - pytest-mpiexec
     - testbook
     - numdifftools
