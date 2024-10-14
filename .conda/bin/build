@@ -36,7 +36,7 @@ fi
 
 # Get BRAINIAK version from setuptools_scm
 conda install -y setuptools_scm
-export BRAINIAK_VERSION=$(python -m setuptools_scm)
+export BRAINIAK_VERSION=$(python3 -m setuptools_scm)
 
 "$CONDA_HOME"/bin/conda build --output-folder $out_dir --python=$python_version \
     "$variants_prefix" "$variants" "$DIR"/..
