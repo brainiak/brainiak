@@ -195,7 +195,6 @@ def consolidate_reports(nodeid, reports, style=ReportStyle.first_failure):
 
     elif style == ReportStyle.first_failure:
         # return just the first error
-        # TODO: mention other failed ranks? How?
         first_failed_rank = failed_ranks[0]
 
         return [r for r in reports if r["_mpi_rank"] == first_failed_rank]
