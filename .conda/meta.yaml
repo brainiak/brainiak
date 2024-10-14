@@ -1,8 +1,3 @@
-{% set conda_package_nonexistent = (
-    "pymanopt",
-) %}
-{% set data = load_setup_py_data() %}
-
 package:
   # Repeating name because of the following issue:
   # https://github.com/conda/conda-build/issues/2475
@@ -12,9 +7,16 @@ package:
   version: {{ environ.get('BRAINIAK_VERSION') }}
 
 about:
-  home: {{ data.get('url') }}
-  license: {{ data.get('license') }}
-  summary: {{ data.get('description') }}
+  home: http://brainiak.org
+  license: Apache-2.0
+  license_family: Apache
+  license_file: LICENSE
+  summary: |
+    The Brain Imaging Analysis Kit is a package of Python modules 
+    useful for neuroscience, primarily focused on functional 
+    Magnetic Resonance Imaging (fMRI) analysis. The package was originally 
+    created by a collaboration between Intel and the 
+    Princeton Neuroscience Institute (PNI).
 
 source:
   path: ../
