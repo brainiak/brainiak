@@ -32,6 +32,9 @@ build:
     - MKL_THREADING_LAYER
     - KMP_DUPLICATE_LIB_OK
 
+  script:
+    - {{ PYTHON }} -m pip install . -v
+
 requirements:
   build:
     - python
@@ -42,7 +45,6 @@ requirements:
     - pip
     - mpich
     - llvm-openmp
-    - scikit-build-core
     - setuptools_scm>=8.0
     - pybind11>=2.9.0
     - scipy!=1.0.0
