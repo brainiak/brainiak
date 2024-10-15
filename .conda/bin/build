@@ -16,9 +16,6 @@ fi
 
 export BRAINIAK_HOME=$DIR/../../
 
-# See run-tests.sh
-export MKL_THREADING_LAYER=GNU
-
 # See https://github.com/brainiak/brainiak/issues/377
 export KMP_DUPLICATE_LIB_OK=TRUE
 

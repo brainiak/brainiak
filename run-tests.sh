@@ -28,10 +28,6 @@ python3 -m pip freeze | grep -qi /brainiak \
     exit 1
 }
 
-# Define MKL env variable that is required by Theano to run with MKL 2018
-# If removing, also remove from .conda/*
-export MKL_THREADING_LAYER=GNU
-
 coverage run -m pytest
 
 # Check whether we are running on Princeton's della compute cluster.
