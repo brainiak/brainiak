@@ -19,6 +19,9 @@ jobs:
       fail-fast: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -56,6 +59,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Use intel mpi on windows
       - uses: mpi4py/setup-mpi@v1
@@ -94,6 +99,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Can't figure out a way to get the package version from setuptools_scm inside the conda build
       # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
