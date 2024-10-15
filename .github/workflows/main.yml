@@ -125,7 +125,7 @@ jobs:
 
       - name: Build and test package
         id: build-package
-        run: conda mambabuild --output-folder=conda_build --python=${{ matrix.python-version }} .conda/
+        run: micromamba mambabuild --output-folder=conda_build --python=${{ matrix.python-version }} .conda/
 
       - uses: actions/upload-artifact@v4
         with:
