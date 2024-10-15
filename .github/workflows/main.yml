@@ -84,6 +84,9 @@ jobs:
   conda:
     name: Build conda package on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
@@ -108,9 +111,6 @@ jobs:
           set BRAINIAK_VERSION=$(python -m setuptools_scm)
           echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV" 
 
-#      - if: ${{ contains(matrix.os, 'macos') }}
-#        uses: conda-incubator/setup-miniconda@v3
-
       - name: Setup micromamba and boa
         uses: mamba-org/setup-micromamba@v1
         with:
@@ -127,7 +127,7 @@ jobs:
         id: build-package
         run: |
           conda activate test-env
-          conda mambabuild --output_folder=conda_build .conda/
+          conda mambabuild --output-folder=conda_build .conda/
 
       - name: Setup tmate session
         if: ${{ contains(matrix.os, 'ubuntu') }}
