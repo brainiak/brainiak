@@ -133,7 +133,6 @@ jobs:
   publish_conda:
     name: Publish to Anaconda
     needs: [conda, pypi]
-    name: Publish to Anaconda
     environment: anaconda
     permissions:
       id-token: write
