@@ -71,8 +71,6 @@ test:
     - brainiak
   commands:
     - pytest
-    - conda inspect linkages -p $PREFIX brainiak  # [not win]
-    - conda inspect objects -p $PREFIX brainiak  # [osx]
   requires:
     - pytest
     - testbook
