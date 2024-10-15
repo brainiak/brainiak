@@ -125,7 +125,13 @@ jobs:
 
       - name: Build and test package
         id: build-package
-        run: micromamba mambabuild --output=conda_build .conda/
+        run: |
+          conda activate test-env
+          conda mambabuild --output_folder=conda_build .conda/
+
+      - name: Setup tmate session
+        if: ${{ contains(matrix.os, 'ubuntu') }}
+        uses: mxschmitt/action-tmate@v3
 
       - uses: actions/upload-artifact@v4
         with:
