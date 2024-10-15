@@ -95,7 +95,7 @@ jobs:
       # Can't figure out a way to get the package version from setuptools_scm inside the conda build
       # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
       - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION (Linux\Mac)
-        if: ${{ contains(matrix.os, 'ubuntu') }} || ${{ contains(matrix.os, 'macos') }}
+        if: ${{ !contains(matrix.os, 'windows') }}
         run: |
           python -m pip install setuptools_scm
           export BRAINIAK_VERSION=$(python -m setuptools_scm)
