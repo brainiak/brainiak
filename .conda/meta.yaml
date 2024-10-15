@@ -33,6 +33,7 @@ build:
     - KMP_DUPLICATE_LIB_OK
 
   script:
+    - {{ PYTHON }} -m pip install pymanopt
     - {{ PYTHON }} -m pip install . -v
 
 requirements:
@@ -66,6 +67,7 @@ requirements:
     - wheel
     - pydicom
     - tensorflow
+    - tensorflow-probability
 
 test:
   source_files:
