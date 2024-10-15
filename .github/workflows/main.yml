@@ -7,7 +7,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pypi:
+  tests:
+    name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     env:
       IGNORE_CONDA: true
     runs-on: ${{ matrix.os }}
@@ -81,6 +82,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   conda:
+    name: Build conda package on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -92,16 +94,23 @@ jobs:
 
       # Can't figure out a way to get the package version from setuptools_scm inside the conda build
       # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
-      - name: Run setuptools_scm to get package version and store in enviroment variable BRAINIAK_VERSION
+      - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION
         if: ${{ contains(matrix.os, 'ubuntu') }} or ${{ contains(matrix.os, 'macos') }}
         run: |
           python -m pip install setuptools_scm
           export BRAINIAK_VERSION=$(python -m setuptools_scm)
           echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
 
+      - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION
+        if: ${{ contains(matrix.os, 'windows') }}
+        run: |
+          python -m pip install setuptools_scm
+          set BRAINIAK_VERSION=$(python -m setuptools_scm)
+          echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV" 
+
       - if: ${{ contains(matrix.os, 'macos') }}
         uses: conda-incubator/setup-miniconda@v3
-      
+
       - name: Setup micromamba and boa
         uses: mamba-org/setup-micromamba@v1
         with:
@@ -109,20 +118,20 @@ jobs:
           create-args: >-
             python=${{ matrix.python-version }}
             boa
+            conda-build
+
       - name: Build and test package
         id: build-package
-        run: |
-          export CONDA_HOME=$CONDA
-          conda install conda-build
-          out_dir="${{ matrix.os }}-build"
-          .conda/bin/build ${{ matrix.python-version }} $out_dir
-          echo "PACKAGE_PATH=${out_dir}" >> "$GITHUB_OUTPUT"
+        run: conda build --ouput-folder=conda_build --python ${{ matrix.python-version }} .conda/
 
       - uses: actions/upload-artifact@v4
         with:
-          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
+          name: conda_build-${{ matrix.os }}-${{ matrix.python-version }}
+          path: conda_build
+
 
   publish_conda:
+    name: Publish to Anaconda
     needs: [conda, pypi]
     name: Publish to Anaconda
     environment: anaconda
@@ -132,7 +141,7 @@ jobs:
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: artifact
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
@@ -167,7 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: Packages
           path: dist
