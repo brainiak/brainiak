@@ -38,7 +38,7 @@ requirements:
   host:
     - python
     - pip
-    - mpich
+    - mpich # [not win]
     - llvm-openmp
     - scikit-build-core
     - cmake

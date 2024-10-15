@@ -127,10 +127,6 @@ jobs:
         id: build-package
         run: conda mambabuild --output-folder=conda_build .conda/
 
-      - name: Setup tmate session
-        if: ${{ contains(matrix.os, 'ubuntu') }}
-        uses: mxschmitt/action-tmate@v3
-
       - uses: actions/upload-artifact@v4
         with:
           name: conda_build-${{ matrix.os }}-${{ matrix.python-version }}
