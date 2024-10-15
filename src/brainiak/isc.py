@@ -58,10 +58,8 @@ import logging
 from scipy.spatial.distance import squareform
 from itertools import combinations, permutations, product
 from brainiak.fcma.util import compute_correlation
-from brainiak.utils.utils import (array_correlation,
-                                      phase_randomize,
-                                      p_from_null,
-                                      _check_timeseries_input)
+from brainiak.utils.utils import (
+    array_correlation, phase_randomize, p_from_null, _check_timeseries_input)
 
 logger = logging.getLogger(__name__)
 
