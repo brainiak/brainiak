@@ -19,7 +19,7 @@ set -o pipefail
 
 flake8 --config .flake8 src/brainiak
 flake8 --config tests/.flake8 tests
-mypy --ignore-missing-imports brainiak tests/[!_]*
+mypy --ignore-missing-imports src/brainiak tests/[!_]*
 rst-lint ./*.rst | { grep -v "is clean.$" || true; }
 towncrier --version=100 --draft > /dev/null 2>&1 \
     || echo "Error assembling news fragments using towncrier."
