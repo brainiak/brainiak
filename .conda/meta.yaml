@@ -24,12 +24,6 @@ source:
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   script_env:
-
-    # We need the source directory because conda removes source / working
-    # directories by the time we reach the test phase. We can optionally pass in
-    # the --keep-old-work flag later on to use the $PREFIX/work directory
-    - BRAINIAK_HOME
-    - MKL_THREADING_LAYER
     - KMP_DUPLICATE_LIB_OK
 
   script:

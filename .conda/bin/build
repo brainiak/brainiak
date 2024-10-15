@@ -14,8 +14,6 @@ then
     out_dir=conda_build_out_dir/
 fi
 
-export BRAINIAK_HOME=$DIR/../../
-
 # See https://github.com/brainiak/brainiak/issues/377
 export KMP_DUPLICATE_LIB_OK=TRUE
 
