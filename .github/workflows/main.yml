@@ -17,8 +17,8 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
       fail-fast: true
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -88,7 +88,7 @@ jobs:
         python-version: ['3.9', '3.10', '3.11']
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # Can't figure out a way to get the package version from setuptools_scm inside the conda build
       # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
@@ -118,7 +118,7 @@ jobs:
           .conda/bin/build ${{ matrix.python-version }} $out_dir
           echo "PACKAGE_PATH=${out_dir}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
 
