@@ -132,7 +132,7 @@ jobs:
 
   publish_conda:
     name: Publish to Anaconda
-    needs: [conda, pypi]
+    needs: [conda, tests]
     environment: anaconda
     permissions:
       id-token: write
@@ -166,7 +166,7 @@ jobs:
         
   publish_pypi:
     name: Publish to PyPI
-    needs: [dist, pypi, conda]
+    needs: [dist, tests, conda]
     environment:
       name: pypi
       url: https://pypi.org/p/brainiak
