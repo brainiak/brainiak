@@ -20,6 +20,8 @@ from typing import TypeVar, Union
 import numpy as np
 cimport numpy as np
 
+np.import_array()
+
 T = TypeVar("T", bound=Real)
 
 def masked_log(x):
