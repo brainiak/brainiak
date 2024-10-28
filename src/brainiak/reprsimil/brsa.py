@@ -2166,7 +2166,8 @@ class BRSA(BaseEstimator, TransformerMixin):
                 X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
                                                  est_rho1_AR1_null)
                 # dimension: #baseline*space
-                beta0s = np.squeeze(np.linalg.solve(X0TAX0, X0TAY.T[:, :, None]).T)
+                beta0s = np.squeeze(
+                    np.linalg.solve(X0TAX0, X0TAY.T[:, :, None]).T)
                 residuals = Y - np.dot(X_base, beta0s[:np.shape(X_base)[1], :])
                 X_res = self.nureg_method(self.n_nureg_).fit_transform(
                     self.preprocess_residual(residuals))
@@ -2184,7 +2185,8 @@ class BRSA(BaseEstimator, TransformerMixin):
         X0TAY = self._make_ar1_quad_form(X0TY, X0TDY, X0TFY,
                                          est_rho1_AR1_null)
         # dimension: #baseline*space
-        est_beta0_AR1_null = np.squeeze(np.linalg.solve(X0TAX0, X0TAY.T[:,:,None]).T)
+        est_beta0_AR1_null = np.squeeze(
+            np.linalg.solve(X0TAX0, X0TAY.T[:,:,None]).T)
 
         YTAY = self._make_ar1_quad_form(YTY_diag, YTDY_diag, YTFY_diag,
                                         est_rho1_AR1_null)
