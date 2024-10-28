@@ -762,7 +762,7 @@ def bootstrap_isc(iscs, pairwise=False, summary_statistic='median',
                 voxel_sample = squareform(voxel_sample, checks=False)
 
                 # Censor off-diagonal 1s for same-subject pairs
-                voxel_sample[voxel_sample == 1.] = np.NaN
+                voxel_sample[voxel_sample == 1.] = np.nan
 
                 isc_sample.append(voxel_sample)
 
