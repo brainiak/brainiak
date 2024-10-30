@@ -208,7 +208,6 @@ if [[ "$is_della" == true ]]; then
     echo "Skipping docs build on della"
 else
     cd docs
-    export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
 
     if [ ! -z $SLURM_NODELIST ]
     then
