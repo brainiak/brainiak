@@ -5,7 +5,7 @@ requires = [
     "pybind11>=2.9.0",
     "scipy!=1.0.0",
     "cython",
-    "oldest-supported-numpy",
+    "numpy>=2.0.0rc1",
 ]
 build-backend = "scikit_build_core.build"
 
@@ -56,7 +56,7 @@ keywords = ["neuroscience", "algorithm", "fMRI", "distributed", "scalable"]
 dynamic = ["version"]
 
 dependencies = [
-    "numpy",
+    "numpy>=1.23.5",
     "mpi4py>=3",              # https://travis-ci.org/brainiak/brainiak/jobs/545838666
     "nitime",
     "scikit-learn>=0.18",

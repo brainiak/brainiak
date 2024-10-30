@@ -46,10 +46,11 @@ requirements:
     - pybind11>=2.9.0
     - scipy!=1.0.0
     - cython
+    - numpy
 
   run:
     - python
-    - numpy
+    - {{ pin_compatible('numpy') }}
     - mpi4py>=3
     - nitime
     - scikit-learn>=0.18
