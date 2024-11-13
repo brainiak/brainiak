@@ -61,7 +61,8 @@ requirements:
     - joblib
     - wheel
     - pydicom
-    - tensorflow
+    - tensorflow  # [not win]
+    - tensorflow-gpu  # [win]
     - tensorflow-probability
 
 test:
