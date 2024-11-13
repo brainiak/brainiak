@@ -104,7 +104,7 @@ def test_X():
         htfa.fit(X, R=R)
 
 
-@pytest.mark.mpiexec(n=2)
+@pytest.mark.mpiexec(n=2, timeout=100)
 def test_can_run():
     import numpy as np
     from brainiak.factoranalysis.htfa import HTFA
