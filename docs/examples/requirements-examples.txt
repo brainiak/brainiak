@@ -3,6 +3,7 @@ brainiak
 nilearn
 nxviz<=0.6.3
 nltools
+tables<=3.9.2 # nltools requires deepdish, which requires tables, tables dropped Python 3.9 support in tables==3.10
 timecorr
 seaborn
 holoviews
