@@ -27,7 +27,7 @@ build:
     - KMP_DUPLICATE_LIB_OK
 
   script:
-    - PIP_NO_INDEX=False {{ PYTHON }} -m pip install pymanopt
+    - {{ PYTHON }} -m pip install pymanopt
     - {{ PYTHON }} -m pip install . -v
 
 requirements:
