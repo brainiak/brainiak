@@ -25,6 +25,7 @@ build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   script_env:
     - KMP_DUPLICATE_LIB_OK
+    - PIP_NO_INDEX=False
 
   script:
     - {{ PYTHON }} -m pip install pymanopt
