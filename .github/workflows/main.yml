@@ -36,18 +36,23 @@ jobs:
       - uses: mpi4py/setup-mpi@v1
         if: ${{ !contains(matrix.os, 'windows') }}
 
-      - run: |
-          python3 -m pip install -U pip
-      - if: ${{ contains(matrix.os, 'ubuntu') }}
-        run: |
-          ./pr-check.sh
-      - if: ${{ contains(matrix.os, 'macos') }}
+      # Setup openmp on macOS
+      - name: Install openmp if on macos
+        if: ${{ contains(matrix.os, 'macos') }}
         run: |
           brew install libomp llvm
           export CLANG_PREFIX=$(brew --prefix llvm)
           export CC=$CLANG_PREFIX/bin/clang
           export CXX=$CLANG_PREFIX/bin/clang++
+
+      - name: Upgrade pip
+        run: |
+          python3 -m pip install -U pip
+
+      - name: Run tests and other checks
+        run: |
           ./pr-check.sh
+
       # - uses: codecov/codecov-action@v1
 
   build_wheels:
