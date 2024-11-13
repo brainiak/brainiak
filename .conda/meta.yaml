@@ -62,8 +62,7 @@ requirements:
     - wheel
     - pydicom
     - tensorflow  # [not win]
-    - tensorflow-gpu  # [win]
-    - tensorflow-probability
+    - tensorflow-probability # [not win]
 
 test:
   source_files:
