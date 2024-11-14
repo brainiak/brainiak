@@ -15,7 +15,7 @@ env:
 
 jobs:
   checks:
-    name: Check Python ${{ matrix.python-version }} on ${{ matrix.runs-on }}
+    name: Check Python ${{ matrix.python-version }} on ${{ matrix.os }}
     env:
       IGNORE_CONDA: true
     runs-on: ${{ matrix.os }}
