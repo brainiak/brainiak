@@ -1,73 +1,49 @@
+name: wheels and conda
+
 on:
   pull_request:
   push:
-  
+#  workflow_dispatch:
+#  release:
+#    types:
+#      - published
+#  pull_request:
+#    paths:
+#      - .github/workflows/cd.yml
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: {% raw %}${{ github.workflow }}-${{ github.ref }}{% endraw %}
   cancel-in-progress: true
 
+env:
+  # Many color libraries just need this to be set to any value, but at least
+  # one distinguishes color depth, where "3" -> "256-bit color".
+  FORCE_COLOR: 3
+
 jobs:
-  tests:
-    name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
-    env:
-      IGNORE_CONDA: true
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, macos-latest]
-        python-version: ["3.9", "3.10", "3.11"]
-      fail-fast: true
+  make_sdist:
+    name: Make SDist
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Build SDist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v4
         with:
-          python-version: ${{ matrix.python-version }}
-
-      # Use intel mpi on windows
-      - uses: mpi4py/setup-mpi@v1
-        if: ${{ contains(matrix.os, 'windows') }}
-        with:
-          mpi: intelmpi
-
-      # Else, use the default for the OS and setup-mpi action
-      - uses: mpi4py/setup-mpi@v1
-        if: ${{ !contains(matrix.os, 'windows') }}
-
-      # Setup openmp on macOS
-      - name: Install openmp if on macos
-        if: ${{ contains(matrix.os, 'macos') }}
-        run: |
-          brew install libomp llvm
-
-      - name: Upgrade pip
-        run: |
-          python3 -m pip install -U pip
-
-      - name: Run tests and other checks
-        if: runner.os == 'Linux'
-        run: |
-          ./pr-check.sh
-
-      - name: Run tests and other checks
-        if: runner.os == 'macOS'
-        run: |
-          export CLANG_PREFIX=$(brew --prefix llvm)
-          export CC=$CLANG_PREFIX/bin/clang
-          export CXX=$CLANG_PREFIX/bin/clang++
-          ./pr-check.sh    
-
-      # - uses: codecov/codecov-action@v1
+          name: cibw-sdist
+          path: dist/*.tar.gz
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Wheel on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-13, macos-14]
-      fail-fast: false
+      fail-fast: true
     steps:
       - uses: actions/checkout@v4
         with:
@@ -109,7 +85,6 @@ jobs:
           cmake --build build --parallel
           cmake --install build
 
-      # Used to host cibuildwheel
       - uses: actions/setup-python@v5
 
       - name: Install cibuildwheel
@@ -117,22 +92,22 @@ jobs:
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
-       
+
       - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
 
-  conda:
-    name: Build conda package on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+  build_conda:
+    name: Conda on ${{ matrix.os }} with Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -leo pipefail {0}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-13, macos-latest]
-        python-version: ['3.9', '3.10', '3.11']
+        os: [ ubuntu-latest, macos-13, macos-latest ]
+        python-version: [ '3.9', '3.10', '3.11' ]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -172,62 +147,56 @@ jobs:
         run: |
           conda config --add channels conda-forge
           conda config --set channel_priority strict
-          conda mambabuild --output-folder=conda_build .conda/
+          conda mambabuild --output-folder=conda-package .conda/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: conda_build-${{ matrix.os }}-${{ matrix.python-version }}
-          path: conda_build
+          name: conda-package-${{ matrix.os }}-${{ matrix.python-version }}
+          path: conda-package
 
-
-  publish_conda:
-    name: Publish to Anaconda
-    needs: [conda, tests]
-    environment: anaconda
-    permissions:
-      id-token: write
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: artifact
-          path: ${{ steps.build-package.outputs.PACKAGE_PATH }}
-
-      - name: List files in artifact
-        run: find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2"
-
-      - name: Upload to Anaconda
-        run: |
-          export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          find ${{ steps.build-package.outputs.PACKAGE_PATH }} -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
-
-  dist:
-    name: Distribution build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: hynek/build-and-inspect-python-package@v1
-        
   publish_pypi:
     name: Publish to PyPI
-    needs: [dist, tests, conda]
+    needs: [ build_wheels, build_conda, make_sdist ]
     environment:
       name: pypi
       url: https://pypi.org/p/brainiak
     permissions:
       id-token: write
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+#    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: Packages
+          pattern: cibw-*
           path: dist
+          merge-multiple: true
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: List files in artifact(s)
+        run: ls -l dist
+
+#      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  publish_conda:
+    name: Publish to Anaconda
+    needs: [ build_conda, build_wheels, make_sdist ]
+    environment: anaconda
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+#    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/v')
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: conda-package-*
+          path: conda-packages
+          merge-multiple: false
+
+      - name: List files in artifact
+        run: find conda-packages -type f -name "*.tar.bz2"
+
+#      - name: Upload to Anaconda
+#        run: |
+#          export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
+#          find conda-packages -type f -name "*.tar.bz2" -exec echo "anaconda upload {}" \;
+
