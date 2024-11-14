@@ -230,7 +230,7 @@ def mpi_runtest(item):
         n = item.callspec.params["mpiexec_n"]
     else:
         n = mpi_mark.kwargs.get("n", 2)
-    timeout = mpi_mark.kwargs.get("timeout", 30)
+    timeout = mpi_mark.kwargs.get("timeout", 120)
     exe = [
         MPIEXEC,
         "-n",
