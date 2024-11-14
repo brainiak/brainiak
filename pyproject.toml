@@ -89,7 +89,7 @@ dev = [
 ]
 
 matnormal = [
-    'tensorflow>=2.18',
+    'tensorflow>=2.16',
     'tensorflow_probability[tf]',
 ]
 
