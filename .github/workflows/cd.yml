@@ -53,7 +53,7 @@ jobs:
       - uses: mpi4py/setup-mpi@v1
         if: ${{ contains(matrix.os, 'windows') }}
         with:
-          mpi: intelmpi
+          mpi: msmpi
 
       # Else, use the default for the OS and setup-mpi action
       - uses: mpi4py/setup-mpi@v1
