@@ -90,7 +90,7 @@ dev = [
 
 matnormal = [
     'tensorflow>=2.16',
-    'tensorflow_probability[tf]',
+    'tensorflow_probability[tf]<=0.24.0', # Issues with TF 2.18 on intel macs (requreied by TFP 0.25)
 ]
 
 examples = [
