@@ -16,6 +16,7 @@ import pytest
 from mpi4py import MPI
 
 
+@pytest.mark.mpiexec(n=2)
 def test_distributed_srm():  # noqa: C901
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
@@ -86,7 +87,7 @@ def test_distributed_srm():  # noqa: C901
     s.fit(X)
     from pathlib import Path
     sr_v0_4 = np.load(Path(__file__).parent / "sr_v0_4.npz")['sr']
-    assert(np.allclose(sr_v0_4, s.s_))
+    assert (np.allclose(sr_v0_4, s.s_))
 
     assert len(s.w_) == subjects, (
         "Invalid computation of SRM! (wrong # subjects in W)")
@@ -150,6 +151,3 @@ def test_distributed_srm():  # noqa: C901
         s.fit(X)
     if rank == 0:
         print("Test: different number of samples per subject")
-
-
-test_distributed_srm()

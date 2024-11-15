@@ -48,29 +48,26 @@ def test_X():
 
     X = np.random.rand(n_voxel, n_tr)
     # Check that does NOT run with wrong data type
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(TypeError, match="Input data should be a list"):
         htfa.fit(X, R=R)
-    assert "Input data should be a list" in str(excinfo.value)
 
     X = []
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError,
+                       match="Need at leat one subject to train the model"):
         htfa.fit(X, R=R)
-    assert "Need at leat one subject to train the model" in str(excinfo.value)
 
     X = []
     X.append([1, 2, 3])
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(TypeError, match="data should be an array"):
         htfa.fit(X, R=R)
-    assert "data should be an array" in str(excinfo.value)
 
     X = []
     X.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(TypeError, match="subject data should be 2D array"):
         htfa.fit(X, R=R)
-    assert "subject data should be 2D array" in str(excinfo.value)
 
     X = []
     for s in np.arange(n_subj):
@@ -78,36 +75,36 @@ def test_X():
     R = np.random.randint(2, high=102, size=(n_voxel, 3))
 
     # Check that does NOT run with wrong data type
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(TypeError, match="Coordinates should be a list"):
         htfa.fit(X, R=R)
-    assert "Coordinates should be a list" in str(excinfo.value)
 
     R = []
     R.append([1, 2, 3])
     # Check that does NOT run with wrong data type
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(
+            TypeError,
+            match="Each scanner coordinate matrix should be an array"):
         htfa.fit(X, R=R)
-    assert ("Each scanner coordinate matrix should be an array"
-            in str(excinfo.value))
 
     R = []
     R.append(np.random.rand(n_voxel))
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(
+            TypeError,
+            match="Each scanner coordinate matrix should be 2D array"):
         htfa.fit(X, R=R)
-    assert ("Each scanner coordinate matrix should be 2D array"
-            in str(excinfo.value))
 
     R = []
     for s in np.arange(n_subj):
         R.append(np.random.rand(n_voxel - 1, 3))
     # Check that does NOT run with wrong array dimension
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(
+            TypeError,
+            match=r"n_voxel should be the same in X\[idx\] and R\[idx\]"):
         htfa.fit(X, R=R)
-    assert ("n_voxel should be the same in X[idx] and R[idx]"
-            in str(excinfo.value))
 
 
+@pytest.mark.mpiexec(n=2, timeout=100)
 def test_can_run():
     import numpy as np
     from brainiak.factoranalysis.htfa import HTFA
@@ -166,3 +163,16 @@ def test_can_run():
             "Invalid result of HTFA! (wrong # element in local_weights)"
         assert htfa.local_posterior_.shape[0] == htfa.prior_size,\
             "Invalid result of HTFA! (wrong # element in local_posterior)"
+
+
+def test_dummy():
+    """
+    This is a dummy test to work around for the issue of pytest and
+    pytest-mpiexec. See here the discussion of the same issue in
+    pytest-forked:
+
+    https://github.com/pytest-dev/pytest-forked/issues/67
+    #issuecomment-1964718720
+
+    """
+    pass

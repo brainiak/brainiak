@@ -12,7 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import conftest
+import pytest
 
 from brainiak.fcma.mvpa_voxelselector import MVPAVoxelSelector
 from brainiak.searchlight.searchlight import Searchlight
@@ -21,19 +21,20 @@ import numpy as np
 from mpi4py import MPI
 from numpy.random import RandomState
 
+
 # specify the random state to fix the random numbers
 prng = RandomState(1234567890)
 
 
-@conftest.skip_non_fork
-def test_mvpa_voxel_selection():
+@pytest.mark.mpiexec(n=2)
+def test_mvpa_voxel_selection(pool_size):
     data = prng.rand(5, 5, 5, 8).astype(np.float32)
     # all MPI processes read the mask; the mask file is small
-    mask = np.ones([5, 5, 5], dtype=np.bool)
+    mask = np.ones([5, 5, 5], dtype=bool)
     mask[0, 0, :] = False
     labels = [0, 1, 0, 1, 0, 1, 0, 1]
     # 2 subjects, 4 epochs per subject
-    sl = Searchlight(sl_rad=1)
+    sl = Searchlight(sl_rad=1, pool_size=pool_size)
     mvs = MVPAVoxelSelector(data, mask, labels, 2, sl)
     # for cross validation, use SVM with precomputed kernel
 

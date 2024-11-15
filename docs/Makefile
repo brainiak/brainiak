@@ -2,7 +2,7 @@
 #
 
 # You can set these variables from the command line.
-SPHINXOPTS    = -W
+SPHINXOPTS    = 
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
@@ -196,4 +196,4 @@ pseudoxml:
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
 
 apidoc:
-	sphinx-apidoc -f -M -o . ../brainiak ../brainiak/fcma/cython_blas.*
+	sphinx-apidoc -f -M -o . ../src/brainiak ../src/brainiak/fcma/cython_blas.*

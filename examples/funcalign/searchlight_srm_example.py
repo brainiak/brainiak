@@ -93,7 +93,7 @@ if rank == 0:
 # Generate mask: mask is a 3D binary array, with active voxels being 1. I simply set 
 # all voxels to be active in this example, but you should set the mask to fit your ROI
 # in practice.
-mask = np.ones((dim1,dim2,dim3), dtype=np.bool)
+mask = np.ones((dim1,dim2,dim3), dtype=bool)
 
 # Create searchlight object
 sl = Searchlight(sl_rad=sl_rad)

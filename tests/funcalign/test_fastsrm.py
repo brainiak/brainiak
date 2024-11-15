@@ -1,5 +1,6 @@
 import os
 import tempfile
+import re
 
 import numpy as np
 import pytest
@@ -593,12 +594,13 @@ def test_fastsrm_class():
             srm.transform(paths)
 
         srm.fit(paths)
+
         # An error can occur if temporary directory already exists
         with pytest.raises(ValueError,
                            match=("Path %s already exists. When a model "
                                   "is used, filesystem should be "
                                   r"cleaned by using the .clean\(\) "
-                                  "method" % srm.temp_dir)):
+                                  "method" % re.escape(srm.temp_dir))):
             # Error can occur if the filesystem is uncleaned
             create_temp_dir(srm.temp_dir)
             create_temp_dir(srm.temp_dir)

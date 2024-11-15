@@ -1,3 +1,7 @@
+src/brainiak/_version.py
+
+venv/
+
 *.iml
 *.eggs
 *.mat
@@ -11,9 +15,13 @@
 *.nii
 *.nii.gz
 *.png
-*.txt
 *.zip
 *.pkl
+
+temp.txt
+docs/examples/fmrisim/Condition_A.txt
+docs/examples/fmrisim/Condition_B.txt
+
 
 data
 tutorials
@@ -35,6 +43,14 @@ __pycache__
 .DS_Store
 __MACOSX
 
-brainiak/fcma/cython_blas.c
-brainiak/eventseg/_utils.c
+src/brainiak/fcma/cython_blas.c
+src/brainiak/eventseg/_utils.c
 examples/fcma/face_scene/
+
+
+docs/examples/fmrisim/Corr_MVPA_archive.tar.gz
+docs/examples/iem/RademakerEtAl2019_WM_S05_avgTime.npz
+docs/examples/isc/brainiak-aperture-isc-data.tgz
+docs/examples/srm/brainiak-aperture-srm-data.tgz
+
+wheelhouse

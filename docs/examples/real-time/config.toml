@@ -1,0 +1,30 @@
+title = 'rtCloud Tutorial'
+sessionId = '20200101T120000'
+subjectName = '001_synthetic'
+datestr = '20200101'
+
+isSynthetic = true
+numSynthetic = 200
+numTrainingTRs = 100
+imgDir = '/tmp/notebook-simdata'
+
+subjectNum = 101
+subjectDay = 1
+sessionNum = 1
+runNum = [1]
+scanNum = [14]
+
+# Plotting settings
+plotTitle = 'Realtime Plot'
+plotXLabel = 'TR #'
+plotYLabel = 'Classifier Prediction'
+plotXRangeLow = 100
+plotXRangeHigh = 200
+plotYRangeLow = -1
+plotYRangeHigh = 1
+plotAutoRangeX = false
+plotAutoRangeY = true
+
+# important variables about the dicom files
+dicomNamePattern = "rt_{TR:03d}.dcm"
+minExpectedDicomSize = 200000

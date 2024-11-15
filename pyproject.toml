@@ -1,3 +1,182 @@
+[build-system]
+requires = [
+    "scikit-build-core",
+    "setuptools_scm>=8.0",
+    "pybind11>=2.9.0",
+    "scipy!=1.0.0",
+    "cython",
+    "numpy>=2.0.0rc1",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "brainiak"
+description = "Brain Imaging Analysis Kit"
+requires-python = ">=3.9"
+readme = "README.rst"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Princeton Neuroscience Institute and Intel Corporation", email = "mihai.capota@intel.com" }
+]
+maintainers = [
+    { name = "Mihai Capota", email = "mihai.capota@intel.com" }
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Programming Language :: C++",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+    "Typing :: Typed"
+]
+keywords = ["neuroscience", "algorithm", "fMRI", "distributed", "scalable"]
+
+dynamic = ["version"]
+
+dependencies = [
+    "numpy>=1.23.5",
+    "mpi4py>=3",              # https://travis-ci.org/brainiak/brainiak/jobs/545838666
+    "nitime",
+    "scikit-learn>=0.18",
+    "scipy!=1.0.0",
+    "statsmodels",
+    "pymanopt",
+    "psutil",
+    "nibabel",
+    "joblib",
+    "wheel",                 # See https://github.com/astropy/astropy-helpers/issues/501
+    "pydicom",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "coverage",
+    "flake8",
+    "flake8-print",
+    "mypy",
+    "myst-nb",
+    "restructuredtext-lint",
+    "setuptools_scm",
+    "sphinx",
+    "sphinx_rtd_theme",
+    "towncrier",
+    "numdifftools",
+    "testbook",
+    "pytest-reportlog",
+]
+
+matnormal = [
+    'tensorflow>=2.16',
+    'tensorflow_probability[tf]<=0.24.0', # Issues with TF 2.18 on intel macs (requreied by TFP 0.25)
+]
+
+examples = [
+    "nilearn",
+    "nxviz<=0.6.3",
+    "timecorr",
+    "seaborn",
+    "holoviews",
+    "pyOpenSSL",
+    "awscli",
+    "bcrypt",
+    "indexed_gzip",
+    "inflect",
+    "ipython",
+    "jupyter",
+    "mypy",
+    "nibabel",
+    "nilearn",
+    "nodejs",
+    "numpy",
+    "pydicom",
+    "requests",
+    "rpyc",
+    "scikit-learn",
+    "scipy>=1.6.0",
+    "toml",
+    "tornado",
+    "websocket-client",
+    "wsaccel",
+    "inotify",
+    "pybids",
+    "watchdog"
+]
+
+all=['brainiak[dev,matnormal,examples]']
+
+[project.urls]
+Homepage = "http://brainiak.org"
+Documentation = "https://brainiak.org/docs/"
+"Bug Tracker" = "https://github.com/brainiak/brainiak/issues"
+Changelog = "https://brainiak.org/docs/release_notes.html"
+Chat = "https://gitter.im/brainiak/brainiak"
+
+[tool.setuptools_scm]
+write_to = "src/brainiak/_version.py"
+
+[tool.scikit-build]
+minimum-version = "0.4"
+build-dir = "build/{wheel_tag}"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = ["src/brainiak/_version.py", "src/brainiak/utils/sim_parameters"]
+cmake.build-type = "Release"
+
+[tool.cibuildwheel]
+test-extras = ["matnormal", "dev"]
+test-command = "python -m pytest {project}/tests"
+archs = ["auto64"]
+skip = [
+    "pp*",
+    "cp313*", "cp314*",     # Tensorflow wheels are not available for Python 3.13 and 3.14
+    "*musllinux*",          # Tensorflow wheels are not available for musllinux
+]
+
+[tool.cibuildwheel.linux]
+before-all = [
+    "yum --disablerepo=epel install -y mpich mpich-devel",
+]
+
+[tool.cibuildwheel.linux.environment]
+PATH = "/usr/lib64/mpich/bin:$PATH"
+
+[tool.coverage.run]
+source = ["brainiak"]
+branch = true
+concurrency = ["multiprocessing"]
+parallel = true
+
+[tool.coverage.report]
+fail_under = 90
+
+[tool.pytest.ini_options]
+addopts = "-s --durations=0"
+markers = [
+    "notebook: marks example notebook tests",
+]
+
 [tool.towncrier]
 directory = "docs/newsfragments"
 package = "brainiak"

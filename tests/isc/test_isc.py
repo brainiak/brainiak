@@ -16,12 +16,14 @@ def simulated_timeseries(n_subjects, n_TRs, n_voxels=30,
     prng = np.random.RandomState(random_state)
     if n_voxels:
         signal = prng.randn(n_TRs, n_voxels)
-        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        prng = np.random.RandomState(prng.randint(0, 2**32 - 1,
+                                                  dtype=np.int64))
         data = [signal + prng.randn(n_TRs, n_voxels) * noise
                 for subject in np.arange(n_subjects)]
     elif not n_voxels:
         signal = prng.randn(n_TRs)
-        prng = np.random.RandomState(prng.randint(0, 2**32 - 1))
+        prng = np.random.RandomState(prng.randint(0, 2**32 - 1,
+                                                  dtype=np.int64))
         data = [signal + prng.randn(n_TRs) * noise
                 for subject in np.arange(n_subjects)]
     if data_type == 'array':

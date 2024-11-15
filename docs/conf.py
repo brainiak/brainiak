@@ -16,8 +16,7 @@
 import sys
 import os
 import shlex
-
-from pkg_resources import get_distribution
+import brainiak
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -57,12 +56,17 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
+suppress_warnings = ["myst.header"]
+# Suppress HTFA Holoviews content
+suppress_warnings = ["mystnb.unknown_mime_type"]
+
 # General information about the project.
 project = 'brainiak'
 copyright = '2016, Princeton Neuroscience Institute and Intel Corporation'
 author = 'Princeton Neuroscience Institute and Intel Corporation'
 
-version = get_distribution(project).version
+# Get the package version
+version = brainiak.__version__
 
 release = version
 
@@ -71,7 +75,7 @@ release = version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -293,5 +297,7 @@ texinfo_documents = [
 napoleon_include_special_with_doc = True
 
 # Myst-nb
-execution_timeout = -1
-jupyter_execute_notebooks = "force"
+myst_heading_anchors = 7
+nb_execution_timeout = -1
+nb_execution_mode = "off"
+
