@@ -16,6 +16,7 @@ import pytest
 from mpi4py import MPI
 
 
+@pytest.mark.mpiexec(n=2)
 def test_distributed_srm():  # noqa: C901
     import brainiak.funcalign.srm
     s = brainiak.funcalign.srm.SRM()
@@ -150,6 +151,3 @@ def test_distributed_srm():  # noqa: C901
         s.fit(X)
     if rank == 0:
         print("Test: different number of samples per subject")
-
-
-test_distributed_srm()

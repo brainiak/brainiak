@@ -2,7 +2,6 @@ testbook
 brainiak
 nilearn
 nxviz<=0.6.3
-nltools
 timecorr
 seaborn
 holoviews

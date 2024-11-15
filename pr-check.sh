@@ -46,7 +46,7 @@ if [[ "$is_della" == true ]]; then
 
 fi
 
-if [ ! -f brainiak/__init__.py ]
+if [ ! -f src/brainiak/__init__.py ]
 then
     echo "Run "$(basename "$0")" from the root of the BrainIAK hierarchy."
     exit 1
@@ -179,7 +179,9 @@ fi
 
 # install brainiak in editable mode (required for testing)
 # Install with all dependencies (testing, documentation, examples, etc.)
-python3 -m pip install $ignore_installed -U -e .[all] || \
+python3 -m pip install $ignore_installed -U \
+    -v --config-settings=cmake.verbose=true --config-settings=logging.level=INFO \
+    -e .[all] || \
     exit_with_error_and_venv "Failed to install BrainIAK."
 
 
@@ -206,7 +208,6 @@ if [[ "$is_della" == true ]]; then
     echo "Skipping docs build on della"
 else
     cd docs
-    export THEANO_FLAGS='device=cpu,floatX=float64,blas.ldflags=-lblas'
 
     if [ ! -z $SLURM_NODELIST ]
     then

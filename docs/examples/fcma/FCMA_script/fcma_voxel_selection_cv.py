@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
         # Load in the mask with nibabel
         mask_img = nib.load(mask_file)
-        mask = mask_img.get_fdata().astype(np.bool)
+        mask = mask_img.get_fdata().astype(bool)
 
         # Preset the volumes
         score_volume = np.zeros(mask.shape, dtype=np.float32)

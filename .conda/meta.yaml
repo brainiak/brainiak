@@ -1,18 +1,22 @@
-{% set conda_package_nonexistent = (
-    "pymanopt<=0.2.5",
-) %}
-{% set data = load_setup_py_data() %}
-
 package:
   # Repeating name because of the following issue:
   # https://github.com/conda/conda-build/issues/2475
   name: brainiak
-  version: {{ environ.get('GIT_DESCRIBE_TAG', 'v0.1.dev1')[1:] }}
+
+  # Can't find a good way to get this from setuptools_scm. This needs to be defined before running conda-build
+  version: {{ environ.get('BRAINIAK_VERSION') }}
 
 about:
-  home: {{ data.get('url') }}
-  license: {{ data.get('license') }}
-  summary: {{ data.get('description') }}
+  home: http://brainiak.org
+  license: Apache-2.0
+  license_family: Apache
+  license_file: LICENSE
+  summary: |
+    The Brain Imaging Analysis Kit is a package of Python modules 
+    useful for neuroscience, primarily focused on functional 
+    Magnetic Resonance Imaging (fMRI) analysis. The package was originally 
+    created by a collaboration between Intel and the 
+    Princeton Neuroscience Institute (PNI).
 
 source:
   path: ../
@@ -20,53 +24,56 @@ source:
 build:
   number: {{ environ.get('GIT_DESCRIBE_NUMBER', 0) }}
   script_env:
-
-    # We need the source directory because conda removes source / working
-    # directories by the time we reach the test phase. We can optionally pass in
-    # the --keep-old-work flag later on to use the $PREFIX/work directory
-    - BRAINIAK_HOME
-    - MKL_THREADING_LAYER
     - KMP_DUPLICATE_LIB_OK
+
+  script:
+    - PIP_NO_INDEX=False {{ PYTHON }} -m pip install pymanopt
+    - {{ PYTHON }} -m pip install . -v
 
 requirements:
   build:
+    - python
     - {{ compiler('cxx') }}
 
   host:
     - python
     - pip
-    - mpich
+    - mpich # [not win]
     - llvm-openmp
-    - setuptools>=42 
-    - wheel
+    - scikit-build-core
+    - cmake
+    - setuptools_scm>=8.0
     - pybind11>=2.9.0
     - scipy!=1.0.0
     - cython
-    - numpy<=1.23.1
-    - setuptools_scm
+    - numpy
 
   run:
     - python
-    - numpy<=1.23.1
-    - mpich
-    - llvm-openmp
-    - tensorflow
-    - tensorflow-probability
-    {% for req in data.get('install_requires', [])
-        if req not in conda_package_nonexistent -%}
-    - {{req}}
-    {% endfor %}
+    - {{ pin_compatible('numpy') }}
+    - mpi4py>=3
+    - nitime
+    - scikit-learn>=0.18
+    - scipy!=1.0.0
+    - statsmodels
+    - psutil
+    - nibabel
+    - joblib
+    - wheel
+    - pydicom
+    - tensorflow  # [not win]
+    - tensorflow-probability # [not win]
 
 test:
+  source_files:
+    - tests
+    - pyproject.toml
+  imports:
+    - brainiak
   commands:
-    - find $BRAINIAK_HOME/tests | grep pycache | xargs rm -rf
-    - mpiexec -n 2 pytest $BRAINIAK_HOME
-
-      # Known issue: https://github.com/travis-ci/travis-ci/issues/4704#issuecomment-348435959
-    - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
-    - conda inspect linkages -p $PREFIX brainiak  # [not win]
-    - conda inspect objects -p $PREFIX brainiak  # [osx]
+    - pytest
   requires:
     - pytest
     - testbook
     - numdifftools
+    - pytest-reportlog

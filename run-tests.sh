@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #  Copyright 2016 Intel Corporation
 #
@@ -28,24 +28,14 @@ python3 -m pip freeze | grep -qi /brainiak \
     exit 1
 }
 
-# Define MKL env variable that is required by Theano to run with MKL 2018
-# If removing, also remove from .conda/*
-export MKL_THREADING_LAYER=GNU
-
-mpi_command=$BRAINIAKDEV_MPI_COMMAND
-if [ -z $mpi_command ]
-then
-    mpi_command=mpiexec
-fi
-echo "Using mpi command: ${mpi_command}"
-$mpi_command -n 2 coverage run -m mpi4py -m pytest
+coverage run -m pytest
 
 # Check whether we are running on Princeton's della compute cluster.
 # If so, run the notebook tests separately
 if [[ $(hostname -s) == della* ]];
 then
     echo "Running non-MPI notebook tests on della"
-    $mpi_command -n 1 pytest -s --durations=0 tests/test_notebooks.py --enable_notebook_tests
+    pytest -s --durations=0 tests/test_notebooks.py --enable_notebook_tests
 fi
 
 # Coverage produces empty files which trigger warnings on combine

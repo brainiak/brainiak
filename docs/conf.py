@@ -16,8 +16,7 @@
 import sys
 import os
 import shlex
-
-from pkg_resources import get_distribution
+import brainiak
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -66,7 +65,8 @@ project = 'brainiak'
 copyright = '2016, Princeton Neuroscience Institute and Intel Corporation'
 author = 'Princeton Neuroscience Institute and Intel Corporation'
 
-version = get_distribution(project).version
+# Get the package version
+version = brainiak.__version__
 
 release = version
 

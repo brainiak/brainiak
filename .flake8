@@ -1,0 +1,10 @@
+[flake8]
+max-complexity = 10
+extend-ignore =
+    # Docstrings
+    D,
+    E721,
+    E231
+
+per-file-ignores =
+    src/brainiak/__init__.py:F401
