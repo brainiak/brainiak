@@ -1,7 +1,7 @@
 Brain Imaging Analysis Kit
 ==========================
 
-.. image:: https://github.com/brainiak/brainiak/actions/workflows/main.yml/badge.svg
+.. image:: https://github.com/brainiak/brainiak/actions/workflows/ci.yml/badge.svg
     :alt: Status of GitHub Actions workflow
     :target: https://github.com/brainiak/brainiak/actions
 
