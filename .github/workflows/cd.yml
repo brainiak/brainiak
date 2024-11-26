@@ -201,7 +201,7 @@ jobs:
         run: find conda-packages -type f -name "*.tar.bz2"
 
       - name: Install Anaconda CLI
-        run: pip install anaconda-client
+        run: conda install anaconda-client
 
       - name: Upload to Anaconda
         run: |
