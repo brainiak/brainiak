@@ -198,6 +198,10 @@ jobs:
 
       - name: Upload to Anaconda
         run: |
+          set -e  # Exit immediately if any command exits with a non-zero status
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          find conda-packages -type f -name "*.tar.bz2" -exec anaconda upload {} \;
+          for file in $(find conda-packages -type f -name "*.tar.bz2"); do
+            echo "Uploading $file"
+            anaconda upload "$file"
+          done
 
