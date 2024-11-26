@@ -196,5 +196,5 @@ jobs:
       - name: Upload to Anaconda
         run: |
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
-          find conda-packages -type f -name "*.tar.bz2" -exec "anaconda upload {}" \;
+          find conda-packages -type f -name "*.tar.bz2" -exec anaconda upload {} \;
 
