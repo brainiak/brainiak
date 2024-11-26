@@ -190,6 +190,10 @@ jobs:
     runs-on: ubuntu-latest
 #    if: github.event_name == 'release' && github.event.action == 'published'
 
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -200,12 +204,17 @@ jobs:
       - name: List files in artifact
         run: find conda-packages -type f -name "*.tar.bz2"
 
-      - name: Install Anaconda CLI
-        run: conda install anaconda-client
+      - name: Setup micromamba and boa
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-name: test-env
+          create-args: >-
+            anaconda-client
+          init-shell: >-
+            bash
 
       - name: Upload to Anaconda
         run: |
-          set -e  # Exit immediately if any command exits with a non-zero status
           export ANACONDA_API_TOKEN=${{ secrets.ANACONDA_TOKEN }}
           for file in $(find conda-packages -type f -name "*.tar.bz2"); do
             echo "Uploading $file"
