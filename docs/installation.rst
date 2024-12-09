@@ -2,18 +2,38 @@
 Installation
 ============
 
+Binaries
+++++++++
+
+
+PyPI
+====
+
+You can install BrainIAK wheels from PyPI on Linux, macOS, and Windows, e.g. using pip::
+
+    python3 -m pip install brainiak
+
+
+MPI
+---
+
+On Linux and macOS, there are no MPI4PY binaries in PyPI, so you need to install MPI separately, e.g., following the BrainIAK `source installation instructions <#requirements>`_.
+
+On Windows, MPI4PY binaries will be installed as BrainIAK dependencies. You can also install an MPI implementation available on PyPI such as Intel MPI::
+
+    python3 -m pip install impi-rt
+
+
 Conda
-+++++
+=====
 
 Make sure you have the ``conda-forge`` channel active, because some of our
 dependencies are not available in the default channels.
 
 Use our ``brainiak`` channel to install::
 
-    conda install -c brainiak -c defaults -c conda-forge brainiak
+    conda install -c brainiak -c conda-forge brainiak
 
-Note that `~brainiak.funcalign.sssrm.SSSRM` currently uses Theano, which
-requires the Xcode Command Line Tools on `MacOS`_.
 
 Source
 ++++++
@@ -21,8 +41,8 @@ Source
 Requirements
 ============
 
-We support Linux and MacOS with Python version 3.5 or higher. Most of the
-dependencies will be installed automatically. However, a few need to be
+We support Linux, MacOS, and Windows with Python version 3.9 or higher. Most of
+the dependencies will be installed automatically. However, a few need to be
 installed manually.
 
 
