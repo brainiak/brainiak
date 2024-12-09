@@ -27,23 +27,15 @@ package name), we use ``brainiak``.
 Quickstart
 ==========
 
-If you have `Conda <conda.io>`_::
-
-    conda install -c brainiak -c defaults -c conda-forge brainiak
-
-Otherwise, or if you want to compile from source, install the requirements (see
-`docs/installation`) and then install from PyPI::
+You can install BrainIAK wheels from PyPI on Linux, macOS, and Windows, e.g. using pip::
 
     python3 -m pip install brainiak
 
-Note that to use the ``brainiak.matnormal`` package, you need to install
-additional dependencies. As of October 2020, the required versions are not
-available as Conda packages, so you should install from PyPI, even when using
-Conda::
+If you need MPI, see the installation requirements in `docs/installation`.
 
-    python3 -m pip install -U tensorflow tensorflow-probability
+If you have `Conda <conda.io>`_, you can also use our Conda packages (not available for Windows). Installing BrainIAK will also install MPI::
 
-Note that we do not support Windows.
+    conda install -c brainiak -c conda-forge brainiak
 
 
 Docker
@@ -67,7 +59,7 @@ Note that we do not support MPI execution using Docker containers and that perfo
 Support
 =======
 
-If you have a question or feedback, chat with us on `Gitter
+If you have a question or feedback, chat with us on `Matrix via Gitter
 <https://gitter.im/brainiak/brainiak>`_ or email our list at
 brainiak@googlegroups.com. If you find a problem with BrainIAK, you can also
 `open an issue on GitHub <https://github.com/brainiak/brainiak/issues>`_.
