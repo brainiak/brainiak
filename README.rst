@@ -44,14 +44,9 @@ Docker
 You can also test BrainIAK without installing it using Docker::
 
     docker pull brainiak/brainiak
-    docker run -it -p 8888:8888 -v brainiak:/mnt --name demo brainiak/brainiak
+    docker run -it -p 8899:8899 brainiak/brainiak
 
-To run Jupyter notebooks in the running container, try::
-
-    python3 -m notebook --allow-root --no-browser --ip=0.0.0.0
-
-Then visit http://localhost:8888 in your browser and enter the token. Protip:
-run ``screen`` before running the notebook command.
+Jupyter Notebook will start automatically; visit the URL shown in the Docker command output to access it. You can then run the BrainIAK examples or create new notebooks. You can also try a `sample example <http://127.0.0.1:8899/notebooks/examples/funcalign/rsrm_synthetic_reconstruction.ipynb>`_.
 
 Note that we do not support MPI execution using Docker containers and that performance will not be optimal.
 

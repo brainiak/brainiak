@@ -2,6 +2,32 @@
 
 .. towncrier release notes start
 
+BrainIAK 0.12 (2024-12-24)
+==========================
+
+Features
+--------
+
+- Add support for Windows (`#549 <https://github.com/brainiak/brainiak/issues/549>`_)
+- Publish wheels (`#549 <https://github.com/brainiak/brainiak/issues/549>`_)
+
+Bugfixes
+--------
+
+- Fix Docker image.
+
+Documentation improvements
+--------------------------
+
+- fmrisim: Burn in is removed so that the size of the signal and noise volumes are the same (`#542 <https://github.com/brainiak/brainiak/issues/542>`_)
+
+Deprecations and removals
+-------------------------
+
+- Refactor package to generally recommended src layout (`#549 <https://github.com/brainiak/brainiak/issues/549>`_)
+- Drop support for Python < 3.9 (`#549 <https://github.com/brainiak/brainiak/issues/549>`_)
+
+
 BrainIAK 0.11 (2020-10-14)
 ==========================
 

@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 # Group 1 must be synced with README
@@ -30,17 +30,25 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY brainiak-* /mnt/brainiak
+COPY dist/brainiak-* /mnt
+
+WORKDIR /mnt
+
+RUN set -e \
+    && tar -xf brainiak-*.tar.gz \
+    && mv brainiak-*.tar.gz sdist.tar.gz \
+    && mv brainiak-* brainiak
 
 WORKDIR /mnt/brainiak
 
 COPY tutorials/tutorials tutorials
 
 RUN set -e \
-    && python3 -m pip install --user -U pip \
-    && python3 -m pip install --user -U -r tutorials/requirements.txt \
+    && python3 -m pip install --user --break-system-packages -U pip \
+    && python3 -m pip install --user --break-system-packages -U . \
+    && python3 -m pip install --user --break-system-packages -U -r tutorials/requirements.txt \
     && for example in examples/*/requirements.txt; \
-        do python3 -m pip install --user -U -r $example ; done \
+        do python3 -m pip install --user --break-system-packages -U -r $example ; done \
     && rm -rf ~/.cache/pip
 
 RUN echo PATH=\"\$HOME/.local/bin:\$PATH\" >> $HOME/.profile \
