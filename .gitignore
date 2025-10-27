@@ -1,6 +1,7 @@
 src/brainiak/_version.py
 
 venv/
+.venv/
 
 *.iml
 *.eggs
