@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: astral-sh/setup-uv@v1
+      - uses: astral-sh/setup-uv@v7
 
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install ${UV_PYTHON}
