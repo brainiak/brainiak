@@ -60,7 +60,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           uv run ./run-checks.sh
-          uv run ./run-tests.sh
+          uv run ./run-tests.sh --sdist-mode
           uv run bash -lc 'cd docs && make'
 
       - name: Run static analysis and tests
@@ -70,7 +70,7 @@ jobs:
           export CC=$CLANG_PREFIX/bin/clang
           export CXX=$CLANG_PREFIX/bin/clang++
           uv run ./run-checks.sh
-          uv run ./run-tests.sh
+          uv run ./run-tests.sh --sdist-mode
           uv run bash -lc 'cd docs && make'
 
       # On window, just install the package and run tests for now, we need to port the pr-check script to windows
