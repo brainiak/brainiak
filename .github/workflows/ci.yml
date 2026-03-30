@@ -54,7 +54,12 @@ jobs:
           brew install libomp llvm
 
       - name: Synchronize project environment
-        run: uv sync --locked --extra dev --extra matnormal --extra examples
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            export CC=$(brew --prefix llvm)/bin/clang
+            export CXX=$(brew --prefix llvm)/bin/clang++
+          fi
+          uv sync --locked --extra dev --extra matnormal --extra examples
 
       - name: Run static analysis and tests
         if: runner.os == 'Linux'
