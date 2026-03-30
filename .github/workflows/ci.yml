@@ -73,7 +73,7 @@ jobs:
           uv run ./run-tests.sh --sdist-mode
           uv run bash -lc 'cd docs && make'
 
-      # On window, just install the package and run tests for now, we need to port the pr-check script to windows
+      # On Windows, just install the package and run tests for now, we need to port the pr-check script to windows
       - name: Run tests and other checks
         if: runner.os == 'Windows'
         run: |
