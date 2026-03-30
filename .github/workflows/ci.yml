@@ -43,9 +43,15 @@ jobs:
         with:
           mpi: msmpi
 
-      # Else, use the default for the OS and setup-mpi action
+      # Use mpich on linux (openmpi tends to hang in GitHub Actions runners)
       - uses: mpi4py/setup-mpi@v1
-        if: ${{ !contains(matrix.os, 'windows') }}
+        if: ${{ contains(matrix.os, 'ubuntu') }}
+        with:
+          mpi: mpich
+
+      # Use the default for the OS (openmpi) on macOS
+      - uses: mpi4py/setup-mpi@v1
+        if: ${{ contains(matrix.os, 'macos') }}
 
       # Setup openmp on macOS
       - name: Install openmp if on macos

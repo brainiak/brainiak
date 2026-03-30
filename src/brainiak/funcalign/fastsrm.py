@@ -36,10 +36,17 @@ def get_shape(path):
     path: str
         path to np array
     """
-    f = open(path, "rb")
-    version = np.lib.format.read_magic(f)
-    shape, fortran_order, dtype = np.lib.format._read_array_header(f, version)
-    f.close()
+    with open(path, "rb") as f:
+        version = np.lib.format.read_magic(f)
+        if version == (1, 0):
+            shape, fortran_order, dtype = (
+                np.lib.format.read_array_header_1_0(f))
+        elif version == (2, 0):
+            shape, fortran_order, dtype = (
+                np.lib.format.read_array_header_2_0(f))
+        else:
+            raise ValueError(
+                "Unknown numpy .npy format version: %s" % str(version))
     return shape
 
 
