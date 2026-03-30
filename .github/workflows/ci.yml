@@ -16,22 +16,26 @@ env:
 jobs:
   checks:
     name: Check Python ${{ matrix.python-version }} on ${{ matrix.os }}
-    env:
-      IGNORE_CONDA: true
     runs-on: ${{ matrix.os }}
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
-        os: [ ubuntu-20.04, macos-latest, windows-latest ]
-        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
+        os: [ ubuntu-22.04, macos-latest, windows-latest ]
+        python-version: [ "3.10", "3.11", "3.12" ]
       fail-fast: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install ${UV_PYTHON}
 
       # Use msmpi on windows
       - uses: mpi4py/setup-mpi@v1
@@ -49,28 +53,30 @@ jobs:
         run: |
           brew install libomp llvm
 
-      - name: Upgrade pip
-        run: |
-          python3 -m pip install -U pip
+      - name: Synchronize project environment
+        run: uv sync --locked --extra dev --extra matnormal --extra examples
 
-      - name: Run tests and other checks
+      - name: Run static analysis and tests
         if: runner.os == 'Linux'
         run: |
-          ./pr-check.sh
+          uv run ./run-checks.sh
+          uv run ./run-tests.sh --sdist-mode
+          uv run bash -lc 'cd docs && make'
 
-      - name: Run tests and other checks
+      - name: Run static analysis and tests
         if: runner.os == 'macOS'
         run: |
           export CLANG_PREFIX=$(brew --prefix llvm)
           export CC=$CLANG_PREFIX/bin/clang
           export CXX=$CLANG_PREFIX/bin/clang++
-          ./pr-check.sh    
+          uv run ./run-checks.sh
+          uv run ./run-tests.sh --sdist-mode
+          uv run bash -lc 'cd docs && make'
 
-      # On window, just install the package and run tests for now, we need to port the pr-check script to windows
+      # On Windows, just install the package and run tests for now, we need to port the pr-check script to windows
       - name: Run tests and other checks
         if: runner.os == 'Windows'
         run: |
-            python -m pip install .[all] -v
-            python -m pytest -v 
+            uv run python -m pytest -v
 
       # - uses: codecov/codecov-action@v1
