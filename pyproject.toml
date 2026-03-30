@@ -12,7 +12,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "brainiak"
 description = "Brain Imaging Analysis Kit"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 readme = "README.rst"
 license = { file = "LICENSE" }
 authors = [
@@ -66,8 +66,8 @@ dependencies = [
     "psutil",
     "nibabel",
     "joblib",
-    "wheel",                 # See https://github.com/astropy/astropy-helpers/issues/501
-    "pydicom",
+    "wheel>=0.46.2",         # See https://github.com/astropy/astropy-helpers/issues/501
+    "pydicom>=3.0.2",
 ]
 
 [project.optional-dependencies]
@@ -99,7 +99,7 @@ examples = [
     "timecorr",
     "seaborn",
     "holoviews",
-    "pyOpenSSL",
+    "pyOpenSSL>=26.0.0",
     "awscli",
     "bcrypt",
     "indexed_gzip",
@@ -111,13 +111,13 @@ examples = [
     "nilearn",
     "nodejs",
     "numpy",
-    "pydicom",
+    "pydicom>=3.0.2",
     "requests",
     "rpyc",
     "scikit-learn",
     "scipy>=1.6.0",
     "toml",
-    "tornado",
+    "tornado>=6.5.5",
     "websocket-client",
     "wsaccel",
     "inotify",
