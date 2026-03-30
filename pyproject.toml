@@ -181,12 +181,6 @@ markers = [
     "notebook: marks example notebook tests",
 ]
 
-[tool.uv]
-# Build mpi4py from source to link against the locally-installed MPI
-# runtime, avoiding shared-library lookup failures with pre-built wheels
-# (e.g. "libmpi.so.12: cannot open shared object file").
-no-binary-package = ["mpi4py"]
-
 [tool.towncrier]
 directory = "docs/newsfragments"
 package = "brainiak"

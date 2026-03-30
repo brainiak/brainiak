@@ -26,7 +26,7 @@ jobs:
       matrix:
         os: [ ubuntu-22.04, macos-latest, windows-latest ]
         python-version: [ "3.10", "3.11", "3.12" ]
-      fail-fast: true
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,7 +59,15 @@ jobs:
             export CC=$(brew --prefix llvm)/bin/clang
             export CXX=$(brew --prefix llvm)/bin/clang++
           fi
-          uv sync --locked --extra dev --extra matnormal --extra examples
+          # Build mpi4py from source on Linux so it links against the
+          # locally-installed MPI runtime; pre-built wheels cause
+          # "libmpi.so.12: cannot open shared object file" on Linux.
+          # On macOS and Windows the pre-built wheels work fine.
+          ARGS=(--locked --extra dev --extra matnormal --extra examples)
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            ARGS+=(--no-binary-package mpi4py)
+          fi
+          uv sync "${ARGS[@]}"
 
       - name: Run static analysis and tests
         if: runner.os == 'Linux'
