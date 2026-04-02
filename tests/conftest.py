@@ -1,4 +1,3 @@
-import multiprocessing
 import sys
 
 from mpi4py import MPI
@@ -50,17 +49,22 @@ def seeded_rng():
 @pytest.fixture(scope="module", autouse=True)
 def pool_size():
     """
-    Set the pool_size to 1 for MPI tests when start_method for multiprocessing
-    is not fork.
+    Set the pool_size to 1 for MPI tests to avoid forking inside MPI
+    processes.
 
     This replaces the old skip_non_fork fixture. We don't need to skip these
     tests completely, but we need to ensure that the pool_size is set to 1 so
     they don't launch any multiprocessing pools within the MPI environment.
+    Forking inside an MPI process can cause hangs or crashes with certain MPI
+    transports (e.g., libfabric EFA on AWS-based CI runners).
     On windows, it seems like intel mpi and msmpi both have issues with fork,
     so we need to set the pool_size to 1 there as well.
     """
-    if (multiprocessing.get_start_method() != "fork" and
-            MPI.COMM_WORLD.Get_attr(MPI.APPNUM) is not None):
+    # When running inside an MPI subprocess (launched by mpiexec), avoid
+    # forking regardless of the multiprocessing start method.  On Linux the
+    # default start method is "fork", but fork()-after-MPI_Init is unsafe with
+    # many MPI transports (libfabric EFA, OpenMPI shared-memory, …).
+    if MPI.COMM_WORLD.Get_attr(MPI.APPNUM) is not None:
         return 1
 
     # OpenMPI has issues with fork, so we need to set the pool_size to 1

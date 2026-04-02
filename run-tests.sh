@@ -20,13 +20,14 @@ set -e
 # detect editable mode. Use the "--sdist-mode" flag.
 sdist_mode=$1
 
-python3 -m pip freeze | grep -qi /brainiak \
-        || [ ${sdist_mode:-default} = "--sdist-mode" ] \
-        || {
-    echo "You must install brainiak in editable mode"`
-        `" before calling "$(basename "$0")
-    exit 1
-}
+if [ "${sdist_mode:-default}" != "--sdist-mode" ]; then
+    python3 -m pip freeze | grep -qi /brainiak \
+            || {
+        echo "You must install brainiak in editable mode"`
+            `" before calling "$(basename "$0")
+        exit 1
+    }
+fi
 
 coverage run -m pytest
 
