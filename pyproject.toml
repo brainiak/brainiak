@@ -164,6 +164,7 @@ before-all = [
 
 [tool.cibuildwheel.linux.environment]
 PATH = "/usr/lib64/mpich/bin:$PATH"
+LD_LIBRARY_PATH = "/usr/lib64/mpich/lib:$LD_LIBRARY_PATH"
 
 [tool.coverage.run]
 source = ["brainiak"]
