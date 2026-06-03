@@ -27,8 +27,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: astral-sh/setup-uv@v7
+
       - name: Build SDist
-        run: pipx run build --sdist
+        run: uv build --sdist
 
       - uses: actions/upload-artifact@v4
         with:
@@ -46,6 +48,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v7
 
       # Use intel mpi on windows
       - uses: mpi4py/setup-mpi@v1
@@ -83,13 +87,8 @@ jobs:
           cmake --build build --parallel
           cmake --install build
 
-      - uses: actions/setup-python@v5
-
-      - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel
-
       - name: Build wheels
-        run: python -m cibuildwheel --output-dir wheelhouse
+        run: uvx cibuildwheel --output-dir wheelhouse
 
       - uses: actions/upload-artifact@v4
         with:
@@ -105,28 +104,21 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-13, macos-latest ]
-        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+        python-version: [ '3.10', '3.11', '3.12' ]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Can't figure out a way to get the package version from setuptools_scm inside the conda build
-      # We need to install setuptools_scm, call it as a module, and store the version in an environment variable
-      - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION (Linux\Mac)
-        if: ${{ !contains(matrix.os, 'windows') }}
-        run: |
-          python -m pip install setuptools_scm
-          export BRAINIAK_VERSION=$(python -m setuptools_scm)
-          echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
+      - uses: astral-sh/setup-uv@v7
 
-      - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION (Windows)
-        if: ${{ contains(matrix.os, 'windows') }}
+      # Can't figure out a way to get the package version from setuptools_scm inside the conda build
+      # We need to call it as a module and store the version in an environment variable
+      - name: Run setuptools_scm to get package version and store in environment variable BRAINIAK_VERSION
         run: |
-          python -m pip install setuptools_scm
-          set BRAINIAK_VERSION=$(python -m setuptools_scm)
-          echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV" 
+          BRAINIAK_VERSION=$(uvx --from setuptools-scm python -m setuptools_scm)
+          echo "BRAINIAK_VERSION=${BRAINIAK_VERSION}" >> "$GITHUB_ENV"
 
       - name: Setup micromamba and boa
         uses: mamba-org/setup-micromamba@v1
@@ -213,4 +205,3 @@ jobs:
             echo "Uploading $file"
             anaconda upload "$file"
           done
-
