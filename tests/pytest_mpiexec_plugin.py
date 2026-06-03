@@ -219,6 +219,44 @@ def consolidate_reports(nodeid, reports, style=ReportStyle.first_failure):
     return reports
 
 
+def _as_text(output):
+    if isinstance(output, bytes):
+        return output.decode("utf8", "replace")
+    return output
+
+
+def _collect_reports(reportlog_dir, n):
+    reports = {}
+    for rank in range(n):
+        reportlog_file = os.path.join(reportlog_dir, f"reportlog-{rank}.jsonl")
+        if os.path.exists(reportlog_file):
+            with open(reportlog_file) as f:
+                for line in f:
+                    report = json.loads(line)
+                    if report["$report_type"] != "TestReport":
+                        continue
+                    report["_mpi_rank"] = rank
+                    nodeid = report["nodeid"]
+                    reports.setdefault(nodeid, []).append(report)
+
+    for nodeid, report_list in reports.items():
+        reports[nodeid] = consolidate_reports(
+            nodeid, report_list, REPORT_STYLE)
+
+    return reports
+
+
+def _replay_reports(item, reports):
+    for report in chain(*reports.values()):
+        if report["$report_type"] == "TestReport":
+            # reconstruct and redisplay the report
+            r = item.config.hook.pytest_report_from_serializable(
+                config=item.config, data=report
+            )
+            item.config.hook.pytest_runtest_logreport(
+                config=item.config, report=r)
+
+
 def mpi_runtest(item):
     """Replacement for runtest
 
@@ -261,15 +299,18 @@ def mpi_runtest(item):
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired as e:
+            reports = _collect_reports(reportlog_dir, n)
+            if reports:
+                _replay_reports(item, reports)
             if e.stdout:
                 item.add_report_section(
                     "mpiexec pytest", "stdout",
-                    e.stdout.decode("utf8", "replace")
+                    _as_text(e.stdout)
                 )
             if e.stderr:
                 item.add_report_section(
                     "mpiexec pytest", "stderr",
-                    e.stderr.decode("utf8", "replace")
+                    _as_text(e.stderr)
                 )
             pytest.fail(
                 f"mpi test did not complete in {timeout} seconds",
@@ -277,34 +318,8 @@ def mpi_runtest(item):
             )
 
         # Collect logs from all ranks
-        reports = {}
-        for rank in range(n):
-            reportlog_file = os.path.join(reportlog_dir,
-                                          f"reportlog-{rank}.jsonl")
-            if os.path.exists(reportlog_file):
-                with open(reportlog_file) as f:
-                    for line in f:
-                        report = json.loads(line)
-                        if report["$report_type"] != "TestReport":
-                            continue
-                        report["_mpi_rank"] = rank
-                        nodeid = report["nodeid"]
-                        reports.setdefault(nodeid, []).append(report)
-
-        for nodeid, report_list in reports.items():
-            # consolidate reports according to config
-            reports[nodeid] = consolidate_reports(
-                nodeid, report_list, REPORT_STYLE)
-
-        # collect report items for the test
-        for report in chain(*reports.values()):
-            if report["$report_type"] == "TestReport":
-                # reconstruct and redisplay the report
-                r = item.config.hook.pytest_report_from_serializable(
-                    config=item.config, data=report
-                )
-                item.config.hook.pytest_runtest_logreport(
-                    config=item.config, report=r)
+        reports = _collect_reports(reportlog_dir, n)
+        _replay_reports(item, reports)
 
     if p.returncode or not reports:
         if p.stdout:
