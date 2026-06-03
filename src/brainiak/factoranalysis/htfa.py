@@ -328,15 +328,17 @@ class HTFA(TFA):
                 from_sym_2_tri(posterior_cov)
 
             # widths
+            prior_width_mean_var = prior_widths_mean_var[k].item()
+            prior_width = prior_widths[k].item()
             common = 1.0 /\
-                (prior_widths_mean_var[k] + self.global_widths_var_scaled)
+                (prior_width_mean_var + self.global_widths_var_scaled)
             observation_mean = np.mean(next_widths)
             tmp = common * self.global_widths_var_scaled
             self.global_posterior_[self.map_offset[1].item() + k] = \
-                prior_widths_mean_var[k] * common * observation_mean +\
-                tmp * prior_widths[k]
+                prior_width_mean_var * common * observation_mean +\
+                tmp * prior_width
             self.global_posterior_[self.map_offset[3].item() + k] = \
-                prior_widths_mean_var[k] * tmp
+                prior_width_mean_var * tmp
 
         return self
 
