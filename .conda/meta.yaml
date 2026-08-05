@@ -63,6 +63,7 @@ requirements:
     - pydicom
     - tensorflow  # [not win]
     - tensorflow-probability # [not win]
+    - tf-keras # [not win]
 
 test:
   source_files:
