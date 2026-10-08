@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      all:
+      all-version-updates:
+        patterns:
+          - "*"
+      all-security-updates:
+        applies-to: security-updates
         patterns:
           - "*"

@@ -5,6 +5,9 @@ on:
   release:
     types:
       - published
+  merge_group:
+    paths:
+      - .github/workflows/cd.yml
   pull_request:
     paths:
       - .github/workflows/cd.yml
