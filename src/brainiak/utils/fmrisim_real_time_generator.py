@@ -302,7 +302,9 @@ def _get_input_names(data_dict):
         Path to template file for data
 
     noise_dict_file : str
-        Path to file containing parameters for noise simulation
+        Path to a file containing a Python literal dictionary of noise parameters.
+        Expressions and NumPy constructors are rejected. Convert NumPy scalar
+        values to native Python scalars before serializing with repr().
 
     """
 
@@ -376,6 +378,14 @@ def generate_data(outputDir,
         or as fast as possible (0)?
         isi - float - What is the time between each event (in seconds)
         burn_in - int - How long before the first event (in seconds)
+        noise_dict_file - str - Path to a Python literal dictionary. Expressions
+        such as np.float64(...) are rejected. For scalar values returned by
+        calc_noise(), serialize native values, for example::
+
+            native_noise = {key: value.item() if isinstance(value, np.generic)
+                            else value for key, value in noise.items()}
+            with open("noise.txt", "w") as stream:
+                stream.write(repr(native_noise))
 
     """
     data_dict = default_settings.copy()
