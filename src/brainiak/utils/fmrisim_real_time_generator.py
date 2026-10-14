@@ -26,6 +26,7 @@ possible (0)?
 isi - What is the time between each event (in seconds)
 burn_in - How long before the first event (in seconds)
 """
+import ast
 import os
 import time
 import argparse
@@ -418,7 +419,8 @@ def generate_data(outputDir,
         # Read the resource stream object
         noise_dict = noise_dict_file.decode()
 
-    noise_dict = eval(noise_dict)
+    # Accept Python literals only, not expressions or NumPy constructors.
+    noise_dict = ast.literal_eval(noise_dict)
     noise_dict['matched'] = 0  # Increases processing time
 
     # Add it here for easy access
