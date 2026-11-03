@@ -426,6 +426,15 @@ class Searchlight:
             Maximum number of processes running the block function in parallel.
             If None, number of available hardware threads, considering cpusets
             restrictions.
+
+        Returns
+        -------
+
+        An object array with the same shape as the mask, where each voxel
+        contains the 3D array returned by the block function for the block
+        containing that voxel, with the padding removed. The array is
+        populated only on the root rank; on other ranks it is returned
+        unpopulated.
         """
         rank = self.comm.rank
 
